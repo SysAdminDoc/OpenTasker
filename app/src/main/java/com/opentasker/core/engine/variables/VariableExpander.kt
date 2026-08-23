@@ -259,7 +259,18 @@ class VariableExpander {
             return parts.all { evaluateConditionInternal(it, store, arrays) }
         }
 
-        val comparison = parseComparison(normalized) ?: return normalized.toBoolean()
+        // A real binary comparison always wins over the unary is_set/not_set reading: e.g.
+        // "%status == is_set", comparing a variable against the literal string "is_set", must
+        // stay an equality check, not get hijacked into an existence check just because the text
+        // happens to end with that word. Unary existence syntax is tried only once no binary
+        // comparison matches at all -- which also means "is_set"/"not_set" can never appear as a
+        // *value* on either side of a real ==, !=, ~, etc. comparison and be misread as the unary
+        // operator, since parseComparison always gets first look.
+        val comparison = parseComparison(normalized)
+        if (comparison == null) {
+            unaryExistenceResult(normalized, store, arrays)?.let { return it }
+            return normalized.toBoolean()
+        }
         val left = expandInternal(comparison.left, store, arrays)
         val right = expandInternal(comparison.right, store, arrays)
 
@@ -270,6 +281,51 @@ class VariableExpander {
             ComparisonOperator.GE -> compareNumbers(left, right) { l, r -> l >= r }
             ComparisonOperator.LT -> compareNumbers(left, right) { l, r -> l < r }
             ComparisonOperator.GT -> compareNumbers(left, right) { l, r -> l > r }
+            ComparisonOperator.MATCHES -> matchesGlob(left, right)
+            ComparisonOperator.NOT_MATCHES -> !matchesGlob(left, right)
+        }
+    }
+
+    /**
+     * Tasker's wildcard match: `*` is the only special character, everything else is literal.
+     * Used for imported "Matches"/"Doesn't Match" conditions (Tasker op codes 2/3), e.g.
+     * `%pa_do ~ view_url` or `%pa_json ~ *"say":*`. Regex metacharacters other than `*` are
+     * escaped so a pattern like `%pa_x1.example` matches a literal dot, not "any character".
+     */
+    /**
+     * Tasker's wildcard match: `*` is the only special character, everything else is literal.
+     * Used for imported "Matches"/"Doesn't Match" conditions (Tasker op codes 2/3), e.g.
+     * `%pa_do ~ view_url` or `%pa_json ~ *"say":*`.
+     *
+     * Goes through [compileLinearRegex] (RE2, linear-time) with the same [MAX_REGEX_LENGTH] /
+     * [MAX_REGEX_INPUT_LENGTH] guards this file already applies to every other regex built from
+     * import- or variable-derived text (see the `regex:`/`replace:` var-ops above), rather than
+     * Kotlin's backtracking `Regex`: `pattern` here comes from imported Tasker condition data,
+     * not a fixed literal, so several `*` wildcards is exactly the shape that causes catastrophic
+     * backtracking in a standard engine. `com.google.re2j.Pattern.quote` is RE2J's per-character
+     * `quoteMeta` escaper, not `kotlin.text.Regex.escape`'s `\Q...\E` -- RE2 doesn't implement
+     * `\Q...\E` as a syntax construct at all, so the latter would either fail to compile or (worse)
+     * be silently misinterpreted.
+     *
+     * `\A`/`\z` anchor for a full-string match (RE2J's `Matcher` is not confirmed to expose a
+     * `.matches()` convenience the way `java.util.regex.Matcher` does, so this uses the same
+     * `.find()` call already proven out at the other [compileLinearRegex] call sites).
+     */
+    private fun matchesGlob(value: String, pattern: String): Boolean {
+        if (pattern.length > MAX_REGEX_LENGTH || value.length > MAX_REGEX_INPUT_LENGTH) return false
+        val regex = buildString {
+            append("(?s)\\A")
+            pattern.split("*").forEachIndexed { index, literal ->
+                if (index > 0) append(".*")
+                append(Re2Pattern.quote(literal))
+            }
+            append("\\z")
+        }
+        val matcher = compileLinearRegex(regex)?.matcher(value) ?: return false
+        return try {
+            matcher.find()
+        } catch (e: RuntimeException) {
+            false
         }
     }
 
@@ -294,6 +350,42 @@ class VariableExpander {
         if (parts.isEmpty()) return null
         parts += expr.substring(partStart).trim()
         return parts
+    }
+
+    /**
+     * Unary existence checks (imported from Tasker's "Is Set"/"Not Set" condition ops, which have
+     * no right-hand operand). Suffix-anchored, not scanned like the binary operators, so a
+     * variable value that happens to contain "is_set"/"not_set" mid-string can't false-match.
+     * Returns null when `normalized` doesn't end with either suffix at all, so the caller can
+     * fall through to its own default (`normalized.toBoolean()`).
+     *
+     * This evaluator has two call paths with different pre-expansion behavior:
+     * TaskRunner.evaluateConditionString expands the whole condition once before calling in, but
+     * VariableStore.evaluateCondition (used directly by callers/tests that don't go through
+     * TaskRunner) does not expand at all -- `normalized` can arrive as raw `%variable` text. The
+     * binary comparison branch stays correct under both by calling expandInternal on its operands
+     * regardless of whether the caller already did; this needs the same self-sufficiency, so it
+     * must not assume expansion already happened.
+     *
+     * Empty (post-expansion) operand is a real, meaningful case, not a malformed condition: when
+     * the source variable is unset and the caller pre-expanded (the TaskRunner path), e.g.
+     * "%text not_set" arrives as just " not_set" (empty value + the literal suffix), and
+     * `cond.trim()` at the top of [evaluateConditionInternal] then eats that boundary space -- so
+     * an empty-operand match and a bare "not_set"/"is_set" with nothing before it are
+     * indistinguishable by the time we see them, and both correctly mean "the value is empty".
+     */
+    private fun unaryExistenceResult(normalized: String, store: VariableStore, arrays: ArrayStore): Boolean? {
+        for ((suffix, wantsNonEmpty) in UNARY_EXISTENCE_SUFFIXES) {
+            val bareSuffix = suffix.trim()
+            if (normalized.equals(bareSuffix, ignoreCase = true)) {
+                return !wantsNonEmpty
+            }
+            if (normalized.endsWith(suffix, ignoreCase = true)) {
+                val operand = expandInternal(normalized.removeSuffix(suffix).trim(), store, arrays)
+                return if (wantsNonEmpty) operand.isNotEmpty() else operand.isEmpty()
+            }
+        }
+        return null
     }
 
     private fun stripOuterParens(expr: String): String {
@@ -328,7 +420,7 @@ class VariableExpander {
                 ')' -> if (depth > 0) depth--
             }
             if (depth == 0) {
-                val operator = COMPARISON_OPERATORS.firstOrNull { expr.startsWith(it.token, index) }
+                val operator = COMPARISON_OPERATORS.firstOrNull { expr.matchesOperatorAt(it, index) }
                 if (operator != null) {
                     val left = expr.substring(0, index).trim()
                     val right = expr.substring(index + operator.token.length).trim()
@@ -341,6 +433,27 @@ class VariableExpander {
             index++
         }
         return matches.singleOrNull()
+    }
+
+    /**
+     * True if `operator`'s token occurs at `index`, and -- for [ComparisonOperator.MATCHES] /
+     * [ComparisonOperator.NOT_MATCHES] only -- is bounded by whitespace or a string edge on both
+     * sides. `~` and `!~` are ordinary characters in real values in a way `==`/`<`/etc. are not
+     * (paths like `~/backups`, version strings like `1.2~rc1`, approximations like `~100`), so
+     * without this a literal tilde inside an otherwise unambiguous comparison's left/right text
+     * makes parseComparison find two operator matches instead of one, `matches.singleOrNull()`
+     * returns null, and the whole comparison silently falls back to `normalized.toBoolean()`
+     * (false) -- turning a working condition into one that's always false. The other operators
+     * don't get this treatment: it would be a larger, non-additive behavior change for tokens
+     * this project already shipped with, out of scope for this fix.
+     */
+    private fun String.matchesOperatorAt(operator: ComparisonOperator, index: Int): Boolean {
+        if (!startsWith(operator.token, index)) return false
+        if (operator != ComparisonOperator.MATCHES && operator != ComparisonOperator.NOT_MATCHES) return true
+        val before = index == 0 || this[index - 1].isWhitespace()
+        val afterIndex = index + operator.token.length
+        val after = afterIndex >= length || this[afterIndex].isWhitespace()
+        return before && after
     }
 
     private fun compareNumbers(left: String, right: String, predicate: (Double, Double) -> Boolean): Boolean {
@@ -427,15 +540,26 @@ class VariableExpander {
         GE(">="),
         LT("<"),
         GT(">"),
+        MATCHES("~"),
+        NOT_MATCHES("!~"),
     }
 
     companion object {
+        // (suffix, isSetWhenTrue) — order matters: "not_set"/"!is_set" style negatives must be
+        // checked before a shorter positive suffix could partially match, though with these two
+        // literal strings neither is a suffix of the other, so this is just future-proofing.
+        private val UNARY_EXISTENCE_SUFFIXES = listOf(
+            " is_set" to true,
+            " not_set" to false,
+        )
         private val COMPARISON_OPERATORS = listOf(
             ComparisonOperator.EQ,
             ComparisonOperator.NE,
             ComparisonOperator.LE,
             ComparisonOperator.GE,
             ComparisonOperator.LT,
+            ComparisonOperator.NOT_MATCHES,
+            ComparisonOperator.MATCHES,
             ComparisonOperator.GT,
         )
         private const val MAX_REGEX_LENGTH = 256

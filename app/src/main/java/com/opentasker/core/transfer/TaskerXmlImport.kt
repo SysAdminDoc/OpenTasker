@@ -426,7 +426,26 @@ object TaskerXmlImporter {
             )
             else -> ActionWithLoss(unsupportedAction(code))
         }
-        val action = actionWithLoss.action
+        // Real Tasker exports carry a "Run only if" guard as a sibling <ConditionList>, not as
+        // <Str> action args -- this applies to any action type, not just flow-control If/Else If.
+        // For most actions "condition" isn't a real arg key, so the parsed value only needs to
+        // land on the generic action.condition field. flow.if is the exception: its own args map
+        // already carries the old flat-<Str> fallback under "condition" (see the "37"/"if" branch
+        // above), and that same key is what both TaskRunner's stepControl and the action editor's
+        // existingActionArgValue() read as the if's actual test expression -- so when this action
+        // type already has an args["condition"] entry, overwrite it with the real parsed condition
+        // instead of dropping it, or the editor shows a blank required field for a working import.
+        val (importedCondition, conditionWarning) = element.parseImportedCondition()
+        val action = if (importedCondition != null) {
+            val args = if (actionWithLoss.action.args.containsKey("condition")) {
+                actionWithLoss.action.args + ("condition" to importedCondition)
+            } else {
+                actionWithLoss.action.args
+            }
+            actionWithLoss.action.copy(condition = importedCondition, args = args)
+        } else {
+            actionWithLoss.action
+        }
         val unsupported = if (action.type == TASKER_UNSUPPORTED_ACTION_ID) {
             TaskerUnsupportedAction(taskName = taskName, taskerCode = code, actionIndex = actionIndex)
         } else {
@@ -441,7 +460,9 @@ object TaskerXmlImporter {
             action = action,
             mapped = mapped,
             unsupported = unsupported,
-            lossyWarning = actionWithLoss.lossyWarning,
+            lossyWarning = listOfNotNull(actionWithLoss.lossyWarning, conditionWarning)
+                .joinToString("; ")
+                .ifBlank { null },
         )
     }
 
@@ -560,6 +581,55 @@ object TaskerXmlImporter {
     private fun Element.argIndex(): Int =
         getAttribute("sr").filter(Char::isDigit).toIntOrNull() ?: Int.MAX_VALUE
 
+    private data class ImportedCondition(val expression: String?, val warning: String?)
+
+    /**
+     * Reads a Tasker `<ConditionList sr="if"><Condition><lhs>/<op>/<rhs></Condition></ConditionList>`
+     * -- real Tasker exports encode the "Run only if" guard this way on ANY action, not just
+     * flow-control If/Else If (measured on a real backup: 85 of 118 ConditionList occurrences were
+     * on ordinary actions like Set Variable). Returns a condition string in this app's own syntax,
+     * or a null expression if the action has no ConditionList, which is the normal case for most
+     * actions.
+     *
+     * Only the single-condition case is handled: every real sample examined had exactly one
+     * `<Condition>` per list. Tasker does support AND/OR chains of multiple conditions via extra
+     * `<Condition>`/`<Bool>` siblings; a multi-condition list degrades to using only the first
+     * condition (rather than silently producing "true" the way every ConditionList case did before
+     * this fix) and reports that degradation via [ImportedCondition.warning]. Likewise, an `<op>`
+     * code outside the known Tasker set (0-9, 12, 13) yields a null expression -- which for flow.if
+     * specifically falls back to the old literal-"true" behavior -- but is now reported instead of
+     * silently reproduced.
+     */
+    private fun Element.parseImportedCondition(): ImportedCondition {
+        val conditionList = directChildren("ConditionList").firstOrNull() ?: return ImportedCondition(null, null)
+        val conditions = conditionList.directChildren("Condition")
+        val condition = conditions.firstOrNull() ?: return ImportedCondition(null, null)
+        val lhs = condition.childText("lhs")
+        if (lhs.isBlank()) return ImportedCondition(null, null)
+        val multiConditionWarning = if (conditions.size > 1) {
+            "a multi-condition \"Run only if\" guard was reduced to just its first condition"
+        } else {
+            null
+        }
+        val op = condition.childText("op")
+        val expression = when (op) {
+            "12" -> "$lhs is_set"
+            "13" -> "$lhs not_set"
+            else -> {
+                val token = TASKER_CONDITION_OP_TOKENS[op]
+                    ?: return ImportedCondition(
+                        expression = null,
+                        warning = listOfNotNull(
+                            multiConditionWarning,
+                            "a \"Run only if\" guard used an unsupported Tasker comparison (op $op) and was dropped",
+                        ).joinToString("; "),
+                    )
+                "$lhs $token ${condition.childText("rhs")}"
+            }
+        }
+        return ImportedCondition(expression, multiConditionWarning)
+    }
+
     private fun org.w3c.dom.NodeList.asElementList(): List<Element> =
             (0 until length).mapNotNull { index -> item(index).takeIf { it.nodeType == Node.ELEMENT_NODE } as? Element }
 
@@ -600,4 +670,26 @@ object TaskerXmlImporter {
     )
 
     const val TASKER_UNSUPPORTED_ACTION_ID = "tasker.unsupported"
+
+    // Tasker's numeric Condition <op> codes, sourced from github.com/mctinker/Map-Tasker's
+    // IF_CONDITION_OPERATORS table (a mature, independently-verified Tasker XML tool) and
+    // cross-checked against a real backup: op values 0/1/2/12/13 all appear and match their
+    // documented semantics -- e.g. the one real op=1 instance compares %http_response_code
+    // against 200, matching this project's own documented "Doesn't Match 200" HTTP-status check.
+    // 3-9 don't appear in that corpus but are included for completeness. 8/9 are the "(Numeric)"
+    // variants of =/!=; this evaluator has no numeric-aware equality distinct from string
+    // equality, so they map to the same tokens as 0/1. 12/13 (Is Set/Not Set) are unary and
+    // handled separately in parseImportedCondition, not through this map.
+    private val TASKER_CONDITION_OP_TOKENS = mapOf(
+        "0" to "==",
+        "1" to "!=",
+        "2" to "~",
+        "3" to "!~",
+        "4" to "~",
+        "5" to "!~",
+        "6" to "<",
+        "7" to ">",
+        "8" to "==",
+        "9" to "!=",
+    )
 }

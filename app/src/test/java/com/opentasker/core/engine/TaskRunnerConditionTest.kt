@@ -267,4 +267,137 @@ class TaskRunnerConditionTest {
         assertTrue(trace.toSummaryLine().contains("token=<redacted>"))
         assertTrue(trace.toSummaryLine().contains("template warnings: 1"))
     }
+
+    // Covers the condition syntax now emitted by TaskerXmlImport for imported Tasker
+    // <ConditionList> Is Set/Not Set/Matches conditions (op codes 12/13/2/3).
+
+    @Test
+    fun runsActionWhenIsSetConditionMatchesNonEmptyVariable() = runBlocking {
+        var ran = false
+        ActionRegistry.register(
+            object : Action {
+                override val id = "test.condition.isset.run"
+                override val category = ActionCategory.FLOW
+                override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+                    ran = true
+                    return ActionResult.Success
+                }
+            }
+        )
+
+        val variables = VariableStore().apply { set("text", "set a timer") }
+        val report = TaskRunner(ActionContext(ContextWrapper(null), variables)).run(
+            Task(
+                name = "IsSet",
+                actions = listOf(ActionSpec(type = "test.condition.isset.run", condition = "%text is_set")),
+            )
+        )
+
+        assertTrue(ran)
+        assertTrue(report.results.single() is ActionResult.Success)
+    }
+
+    @Test
+    fun skipsActionWhenIsSetConditionSeesUnsetVariable() = runBlocking {
+        var ran = false
+        ActionRegistry.register(
+            object : Action {
+                override val id = "test.condition.isset.skip"
+                override val category = ActionCategory.FLOW
+                override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+                    ran = true
+                    return ActionResult.Success
+                }
+            }
+        )
+
+        val variables = VariableStore()
+        val report = TaskRunner(ActionContext(ContextWrapper(null), variables)).run(
+            Task(
+                name = "IsSetUnset",
+                actions = listOf(ActionSpec(type = "test.condition.isset.skip", condition = "%text is_set")),
+            )
+        )
+
+        assertFalse(ran)
+        assertTrue(report.results.single() is ActionResult.Skip)
+    }
+
+    @Test
+    fun runsActionWhenNotSetConditionSeesUnsetVariable() = runBlocking {
+        var ran = false
+        ActionRegistry.register(
+            object : Action {
+                override val id = "test.condition.notset.run"
+                override val category = ActionCategory.FLOW
+                override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+                    ran = true
+                    return ActionResult.Success
+                }
+            }
+        )
+
+        val variables = VariableStore()
+        val report = TaskRunner(ActionContext(ContextWrapper(null), variables)).run(
+            Task(
+                name = "NotSet",
+                actions = listOf(ActionSpec(type = "test.condition.notset.run", condition = "%text not_set")),
+            )
+        )
+
+        assertTrue(ran)
+        assertTrue(report.results.single() is ActionResult.Success)
+    }
+
+    @Test
+    fun runsActionWhenMatchesConditionSatisfiesWildcard() = runBlocking {
+        var ran = false
+        ActionRegistry.register(
+            object : Action {
+                override val id = "test.condition.matches.run"
+                override val category = ActionCategory.FLOW
+                override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+                    ran = true
+                    return ActionResult.Success
+                }
+            }
+        )
+
+        val variables = VariableStore().apply { set("do", "view_url") }
+        val report = TaskRunner(ActionContext(ContextWrapper(null), variables)).run(
+            Task(
+                name = "Matches",
+                actions = listOf(ActionSpec(type = "test.condition.matches.run", condition = "%do ~ view_url")),
+            )
+        )
+
+        assertTrue(ran)
+        assertTrue(report.results.single() is ActionResult.Success)
+    }
+
+    @Test
+    fun skipsActionWhenDoesntMatchConditionFindsWildcardMatch() = runBlocking {
+        var ran = false
+        ActionRegistry.register(
+            object : Action {
+                override val id = "test.condition.notmatches.skip"
+                override val category = ActionCategory.FLOW
+                override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+                    ran = true
+                    return ActionResult.Success
+                }
+            }
+        )
+
+        val variables = VariableStore().apply { set("json", "{\"say\":\"hello\"}") }
+        val report = TaskRunner(ActionContext(ContextWrapper(null), variables)).run(
+            Task(
+                name = "NotMatches",
+                actions = listOf(ActionSpec(type = "test.condition.notmatches.skip", condition = "%json !~ *\"say\":*")),
+            )
+        )
+
+        assertFalse(ran)
+        assertTrue(report.results.single() is ActionResult.Skip)
+    }
 }

@@ -36,6 +36,26 @@ class TaskerXmlExportTest {
     }
 
     @Test
+    fun exportsImportedFlowIfConditionInsteadOfFallbackTrue() {
+        // Regression coverage for the import/export pairing: a flow.if imported from a Tasker
+        // <ConditionList> carries its real test expression in args["condition"] (see
+        // TaskerXmlImport's ConditionList handling), which this exporter reads directly at
+        // line ~186. If that key were ever dropped again on import, every re-exported "if" would
+        // silently degrade to the literal fallback "true" with no error.
+        val task = Task(
+            id = 1,
+            name = "Imported if",
+            actions = listOf(
+                ActionSpec(type = "flow.if", condition = "%text is_set", args = mapOf("condition" to "%text is_set")),
+            ),
+        )
+        val report = TaskerXmlExporter.export(emptyList(), listOf(task))
+
+        assertTrue(report.xml.contains("<Str sr=\"arg0\" ve=\"3\">%text is_set</Str>"))
+        assertFalse(report.xml.contains("<Str sr=\"arg0\" ve=\"3\">true</Str>"))
+    }
+
+    @Test
     fun exportsTimeContextsWithClockParts() {
         val profile = Profile(
             id = 1,

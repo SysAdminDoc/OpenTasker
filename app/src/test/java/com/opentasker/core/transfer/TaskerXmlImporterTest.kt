@@ -358,4 +358,196 @@ class TaskerXmlImporterTest {
         assertTrue(confirmedBundle.profiles.single().requiresRiskAcknowledgement)
         assertTrue(confirmedBundle.metadata.warnings.any { it.contains("disabled by default") })
     }
+
+    // Real Tasker exports (verified against a live 6.6.20 backup) encode a "Run only if" guard
+    // as a sibling <ConditionList>, not as <Str> action args -- and this is not exclusive to
+    // flow-control If/Else If: it appears on ordinary actions too (Set Variable, etc). Before this
+    // fix, every <ConditionList>-guarded action silently lost its condition, either falling back
+    // to the literal string "true" (flow.if's own args["condition"] default) or, for every other
+    // action type, being left with no condition at all -- i.e. running unconditionally.
+
+    @Test
+    fun conditionListOnFlowIfIsParsedIntoRealCondition() {
+        val report = TaskerXmlImporter.parse(
+            rawXml = """
+                <TaskerData>
+                    <Task sr="task1">
+                        <id>1</id><nme>WithConditionList</nme>
+                        <Action sr="act0">
+                            <code>37</code>
+                            <ConditionList sr="if">
+                                <Condition sr="c0"><lhs>%text</lhs><op>12</op><rhs></rhs></Condition>
+                            </ConditionList>
+                        </Action>
+                        <Action sr="act1"><code>38</code></Action>
+                    </Task>
+                </TaskerData>
+            """.trimIndent(),
+            appVersion = "test",
+            importedAtEpochMs = 123L,
+        )
+
+        val ifAction = report.bundle.tasks.single().actions.first()
+        assertEquals("flow.if", ifAction.type)
+        assertEquals("%text is_set", ifAction.condition)
+        // flow.if reads its test expression from args["condition"] (both at runtime, in
+        // TaskRunner.stepControl, and in the action editor's existingActionArgValue()), so the old
+        // literal-"true" fallback placed there by the flat-<Str> branch must be overwritten with the
+        // real parsed condition rather than merely dropped -- leaving it absent would blank the
+        // editor's required field even though the import produced a working condition.
+        assertEquals("%text is_set", ifAction.args["condition"])
+    }
+
+    @Test
+    fun conditionListOnOrdinaryActionIsParsedAsGenericGuard() {
+        // This is the case the original fix (scoped only to code 37) would have missed entirely:
+        // a plain Set Variable (code 547) with its own "Run only if" guard, exactly like the 85 of
+        // 118 real ConditionList occurrences found on non-flow-control actions in a live backup.
+        val report = TaskerXmlImporter.parse(
+            rawXml = """
+                <TaskerData>
+                    <Task sr="task1">
+                        <id>1</id><nme>GuardedSetVariable</nme>
+                        <Action sr="act0">
+                            <code>547</code>
+                            <Str sr="arg0">%pa_sta</Str>
+                            <Str sr="arg1">toggle</Str>
+                            <ConditionList sr="if">
+                                <Condition sr="c0"><lhs>%pa_do</lhs><op>0</op><rhs>toggle</rhs></Condition>
+                            </ConditionList>
+                        </Action>
+                    </Task>
+                </TaskerData>
+            """.trimIndent(),
+            appVersion = "test",
+            importedAtEpochMs = 123L,
+        )
+
+        val action = report.bundle.tasks.single().actions.single()
+        assertEquals("var.set", action.type)
+        assertEquals("%pa_do == toggle", action.condition)
+        // The action's own regular args (name/value) must be untouched by the condition handling.
+        assertEquals("%pa_sta", action.args["name"])
+        assertEquals("toggle", action.args["value"])
+    }
+
+    @Test
+    fun conditionListNotSetOperatorIsParsed() {
+        val report = TaskerXmlImporter.parse(
+            rawXml = """
+                <TaskerData>
+                    <Task sr="task1">
+                        <id>1</id><nme>NotSet</nme>
+                        <Action sr="act0">
+                            <code>37</code>
+                            <ConditionList sr="if">
+                                <Condition sr="c0"><lhs>%pa_ac</lhs><op>13</op><rhs></rhs></Condition>
+                            </ConditionList>
+                        </Action>
+                    </Task>
+                </TaskerData>
+            """.trimIndent(),
+            appVersion = "test",
+            importedAtEpochMs = 123L,
+        )
+
+        assertEquals("%pa_ac not_set", report.bundle.tasks.single().actions.single().condition)
+    }
+
+    @Test
+    fun conditionListMatchesOperatorIsParsedWithWildcardRhs() {
+        val report = TaskerXmlImporter.parse(
+            rawXml = """
+                <TaskerData>
+                    <Task sr="task1">
+                        <id>1</id><nme>Matches</nme>
+                        <Action sr="act0">
+                            <code>37</code>
+                            <ConditionList sr="if">
+                                <Condition sr="c0"><lhs>%pa_x3</lhs><op>2</op><rhs>*pa_json.*</rhs></Condition>
+                            </ConditionList>
+                        </Action>
+                    </Task>
+                </TaskerData>
+            """.trimIndent(),
+            appVersion = "test",
+            importedAtEpochMs = 123L,
+        )
+
+        assertEquals("%pa_x3 ~ *pa_json.*", report.bundle.tasks.single().actions.single().condition)
+    }
+
+    @Test
+    fun actionWithoutConditionListKeepsExistingFlatStringBehavior() {
+        // Backward compatibility: an action with no <ConditionList> at all (the synthetic
+        // flat-<Str> shape this importer previously assumed for every code-37 action) must import
+        // exactly as before -- this fix is additive, not a replacement of that path.
+        val report = TaskerXmlImporter.parse(
+            rawXml = """
+                <TaskerData>
+                    <Task sr="task1">
+                        <id>1</id><nme>FlatCondition</nme>
+                        <Action sr="act0"><code>37</code><Str sr="arg0">%MODE = quiet</Str></Action>
+                    </Task>
+                </TaskerData>
+            """.trimIndent(),
+            appVersion = "test",
+            importedAtEpochMs = 123L,
+        )
+
+        val action = report.bundle.tasks.single().actions.single()
+        assertEquals("%MODE = quiet", action.args["condition"])
+        assertEquals(null, action.condition)
+    }
+
+    @Test
+    fun multiConditionListWarnsAndUsesOnlyFirstCondition() {
+        val report = TaskerXmlImporter.parse(
+            rawXml = """
+                <TaskerData>
+                    <Task sr="task1">
+                        <id>1</id><nme>MultiCondition</nme>
+                        <Action sr="act0">
+                            <code>37</code>
+                            <ConditionList sr="if">
+                                <Condition sr="c0"><lhs>%pa_do</lhs><op>0</op><rhs>toggle</rhs></Condition>
+                                <Condition sr="c1"><lhs>%pa_ac</lhs><op>13</op><rhs></rhs></Condition>
+                            </ConditionList>
+                        </Action>
+                    </Task>
+                </TaskerData>
+            """.trimIndent(),
+            appVersion = "test",
+            importedAtEpochMs = 123L,
+        )
+
+        assertEquals("%pa_do == toggle", report.bundle.tasks.single().actions.single().condition)
+        assertTrue(report.lossyWarnings.any { it.contains("reduced to just its first condition") })
+    }
+
+    @Test
+    fun unmappedConditionOperatorWarnsInsteadOfSilentlyFallingBackToTrue() {
+        val report = TaskerXmlImporter.parse(
+            rawXml = """
+                <TaskerData>
+                    <Task sr="task1">
+                        <id>1</id><nme>UnknownOp</nme>
+                        <Action sr="act0">
+                            <code>37</code>
+                            <ConditionList sr="if">
+                                <Condition sr="c0"><lhs>%pa_do</lhs><op>99</op><rhs>toggle</rhs></Condition>
+                            </ConditionList>
+                        </Action>
+                    </Task>
+                </TaskerData>
+            """.trimIndent(),
+            appVersion = "test",
+            importedAtEpochMs = 123L,
+        )
+
+        val action = report.bundle.tasks.single().actions.single()
+        assertEquals(null, action.condition)
+        assertEquals("true", action.args["condition"])
+        assertTrue(report.lossyWarnings.any { it.contains("unsupported Tasker comparison (op 99)") })
+    }
 }
