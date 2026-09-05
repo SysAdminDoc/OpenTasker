@@ -299,7 +299,10 @@ object OpenTaskerBundleCodec {
         context: ExportRedactionPolicy.Context,
     ): ExportedText {
         if (value.isNullOrBlank()) return ExportedText(value, wasRedacted = false)
-        val carriesSecret = context.secretValues.any { it.isNotEmpty() && value.contains(it) }
+        // ignoreCase for the same reason redactText matches that way: a secret retyped with
+        // different capitalisation is the same credential, and a case-sensitive contains() let one
+        // through into the bundle, the paste text and a shared profile.
+        val carriesSecret = context.secretValues.any { it.isNotEmpty() && value.contains(it, ignoreCase = true) }
         if (!carriesSecret) return ExportedText(value, wasRedacted = false)
         // The whole field goes, not just the secret inside it. Substituting in place looked
         // friendlier and was unsafe: `%Pin != 4321` would have become `%Pin != [REDACTED]`, which

@@ -14,6 +14,13 @@
 
 ### Fixed
 
+- A secret typed with different capitalisation than the one you stored is now
+  removed from exports too. Matching was case-sensitive, so a secret saved as
+  `sk-live-abc123` and written into an action, a "Run only if" guard or a label
+  as `sk-Live-ABC123` went out in the clear in the exported bundle, the paste
+  text, a shared profile and the diagnostic report. It is the same credential
+  either way.
+
 - Read data from HTML no longer accepts the selectors that can hang a task.
   `:matches()` and its variants, plus `[attr~=regex]`, are matched by a regular
   expression engine that certain patterns send into a search that runs for

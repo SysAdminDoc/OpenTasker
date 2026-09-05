@@ -79,7 +79,12 @@ object ExportRedactionPolicy {
             .filter { it.isNotEmpty() }
             .distinct()
             .sortedByDescending(String::length)
-            .forEach { value -> redacted = redacted.replace(value, placeholder) }
+            // ignoreCase, because a secret retyped with different capitalisation is the same
+            // credential. Kotlin's two-argument replace defaults to case-sensitive, so a stored
+            // `sk-live-abc123` left a hand-typed `sk-Live-ABC123` in the clear in every export.
+            // This can over-redact when a secret's value is an ordinary word, which is the right
+            // way round to be wrong: a redacted word is recoverable, a leaked credential is not.
+            .forEach { value -> redacted = redacted.replace(value, placeholder, ignoreCase = true) }
 
         redacted = URL_PATTERN.replace(redacted) { match -> redactUrl(match.value, placeholder) }
         redacted = AUTHORIZATION_PATTERN.replace(redacted) { match ->
