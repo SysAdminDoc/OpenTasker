@@ -24,6 +24,14 @@ class DataReadAction : DeclaredAction(ActionCatalog.require("data.read")) {
         val path = args["path"].orEmpty()
         val varName = (args["var"] ?: args["variable"])?.trim()?.ifBlank { null } ?: "data"
 
+        // The reader refuses these too, but it can only fail closed with a null. Naming the reason
+        // here is the difference between "your selector is unsupported and here is why" and the
+        // generic "could not read" a user would otherwise get for a selector that looks valid.
+        if (format.trim().lowercase() == "html") {
+            StructuredDataReader.unsupportedHtmlSelectorReason(path.trim())
+                ?.let { return ActionResult.Failure(it) }
+        }
+
         val result = StructuredDataReader.read(format, source, path)
             ?: return ActionResult.Failure("could not read $format data at path '$path'")
 

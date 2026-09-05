@@ -314,7 +314,7 @@ All dependency versions are centralized in `gradle/libs.versions.toml`.
 
 ## Planned
 
-`data.read` supports bounded HTML extraction with CSS selectors and normalized element text. Parsing is local-only and never fetches linked resources; the pinned jsoup parser is MIT-licensed and included in the F-Droid-compatible dependency set.
+`data.read` supports bounded HTML extraction with CSS selectors and normalized element text. Parsing is local-only and never fetches linked resources; the pinned jsoup parser is MIT-licensed and included in the F-Droid-compatible dependency set. The regex-matching selectors (`:matches()`, `:matchesOwn()`, `:matchesWholeText()`, `:matchesWholeOwnText()` and `[attr~=regex]`) are refused with an explanation, because jsoup evaluates them with a backtracking engine that a pathological pattern can run for minutes inside a call the task timeout cannot interrupt. Every other selector, including `[attr^=]`, `[attr$=]`, `[attr*=]` and `:contains()`, works as usual.
 
 Key remaining work:
 

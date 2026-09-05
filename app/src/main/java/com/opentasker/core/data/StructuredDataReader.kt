@@ -198,8 +198,38 @@ object StructuredDataReader {
     private fun readHtml(source: String, path: String): List<String>? {
         val selector = path.trim()
         if (selector.isEmpty() || selector.length > MAX_SELECTOR_CHARS) return null
+        if (unsupportedHtmlSelectorReason(selector) != null) return null
         val document = runCatching { Jsoup.parse(source) }.getOrNull() ?: return null
         return runCatching { document.select(selector).map { it.text() } }.getOrNull()
+    }
+
+    /**
+     * Names the reason a CSS selector is refused, or null when it is fine to run.
+     *
+     * Jsoup compiles the regex in `:matches()`, `:matchesOwn()`, `:matchesWholeText()`,
+     * `:matchesWholeOwnText()` and `[attr~=regex]` with `java.util.regex`, which backtracks. Against
+     * a body of up to [MAX_INPUT_CHARS] a pattern like `:matches((a+)+$)` runs for effectively
+     * forever inside a plain loop, and `TaskRunner`'s `withTimeout` cannot interrupt a
+     * non-suspending call, so the action would hang the task rather than fail it.
+     *
+     * Pre-validating the embedded pattern through RE2 would not help: RE2 accepts `(a+)+$`
+     * perfectly happily, and jsoup would still go on to match it with `java.util.regex`. The
+     * pattern has to not reach jsoup at all, which is why these constructs are refused outright
+     * rather than checked. Everything else in the selector grammar is bounded, so ordinary CSS is
+     * unaffected. The same reasoning is why `TextOps` uses RE2 for user patterns it evaluates
+     * itself.
+     */
+    fun unsupportedHtmlSelectorReason(selector: String): String? {
+        val lowered = selector.lowercase()
+        REGEX_PSEUDO_SELECTORS.firstOrNull { lowered.contains("$it(") }?.let {
+            return "HTML selector uses $it(), which matches with a backtracking regular expression; " +
+                "use a plain CSS selector instead"
+        }
+        if (ATTRIBUTE_REGEX_OPERATOR.containsMatchIn(selector)) {
+            return "HTML selector uses the [attr~=regex] operator, which matches with a backtracking " +
+                "regular expression; use [attr], [attr=value], [attr^=], [attr\$=] or [attr*=] instead"
+        }
+        return null
     }
 
     // ---- selectors ----
@@ -247,4 +277,22 @@ object StructuredDataReader {
     }
 
     private const val MAX_SELECTOR_CHARS = 512
+
+    /**
+     * The jsoup pseudo-selectors whose evaluator holds a `java.util.regex.Pattern`, read off
+     * jsoup 1.23.2 itself (`Evaluator$Matches`, `$MatchesOwn`, `$MatchesWholeText`,
+     * `$MatchesWholeOwnText`) rather than from documentation.
+     */
+    private val REGEX_PSEUDO_SELECTORS = listOf(
+        ":matcheswholeowntext",
+        ":matcheswholetext",
+        ":matchesown",
+        ":matches",
+    )
+
+    /**
+     * `[attr~=regex]` (`Evaluator$AttributeWithValueMatching`). Written to match the operator only
+     * inside an attribute selector, so a `~` used as a sibling combinator elsewhere is untouched.
+     */
+    private val ATTRIBUTE_REGEX_OPERATOR = Regex("""\[[^\]]*~=""")
 }

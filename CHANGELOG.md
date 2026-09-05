@@ -14,6 +14,15 @@
 
 ### Fixed
 
+- Read data from HTML no longer accepts the selectors that can hang a task.
+  `:matches()` and its variants, plus `[attr~=regex]`, are matched by a regular
+  expression engine that certain patterns send into a search that runs for
+  minutes, and nothing could interrupt it once started, so the task sat there
+  rather than failing. Those five selectors are now refused up front with a
+  message naming the one you used and what to use instead. Every other selector
+  is unchanged, including the `^=`, `$=` and `*=` attribute matches and
+  `:contains()`.
+
 - Cards that open and close a section now tell a screen reader what they are
   and whether the section is already open. Seven of them, across Setup, the run
   log, the Inspector, the scene library and both automation lists, previously
