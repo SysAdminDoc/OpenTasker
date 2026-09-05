@@ -220,16 +220,50 @@ object StructuredDataReader {
      * itself.
      */
     fun unsupportedHtmlSelectorReason(selector: String): String? {
+        // A backslash starts a CSS escape, and jsoup decodes those before it matches a
+        // pseudo-selector name: `:mat\63 hes(...)` selects exactly what `:matches(...)` selects.
+        // A substring check runs against the undecoded text and sees neither, so an escape was a
+        // complete bypass of everything below. Rather than reimplement CSS unescaping and get it
+        // subtly wrong, refuse the escape itself. Nothing in a bounded content selector needs one.
+        if (selector.contains('\\')) {
+            return "HTML selector contains a backslash escape, which cannot be checked safely; " +
+                "write the selector without escapes"
+        }
+
         val lowered = selector.lowercase()
         REGEX_PSEUDO_SELECTORS.firstOrNull { lowered.contains("$it(") }?.let {
             return "HTML selector uses $it(), which matches with a backtracking regular expression; " +
                 "use a plain CSS selector instead"
         }
-        if (ATTRIBUTE_REGEX_OPERATOR.containsMatchIn(selector)) {
+        // Quoted attribute values are data, not syntax: `[title="a~=b"]` is an ordinary exact match
+        // on a value that happens to contain the operator's characters. Blanking quoted runs before
+        // looking for the operator keeps that selector working.
+        if (ATTRIBUTE_REGEX_OPERATOR.containsMatchIn(withoutQuotedValues(lowered))) {
             return "HTML selector uses the [attr~=regex] operator, which matches with a backtracking " +
                 "regular expression; use [attr], [attr=value], [attr^=], [attr\$=] or [attr*=] instead"
         }
         return null
+    }
+
+    /** Replaces the contents of single- and double-quoted runs with `x`, preserving length. */
+    private fun withoutQuotedValues(selector: String): String {
+        val out = StringBuilder(selector.length)
+        var quote: Char? = null
+        selector.forEach { ch ->
+            when {
+                quote == null && (ch == '"' || ch == '\'') -> {
+                    quote = ch
+                    out.append(ch)
+                }
+                quote != null && ch == quote -> {
+                    quote = null
+                    out.append(ch)
+                }
+                quote != null -> out.append('x')
+                else -> out.append(ch)
+            }
+        }
+        return out.toString()
     }
 
     // ---- selectors ----

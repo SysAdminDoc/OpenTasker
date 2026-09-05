@@ -62,6 +62,33 @@ class HtmlSelectorRegexRefusalTest {
     }
 
     @Test
+    fun aCssEscapeCannotSmuggleARegexSelectorPastTheCheck() {
+        // jsoup decodes CSS escapes before it matches a pseudo-selector name, so `:mat\63 hes(x)`
+        // selects exactly what `:matches(x)` selects while containing neither substring. Refusing
+        // the backslash closes the whole class rather than one spelling of it.
+        val escaped = listOf(
+            "p:mat\\63 hes($catastrophic)",
+            "p:\\6d atches($catastrophic)",
+            "a[href\\7e =$catastrophic]",
+        )
+
+        escaped.forEach { selector ->
+            assertNotNull("an escaped selector must not slip past: $selector", StructuredDataReader.unsupportedHtmlSelectorReason(selector))
+            assertNull("and must fail closed at the reader", StructuredDataReader.read("html", "<p>a</p>", selector))
+        }
+    }
+
+    @Test
+    fun aQuotedAttributeValueMayContainTheOperatorsCharacters() {
+        // `[title="a~=b"]` is an ordinary exact match; the ~= is data inside the quotes, not the
+        // regex operator. Refusing it would break a valid selector.
+        val body = """<div><p title="a~=b">kept</p><p title="other">skipped</p></div>"""
+
+        assertNull(StructuredDataReader.unsupportedHtmlSelectorReason("""p[title="a~=b"]"""))
+        assertEquals(listOf("kept"), StructuredDataReader.read("html", body, """p[title="a~=b"]""")?.values)
+    }
+
+    @Test
     fun aSiblingCombinatorIsNotMistakenForTheAttributeRegexOperator() {
         // `~` outside an attribute selector is the general sibling combinator and is harmless.
         assertNull(StructuredDataReader.unsupportedHtmlSelectorReason("h2 ~ p"))

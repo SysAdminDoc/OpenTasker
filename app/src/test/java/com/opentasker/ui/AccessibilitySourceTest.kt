@@ -201,6 +201,10 @@ class AccessibilitySourceTest {
         val checkedFiles = listOf(
             "screens/ActiveAutomationUi.kt",
             "screens/PermissionOnboardingScreen.kt",
+            // Setup's rows moved to SetupRows.kt, and a row is precisely the thing that grows a
+            // literal contentDescription. Naming only the screen would have left the definitions
+            // this gate exists to police outside it.
+            "screens/SetupRows.kt",
         )
         val forbiddenPatterns = mapOf(
             "literal contentDescription" to Regex("""contentDescription\s*=\s*""" + "\""),
