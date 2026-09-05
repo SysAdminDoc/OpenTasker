@@ -27,6 +27,7 @@ class LocalizationSourceTest {
             "com/opentasker/ui/screens/ImportedProfileRiskDialog.kt",
             "com/opentasker/ui/screens/ImportReviewDialogs.kt",
             "com/opentasker/ui/screens/PermissionOnboardingScreen.kt",
+            "com/opentasker/ui/screens/SetupRows.kt",
             "com/opentasker/ui/screens/SceneEditorCanvas.kt",
             "com/opentasker/ui/screens/SceneEditorDialogs.kt",
             "com/opentasker/ui/screens/SceneLibraryScreen.kt",
@@ -265,7 +266,10 @@ class LocalizationSourceTest {
 
     @Test
     fun setupPermissionAndBackupCopyUsesResources() {
-        val setup = sourceRoot.resolve("com/opentasker/ui/screens/PermissionOnboardingScreen.kt").readText()
+        // Both halves of Setup: the row definitions moved to SetupRows.kt, and they are exactly
+        // what the title/body/actionLabel/requiredFor patterns below exist to police.
+        val setup = listOf("PermissionOnboardingScreen.kt", "SetupRows.kt")
+            .joinToString("\n") { sourceRoot.resolve("com/opentasker/ui/screens/$it").readText() }
         val forbiddenPatterns = mapOf(
             "permission title" to Regex("""title\s*=\s*\""""),
             "permission body" to Regex("""body\s*=\s*\""""),

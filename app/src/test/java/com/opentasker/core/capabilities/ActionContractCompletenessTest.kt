@@ -34,6 +34,14 @@ class ActionContractCompletenessTest {
     private val repoRoot: Path = listOf(Path.of("."), Path.of(".."))
         .first { Files.exists(it.resolve("README.md")) && Files.exists(it.resolve("app/build.gradle.kts")) }
 
+    /**
+     * Setup is two files: the screen owns layout and the state machine, `SetupRows.kt` owns the row
+     * catalogue. A grant path can be declared in either, so assertions about what Setup offers read
+     * both rather than naming one and going quiet when a row moves.
+     */
+    private fun setupSurface(): String = listOf("PermissionOnboardingScreen.kt", "SetupRows.kt")
+        .joinToString("\n") { repoRoot.resolve("app/src/main/java/com/opentasker/ui/screens/$it").readText() }
+
     @Before
     fun setUp() {
         registerActionMetadata()
@@ -175,7 +183,7 @@ class ActionContractCompletenessTest {
             "WRITE_SETTINGS must be declared for the brightness/screen-timeout grant path to exist",
             "android.permission.WRITE_SETTINGS" in manifest,
         )
-        val setup = repoRoot.resolve("app/src/main/java/com/opentasker/ui/screens/PermissionOnboardingScreen.kt").readText()
+        val setup = setupSurface()
         assertTrue(
             "Setup must expose a working Modify system settings grant path",
             "Settings.ACTION_MANAGE_WRITE_SETTINGS" in setup && "Settings.System.canWrite(context)" in setup,
@@ -231,7 +239,7 @@ class ActionContractCompletenessTest {
             "LockDeviceAdminReceiver.isActive(ctx.app)" in action,
         )
 
-        val setup = repoRoot.resolve("app/src/main/java/com/opentasker/ui/screens/PermissionOnboardingScreen.kt").readText()
+        val setup = setupSurface()
         assertTrue(
             "Setup must offer activation",
             "DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN" in setup,

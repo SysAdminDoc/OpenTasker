@@ -205,7 +205,8 @@ class ShizukuPowerBackendTest {
             Path.of("src/main/java"),
             Path.of("app/src/main/java"),
         ).first(Files::exists)
-        val setup = root.resolve("com/opentasker/ui/screens/PermissionOnboardingScreen.kt").readText()
+        val setup = listOf("PermissionOnboardingScreen.kt", "SetupRows.kt")
+            .joinToString("\n") { root.resolve("com/opentasker/ui/screens/$it").readText() }
         val capabilities = root.resolve("com/opentasker/core/capabilities/ActionCapabilities.kt").readText()
         val application = root.resolve("com/opentasker/app/OpenTaskerApp_NoHilt.kt").readText()
 

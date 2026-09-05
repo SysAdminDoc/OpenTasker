@@ -25,7 +25,8 @@ class PromotedNotificationContractTest {
 
     @Test
     fun setupOffersThePlatformPromotionSettingsScreen() {
-        val setup = repoRoot.resolve("src/main/java/com/opentasker/ui/screens/PermissionOnboardingScreen.kt").readText()
+        val setup = listOf("PermissionOnboardingScreen.kt", "SetupRows.kt")
+            .joinToString("\n") { repoRoot.resolve("src/main/java/com/opentasker/ui/screens/$it").readText() }
 
         assertTrue("Setup must detect promoted notification access", "canPostPromotedNotifications" in setup)
         assertTrue("Setup must link to Android's promotion settings", "ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS" in setup)
