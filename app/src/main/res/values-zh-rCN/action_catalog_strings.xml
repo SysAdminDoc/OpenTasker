@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- Generated from stable action catalog keys; values are the translatable presentation layer. -->
+    <string name="catalog_action_notify_show_name" formatted="false">显示通知</string>
+    <string name="catalog_action_notify_show_description" formatted="false">发布通知，可设置频道、持久性和替换控制</string>
+    <string name="catalog_category_notification" formatted="false">通知</string>
+    <string name="catalog_action_notify_show_field_title_label" formatted="false">标题</string>
+    <string name="catalog_action_notify_show_field_title_hint" formatted="false">通知标题</string>
+    <string name="catalog_action_notify_show_field_text_label" formatted="false">消息</string>
+    <string name="catalog_action_notify_show_field_text_hint" formatted="false">通知内容</string>
+    <string name="catalog_action_notify_show_field_channel_label" formatted="false">频道</string>
+    <string name="catalog_action_notify_show_field_channel_hint" formatted="false">安静 / 默认 / 紧急</string>
+    <string name="catalog_action_notify_show_field_persistent_label" formatted="false">持久</string>
+    <string name="catalog_action_notify_show_field_persistent_hint" formatted="false">保持到取消为止</string>
+    <string name="catalog_action_notify_show_field_tag_label" formatted="false">标签</string>
+    <string name="catalog_action_notify_show_field_tag_hint" formatted="false">替换标签（相同标签会替换）</string>
+    <string name="catalog_action_notify_show_field_id_label" formatted="false">ID</string>
+    <string name="catalog_action_notify_show_field_id_hint" formatted="false">通知ID（相同ID会替换）</string>
+    <string name="catalog_action_notify_show_field_button1_label_label" formatted="false">按钮1标签</string>
+    <string name="catalog_action_notify_show_field_button1_label_hint" formatted="false">操作按钮标签</string>
+    <string name="catalog_action_notify_show_field_button1_task_id_label" formatted="false">按钮1任务</string>
+    <string name="catalog_action_notify_show_field_button1_task_id_hint" formatted="false">点击时运行的任务</string>
+    <string name="catalog_action_notify_show_field_button2_label_label" formatted="false">按钮2标签</string>
+    <string name="catalog_action_notify_show_field_button2_label_hint" formatted="false">第二个按钮标签</string>
+    <string name="catalog_action_notify_show_field_button2_task_id_label" formatted="false">按钮2任务</string>
+    <string name="catalog_action_notify_show_field_button2_task_id_hint" formatted="false">点击时运行的任务</string>
+    <string name="catalog_action_notify_show_field_button3_label_label" formatted="false">按钮3标签</string>
+    <string name="catalog_action_notify_show_field_button3_label_hint" formatted="false">第三个按钮标签</string>
+    <string name="catalog_action_notify_show_field_button3_task_id_label" formatted="false">按钮3任务</string>
+    <string name="catalog_action_notify_show_field_button3_task_id_hint" formatted="false">点击时运行的任务</string>
+    <string name="catalog_action_notify_cancel_name" formatted="false">取消通知</string>
+    <string name="catalog_action_notify_cancel_description" formatted="false">按标签和/或ID取消通知</string>
+    <string name="catalog_action_notify_cancel_field_tag_label" formatted="false">标签</string>
+    <string name="catalog_action_notify_cancel_field_tag_hint" formatted="false">要取消的通知标签</string>
+    <string name="catalog_action_notify_cancel_field_id_label" formatted="false">ID</string>
+    <string name="catalog_action_notify_cancel_field_id_hint" formatted="false">要取消的通知ID</string>
+    <string name="catalog_action_var_set_name" formatted="false">设置变量</string>
+    <string name="catalog_action_var_set_description" formatted="false">将变量设置为新值</string>
+    <string name="catalog_category_variable" formatted="false">变量</string>
+    <string name="catalog_action_var_set_field_name_label" formatted="false">变量名</string>
+    <string name="catalog_action_var_set_field_name_hint" formatted="false">%var 变量名</string>
+    <string name="catalog_action_var_set_field_value_label" formatted="false">值</string>
+    <string name="catalog_action_var_set_field_value_hint" formatted="false">支持%展开</string>
+    <string name="catalog_action_var_persist_name" formatted="false">持久化变量</string>
+    <string name="catalog_action_var_persist_description" formatted="false">将变量的当前值复制到全局作用域，使其在任务运行后仍然保留</string>
+    <string name="catalog_action_var_persist_field_name_label" formatted="false">源变量</string>
+    <string name="catalog_action_var_persist_field_name_hint" formatted="false">局部变量名</string>
+    <string name="catalog_action_var_persist_field_global_name_label" formatted="false">全局名称</string>
+    <string name="catalog_action_var_persist_field_global_name_hint" formatted="false">省略时自动从源变量转为大写</string>
+    <string name="catalog_action_clipboard_get_name" formatted="false">读取剪贴板</string>
+    <string name="catalog_action_clipboard_get_description" formatted="false">从系统剪贴板读取文本并存入敏感变量</string>
+    <string name="catalog_action_clipboard_get_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_clipboard_get_field_var_hint" formatted="false">默认：Clipboard（同时设置 %Clipboard_has_text）</string>
+    <string name="catalog_action_clipboard_set_name" formatted="false">设置剪贴板</string>
+    <string name="catalog_action_clipboard_set_description" formatted="false">将受限文本写入系统剪贴板</string>
+    <string name="catalog_action_clipboard_set_field_text_label" formatted="false">文本</string>
+    <string name="catalog_action_clipboard_set_field_text_hint" formatted="false">最大64 KiB；剪贴板内容不会被记录</string>
+    <string name="catalog_action_contacts_lookup_name" formatted="false">查找联系人</string>
+    <string name="catalog_action_contacts_lookup_description" formatted="false">将联系人姓名、电话号码或邮箱解析到敏感变量</string>
+    <string name="catalog_action_contacts_lookup_field_query_label" formatted="false">姓名、电话或邮箱</string>
+    <string name="catalog_action_contacts_lookup_field_query_hint" formatted="false">搜索文本；最多128个字符</string>
+    <string name="catalog_action_contacts_lookup_field_mode_label" formatted="false">查找模式</string>
+    <string name="catalog_action_contacts_lookup_field_mode_hint" formatted="false">Android 17及以上默认为选择器；权限用于无人值守运行</string>
+    <string name="catalog_action_contacts_lookup_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_contacts_lookup_field_var_hint" formatted="false">默认：Contact；同时设置姓名、电话、邮箱、数组和数量</string>
+    <string name="action_option_contacts_permission" formatted="false">权限（无人值守）</string>
+    <string name="action_option_contacts_picker" formatted="false">系统选择器（Android 17及以上）</string>
+    <string name="catalog_action_data_read_name" formatted="false">读取数据</string>
+    <string name="catalog_action_data_read_description" formatted="false">将JSON、CSV、XML或HTML解析为变量。适用于HTTP响应和文件。</string>
+    <string name="catalog_action_data_read_field_source_label" formatted="false">源数据</string>
+    <string name="catalog_action_data_read_field_source_hint" formatted="false">%response 或文件内容</string>
+    <string name="catalog_action_data_read_field_format_label" formatted="false">格式</string>
+    <string name="catalog_action_data_read_field_format_hint" formatted="false">json（默认）、csv、xml 或 html</string>
+    <string name="catalog_action_data_read_field_path_label" formatted="false">选择器</string>
+    <string name="catalog_action_data_read_field_path_hint" formatted="false">JSON items[0].name · CSV 列c或单元格r,c · XML root/item/name · HTML CSS选择器</string>
+    <string name="catalog_action_data_read_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_data_read_field_var_hint" formatted="false">默认：data（同时设置 %var 数组和 %var_count）</string>
+    <string name="catalog_action_datetime_format_name" formatted="false">格式化日期/时间</string>
+    <string name="catalog_action_datetime_format_description" formatted="false">将纪元毫秒时间（或当前时间）格式化为字符串</string>
+    <string name="catalog_action_datetime_format_field_time_label" formatted="false">时间</string>
+    <string name="catalog_action_datetime_format_field_time_hint" formatted="false">纪元毫秒或 \'now\'（默认）</string>
+    <string name="catalog_action_datetime_format_field_format_label" formatted="false">模式</string>
+    <string name="catalog_action_datetime_format_field_format_hint" formatted="false">默认 yyyy-MM-dd HH:mm:ss</string>
+    <string name="catalog_action_datetime_format_field_zone_label" formatted="false">时区</string>
+    <string name="catalog_action_datetime_format_field_zone_hint" formatted="false">例如 UTC 或 America/New_York（可选）</string>
+    <string name="catalog_action_datetime_format_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_datetime_format_field_var_hint" formatted="false">默认：datetime</string>
+    <string name="catalog_action_datetime_parse_name" formatted="false">解析日期/时间</string>
+    <string name="catalog_action_datetime_parse_description" formatted="false">将日期时间字符串解析为纪元毫秒</string>
+    <string name="catalog_action_datetime_parse_field_text_label" formatted="false">文本</string>
+    <string name="catalog_action_datetime_parse_field_text_hint" formatted="false">例如 2026-07-14 09:30</string>
+    <string name="catalog_action_datetime_parse_field_format_label" formatted="false">模式</string>
+    <string name="catalog_action_datetime_parse_field_format_hint" formatted="false">例如 yyyy-MM-dd HH:mm</string>
+    <string name="catalog_action_datetime_parse_field_zone_label" formatted="false">时区</string>
+    <string name="catalog_action_datetime_parse_field_zone_hint" formatted="false">可选</string>
+    <string name="catalog_action_datetime_parse_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_datetime_parse_field_var_hint" formatted="false">默认：datetime（纪元毫秒）</string>
+    <string name="catalog_action_datetime_add_name" formatted="false">日期/时间加减</string>
+    <string name="catalog_action_datetime_add_description" formatted="false">从纪元毫秒时间增加或减去一段时长</string>
+    <string name="catalog_action_datetime_add_field_time_label" formatted="false">时间</string>
+    <string name="catalog_action_datetime_add_field_time_hint" formatted="false">纪元毫秒或 \'now\'（默认）</string>
+    <string name="catalog_action_datetime_add_field_amount_label" formatted="false">数量</string>
+    <string name="catalog_action_datetime_add_field_amount_hint" formatted="false">整数，可以为负数</string>
+    <string name="catalog_action_datetime_add_field_unit_label" formatted="false">单位</string>
+    <string name="catalog_action_datetime_add_field_unit_hint" formatted="false">秒/分钟/小时/天/周/月/年</string>
+    <string name="catalog_action_datetime_add_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_datetime_add_field_var_hint" formatted="false">默认：datetime（纪元毫秒）</string>
+    <string name="catalog_action_text_match_name" formatted="false">匹配文本（正则）</string>
+    <string name="catalog_action_text_match_description" formatted="false">查找第一个正则匹配；捕获组成为输出数组（%var(1)=组1）</string>
+    <string name="catalog_action_text_match_field_source_label" formatted="false">源文本</string>
+    <string name="catalog_action_text_match_field_pattern_label" formatted="false">正则模式</string>
+    <string name="catalog_action_text_match_field_pattern_hint" formatted="false">线性时间 RE2</string>
+    <string name="catalog_action_text_match_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_text_match_field_var_hint" formatted="false">默认：match（同时设置数组和 %var_count）</string>
+    <string name="catalog_action_text_replace_name" formatted="false">替换文本（正则）</string>
+    <string name="catalog_action_text_replace_description" formatted="false">替换每个正则匹配；支持 $1 组引用</string>
+    <string name="catalog_action_text_replace_field_source_label" formatted="false">源文本</string>
+    <string name="catalog_action_text_replace_field_pattern_label" formatted="false">正则模式</string>
+    <string name="catalog_action_text_replace_field_replacement_label" formatted="false">替换内容</string>
+    <string name="catalog_action_text_replace_field_replacement_hint" formatted="false">可引用 $1、$2 等</string>
+    <string name="catalog_action_text_replace_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_text_replace_field_var_hint" formatted="false">默认：result</string>
+    <string name="catalog_action_text_split_name" formatted="false">拆分文本</string>
+    <string name="catalog_action_text_split_description" formatted="false">按字面分隔符或正则模式拆分为数组</string>
+    <string name="catalog_action_text_split_field_source_label" formatted="false">源文本</string>
+    <string name="catalog_action_text_split_field_delimiter_label" formatted="false">分隔符</string>
+    <string name="catalog_action_text_split_field_delimiter_hint" formatted="false">字面分隔符（或使用正则模式）</string>
+    <string name="catalog_action_text_split_field_pattern_label" formatted="false">正则模式</string>
+    <string name="catalog_action_text_split_field_pattern_hint" formatted="false">正则分隔符（优先）</string>
+    <string name="catalog_action_text_split_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_text_split_field_var_hint" formatted="false">默认：parts（数组 + %var_count）</string>
+    <string name="catalog_action_text_join_name" formatted="false">合并文本</string>
+    <string name="catalog_action_text_join_description" formatted="false">将数组变量合并为单个字符串</string>
+    <string name="catalog_action_text_join_field_array_label" formatted="false">数组变量</string>
+    <string name="catalog_action_text_join_field_array_hint" formatted="false">数组的名称（来自拆分/读取）</string>
+    <string name="catalog_action_text_join_field_delimiter_label" formatted="false">分隔符</string>
+    <string name="catalog_action_text_join_field_delimiter_hint" formatted="false">默认：,</string>
+    <string name="catalog_action_text_join_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_text_join_field_var_hint" formatted="false">默认：joined</string>
+    <string name="catalog_action_text_substring_name" formatted="false">子字符串</string>
+    <string name="catalog_action_text_substring_description" formatted="false">按字符索引提取字符串的一部分（边界会被限制）</string>
+    <string name="catalog_action_text_substring_field_source_label" formatted="false">源文本</string>
+    <string name="catalog_action_text_substring_field_start_label" formatted="false">起始索引</string>
+    <string name="catalog_action_text_substring_field_start_hint" formatted="false">从0开始</string>
+    <string name="catalog_action_text_substring_field_end_label" formatted="false">结束索引</string>
+    <string name="catalog_action_text_substring_field_end_hint" formatted="false">不含结尾；省略表示到字符串末尾</string>
+    <string name="catalog_action_text_substring_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_text_substring_field_var_hint" formatted="false">默认：substring</string>
+    <string name="catalog_action_tts_speak_name" formatted="false">朗读（文本转语音）</string>
+    <string name="catalog_action_tts_speak_description" formatted="false">使用设备扬声器朗读文本</string>
+    <string name="catalog_action_tts_speak_field_text_label" formatted="false">要朗读的文本</string>
+    <string name="catalog_action_flow_wait_name" formatted="false">等待</string>
+    <string name="catalog_action_flow_wait_description" formatted="false">暂停任务执行指定时长</string>
+    <string name="catalog_category_flow" formatted="false">流程</string>
+    <string name="catalog_action_flow_wait_field_millis_label" formatted="false">毫秒</string>
+    <string name="catalog_action_flow_wait_field_millis_hint" formatted="false">时长（毫秒）</string>
+    <string name="catalog_action_task_run_name" formatted="false">运行任务</string>
+    <string name="catalog_action_task_run_description" formatted="false">将另一个任务作为可复用的子任务运行（共享变量；最多8层嵌套）</string>
+    <string name="catalog_action_task_run_field_task_label" formatted="false">任务ID或名称</string>
+    <string name="catalog_action_task_run_field_task_hint" formatted="false">切换Wi-Fi</string>
+    <string name="catalog_action_flow_if_name" formatted="false">如果</string>
+    <string name="catalog_action_flow_if_description" formatted="false">仅当条件为真时运行以下操作（以“结束如果”关闭）</string>
+    <string name="catalog_action_flow_if_field_condition_label" formatted="false">条件</string>
+    <string name="catalog_action_flow_if_field_condition_hint" formatted="false">%battery &lt; 20</string>
+    <string name="catalog_action_flow_else_name" formatted="false">否则</string>
+    <string name="catalog_action_flow_else_description" formatted="false">当匹配的“如果”为假时执行的备用分支</string>
+    <string name="catalog_action_flow_endif_name" formatted="false">结束如果</string>
+    <string name="catalog_action_flow_endif_description" formatted="false">关闭匹配的“如果/否则”块</string>
+    <string name="catalog_action_flow_foreach_name" formatted="false">遍历</string>
+    <string name="catalog_action_flow_foreach_description" formatted="false">对数组变量迭代执行以下操作（以“结束遍历”关闭）</string>
+    <string name="catalog_action_flow_foreach_field_list_label" formatted="false">数组变量名</string>
+    <string name="catalog_action_flow_foreach_field_list_hint" formatted="false">myList</string>
+    <string name="catalog_action_flow_foreach_field_var_label" formatted="false">元素变量名</string>
+    <string name="catalog_action_flow_foreach_field_var_hint" formatted="false">item</string>
+    <string name="catalog_action_flow_endfor_name" formatted="false">结束遍历</string>
+    <string name="catalog_action_flow_endfor_description" formatted="false">关闭匹配的“遍历”循环</string>
+      <string name="catalog_action_flow_stop_name" formatted="false">停止</string>
+      <string name="catalog_action_flow_stop_description" formatted="false">立即终止任务的其余部分</string>
+      <string name="catalog_action_flow_try_name" formatted="false">尝试</string>
+      <string name="catalog_action_flow_try_description" formatted="false">运行一个有界、可重试的块，并可选用“捕获”处理其失败</string>
+      <string name="catalog_action_flow_try_field_max_attempts_label" formatted="false">最大尝试次数</string>
+      <string name="catalog_action_flow_try_field_max_attempts_hint" formatted="false">1到5。下方块审查会列出可重试的操作。</string>
+      <string name="catalog_action_flow_try_field_backoff_label" formatted="false">基础退避（毫秒）</string>
+      <string name="catalog_action_flow_try_field_backoff_hint" formatted="false">0到60000，重试之间指数增长</string>
+      <string name="flow_try_retry_summary_empty" formatted="false">重试仅适用于此块内添加的幂等操作。</string>
+      <string name="flow_try_retryable_summary" formatted="false">可重试的操作：%1$s</string>
+      <string name="flow_try_non_retryable_summary" formatted="false">不会重试：%1$s</string>
+      <string name="catalog_action_flow_catch_name" formatted="false">捕获</string>
+      <string name="catalog_action_flow_catch_description" formatted="false">使用 FLOW_ERROR_* 变量处理失败的“尝试”块</string>
+      <string name="catalog_action_flow_endtry_name" formatted="false">结束尝试</string>
+      <string name="catalog_action_flow_endtry_description" formatted="false">关闭匹配的“尝试/捕获”块</string>
+      <string name="catalog_action_intent_launch_name" formatted="false">启动Intent</string>
+    <string name="catalog_action_intent_launch_description" formatted="false">派发一个有界的Activity、广播或服务Intent</string>
+    <string name="catalog_category_app" formatted="false">应用</string>
+    <string name="catalog_action_intent_launch_field_package_label" formatted="false">包名</string>
+    <string name="catalog_action_intent_launch_field_package_hint" formatted="false">com.example.app</string>
+    <string name="catalog_action_intent_launch_field_action_label" formatted="false">Intent动作</string>
+    <string name="catalog_action_intent_launch_field_action_hint" formatted="false">MAIN、VIEW 等</string>
+    <string name="catalog_action_intent_launch_field_category_label" formatted="false">Intent类别</string>
+    <string name="catalog_action_intent_launch_field_category_hint" formatted="false">可选</string>
+    <string name="catalog_action_intent_launch_field_mode_label" formatted="false">派发模式</string>
+    <string name="catalog_action_intent_launch_field_mode_hint" formatted="false">选择显式的Android组件类型</string>
+    <string name="catalog_action_intent_launch_field_component_label" formatted="false">组件类</string>
+    <string name="catalog_action_intent_launch_field_component_hint" formatted="false">com.example.app.MainActivity</string>
+    <string name="catalog_action_intent_launch_field_uri_label" formatted="false">数据URI</string>
+    <string name="catalog_action_intent_launch_field_uri_hint" formatted="false">https://example.com 或 content://…</string>
+    <string name="catalog_action_intent_launch_field_mime_label" formatted="false">MIME类型</string>
+    <string name="catalog_action_intent_launch_field_mime_hint" formatted="false">text/plain 或 */*</string>
+    <string name="catalog_action_intent_launch_field_flags_label" formatted="false">Intent标志</string>
+    <string name="catalog_action_intent_launch_field_flags_hint" formatted="false">activity_clear_top、grant_read_uri（使用数据URI时必须）</string>
+    <string name="catalog_action_intent_launch_field_extras_label" formatted="false">原始附加数据</string>
+    <string name="catalog_action_intent_launch_field_extras_hint" formatted="false">key=string:value、key=int:1 或 key=bool:true</string>
+    <string name="catalog_action_intent_launch_field_result_variable_label" formatted="false">有序结果变量</string>
+    <string name="catalog_action_intent_launch_field_result_variable_hint" formatted="false">用于广播结果代码的可选变量</string>
+    <string name="action_option_intent_activity" formatted="false">Activity</string>
+    <string name="action_option_intent_broadcast" formatted="false">广播</string>
+    <string name="action_option_intent_service" formatted="false">服务</string>
+    <string name="catalog_action_plugin_locale_fire_name" formatted="false">Locale插件设置</string>
+    <string name="catalog_action_plugin_locale_fire_description" formatted="false">派发一个显式的Locale/Tasker兼容设置插件请求</string>
+    <string name="catalog_category_plugin" formatted="false">插件</string>
+    <string name="catalog_action_plugin_locale_fire_field_package_label" formatted="false">插件包</string>
+    <string name="catalog_action_plugin_locale_fire_field_package_hint" formatted="false">com.example.plugin</string>
+    <string name="catalog_action_plugin_locale_fire_field_bundlejson_label" formatted="false">Bundle JSON</string>
+    <string name="catalog_action_plugin_locale_fire_field_bundlejson_hint" formatted="false">{&quot;key&quot;:&quot;value&quot;}</string>
+    <string name="catalog_action_plugin_locale_fire_field_blurb_label" formatted="false">简介</string>
+    <string name="catalog_action_plugin_locale_fire_field_blurb_hint" formatted="false">简短的用户可见摘要</string>
+    <string name="catalog_action_plugin_locale_fire_field_timeoutms_label" formatted="false">超时毫秒</string>
+    <string name="catalog_action_plugin_locale_fire_field_timeoutms_hint" formatted="false">5000</string>
+    <string name="catalog_action_plugin_locale_query_name" formatted="false">Locale插件条件</string>
+    <string name="catalog_action_plugin_locale_query_description" formatted="false">查询一个显式的Locale/Tasker兼容条件插件并存储其状态</string>
+    <string name="catalog_action_plugin_locale_query_field_package_label" formatted="false">插件包</string>
+    <string name="catalog_action_plugin_locale_query_field_package_hint" formatted="false">com.example.plugin</string>
+    <string name="catalog_action_plugin_locale_query_field_bundlejson_label" formatted="false">Bundle JSON</string>
+    <string name="catalog_action_plugin_locale_query_field_bundlejson_hint" formatted="false">{&quot;key&quot;:&quot;value&quot;}</string>
+    <string name="catalog_action_plugin_locale_query_field_blurb_label" formatted="false">简介</string>
+    <string name="catalog_action_plugin_locale_query_field_blurb_hint" formatted="false">简短的用户可见摘要</string>
+    <string name="catalog_action_plugin_locale_query_field_timeoutms_label" formatted="false">超时毫秒</string>
+    <string name="catalog_action_plugin_locale_query_field_timeoutms_hint" formatted="false">5000</string>
+    <string name="catalog_action_plugin_locale_query_field_resultvariable_label" formatted="false">结果变量</string>
+    <string name="catalog_action_plugin_locale_query_field_resultvariable_hint" formatted="false">%plugin_state</string>
+    <string name="catalog_action_plugin_locale_query_field_requiresatisfied_label" formatted="false">不满足则失败</string>
+    <string name="catalog_action_script_termux_run_name" formatted="false">运行Termux脚本</string>
+    <string name="catalog_action_script_termux_run_description" formatted="false">运行一个已批准的Termux脚本并可选择捕获受限输出</string>
+    <string name="catalog_category_script" formatted="false">脚本</string>
+    <string name="catalog_action_script_termux_run_field_executable_label" formatted="false">可执行文件</string>
+    <string name="catalog_action_script_termux_run_field_executable_hint" formatted="false">~/.termux/tasker/my_script</string>
+    <string name="catalog_action_script_termux_run_field_arguments_label" formatted="false">参数</string>
+    <string name="catalog_action_script_termux_run_field_arguments_hint" formatted="false">可选的shell风格参数</string>
+    <string name="catalog_action_script_termux_run_field_workingdirectory_label" formatted="false">工作目录</string>
+    <string name="catalog_action_script_termux_run_field_workingdirectory_hint" formatted="false">可选的Termux工作目录</string>
+    <string name="catalog_action_script_termux_run_field_stdin_label" formatted="false">标准输入</string>
+    <string name="catalog_action_script_termux_run_field_stdin_hint" formatted="false">可选的标准输入内容</string>
+    <string name="catalog_action_script_termux_run_field_captureprefix_label" formatted="false">输出变量前缀</string>
+    <string name="catalog_action_script_termux_run_field_captureprefix_hint" formatted="false">%script</string>
+    <string name="catalog_action_script_termux_run_field_timeoutms_label" formatted="false">超时毫秒</string>
+    <string name="catalog_action_script_termux_run_field_timeoutms_hint" formatted="false">30000（1000到120000）</string>
+    <string name="catalog_action_tasker_unsupported_name" formatted="false">不支持的Tasker操作</string>
+    <string name="catalog_action_tasker_unsupported_description" formatted="false">导入期间无法安全映射的Tasker操作的占位符</string>
+    <string name="catalog_category_import" formatted="false">导入</string>
+    <string name="catalog_action_tasker_unsupported_field_taskercode_label" formatted="false">Tasker操作代码</string>
+    <string name="catalog_action_tasker_unsupported_field_summary_label" formatted="false">导入说明</string>
+
+    <string name="catalog_action_macrodroid_unsupported_name" formatted="false">不支持的MacroDroid操作</string>
+    <string name="catalog_action_macrodroid_unsupported_description" formatted="false">导入期间无法安全映射的MacroDroid操作的占位符</string>
+    <string name="catalog_action_macrodroid_unsupported_field_classtype_label" formatted="false">MacroDroid类</string>
+    <string name="catalog_action_macrodroid_unsupported_field_summary_label" formatted="false">导入说明</string>
+    <string name="catalog_action_wifi_toggle_name" formatted="false">切换Wi-Fi</string>
+    <string name="catalog_action_wifi_toggle_description" formatted="false">打开或关闭Wi-Fi</string>
+    <string name="catalog_category_settings" formatted="false">设置</string>
+    <string name="catalog_action_wifi_toggle_field_state_label" formatted="false">状态</string>
+    <string name="catalog_action_wifi_toggle_field_state_hint" formatted="false">开/关/切换</string>
+    <string name="catalog_action_bluetooth_toggle_name" formatted="false">切换蓝牙</string>
+    <string name="catalog_action_bluetooth_toggle_description" formatted="false">打开或关闭蓝牙</string>
+    <string name="catalog_action_bluetooth_toggle_field_state_label" formatted="false">状态</string>
+    <string name="catalog_action_bluetooth_toggle_field_state_hint" formatted="false">开/关/切换</string>
+    <string name="catalog_action_brightness_set_name" formatted="false">设置亮度</string>
+    <string name="catalog_action_brightness_set_description" formatted="false">设置屏幕亮度级别</string>
+    <string name="catalog_action_brightness_set_field_brightness_label" formatted="false">亮度（0-255）</string>
+    <string name="catalog_action_state_temporary_name" formatted="false">临时状态</string>
+    <string name="catalog_action_state_temporary_description" formatted="false">应用一个可逆的设置并在之后恢复</string>
+    <string name="catalog_action_state_temporary_field_target_action_label" formatted="false">设置</string>
+    <string name="catalog_action_state_temporary_field_target_args_label" formatted="false">设置参数（JSON）</string>
+    <string name="catalog_action_state_temporary_field_target_args_hint" formatted="false">示例：{&quot;brightness&quot;:&quot;80&quot;}</string>
+    <string name="catalog_action_state_temporary_field_key_label" formatted="false">还原键</string>
+    <string name="catalog_action_state_temporary_field_key_hint" formatted="false">唯一频道，例如 quiet-hours</string>
+    <string name="catalog_action_state_temporary_field_duration_label" formatted="false">时长（秒）</string>
+    <string name="catalog_action_state_temporary_field_duration_hint" formatted="false">1到604800秒</string>
+    <string name="catalog_action_ime_info_name" formatted="false">获取键盘信息</string>
+    <string name="catalog_action_ime_info_description" formatted="false">报告当前及已启用的键盘</string>
+    <string name="catalog_action_ime_info_field_var_label" formatted="false">输出变量基名</string>
+    <string name="catalog_action_ime_info_field_var_hint" formatted="false">默认为IME；写入 _CURRENT、_ENABLED 和 _COUNT</string>
+    <string name="catalog_action_ime_set_name" formatted="false">切换键盘</string>
+    <string name="catalog_action_ime_set_description" formatted="false">验证键盘并打开系统选择器</string>
+    <string name="catalog_action_ime_set_field_ime_id_label" formatted="false">键盘ID或包</string>
+    <string name="catalog_action_ime_set_field_ime_id_hint" formatted="false">来自 ime.info 的组件ID</string>
+    <string name="catalog_action_volume_set_name" formatted="false">设置音量</string>
+    <string name="catalog_action_volume_set_description" formatted="false">调整某个音频流的音量</string>
+    <string name="catalog_action_volume_set_field_stream_label" formatted="false">音频流</string>
+    <string name="catalog_action_volume_set_field_stream_hint" formatted="false">音乐、通话、闹钟</string>
+    <string name="catalog_action_volume_set_field_level_label" formatted="false">音量级别（0-100）</string>
+    <string name="catalog_action_wifi_scan_name" formatted="false">扫描Wi-Fi网络</string>
+    <string name="catalog_action_wifi_scan_description" formatted="false">将附近接入点列表写入变量。Android限制真实扫描的频率，因此结果可能来自最近一次缓存的扫描。</string>
+    <string name="catalog_action_wifi_scan_field_var_label" formatted="false">变量前缀</string>
+    <string name="catalog_action_wifi_scan_field_var_hint" formatted="false">wifi</string>
+    <string name="catalog_action_wifi_scan_field_limit_label" formatted="false">最大结果数</string>
+    <string name="catalog_action_wifi_scan_field_limit_hint" formatted="false">1-64，默认20</string>
+    <string name="catalog_action_aod_set_name" formatted="false">常亮显示</string>
+    <string name="catalog_action_aod_set_description" formatted="false">打开或关闭常亮显示</string>
+    <string name="catalog_action_aod_set_field_state_label" formatted="false">状态</string>
+    <string name="catalog_action_aod_set_field_state_hint" formatted="false">开/关/切换</string>
+    <string name="catalog_action_airplane_toggle_name" formatted="false">切换飞行模式</string>
+    <string name="catalog_action_airplane_toggle_description" formatted="false">打开或关闭飞行模式</string>
+    <string name="catalog_action_airplane_toggle_field_state_label" formatted="false">状态</string>
+    <string name="catalog_action_airplane_toggle_field_state_hint" formatted="false">开/关/切换</string>
+    <string name="catalog_action_mobile_toggle_name" formatted="false">切换移动数据</string>
+    <string name="catalog_action_mobile_toggle_description" formatted="false">打开或关闭移动数据</string>
+    <string name="catalog_action_mobile_toggle_field_state_label" formatted="false">状态</string>
+    <string name="catalog_action_mobile_toggle_field_state_hint" formatted="false">开/关/切换</string>
+    <string name="catalog_action_screen_timeout_name" formatted="false">设置屏幕超时</string>
+    <string name="catalog_action_screen_timeout_description" formatted="false">设置屏幕休眠超时时长</string>
+    <string name="catalog_action_screen_timeout_field_millis_label" formatted="false">超时（毫秒）</string>
+    <string name="catalog_action_screen_timeout_field_millis_hint" formatted="false">1000、30000 等</string>
+    <string name="catalog_action_settings_write_name" formatted="false">写入设置</string>
+    <string name="catalog_action_settings_write_description" formatted="false">按名称更改一个Android设置。Global和Secure需要从计算机授予一次性访问权限；System使用“修改系统设置”。</string>
+    <string name="catalog_action_settings_write_field_table_label" formatted="false">表</string>
+    <string name="catalog_action_settings_write_field_table_hint" formatted="false">设置所在的表。大多数是Secure或Global。</string>
+    <string name="catalog_action_settings_write_table_global" formatted="false">Global（所有用户）</string>
+    <string name="catalog_action_settings_write_table_secure" formatted="false">Secure（当前用户）</string>
+    <string name="catalog_action_settings_write_table_system" formatted="false">System（显示和声音）</string>
+    <string name="catalog_action_settings_write_field_key_label" formatted="false">设置名称</string>
+    <string name="catalog_action_settings_write_field_key_hint" formatted="false">location_mode、screen_off_timeout 等</string>
+    <string name="catalog_action_settings_write_field_value_label" formatted="false">值</string>
+    <string name="catalog_action_settings_write_field_value_hint" formatted="false">写入后回读，以便Android忽略的值会报告失败。</string>
+    <string name="catalog_action_dnd_set_name" formatted="false">设置勿扰模式</string>
+    <string name="catalog_action_dnd_set_description" formatted="false">设置DND打扰过滤模式</string>
+    <string name="catalog_action_dnd_set_field_mode_label" formatted="false">模式</string>
+    <string name="catalog_action_dnd_set_field_mode_hint" formatted="false">关闭/优先/仅闹钟/完全静音</string>
+    <string name="catalog_action_zen_rule_set_name" formatted="false">设置Zen规则</string>
+    <string name="catalog_action_zen_rule_set_description" formatted="false">创建或更新带Android 15设备效果的专有DND规则</string>
+    <string name="catalog_action_zen_rule_set_field_id_label" formatted="false">规则ID</string>
+    <string name="catalog_action_zen_rule_set_field_id_hint" formatted="false">稳定键，例如 focus_evening</string>
+    <string name="catalog_action_zen_rule_set_field_name_label" formatted="false">规则名称</string>
+    <string name="catalog_action_zen_rule_set_field_name_hint" formatted="false">在Android DND设置中显示的名称</string>
+    <string name="catalog_action_zen_rule_set_field_mode_label" formatted="false">模式</string>
+    <string name="catalog_action_zen_rule_set_field_mode_hint" formatted="false">关闭/优先/仅闹钟/完全静音</string>
+    <string name="catalog_action_zen_rule_set_field_enabled_label" formatted="false">已启用</string>
+    <string name="catalog_action_zen_rule_set_field_enabled_hint" formatted="false">是否允许Android激活此规则</string>
+    <string name="catalog_action_zen_rule_set_field_grayscale_label" formatted="false">灰度显示</string>
+    <string name="catalog_action_zen_rule_set_field_dim_wallpaper_label" formatted="false">调暗壁纸</string>
+    <string name="catalog_action_zen_rule_set_field_night_mode_label" formatted="false">夜间模式</string>
+    <string name="catalog_action_zen_rule_clear_name" formatted="false">清除Zen规则</string>
+    <string name="catalog_action_zen_rule_clear_description" formatted="false">移除OpenTasker专有的DND规则</string>
+    <string name="catalog_action_zen_rule_clear_field_id_label" formatted="false">规则ID</string>
+    <string name="catalog_action_zen_rule_clear_field_id_hint" formatted="false">由“设置Zen规则”使用的稳定键</string>
+    <string name="catalog_action_ringer_set_name" formatted="false">设置铃声模式</string>
+    <string name="catalog_action_ringer_set_description" formatted="false">设置设备铃声模式</string>
+    <string name="catalog_action_ringer_set_field_mode_label" formatted="false">模式</string>
+    <string name="catalog_action_ringer_set_field_mode_hint" formatted="false">正常/振动/静音</string>
+    <string name="catalog_action_torch_set_name" formatted="false">切换手电筒</string>
+    <string name="catalog_action_torch_set_description" formatted="false">打开或关闭相机闪光灯</string>
+    <string name="catalog_action_torch_set_field_state_label" formatted="false">状态</string>
+    <string name="catalog_action_torch_set_field_state_hint" formatted="false">开/关/切换</string>
+    <string name="catalog_action_tile_set_name" formatted="false">设置磁贴状态</string>
+    <string name="catalog_action_tile_set_description" formatted="false">更新快捷设置磁贴状态</string>
+    <string name="catalog_action_tile_set_field_state_label" formatted="false">状态</string>
+    <string name="catalog_action_tile_set_field_state_hint" formatted="false">活动/非活动</string>
+    <string name="catalog_action_tile_set_field_label_label" formatted="false">标签</string>
+    <string name="catalog_action_tile_set_field_label_hint" formatted="false">磁贴标签文本</string>
+    <string name="catalog_action_tile_set_field_slot_label" formatted="false">磁贴槽位</string>
+    <string name="catalog_action_tile_set_field_slot_hint" formatted="false">已配置的磁贴槽位，1-4</string>
+    <string name="catalog_action_tile_set_field_subtitle_label" formatted="false">副标题</string>
+    <string name="catalog_action_tile_set_field_subtitle_hint" formatted="false">可选的磁贴副标题</string>
+    <string name="catalog_action_tile_set_field_icon_label" formatted="false">图标</string>
+    <string name="catalog_action_tile_set_field_icon_hint" formatted="false">可选的内置图标</string>
+    <string name="action_option_tile_icon_play" formatted="false">播放</string>
+    <string name="action_option_tile_icon_star" formatted="false">星标</string>
+    <string name="action_option_tile_icon_settings" formatted="false">设置</string>
+    <string name="action_option_tile_icon_bolt" formatted="false">闪电</string>
+    <string name="catalog_action_app_launch_name" formatted="false">启动应用</string>
+    <string name="catalog_action_app_launch_description" formatted="false">启动一个已安装的应用</string>
+    <string name="catalog_action_app_launch_field_package_label" formatted="false">包名</string>
+    <string name="catalog_action_app_launch_field_package_hint" formatted="false">com.example.app</string>
+    <string name="catalog_action_app_kill_name" formatted="false">结束应用</string>
+    <string name="catalog_action_app_kill_description" formatted="false">强制关闭一个应用</string>
+    <string name="catalog_action_app_kill_field_package_label" formatted="false">包名</string>
+    <string name="catalog_action_app_archive_name" formatted="false">归档应用</string>
+    <string name="catalog_action_app_archive_description" formatted="false">归档一个已安装的应用并保留其用户数据</string>
+    <string name="catalog_action_app_unarchive_name" formatted="false">取消归档应用</string>
+    <string name="catalog_action_app_unarchive_description" formatted="false">请求恢复一个已归档的应用</string>
+    <string name="catalog_action_home_go_name" formatted="false">回到主页</string>
+    <string name="catalog_action_home_go_description" formatted="false">返回桌面主屏幕</string>
+    <string name="catalog_action_url_open_name" formatted="false">打开URL</string>
+    <string name="catalog_action_url_open_description" formatted="false">在浏览器中打开URL</string>
+    <string name="catalog_action_url_open_field_url_label" formatted="false">URL</string>
+    <string name="catalog_action_url_open_field_url_hint" formatted="false">https://example.com</string>
+    <string name="catalog_action_sms_send_name" formatted="false">发送短信</string>
+    <string name="catalog_action_sms_send_description" formatted="false">发送一条文本消息</string>
+    <string name="catalog_action_sms_send_field_number_label" formatted="false">电话号码</string>
+    <string name="catalog_action_sms_send_field_message_label" formatted="false">消息</string>
+    <string name="catalog_action_screenshot_take_name" formatted="false">截取屏幕截图</string>
+    <string name="catalog_action_screenshot_take_description" formatted="false">捕获设备屏幕截图</string>
+    <string name="catalog_action_screenshot_take_field_path_label" formatted="false">输出路径</string>
+    <string name="catalog_action_screenshot_take_field_path_hint" formatted="false">可选的输出路径</string>
+    <string name="catalog_action_file_read_name" formatted="false">读取文件</string>
+    <string name="catalog_action_file_read_description" formatted="false">将文件内容读取到变量中</string>
+    <string name="catalog_category_file" formatted="false">文件</string>
+    <string name="catalog_action_file_read_field_path_label" formatted="false">文件路径</string>
+    <string name="catalog_action_file_read_field_var_label" formatted="false">存储到变量</string>
+    <string name="catalog_action_file_read_field_var_hint" formatted="false">%var</string>
+    <string name="catalog_action_file_write_name" formatted="false">写入文件</string>
+    <string name="catalog_action_file_write_description" formatted="false">将内容写入文件（覆盖）</string>
+    <string name="catalog_action_file_write_field_path_label" formatted="false">文件路径</string>
+    <string name="catalog_action_file_write_field_text_label" formatted="false">内容</string>
+    <string name="catalog_action_file_append_name" formatted="false">追加到文件</string>
+    <string name="catalog_action_file_append_description" formatted="false">将内容追加到文件</string>
+    <string name="catalog_action_file_append_field_path_label" formatted="false">文件路径</string>
+    <string name="catalog_action_file_append_field_text_label" formatted="false">内容</string>
+    <string name="catalog_action_file_delete_name" formatted="false">删除文件</string>
+    <string name="catalog_action_file_delete_description" formatted="false">删除一个文件</string>
+    <string name="catalog_action_file_delete_field_path_label" formatted="false">文件路径</string>
+    <string name="catalog_action_file_list_name" formatted="false">列出文件</string>
+    <string name="catalog_action_file_list_description" formatted="false">将目录内容列出到变量中</string>
+    <string name="catalog_action_file_list_field_path_label" formatted="false">目录路径</string>
+    <string name="catalog_action_file_list_field_var_label" formatted="false">存储到变量</string>
+    <string name="catalog_action_file_list_field_var_hint" formatted="false">%var</string>
+    <string name="catalog_action_file_list_field_pattern_label" formatted="false">文件名模式</string>
+    <string name="catalog_action_file_list_field_pattern_hint" formatted="false">*.txt</string>
+    <string name="catalog_action_http_request_name" formatted="false">HTTP请求</string>
+    <string name="catalog_action_http_request_description" formatted="false">发送一个有界的HTTP请求，可指定请求头、重定向、输出和超时</string>
+    <string name="catalog_action_http_request_field_method_label" formatted="false">方法</string>
+    <string name="catalog_action_http_request_field_method_hint" formatted="false">GET、HEAD、POST、PUT、PATCH、DELETE 或 OPTIONS</string>
+    <string name="catalog_action_http_request_field_url_label" formatted="false">URL</string>
+    <string name="catalog_action_http_request_field_query_label" formatted="false">查询参数</string>
+    <string name="catalog_action_http_request_field_query_hint" formatted="false">每行一个 name=value 键值对</string>
+    <string name="catalog_action_http_request_field_headers_label" formatted="false">请求头</string>
+    <string name="catalog_action_http_request_field_headers_hint" formatted="false">每行一个 Name: Value 请求头；运行日志中的详细信息会被隐去</string>
+    <string name="catalog_action_http_request_field_authorization_label" formatted="false">授权</string>
+    <string name="catalog_action_http_request_field_authorization_hint" formatted="false">例如 Bearer %SECRET_TOKEN；始终从日志中隐去</string>
+    <string name="catalog_action_http_request_field_body_label" formatted="false">内联请求体</string>
+    <string name="catalog_action_http_request_field_body_file_label" formatted="false">请求体文件</string>
+    <string name="catalog_action_http_request_field_body_file_hint" formatted="false">OpenTasker文件中的相对路径；不能与内联请求体同时使用</string>
+    <string name="catalog_action_http_request_field_content_type_label" formatted="false">内容类型</string>
+    <string name="catalog_action_http_request_field_content_type_hint" formatted="false">例如 application/json</string>
+    <string name="catalog_action_http_request_field_response_var_label" formatted="false">存储响应体到</string>
+    <string name="catalog_action_http_request_field_response_var_hint" formatted="false">默认 %result；不能与输出文件同时使用</string>
+    <string name="catalog_action_http_request_field_status_var_label" formatted="false">存储状态码到</string>
+    <string name="catalog_action_http_request_field_status_var_hint" formatted="false">可选的变量，例如 %status</string>
+    <string name="catalog_action_http_request_field_headers_var_label" formatted="false">存储响应头到</string>
+    <string name="catalog_action_http_request_field_headers_var_hint" formatted="false">可选变量；每行一个 Name: Value</string>
+    <string name="catalog_action_http_request_field_output_file_label" formatted="false">响应输出文件</string>
+    <string name="catalog_action_http_request_field_output_file_hint" formatted="false">OpenTasker文件中的相对路径；以原子方式发布</string>
+    <string name="catalog_action_http_request_field_max_response_bytes_label" formatted="false">最大响应字节数</string>
+    <string name="catalog_action_http_request_field_max_response_bytes_hint" formatted="false">变量最多1 MiB，文件最多50 MiB</string>
+    <string name="catalog_action_http_request_field_redirects_label" formatted="false">重定向策略</string>
+    <string name="catalog_action_http_request_field_redirects_hint" formatted="false">无（默认）或 same_origin；从不跟随跨源重定向</string>
+    <string name="catalog_action_http_request_field_network_label" formatted="false">仅在以下网络</string>
+    <string name="catalog_action_http_request_field_network_hint" formatted="false">除非设备位于所选类型的连接上，否则拒绝发送请求</string>
+    <string name="catalog_action_http_request_field_allow_http_label" formatted="false">允许HTTP</string>
+    <string name="catalog_action_http_request_field_allow_http_hint" formatted="false">仅当所有解析地址均为私有/局域网时才允许明文HTTP</string>
+    <string name="catalog_action_http_request_field_timeout_label" formatted="false">默认超时（秒）</string>
+    <string name="catalog_action_http_request_field_timeout_hint" formatted="false">1到120秒。各超时字段会覆盖此值。</string>
+    <string name="catalog_action_http_request_field_connect_timeout_label" formatted="false">连接超时（秒）</string>
+    <string name="catalog_action_http_request_field_read_timeout_label" formatted="false">读取超时（秒）</string>
+    <string name="catalog_action_http_request_field_write_timeout_label" formatted="false">写入超时（秒）</string>
+    <string name="catalog_action_http_request_field_call_timeout_label" formatted="false">整次调用超时（秒）</string>
+    <string name="catalog_action_http_get_name" formatted="false">HTTP GET</string>
+    <string name="catalog_action_http_get_description" formatted="false">执行一个HTTP GET请求</string>
+    <string name="catalog_category_network" formatted="false">网络</string>
+    <string name="catalog_action_http_get_field_url_label" formatted="false">URL</string>
+    <string name="catalog_action_http_get_field_var_label" formatted="false">存储响应到</string>
+    <string name="catalog_action_http_get_field_var_hint" formatted="false">%var</string>
+    <string name="catalog_action_http_get_field_allow_http_label" formatted="false">允许HTTP</string>
+    <string name="catalog_action_http_get_field_allow_http_hint" formatted="false">仅允许对局域网/私有网络主机使用明文HTTP</string>
+    <string name="catalog_action_http_post_name" formatted="false">HTTP POST</string>
+    <string name="catalog_action_http_post_description" formatted="false">执行一个HTTP POST请求</string>
+    <string name="catalog_action_http_post_field_url_label" formatted="false">URL</string>
+    <string name="catalog_action_http_post_field_data_label" formatted="false">请求体</string>
+    <string name="catalog_action_http_post_field_var_label" formatted="false">存储响应到</string>
+    <string name="catalog_action_http_post_field_var_hint" formatted="false">%var</string>
+    <string name="catalog_action_http_post_field_allow_http_label" formatted="false">允许HTTP</string>
+    <string name="catalog_action_http_post_field_allow_http_hint" formatted="false">仅允许对局域网/私有网络主机使用明文HTTP</string>
+    <string name="catalog_action_home_assistant_webhook_name" formatted="false">Home Assistant Webhook</string>
+    <string name="catalog_action_home_assistant_webhook_description" formatted="false">向Home Assistant webhook发送一个有界的JSON事件并带临时重试</string>
+    <string name="catalog_action_home_assistant_webhook_field_url_label" formatted="false">Webhook URL</string>
+    <string name="catalog_action_home_assistant_webhook_field_url_hint" formatted="false">HTTPS webhook URL；秘密路径在显示时会被隐去</string>
+    <string name="catalog_action_home_assistant_webhook_field_payload_label" formatted="false">JSON负载</string>
+    <string name="catalog_action_home_assistant_webhook_field_payload_hint" formatted="false">JSON对象，最大16 KB；负载在显示时会被隐去</string>
+    <string name="catalog_action_home_assistant_webhook_field_message_label" formatted="false">Home Assistant消息/命令</string>
+    <string name="catalog_action_home_assistant_webhook_field_message_hint" formatted="false">可选的Companion通知消息，例如 command_broadcast_intent；与data一起使用</string>
+    <string name="catalog_action_home_assistant_webhook_field_data_label" formatted="false">Home Assistant数据</string>
+    <string name="catalog_action_home_assistant_webhook_field_data_hint" formatted="false">与消息配对的可选JSON对象；秘密在显示时会被隐去</string>
+    <string name="catalog_action_home_assistant_webhook_field_timeout_label" formatted="false">超时（秒）</string>
+    <string name="catalog_action_home_assistant_webhook_field_timeout_hint" formatted="false">默认：15（1-30）</string>
+    <string name="catalog_action_home_assistant_webhook_field_retries_label" formatted="false">重试次数</string>
+    <string name="catalog_action_home_assistant_webhook_field_retries_hint" formatted="false">仅限瞬时失败；默认：2（0-3）</string>
+    <string name="catalog_action_home_assistant_webhook_field_backoff_label" formatted="false">重试退避（毫秒）</string>
+    <string name="catalog_action_home_assistant_webhook_field_backoff_hint" formatted="false">初始延迟；指数增长，上限10秒（100-5000）</string>
+    <string name="catalog_action_home_assistant_webhook_field_allow_http_label" formatted="false">允许HTTP</string>
+    <string name="catalog_action_home_assistant_webhook_field_allow_http_hint" formatted="false">仅用于私有局域网端点；仍适用ACCESS_LOCAL_NETWORK和主机策略</string>
+    <string name="catalog_action_mqtt_publish_name" formatted="false">MQTT发布</string>
+    <string name="catalog_action_mqtt_publish_description" formatted="false">使用平台socket/TLS栈向MQTT 3.1.1代理发布一个有界的消息</string>
+    <string name="catalog_action_mqtt_publish_field_host_label" formatted="false">代理主机</string>
+    <string name="catalog_action_mqtt_publish_field_host_hint" formatted="false">主机名或IP地址</string>
+    <string name="catalog_action_mqtt_publish_field_port_label" formatted="false">代理端口</string>
+    <string name="catalog_action_mqtt_publish_field_port_hint" formatted="false">默认：使用TLS为8883，不使用TLS为1883</string>
+    <string name="catalog_action_mqtt_publish_field_tls_label" formatted="false">使用TLS</string>
+    <string name="catalog_action_mqtt_publish_field_tls_hint" formatted="false">默认启用；明文仅限私有/本地主机</string>
+    <string name="catalog_action_mqtt_publish_field_topic_label" formatted="false">主题</string>
+    <string name="catalog_action_mqtt_publish_field_topic_hint" formatted="false">发布主题，不使用 + 或 # 通配符</string>
+    <string name="catalog_action_mqtt_publish_field_payload_label" formatted="false">负载</string>
+    <string name="catalog_action_mqtt_publish_field_payload_hint" formatted="false">UTF-8负载，最大64 KB；显示时隐去</string>
+    <string name="catalog_action_mqtt_publish_field_qos_label" formatted="false">QoS</string>
+    <string name="catalog_action_mqtt_publish_field_qos_hint" formatted="false">0或1；QoS 1等待PUBACK</string>
+    <string name="catalog_action_mqtt_publish_field_retain_label" formatted="false">保留</string>
+    <string name="catalog_action_mqtt_publish_field_retain_hint" formatted="false">请求代理保留最后一条消息</string>
+    <string name="catalog_action_mqtt_publish_field_username_label" formatted="false">用户名</string>
+    <string name="catalog_action_mqtt_publish_field_username_hint" formatted="false">可选的代理用户名</string>
+    <string name="catalog_action_mqtt_publish_field_password_label" formatted="false">密码</string>
+    <string name="catalog_action_mqtt_publish_field_password_hint" formatted="false">可选的代理密码；始终隐去</string>
+    <string name="catalog_action_mqtt_publish_field_timeout_label" formatted="false">超时（秒）</string>
+    <string name="catalog_action_mqtt_publish_field_timeout_hint" formatted="false">连接、握手和确认超时（1-30）</string>
+    <string name="catalog_action_ping_name" formatted="false">Ping主机</string>
+    <string name="catalog_action_ping_description" formatted="false">Ping一个网络主机</string>
+    <string name="catalog_action_ping_field_host_label" formatted="false">主机地址</string>
+    <string name="catalog_action_ping_field_timeout_label" formatted="false">超时（秒）</string>
+    <string name="catalog_action_ping_field_timeout_hint" formatted="false">默认：5（1-30）</string>
+    <string name="catalog_action_ping_field_var_label" formatted="false">结果变量</string>
+    <string name="catalog_action_ping_field_var_hint" formatted="false">存储 true/false（默认：result）</string>
+    <string name="catalog_action_download_name" formatted="false">下载文件</string>
+    <string name="catalog_action_download_description" formatted="false">从URL下载文件</string>
+    <string name="catalog_action_download_field_url_label" formatted="false">URL</string>
+    <string name="catalog_action_download_field_path_label" formatted="false">保存到路径</string>
+    <string name="catalog_action_download_field_allow_http_label" formatted="false">允许HTTP</string>
+    <string name="catalog_action_download_field_allow_http_hint" formatted="false">仅允许对局域网/私有网络主机使用明文HTTP</string>
+    <string name="catalog_action_download_field_timeout_label" formatted="false">超时（秒）</string>
+    <string name="catalog_action_download_field_timeout_hint" formatted="false">默认：30（1-300）</string>
+    <string name="catalog_action_download_field_max_bytes_label" formatted="false">大小限制（字节）</string>
+    <string name="catalog_action_download_field_max_bytes_hint" formatted="false">默认和最大：52428800（50 MB）</string>
+    <string name="catalog_action_wol_name" formatted="false">局域网唤醒</string>
+    <string name="catalog_action_wol_description" formatted="false">发送魔术包以唤醒局域网上的设备</string>
+    <string name="catalog_action_wol_field_mac_label" formatted="false">MAC地址</string>
+    <string name="catalog_action_wol_field_mac_hint" formatted="false">例如 AA:BB:CC:DD:EE:FF</string>
+    <string name="catalog_action_wol_field_broadcast_label" formatted="false">广播IP</string>
+    <string name="catalog_action_wol_field_broadcast_hint" formatted="false">默认：255.255.255.255</string>
+    <string name="catalog_action_wol_field_port_label" formatted="false">端口</string>
+    <string name="catalog_action_wol_field_port_hint" formatted="false">默认：9</string>
+    <string name="catalog_action_sound_play_name" formatted="false">播放声音</string>
+    <string name="catalog_action_sound_play_description" formatted="false">播放一个声音文件</string>
+    <string name="catalog_category_media" formatted="false">媒体</string>
+    <string name="catalog_action_sound_play_field_path_label" formatted="false">声音文件路径</string>
+    <string name="catalog_action_sound_play_field_volume_label" formatted="false">音量（0-100）</string>
+    <string name="catalog_action_sound_play_field_volume_hint" formatted="false">可选；为空时使用当前音量</string>
+    <string name="catalog_action_sound_stop_name" formatted="false">停止声音</string>
+    <string name="catalog_action_sound_stop_description" formatted="false">停止播放</string>
+    <string name="catalog_action_sound_pause_name" formatted="false">暂停声音</string>
+    <string name="catalog_action_sound_pause_description" formatted="false">暂停播放</string>
+    <string name="catalog_action_track_next_name" formatted="false">下一曲</string>
+    <string name="catalog_action_track_next_description" formatted="false">播放下一曲</string>
+    <string name="catalog_action_track_previous_name" formatted="false">上一曲</string>
+    <string name="catalog_action_track_previous_description" formatted="false">播放上一曲</string>
+    <string name="catalog_action_media_mute_name" formatted="false">静音</string>
+    <string name="catalog_action_media_mute_description" formatted="false">静音音频</string>
+    <string name="catalog_action_media_mute_field_stream_label" formatted="false">音频流</string>
+    <string name="catalog_action_media_mute_field_stream_hint" formatted="false">音乐、铃声、通知、闹钟、系统、通话（默认：音乐）</string>
+    <string name="catalog_action_vibrate_name" formatted="false">振动</string>
+    <string name="catalog_action_vibrate_description" formatted="false">使设备振动</string>
+    <string name="catalog_category_system" formatted="false">系统</string>
+    <string name="catalog_action_vibrate_field_millis_label" formatted="false">时长（毫秒）</string>
+    <string name="catalog_action_reboot_name" formatted="false">重启设备</string>
+    <string name="catalog_action_reboot_description" formatted="false">重启设备</string>
+    <string name="catalog_action_lock_name" formatted="false">锁定设备</string>
+    <string name="catalog_action_lock_description" formatted="false">锁定设备屏幕</string>
+    <string name="catalog_action_screen_off_name" formatted="false">关闭屏幕</string>
+    <string name="catalog_action_screen_off_description" formatted="false">关闭显示屏</string>
+    <string name="catalog_action_wake_name" formatted="false">唤醒设备</string>
+    <string name="catalog_action_wake_description" formatted="false">唤醒设备（打开屏幕）</string>
+    <string name="catalog_action_log_name" formatted="false">记录日志消息</string>
+    <string name="catalog_action_log_description" formatted="false">将消息写入任务日志</string>
+    <string name="catalog_action_log_field_message_label" formatted="false">消息</string>
+    <string name="catalog_action_notify_progress_name" formatted="false">进度通知</string>
+    <string name="catalog_action_notify_progress_description" formatted="false">发布有序进度反馈，带Android 16回退方案</string>
+    <string name="catalog_action_notify_progress_field_title_label" formatted="false">标题</string>
+    <string name="catalog_action_notify_progress_field_title_hint" formatted="false">通知标题</string>
+    <string name="catalog_action_notify_progress_field_text_label" formatted="false">文本</string>
+    <string name="catalog_action_notify_progress_field_text_hint" formatted="false">可选的状态文本</string>
+    <string name="catalog_action_notify_progress_field_progress_label" formatted="false">进度</string>
+    <string name="catalog_action_notify_progress_field_progress_hint" formatted="false">0到100</string>
+    <string name="catalog_action_notify_progress_field_segments_label" formatted="false">分段</string>
+    <string name="catalog_action_notify_progress_field_segments_hint" formatted="false">可选的逗号分隔的正数长度</string>
+    <string name="catalog_action_notify_progress_field_channel_label" formatted="false">频道</string>
+    <string name="catalog_action_notify_progress_field_channel_hint" formatted="false">安静、默认或紧急</string>
+    <string name="catalog_action_notify_progress_field_tag_label" formatted="false">标签</string>
+    <string name="catalog_action_notify_progress_field_tag_hint" formatted="false">可选的替换标签</string>
+    <string name="catalog_action_notify_progress_field_id_label" formatted="false">ID</string>
+    <string name="catalog_action_notify_progress_field_id_hint" formatted="false">可选的通知ID</string>
+    <string name="catalog_action_shortcut_publish_name" formatted="false">发布快捷方式</string>
+    <string name="catalog_action_shortcut_publish_description" formatted="false">为任务创建一个动态或固定的启动器快捷方式</string>
+    <string name="catalog_action_shortcut_publish_field_id_label" formatted="false">快捷方式ID</string>
+    <string name="catalog_action_shortcut_publish_field_id_hint" formatted="false">用于更新此快捷方式的稳定ID</string>
+    <string name="catalog_action_shortcut_publish_field_task_id_label" formatted="false">任务</string>
+    <string name="catalog_action_shortcut_publish_field_task_id_hint" formatted="false">点击快捷方式时运行的任务</string>
+    <string name="catalog_action_shortcut_publish_field_label_label" formatted="false">标签</string>
+    <string name="catalog_action_shortcut_publish_field_label_hint" formatted="false">启动器显示的标签</string>
+    <string name="catalog_action_shortcut_publish_field_mode_label" formatted="false">模式</string>
+    <string name="catalog_action_shortcut_publish_field_mode_hint" formatted="false">动态会立即更新；固定需询问启动器</string>
+    <string name="action_option_shortcut_dynamic" formatted="false">动态</string>
+    <string name="action_option_shortcut_pinned" formatted="false">固定</string>
+</resources>

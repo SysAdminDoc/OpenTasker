@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- Dynamic context catalog. Stable context/config keys remain in Kotlin; presentation lives here. -->
+    <string name="context_type_application_title" formatted="false">应用</string>
+    <string name="context_type_application_description" formatted="false">当检测到某个应用处于前台时匹配。</string>
+    <string name="context_type_time_title" formatted="false">时间</string>
+    <string name="context_type_time_description" formatted="false">在某个时钟时间窗口内匹配。</string>
+    <string name="context_type_day_title" formatted="false">星期</string>
+    <string name="context_type_day_description" formatted="false">在选定的日期、预设或工作日/周末范围内匹配。</string>
+    <string name="context_type_location_title" formatted="false">位置</string>
+    <string name="context_type_location_description" formatted="false">在纬度/经度半径附近匹配，可带精度和停留检查。</string>
+    <string name="context_type_state_title" formatted="false">状态</string>
+    <string name="context_type_state_description" formatted="false">匹配电池、充电、媒体、屏幕方向、接近感应、活动、速度、漫游、网络共享或电话通话状态。</string>
+    <string name="context_type_event_title" formatted="false">事件</string>
+    <string name="context_type_event_description" formatted="false">匹配一次性事件，如开机、通知、NFC、蓝牙连接/断开/安全、日历、太阳、摇晃或Locale插件查询。</string>
+    <string name="context_type_plugin_title" formatted="false">插件</string>
+    <string name="context_type_plugin_description" formatted="false">当Locale/Tasker条件插件报告满足时匹配。插件会定期轮询，其最近已知状态会被缓存。</string>
+
+    <string name="context_field_application_package_label" formatted="false">包名</string>
+    <string name="context_field_application_package_hint" formatted="false">com.example.app（工作资料中的应用不可见）</string>
+    <string name="context_field_application_component_label" formatted="false">前台组件（可选）</string>
+    <string name="context_field_application_component_hint" formatted="false">com.example.app.PlayerActivity 或 com.example.app.*</string>
+    <string name="context_field_time_start_label" formatted="false">开始 HH:mm</string>
+    <string name="context_field_time_start_hint" formatted="false">09:00</string>
+    <string name="context_field_time_end_label" formatted="false">结束 HH:mm</string>
+    <string name="context_field_time_end_hint" formatted="false">17:00</string>
+    <string name="context_field_day_days_label" formatted="false">日期</string>
+    <string name="context_field_day_days_hint" formatted="false">工作日、周末、周一至周五</string>
+    <string name="context_field_location_latitude_label" formatted="false">纬度</string>
+    <string name="context_field_location_longitude_label" formatted="false">经度</string>
+    <string name="context_field_location_radius_label" formatted="false">半径（米）</string>
+    <string name="context_field_location_radius_hint" formatted="false">100</string>
+    <string name="context_field_location_accuracy_label" formatted="false">最大精度（米）</string>
+    <string name="context_field_location_accuracy_hint" formatted="false">50</string>
+    <string name="context_field_location_dwell_label" formatted="false">停留（秒）</string>
+    <string name="context_field_location_dwell_hint" formatted="false">300</string>
+    <string name="context_field_location_outside_label" formatted="false">在区域外时匹配</string>
+    <string name="context_field_location_outside_hint" formatted="false">离开此地而不是在此地时触发（带停留）</string>
+    <string name="context_field_state_key_label" formatted="false">状态键</string>
+    <string name="context_field_state_key_hint" formatted="false">battery_level、charging、orientation、proximity、activity、speed、roaming、tethering、call_state</string>
+    <string name="context_field_state_operator_label" formatted="false">运算符</string>
+    <string name="context_field_state_operator_hint" formatted="false">=、&gt;=、&lt;=、&gt;、&lt;</string>
+    <string name="context_field_state_value_label" formatted="false">期望值</string>
+    <string name="context_field_state_value_hint" formatted="false">portrait、near、walking、10、true、ringing 或现有的状态值</string>
+    <string name="context_state_preset_orientation" formatted="false">竖屏</string>
+    <string name="context_state_preset_proximity" formatted="false">接近</string>
+    <string name="context_state_preset_activity" formatted="false">步行</string>
+    <string name="context_state_preset_speed" formatted="false">速度 ≥ 10 米/秒</string>
+    <string name="context_state_preset_roaming" formatted="false">漫游</string>
+    <string name="context_state_preset_tethering" formatted="false">网络共享</string>
+    <string name="context_state_preset_call" formatted="false">来电</string>
+    <string name="context_field_event_type_label" formatted="false">事件类型</string>
+    <string name="context_field_event_type_hint" formatted="false">boot_completed、notification、nfc、bluetooth、bluetooth_key_missing、bluetooth_encryption_change、calendar、sunrise、sunset、shake、camera、mic、package_added、package_removed、package_replaced</string>
+    <string name="context_field_event_state_label" formatted="false">事件状态</string>
+    <string name="context_field_event_state_hint" formatted="false">during、upcoming、connected、disconnected</string>
+    <string name="context_field_event_calendar_label" formatted="false">日历名称</string>
+    <string name="context_field_event_calendar_hint" formatted="false">工作</string>
+    <string name="context_field_event_before_label" formatted="false">提前分钟数</string>
+    <string name="context_field_event_before_hint" formatted="false">15</string>
+    <string name="context_field_event_package_label" formatted="false">包白名单</string>
+    <string name="context_field_event_package_hint" formatted="false">com.example.app、com.chat.app</string>
+    <string name="context_field_event_tag_label" formatted="false">NFC标签ID</string>
+    <string name="context_field_event_tag_hint" formatted="false">04AABBCC</string>
+    <string name="context_field_event_latitude_label" formatted="false">纬度</string>
+    <string name="context_field_event_latitude_hint" formatted="false">40.7128</string>
+    <string name="context_field_event_longitude_label" formatted="false">经度</string>
+    <string name="context_field_event_longitude_hint" formatted="false">-74.0060</string>
+    <string name="context_field_event_offset_label" formatted="false">太阳偏移分钟数</string>
+    <string name="context_field_event_offset_hint" formatted="false">-30</string>
+    <string name="context_field_event_window_label" formatted="false">太阳窗口分钟数</string>
+    <string name="context_field_event_window_hint" formatted="false">5</string>
+    <string name="context_field_event_topic_label" formatted="false">推送主题</string>
+    <string name="context_field_event_topic_hint" formatted="false">topic-name</string>
+    <string name="context_field_event_id_label" formatted="false">推送事件ID</string>
+    <string name="context_field_event_id_hint" formatted="false">可选的精确投递ID</string>
+    <string name="context_field_event_title_label" formatted="false">标题包含</string>
+    <string name="context_field_event_title_hint" formatted="false">可选的通知标题文本</string>
+    <string name="context_field_event_body_label" formatted="false">内容包含</string>
+    <string name="context_field_event_body_hint" formatted="false">可选的通知内容文本</string>
+    <string name="context_field_event_filter_label" formatted="false">任意元数据过滤</string>
+    <string name="context_field_event_filter_hint" formatted="false">可选的文本/包/动作过滤</string>
+    <string name="context_field_event_regex_label" formatted="false">使用正则匹配</string>
+    <string name="context_field_plugin_package_label" formatted="false">插件包</string>
+    <string name="context_field_plugin_package_hint" formatted="false">com.example.plugin</string>
+    <string name="context_field_plugin_bundle_label" formatted="false">插件配置JSON</string>
+    <string name="context_field_plugin_bundle_hint" formatted="false">{&quot;key&quot;:&quot;value&quot;}</string>
+    <string name="context_field_plugin_blurb_label" formatted="false">描述</string>
+    <string name="context_field_plugin_blurb_hint" formatted="false">来自插件配置的可选标签</string>
+    <string name="context_field_plugin_timeout_label" formatted="false">查询超时毫秒</string>
+    <string name="context_field_plugin_timeout_hint" formatted="false">5000</string>
+
+    <string name="context_day_mon" formatted="false">周一</string>
+    <string name="context_day_tue" formatted="false">周二</string>
+    <string name="context_day_wed" formatted="false">周三</string>
+    <string name="context_day_thu" formatted="false">周四</string>
+    <string name="context_day_fri" formatted="false">周五</string>
+    <string name="context_day_sat" formatted="false">周六</string>
+    <string name="context_day_sun" formatted="false">周日</string>
+
+    <string name="context_preset_during_meeting" formatted="false">会议期间</string>
+    <string name="context_preset_15_before" formatted="false">提前15分钟</string>
+    <string name="context_preset_30_before" formatted="false">提前30分钟</string>
+    <string name="context_preset_all_day_busy" formatted="false">全天忙碌</string>
+    <string name="context_preset_at_sunrise" formatted="false">日出时</string>
+    <string name="context_preset_at_sunset" formatted="false">日落时</string>
+    <string name="context_preset_30_after" formatted="false">延后30分钟</string>
+    <string name="context_preset_all_bluetooth_disconnected" formatted="false">所有蓝牙设备已断开</string>
+    <string name="context_preset_bluetooth_key_missing" formatted="false">蓝牙密钥缺失</string>
+    <string name="context_preset_bluetooth_encrypted" formatted="false">蓝牙链路已加密</string>
+    <string name="context_preset_bluetooth_unencrypted" formatted="false">蓝牙链路未加密</string>
+    <string name="context_preset_screen_recording_visible" formatted="false">屏幕录制可见</string>
+    <string name="context_preset_screen_recording_not_visible" formatted="false">屏幕录制不可见</string>
+
+    <!-- Home-screen widget and configuration activity. -->
+    <string name="widget_choose_task_title" formatted="false">选择小部件任务</string>
+    <string name="widget_choose_task_subtitle" formatted="false">点击一个任务以将其分配到此主屏幕小部件</string>
+    <string name="widget_setup_required" formatted="false">需要设置</string>
+    <string name="widget_empty_title" formatted="false">请先创建任务</string>
+    <string name="widget_empty_body" formatted="false">小部件运行保存在主屏幕上的OpenTasker任务。先在应用中构建一个任务，然后返回这里分配它。</string>
+    <string name="widget_selectable_task" formatted="false">可选择的任务</string>
+    <string name="widget_assign" formatted="false">分配</string>
+    <string name="widget_action_title" formatted="false">小部件操作</string>
+    <string name="widget_run_selected_task" formatted="false">运行所选任务</string>
+    <string name="widget_tap_to_run" formatted="false">点击运行</string>
+    <plurals name="run_log_active_executions">
+        <item quantity="one">当前有 %1$d 个自动化正在运行</item>
+        <item quantity="other">当前有 %1$d 个自动化正在运行</item>
+    </plurals>
+    <plurals name="run_log_variable_changes">
+        <item quantity="one">设置了 %1$d 个变量</item>
+        <item quantity="other">设置了 %1$d 个变量</item>
+    </plurals>
+    <plurals name="widget_action_count">
+        <item quantity="one">%1$d 个操作</item>
+        <item quantity="other">%1$d 个操作</item>
+    </plurals>
+    <plurals name="widget_saved_task_count">
+        <item quantity="one">有 %1$d 个已保存任务可用。选择这个小部件在点击时应运行的任务。</item>
+        <item quantity="other">有 %1$d 个已保存任务可用。选择这个小部件在点击时应运行的任务。</item>
+    </plurals>
+
+    <!-- Scene overlay service and fallback views. -->
+    <string name="scene_overlay_default_button" formatted="false">按钮</string>
+    <string name="scene_overlay_unsupported_element">[%1$s]</string>
+    <string name="scene_overlay_notification_title" formatted="false">场景叠加层已激活</string>
+    <string name="scene_overlay_channel_name" formatted="false">场景叠加层</string>
+
+    <!-- Action eligibility and setup diagnostics displayed by the dynamic catalog. -->
+    <string name="capability_ready" formatted="false">就绪</string>
+    <string name="capability_unknown_action">未知操作无法分类，不能添加、导入或启用。</string>
+    <string name="capability_notification_permission" formatted="false">在Android 13及以上需要通知权限。</string>
+    <string name="capability_notification_cancel_permission" formatted="false">按标签和/或ID取消已发布的通知。在Android 13及以上需要通知权限。</string>
+    <string name="capability_notification_progress" formatted="false">在Android 13及以上需要通知权限；在Android 16及以上使用ProgressStyle，进度活动期间请求可选的高优先级持续处理，并带有标准进度条回退方案。</string>
+    <string name="capability_locale_fire_setup" formatted="false">需要已安装的Locale兼容插件；请求仅派发到显式指定的包。</string>
+    <string name="capability_locale_query_setup" formatted="false">需要已安装的Locale兼容条件插件；查询是带超时处理的显式有序广播。</string>
+    <string name="capability_wifi_unsupported" formatted="false">Android 10及以上阻止普通应用直接切换Wi-Fi。</string>
+    <string name="capability_bluetooth_unsupported" formatted="false">Android 13及以上阻止普通应用直接启用/禁用蓝牙。</string>
+    <string name="capability_bluetooth_permission" formatted="false">需要蓝牙权限。</string>
+    <string name="capability_write_settings" formatted="false">需要“修改系统设置”特殊访问权限。</string>
+    <string name="capability_settings_write_setup" formatted="false">写入Global或Secure设置需要在设置中通过数据线从计算机授予一次性访问权限。System表改用“修改系统设置”。</string>
+    <string name="capability_app_kill_unsupported" formatted="false">强制停止另一个应用需要特权应用管理访问权限，任何普通应用都无法获得。</string>
+    <string name="capability_app_archive_ready" formatted="false">使用Android 15及以上版本的PackageInstaller归档请求。OpenTasker不是记录的安装者，因此Android会在屏幕上要求你确认每个请求；请在OpenTasker打开的状态下运行此操作。</string>
+    <string name="capability_app_archive_unsupported" formatted="false">应用归档请求需要Android 15（API 35）或更高版本。</string>
+    <string name="capability_local_network_setup" formatted="false">Android 17及以上要求局域网广播具备局域网访问权限；请在设置中授予。</string>
+    <string name="capability_dnd_access" formatted="false">需要勿扰模式访问权限。</string>
+    <string name="capability_zen_rule_access" formatted="false">需要勿扰模式访问权限；Android 15及以上使用带设备效果的专有Zen规则。</string>
+    <string name="capability_torch_ready" formatted="false">使用相机闪光灯。</string>
+    <string name="capability_aod_unsupported" formatted="false">更改常亮显示需要Shizuku权限及其特权用户服务传输，某些版本会完全忽略该设置。</string>
+    <string name="capability_wifi_scan_setup" formatted="false">扫描需要位置访问权限，以及Android 13及以上版本的“附近Wi-Fi设备”权限。Android会限制扫描频率，因此结果可能是最近一次缓存扫描而非全新扫描。</string>
+    <string name="capability_airplane_unsupported" formatted="false">更改飞行模式需要Shizuku权限及其特权用户服务传输。</string>
+    <string name="capability_mobile_data_unsupported" formatted="false">更改移动数据需要Shizuku权限及其特权用户服务传输。</string>
+    <string name="capability_screenshot_unsupported" formatted="false">屏幕截图需要Shizuku权限及其特权用户服务传输。</string>
+    <string name="capability_reboot_unsupported" formatted="false">重启需要Shizuku权限及其特权用户服务传输。</string>
+    <string name="capability_lock_setup" formatted="false">需要锁屏设备管理员权限，请在设置中开启。</string>
+    <string name="capability_tile_ready" formatted="false">更新已配置的OpenTasker快捷设置磁贴。</string>
+    <string name="capability_temporary_state_ready" formatted="false">应用一个可逆的设置并安排一个持久恢复。</string>
+    <string name="capability_ime_info_ready" formatted="false">报告当前和已启用的输入法。</string>
+    <string name="capability_ime_set_unsupported" formatted="false">Android要求普通应用切换活动输入法前必须先由用户选择。</string>
+    <string name="capability_screen_off_unsupported" formatted="false">关闭屏幕需要Shizuku权限及其特权用户服务传输。</string>
+    <string name="capability_wake_unsupported" formatted="false">唤醒需要Shizuku权限及其特权用户服务传输。</string>
+    <string name="capability_termux_setup" formatted="false">需要Termux 0.109或更高版本、RUN_COMMAND权限以及已批准的脚本哈希。</string>
+    <string name="capability_tasker_import_unsupported" formatted="false">导入的Tasker操作无法映射到受支持的OpenTasker操作。</string>
+    <string name="capability_macrodroid_import_unsupported" formatted="false">导入的MacroDroid操作无法映射到受支持的OpenTasker操作。</string>
+    <string name="capability_sms_permission" formatted="false">需要短信权限；Play版为符合政策要求而省略了短信操作。</string>
+    <string name="capability_sms_distribution_unsupported" formatted="false">此版本中短信不可用，因为为符合Play政策而省略了短信和电话状态权限。</string>
+    <string name="capability_contacts_permission" formatted="false">无人值守查找需要显式的联系人权限；Android 17及以上还支持按字段划分的系统选择器模式。</string>
+    <string name="capability_audio_output_restricted" formatted="false">除非OpenTasker具有使用中合格的前台服务路径，否则Android 17会限制音频输出。</string>
+    <string name="capability_audio_output_ready" formatted="false">音频输出可用。</string>
+    <string name="capability_media_key_restricted" formatted="false">除非OpenTasker具有使用中合格的前台服务路径，否则Android 17会限制媒体键派发。</string>
+    <string name="capability_media_key_ready" formatted="false">媒体键派发可用。</string>
+    <string name="capability_volume_restricted" formatted="false">除非OpenTasker具有使用中合格的前台服务路径，否则Android 17会限制音量更改。</string>
+    <string name="capability_volume_policy" formatted="false">可能需要勿扰模式策略访问权限。</string>
+</resources>
