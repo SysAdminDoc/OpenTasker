@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.core.content.ContextCompat
 import com.opentasker.app.BuildConfig
 import com.opentasker.app.R
+import com.opentasker.core.contexts.bluetoothScanPermission
 import com.opentasker.core.actions.VpnClient
 import com.opentasker.core.actions.VpnTunnelPolicy
 import com.opentasker.core.actions.hasWriteSecureSettings
@@ -344,6 +345,16 @@ internal fun buildPermissionItems(
             requiredFor = context.getString(R.string.setup_bluetooth_required_for),
             section = SetupSection.NEEDED,
             requirements = setOf(SetupRequirement.BLUETOOTH),
+        ),
+        PermissionSetupItem(
+            title = context.getString(R.string.setup_bluetooth_scan_title),
+            body = context.getString(R.string.setup_bluetooth_scan_body),
+            granted = hasPermission(context, bluetoothScanPermission()),
+            actionLabel = request,
+            action = PermissionAction.RuntimePermission(bluetoothScanPermission()),
+            requiredFor = context.getString(R.string.setup_bluetooth_scan_required_for),
+            section = SetupSection.NEEDED,
+            requirements = setOf(SetupRequirement.BLUETOOTH_SCAN),
         ),
         PermissionSetupItem(
             title = context.getString(R.string.setup_screen_recording_title),

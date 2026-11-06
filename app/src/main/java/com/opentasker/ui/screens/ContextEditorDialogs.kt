@@ -69,6 +69,7 @@ import com.opentasker.core.contexts.DaySchedule
 import com.opentasker.core.contexts.EventContextPreset
 import com.opentasker.core.contexts.NfcTagWriteSession
 import com.opentasker.core.contexts.ScreenRecordingEventPresets
+import com.opentasker.core.contexts.BT_NEAR_STATE_KEY
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.apps.PackageNamePolicy
@@ -737,6 +738,7 @@ internal object StateContextPresets {
             if (phoneStateAvailable) {
                 add(StateContextPreset("roaming", R.string.context_state_preset_roaming, mapOf("key" to "roaming", "operator" to "=", "value" to "true")))
             }
+            add(StateContextPreset("bt_near", R.string.context_state_preset_bt_near, mapOf("key" to BT_NEAR_STATE_KEY, "operator" to "=", "value" to "")))
             add(StateContextPreset("tethering", R.string.context_state_preset_tethering, mapOf("key" to "tethering", "operator" to "=", "value" to "true")))
             if (phoneStateAvailable) {
                 add(StateContextPreset("call", R.string.context_state_preset_call, mapOf("key" to "call_state", "operator" to "=", "value" to "ringing")))

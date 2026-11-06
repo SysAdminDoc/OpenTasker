@@ -36,7 +36,10 @@ import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.storage.recoveryMessage
 import com.opentasker.core.contexts.BluetoothContextEvents
 import com.opentasker.core.contexts.BootContextEvents
+import com.opentasker.core.contexts.BluetoothNearTargets
 import com.opentasker.core.contexts.CallContextEvents
+import com.opentasker.core.contexts.bluetoothNearTargets
+import com.opentasker.core.contexts.systemAppReceiverFlags
 import com.opentasker.core.contexts.CameraMicContextEvents
 import com.opentasker.core.contexts.ContextEvent
 import com.opentasker.core.contexts.BroadcastContextEvents
@@ -160,7 +163,7 @@ class AutomationService : Service() {
                             this,
                             BluetoothContextEvents.receiver,
                             BluetoothContextEvents.intentFilter(),
-                            ContextCompat.RECEIVER_NOT_EXPORTED,
+                            systemAppReceiverFlags(),
                         )
                         true
                     },
@@ -496,6 +499,8 @@ class AutomationService : Service() {
         if (!subscriptionsReady) {
             AppLogger.warn(TAG, "Context monitor subscription barrier timed out; starting required sources in degraded mode")
         }
+        // Before reconcile, so a monitor this starts has something to scan for on its first pass.
+        BluetoothNearTargets.sync(bluetoothNearTargets(profiles.flatMap { it.contexts }))
         logContextMonitorTransition(contextMonitorLifecycle.reconcile(profiles))
         // Not a ContextMonitor: the broadcast receiver's filter is per-profile configuration, so
         // it has to follow the declared action set, which changes without any monitor starting or

@@ -477,6 +477,9 @@
     <string name="setup_bluetooth_title">Bluetooth connect</string>
     <string name="setup_bluetooth_body">Needed on Android 12 and newer for Bluetooth device actions and context checks, including Android 16 bond-loss and encryption events.</string>
     <string name="setup_bluetooth_required_for">Bluetooth actions and security event contexts</string>
+    <string name="setup_bluetooth_scan_title">Nearby Bluetooth scan</string>
+    <string name="setup_bluetooth_scan_body">Lets a Bluetooth device nearby context look for the device you named. Android 11 and older ask for location instead and need location turned on. A phone only shows up while it is advertising, and pairing it once helps Android recognize it.</string>
+    <string name="setup_bluetooth_scan_required_for">Bluetooth device nearby contexts</string>
     <string name="setup_screen_recording_title">Screen recording detection</string>
     <string name="setup_screen_recording_body">On Android 15 and newer, OpenTasker can react when this app becomes visible or invisible in a screen recording. No screen contents are captured by this trigger.</string>
     <string name="setup_screen_recording_required_for">Screen recording event contexts</string>

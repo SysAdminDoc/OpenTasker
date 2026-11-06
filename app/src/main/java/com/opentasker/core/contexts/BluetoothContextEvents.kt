@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import com.opentasker.core.logging.AppLogger
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -28,6 +29,15 @@ import kotlinx.coroutines.flow.asSharedFlow
  * Reading the device name requires BLUETOOTH_CONNECT on Android 12+; failures fall back to a
  * generic name so a connect/disconnect can still trigger by state or address.
  */
+/**
+ * Flags for a receiver of broadcasts a system app sends, such as the Bluetooth app. Below Android 13
+ * ContextCompat emulates RECEIVER_NOT_EXPORTED with a signature permission the sender has to hold.
+ * Only the system server is exempt from that check, so those broadcasts would never arrive. The
+ * actions registered with this are protected broadcasts, so exporting doesn't let an app fake one.
+ */
+internal fun systemAppReceiverFlags(sdkInt: Int = Build.VERSION.SDK_INT): Int =
+    if (sdkInt >= 33) ContextCompat.RECEIVER_NOT_EXPORTED else ContextCompat.RECEIVER_EXPORTED
+
 object BluetoothContextEvents {
     private val events_ = MutableSharedFlow<ContextEvent>(
         extraBufferCapacity = 16,

@@ -143,6 +143,7 @@ fun stateMatches(predicate: String, state: Map<String, String>): Boolean {
 
     val normalizedKey = normalizeStateKey(key)
     if (normalizedKey == "wifi") return wifiMatches(op, value, state)
+    if (normalizedKey == BT_NEAR_STATE_KEY) return bluetoothNearMatches(op, value, state)
 
     val actualValue = state[normalizedKey] ?: return false
     val expectedValue = normalizeStateExpectedValue(normalizedKey, value.trim()) ?: return false
@@ -253,6 +254,7 @@ internal fun normalizeStateKey(key: String): String = when (key.trim().lowercase
     "roaming_state" -> "roaming"
     "tether", "hotspot", "wifi_hotspot", "tethering_state" -> "tethering"
     "call", "phone_call", "phone_call_state" -> "call_state"
+    "bluetooth_near", "bt near", "bluetooth near", "btnear" -> BT_NEAR_STATE_KEY
     else -> key.trim().lowercase()
 }
 
@@ -368,6 +370,19 @@ internal fun stateSpecReadsWifiSsid(spec: ContextSpec): Boolean {
     val expected = value.trim().lowercase()
     return expected.isNotEmpty() && expected !in WIFI_CONNECTED_WORDS && expected !in WIFI_DISCONNECTED_WORDS
 }
+
+/** The device a STATE context waits for, or null when it isn't a nearby-device context that can match. */
+internal fun bluetoothNearTarget(spec: ContextSpec): String? {
+    if (spec.type != ContextType.STATE) return null
+    val (key, operator, value) = spec.config["predicate"]?.takeIf(String::isNotBlank)?.let(::parseStatePredicate)
+        ?: Triple(spec.config["key"].orEmpty(), spec.config["operator"].orEmpty(), spec.config["value"].orEmpty())
+    if (normalizeStateKey(key) != BT_NEAR_STATE_KEY) return null
+    if (operator.trim().ifEmpty { "=" } != "=") return null
+    return value.trim().takeIf(String::isNotEmpty)
+}
+
+internal fun bluetoothNearTargets(specs: Iterable<ContextSpec>): Set<String> =
+    specs.mapNotNullTo(linkedSetOf(), ::bluetoothNearTarget)
 
 /** The private `_setup_*` marker a state source writes when it cannot evaluate [spec], if any. */
 internal fun stateSetupMarkerKey(spec: ContextSpec): String? =

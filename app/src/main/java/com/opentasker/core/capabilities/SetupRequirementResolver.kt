@@ -1,5 +1,7 @@
 package com.opentasker.core.capabilities
 
+import com.opentasker.core.contexts.BT_NEAR_STATE_KEY
+import com.opentasker.core.contexts.stateContextKey
 import com.opentasker.core.contexts.stateSpecReadsWifiSsid
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -24,6 +26,7 @@ enum class SetupRequirement {
     BACKGROUND_LOCATION,
     NEARBY_WIFI,
     BLUETOOTH,
+    BLUETOOTH_SCAN,
     LOCAL_NETWORK,
     SMS,
     DND,
@@ -99,6 +102,13 @@ object SetupRequirementResolver {
                     add(SetupRequirement.BACKGROUND_LOCATION)
                 }
                 ContextType.STATE -> {
+                    // The value is a device name here, so the word matching below would read
+                    // "Sam's Phone" as a phone-state context and "Home Network" as a Wi-Fi one.
+                    if (stateContextKey(context) == BT_NEAR_STATE_KEY) {
+                        add(SetupRequirement.BLUETOOTH)
+                        add(SetupRequirement.BLUETOOTH_SCAN)
+                        return@buildSet
+                    }
                     if (tokens.containsAny("wifi", "ssid", "network")) add(SetupRequirement.NEARBY_WIFI)
                     // Android withholds a network's name without precise location, and withholds it
                     // from a backgrounded app without "allow all the time", so an SSID profile that

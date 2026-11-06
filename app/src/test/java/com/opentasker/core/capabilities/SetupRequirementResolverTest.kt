@@ -31,6 +31,19 @@ class SetupRequirementResolverTest {
     }
 
     @Test
+    fun aNearbyDeviceContextAsksForBluetoothAndNotForWhatItsNameSoundsLike() {
+        fun requiredFor(name: String) = SetupRequirementResolver.resolveForTemplate(
+            actionTypes = emptyList(),
+            contexts = listOf(ContextSpec(ContextType.STATE, mapOf("key" to "bt_near", "operator" to "=", "value" to name))),
+        )
+
+        val bluetoothOnly = setOf(SetupRequirement.BLUETOOTH, SetupRequirement.BLUETOOTH_SCAN)
+        assertEquals(bluetoothOnly, requiredFor("Car"))
+        assertEquals(bluetoothOnly, requiredFor("Sam's Phone"))
+        assertEquals(bluetoothOnly, requiredFor("Home Network Speed Motion"))
+    }
+
+    @Test
     fun openingALinkFromAProfileNeedsDisplayOverOtherApps() {
         assertEquals(
             setOf(SetupRequirement.OVERLAY),

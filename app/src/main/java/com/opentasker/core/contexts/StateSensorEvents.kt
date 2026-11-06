@@ -79,6 +79,7 @@ object StateSensorEvents {
         "roaming",
         "tethering",
         "call_state",
+        BT_NEAR_STATE_KEY,
     )
 
     fun events(app: Context, requestedStateKey: String? = null): Flow<Map<String, String>> = callbackFlow {
@@ -112,6 +113,10 @@ object StateSensorEvents {
         }
         if (wanted("tethering")) {
             registrations += tetheringRegistration(app, ::emitPatch).also { it.start(this) }
+        }
+        if (wanted(BT_NEAR_STATE_KEY)) {
+            registrations += bluetoothNearRegistration(app, listEverything = requested == null, ::emitPatch)
+                .also { it.start(this) }
         }
         if (requested != null && requested !in physicalKeys) {
             // Unknown state keys remain available to the existing broadcast-backed state source;
@@ -525,6 +530,32 @@ object StateSensorEvents {
         return RecheckingRegistration(::ensure, ::stop, RECHECK_MS)
     }
 
+    private fun bluetoothNearRegistration(
+        app: Context,
+        listEverything: Boolean,
+        emit: (Map<String, String>) -> Unit,
+    ): RecheckingRegistration {
+        val scanner = NearbyBluetoothScanner(
+            app,
+            targets = { if (listEverything) null else BluetoothNearTargets.current },
+            publish = { devices -> emitReady(emit, BT_NEAR_STATE_KEY, mapOf(BT_NEAR_STATE_KEY to devices)) },
+        )
+
+        fun ensure() {
+            val gap = scanner.setupGap()
+            if (gap == null) {
+                scanner.scanOnce()
+                return
+            }
+            // Nothing can be seen now, so a device from the last scan must not keep a profile active.
+            scanner.stop()
+            emit(mapOf(BT_NEAR_STATE_KEY to ""))
+            emitSetup(emit, BT_NEAR_STATE_KEY, gap)
+        }
+
+        return RecheckingRegistration(::ensure, scanner::stop, BT_NEAR_CYCLE_MS)
+    }
+
     private fun tetheringRegistration(
         app: Context,
         emit: (Map<String, String>) -> Unit,
@@ -583,9 +614,9 @@ object StateSensorEvents {
                         addAction(AP_STATE_ACTION)
                         addAction(TETHER_STATE_ACTION)
                     },
-                    // Both actions are protected broadcasts; NOT_EXPORTED still receives them and
-                    // matches every other dynamic receiver in this codebase.
-                    ContextCompat.RECEIVER_NOT_EXPORTED,
+                    // On Android 11 and 12 the tethering module sends its broadcast from outside
+                    // the system server.
+                    systemAppReceiverFlags(),
                 )
             }.onSuccess {
                 receiver = candidate

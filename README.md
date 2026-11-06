@@ -63,7 +63,7 @@
 - **MacroDroid migration**. Import full `.mdr` backups, password-protected `.emdr` exports or single `.macro` shares into disabled profiles, with bounded decoding and an exact mapped, unsupported, and lossy review
 
 - Time/day schedules with presets, aliases, and ranges
-- Device state (battery, charging, headphones, screen, media playback, airplane, power save, Wi-Fi SSID, orientation, proximity, physical activity, speed, roaming, tethering, and phone-call state); sensor/GPS/phone callbacks are demand-gated per profile
+- Device state (battery, charging, headphones, screen, media playback, airplane, power save, Wi-Fi SSID, orientation, proximity, physical activity, speed, roaming, tethering, phone-call state, and Bluetooth devices nearby); sensor/GPS/phone callbacks are demand-gated per profile
 - App foreground detection via UsageStats, with optional exact/glob Activity component matching and explicit unavailable-component reporting
 - Wi-Fi and data/internet connectivity via NetworkCallback
 - Notification listener with package/title/body filters. A matching notification hands the task `{{ event.notification_package }}`, `{{ event.notification_title }}` and `{{ event.notification_body }}`
@@ -190,6 +190,12 @@ Untrusted imports are preflighted before object/DOM allocation. OpenTasker JSON 
 To run a Termux script, place it below `~/.termux/tasker/`, enable Termux's external-app access, and grant OpenTasker `RUN_COMMAND` permission from Setup. Add the script path and the expected 64-character SHA-256 under **Approved Termux scripts**; OpenTasker performs a hash preflight and rechecks inside the fixed execution wrapper before the script can run. A capture prefix such as `%script` writes bounded `%script_stdout`, `%script_stderr`, `%script_exit_code`, and original-length variables; captured content is never written to the run log.
 
 To run a script through Shizuku, put it where the shell user can read it (`/data/local/tmp` or shared storage), add its path and SHA-256 under **Approved Shizuku scripts** in Setup, and point a **Run Shizuku Script** action at it. It runs with `/system/bin/sh` as the shell user, so it doesn't need `rish` inside it and a `#!` line is ignored. Scripts can be up to 64 KB, and an edited script refuses to run until you approve its new hash. The capture prefix works the same way as above.
+
+### Bluetooth devices nearby
+
+Add a state context with the **Bluetooth device nearby** preset and type the device's name or address. OpenTasker looks for it about once a minute, and it can take a few minutes after a device leaves for the context to turn off. Open the Inspector to see what's around and how each device names itself.
+
+A phone only shows up while it's advertising, and most change their address every few minutes. Pairing the phone once fixes that, because Android can then recognize it under its paired name. Anyone can give a device any name, so don't use this to unlock or disarm anything.
 
 ### VPN tunnels
 

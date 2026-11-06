@@ -37,11 +37,11 @@
     <string name="context_field_location_outside_label" formatted="false">Match when outside</string>
     <string name="context_field_location_outside_hint" formatted="false">Fire when away from this place instead of at it (with dwell)</string>
     <string name="context_field_state_key_label" formatted="false">State key</string>
-    <string name="context_field_state_key_hint" formatted="false">battery_level, charging, orientation, proximity, activity, speed, roaming, tethering, call_state</string>
+    <string name="context_field_state_key_hint" formatted="false">battery_level, charging, orientation, proximity, activity, speed, roaming, tethering, call_state, bt_near</string>
     <string name="context_field_state_operator_label" formatted="false">Operator</string>
     <string name="context_field_state_operator_hint" formatted="false">=, &gt;=, &lt;=, &gt;, &lt;</string>
     <string name="context_field_state_value_label" formatted="false">Expected value</string>
-    <string name="context_field_state_value_hint" formatted="false">portrait, near, walking, 10, true, ringing, or an existing state value</string>
+    <string name="context_field_state_value_hint" formatted="false">portrait, near, walking, 10, true, ringing, a Bluetooth device name or address, or an existing state value</string>
     <string name="context_state_preset_orientation" formatted="false">Portrait</string>
     <string name="context_state_preset_proximity" formatted="false">Nearby</string>
     <string name="context_state_preset_activity" formatted="false">Walking</string>
@@ -49,6 +49,7 @@
     <string name="context_state_preset_roaming" formatted="false">Roaming</string>
     <string name="context_state_preset_tethering" formatted="false">Tethering</string>
     <string name="context_state_preset_call" formatted="false">Incoming call</string>
+    <string name="context_state_preset_bt_near" formatted="false">Bluetooth device nearby</string>
     <string name="context_field_event_type_label" formatted="false">Event type</string>
     <string name="context_field_event_type_hint" formatted="false">boot_completed, notification, nfc, bluetooth, bluetooth_key_missing, bluetooth_encryption_change, calendar, sunrise, sunset, shake, camera, mic, package_added, package_removed, package_replaced</string>
     <string name="context_field_event_state_label" formatted="false">Event state</string>

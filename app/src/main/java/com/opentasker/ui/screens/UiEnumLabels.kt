@@ -57,6 +57,7 @@ internal fun setupRequirementLabelRes(requirement: SetupRequirement): Int = when
     SetupRequirement.BACKGROUND_LOCATION -> R.string.setup_background_location_title
     SetupRequirement.NEARBY_WIFI -> R.string.setup_nearby_wifi_title
     SetupRequirement.BLUETOOTH -> R.string.setup_bluetooth_title
+    SetupRequirement.BLUETOOTH_SCAN -> R.string.setup_bluetooth_scan_title
     SetupRequirement.LOCAL_NETWORK -> R.string.setup_local_network_title
     SetupRequirement.SMS -> R.string.setup_sms_title
     SetupRequirement.DND -> R.string.setup_dnd_title
