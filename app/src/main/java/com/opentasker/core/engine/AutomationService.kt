@@ -582,7 +582,7 @@ class AutomationService : Service() {
             return
         }
         if (!pulseProfile) synchronized(dispatchedProfiles) { dispatchedProfiles += profile.id }
-        dispatchTask(profile, decoded.value, isExit = false, initialVariables = eventVariables(event))
+        dispatchTask(profile, decoded.value, isExit = false, initialVariables = EventTaskVariables.from(event))
     }
 
     private suspend fun onProfileDeactivated(profile: com.opentasker.core.model.Profile) {
@@ -837,32 +837,6 @@ class AutomationService : Service() {
         }
         if (result.logInserted) {
             pruneRunLogs(force = false)
-        }
-    }
-
-    private fun eventVariables(event: ContextEvent?): Map<String, String> {
-        if (event?.metadata?.get("event") == BroadcastContextEvents.EVENT_BROADCAST) {
-            return buildMap {
-                put("broadcast_action", event.metadata["broadcast_action"].orEmpty())
-                put("broadcast_sender", event.metadata["broadcast_sender"].orEmpty())
-                put("broadcast_extra_count", event.metadata["broadcast_extra_count"].orEmpty())
-                put("broadcast_extras_lossy", event.metadata["broadcast_extras_lossy"] ?: "false")
-                // Already bounded and string-only when the event was built, so forwarding them
-                // wholesale cannot introduce anything the sanitiser refused.
-                event.metadata.forEach { (key, value) ->
-                    if (key.startsWith("broadcast_extra_") && key != "broadcast_extra_count") put(key, value)
-                }
-            }
-        }
-        if (event?.metadata?.get("event") != "share") return emptyMap()
-        return buildMap {
-            put("share_event", "true")
-            put("share_text", event.metadata["text"].orEmpty())
-            put("share_uri", event.metadata["uri"].orEmpty())
-            put("share_uris", event.metadata["uris"].orEmpty())
-            put("share_mime", event.metadata["mime"].orEmpty())
-            put("share_count", event.metadata["count"].orEmpty())
-            put("share_multiple", event.metadata["multiple"].orEmpty())
         }
     }
 

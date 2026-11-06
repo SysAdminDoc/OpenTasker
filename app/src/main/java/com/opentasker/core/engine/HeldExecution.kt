@@ -52,7 +52,7 @@ object HeldExecutionPayloadCodec {
                 .asSequence()
                 .mapNotNull { (rawName, value) ->
                     val name = rawName.trim().take(MAX_FIELD_CHARS).takeIf(String::isNotBlank) ?: return@mapNotNull null
-                    name to if (sensitiveName.containsMatchIn(name)) REDACTED_VALUE else redactText(value)
+                    name to if (isSensitiveName(name)) REDACTED_VALUE else redactText(value)
                 }
                 .take(MAX_VARIABLES)
                 .toMap(),
@@ -68,7 +68,7 @@ object HeldExecutionPayloadCodec {
                 .asSequence()
                 .map { (name, value) ->
                     name.trim().take(MAX_FIELD_CHARS) to
-                        if (sensitiveName.containsMatchIn(name)) REDACTED_VALUE else redactText(value)
+                        if (isSensitiveName(name)) REDACTED_VALUE else redactText(value)
                 }
                 .filter { it.first.isNotBlank() }
                 .take(MAX_VARIABLES)
@@ -112,6 +112,9 @@ object HeldExecutionPayloadCodec {
         }
         return payload
     }
+
+    private fun isSensitiveName(name: String): Boolean =
+        sensitiveName.containsMatchIn(name) || EventTaskVariables.isSensitive(name.trim())
 
     private fun redactText(value: String): String = value
         .replace(Regex("(?i)\\bbearer\\s+[^\\s,;]+"), "Bearer $REDACTED_VALUE")

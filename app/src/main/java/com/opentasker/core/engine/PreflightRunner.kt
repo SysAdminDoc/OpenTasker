@@ -8,6 +8,7 @@ import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.capabilities.CapabilityLevel
 import com.opentasker.core.capabilities.SetupRequirement
 import com.opentasker.core.capabilities.SetupRequirementResolver
+import com.opentasker.core.expressions.InertTemplateText
 import com.opentasker.core.expressions.TemplateExpansionResult
 import com.opentasker.core.expressions.TemplateExpressionEngine
 import com.opentasker.core.expressions.TemplateExpansionTrace
@@ -540,7 +541,7 @@ object PreflightRunner {
         val result = TemplateExpressionEngine().expand(
             legacy.value,
             variables.toTemplateScope(input.eventVariables),
-        )
+        ).let { it.copy(value = InertTemplateText.restore(it.value)) }
         return if (legacy.isSecretDerived && result.traces.none { it.isSecretDerived }) {
             result.copy(
                 traces = result.traces + TemplateExpansionTrace(
@@ -594,7 +595,7 @@ object PreflightRunner {
     private fun seedVariables(variables: VariableStore, input: PreflightInputs) {
         variables.seedGlobals(input.globalVariables, input.secretGlobalNames)
         variables.pushScope()
-        input.eventVariables.forEach { (name, value) -> variables.set(name, value) }
+        input.eventVariables.forEach { (name, value) -> variables.set(name, value, EventTaskVariables.isSensitive(name)) }
     }
 
     private fun setupRequirements(task: Task, tasks: List<Task>): Set<SetupRequirement> =

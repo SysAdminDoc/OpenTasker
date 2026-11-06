@@ -66,14 +66,14 @@
 - Device state (battery, charging, headphones, screen, media playback, airplane, power save, Wi-Fi SSID, orientation, proximity, physical activity, speed, roaming, tethering, and phone-call state); sensor/GPS/phone callbacks are demand-gated per profile
 - App foreground detection via UsageStats, with optional exact/glob Activity component matching and explicit unavailable-component reporting
 - Wi-Fi and data/internet connectivity via NetworkCallback
-- Notification listener with package/title/body filters
+- Notification listener with package/title/body filters. A matching notification hands the task `{{ event.notification_package }}`, `{{ event.notification_title }}` and `{{ event.notification_body }}`
 - NFC tag scans with normalized ID matching and a one-time NDEF write helper
 - Calendar windows with redacted event metadata
 - Sunrise/sunset filters with coordinate, offset, and window support
 - Shake, Bluetooth connect/disconnect and Android 16 bond-loss/encryption security events, Android 16 Advanced Protection transitions, sanitized SMS/MMS receipt on standard/F-Droid builds, package install/remove/replace
 - Bluetooth all-devices-disconnected transition with an editor preset and multi-device tracking
 - Android 15+ screen-recording visibility trigger. `event=screen_recording` reacts to whether this app is visible in a recording without capturing screen contents
-- SMS/MMS-received trigger. `event=sms_received` exposes sanitized sender/body metadata on standard/F-Droid builds; Android 17 may delay standard OTP SMS delivery for up to three hours outside exempt apps
+- SMS/MMS-received trigger. `event=sms_received` exposes sanitized sender/body metadata on standard/F-Droid builds and hands the task `{{ event.sms_sender }}`, `{{ event.sms_body }}`, `{{ event.sms_kind }}`, `{{ event.sms_message_count }}` and `{{ event.sms_subscription_id }}`, so an HTTP Request can forward a message while the run log shows a placeholder; Android 17 may delay standard OTP SMS delivery for up to three hours outside exempt apps
 - Received-broadcast trigger. `event=broadcast` fires when another app or `adb shell am broadcast` sends an intent action you name. Only the actions your enabled profiles declare are ever registered, at most 16 of them, and the receiver re-checks the action on delivery. Extras arrive as bounded strings: text, numbers and booleans only, capped at 16 keys and 512 characters each, with anything oversized or Parcelable dropped and flagged in `broadcast_extras_lossy` rather than truncated. Tasks get `broadcast_action`, `broadcast_sender`, `broadcast_extra_count` and one `broadcast_extra_*` per surviving extra. A word on the sender: Android names it only when the sending app opts in to sharing its identity, which most apps and adb do not, so `broadcast_sender` is usually empty and a sender filter refuses what it cannot identify
 - Quick Settings tile tap, home-screen widget/shortcut, boot
 - Authenticated `event=push` bridge for a de-googled UnifiedPush distributor; delivery IDs are deduplicated, payloads are bounded, and message content is redacted before matching/logging

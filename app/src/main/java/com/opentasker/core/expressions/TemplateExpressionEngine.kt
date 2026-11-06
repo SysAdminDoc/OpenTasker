@@ -21,6 +21,7 @@ data class TemplateScope(
     val sensitiveGlobal: Set<String> = emptySet(),
     val sensitiveTask: Set<String> = emptySet(),
     val sensitiveArrays: Set<String> = emptySet(),
+    val sensitiveEvent: Set<String> = emptySet(),
 )
 
 data class TemplateExpressionLimits(
@@ -71,6 +72,20 @@ enum class TemplateValueSource {
  * - Pipe functions include `default`, `upper`, `lower`, `trim`, `add`, `sub`,
  *   `mul`, `div`, `round`, `floor`, `count`, `join`, and `date`.
  */
+/**
+ * A `{{` that arrives inside a variable's value is data. Legacy `%var` expansion runs first, so
+ * without this a text message saying `{{ API_TOKEN }}`, forwarded through `%sms_body`, would be
+ * read as an expression and the secret sent along with it. The same goes for a web response or
+ * a broadcast extra.
+ */
+internal object InertTemplateText {
+    private val MARK = "${Char(0xE000)}${Char(0xE001)}"
+
+    fun hide(value: String): String = value.replace("{{", MARK)
+
+    fun restore(text: String): String = text.replace(MARK, "{{")
+}
+
 class TemplateExpressionEngine(
     private val limits: TemplateExpressionLimits = TemplateExpressionLimits(),
 ) {
@@ -218,7 +233,7 @@ class TemplateExpressionEngine(
                 normalized.removePrefix("event."),
                 scope.event,
                 TemplateValueSource.EVENT,
-                emptySet(),
+                scope.sensitiveEvent,
             )
             normalized.startsWith("global.") -> resolveInMap(
                 normalized.removePrefix("global."),
@@ -233,7 +248,7 @@ class TemplateExpressionEngine(
             )
             else -> resolveInMap(normalized, scope.task, TemplateValueSource.TASK, scope.sensitiveTask)
                 .takeIfResolved()
-                ?: resolveInMap(normalized, scope.event, TemplateValueSource.EVENT, emptySet()).takeIfResolved()
+                ?: resolveInMap(normalized, scope.event, TemplateValueSource.EVENT, scope.sensitiveEvent).takeIfResolved()
                 ?: resolveInMap(normalized, scope.global, TemplateValueSource.GLOBAL, scope.sensitiveGlobal).takeIfResolved()
                 ?: resolveArray(normalized, scope.arrays, scope.sensitiveArrays).takeIfResolved()
                 ?: ResolvedValue("", TemplateValueSource.MISSING, normalized, missing = true)

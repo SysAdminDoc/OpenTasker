@@ -171,7 +171,7 @@ suspend fun executeAndLogTask(
             "Secret variables require re-entry: ${persistedGlobals.unavailableSecretNames.sorted().joinToString()}",
         )
     }
-    initialVariables.forEach { (name, value) -> variables.set(name, value) }
+    initialVariables.forEach { (name, value) -> variables.set(name, value, EventTaskVariables.isSensitive(name)) }
     // Baseline after seeding + event vars, so only globals actually changed during the run persist.
     val baselineGlobals = variables.globalSnapshot()
     val baselineSensitiveGlobals = variables.globalSensitiveSnapshot()

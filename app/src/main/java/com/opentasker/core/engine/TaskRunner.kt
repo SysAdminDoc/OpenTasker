@@ -4,6 +4,7 @@ import com.opentasker.core.actions.ActionArgumentSensitivity
 import com.opentasker.core.capabilities.AutomationSensitivityRegistry
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.diagnostics.ExportRedactionPolicy
+import com.opentasker.core.expressions.InertTemplateText
 import com.opentasker.core.expressions.TemplateExpansionTrace
 import com.opentasker.core.expressions.TemplateScope
 import com.opentasker.core.expressions.TemplateExpressionEngine
@@ -765,12 +766,12 @@ class TaskRunner(
 
     /** Evaluates a condition string with legacy `%var` then bounded `{{ ... }}` expansion. */
     private fun evaluateConditionString(condition: String): Boolean {
-        val legacyExpanded = ctx.variables.expand(condition)
-        if (!legacyExpanded.contains("{{")) return ctx.variables.evaluateCondition(legacyExpanded)
+        val legacyExpanded = ctx.variables.expandTracked(condition)
+        if (!legacyExpanded.value.contains("{{")) return ctx.variables.evaluateCondition(legacyExpanded.text)
 
-        val expanded = templateExpressionEngine.expand(legacyExpanded, ctx.variables.toTemplateScope(ctx.eventVariables))
+        val expanded = templateExpressionEngine.expand(legacyExpanded.value, ctx.variables.toTemplateScope(ctx.eventVariables))
         if (expanded.warnings.isNotEmpty()) return false
-        return ctx.variables.evaluateCondition(expanded.value)
+        return ctx.variables.evaluateCondition(InertTemplateText.restore(expanded.value))
     }
 
     private fun traceFor(
@@ -824,7 +825,7 @@ class TaskRunner(
                 } else if (actionType == SUB_TASK_ACTION_ID && name !in SUB_TASK_REF_KEYS) {
                     // Only expansions get a trace, so a sub-task input typed as plain text would
                     // otherwise never appear in the run log of the step that passed it.
-                    val shown = if (ActionArgumentSensitivity.isSensitive(actionType, name)) REDACTED_VALUE else legacy.value
+                    val shown = if (ActionArgumentSensitivity.isSensitive(actionType, name)) REDACTED_VALUE else legacy.text
                     expansions += ActionArgumentExpansionTrace(
                         argName = name,
                         rawValue = shown,
@@ -834,16 +835,17 @@ class TaskRunner(
                         isSecretDerived = false,
                     )
                 }
-                return@mapValues legacy.value
+                return@mapValues legacy.text
             }
 
             val result = templateExpressionEngine.expand(legacy.value, templateScope)
+            val expanded = InertTemplateText.restore(result.value)
             val isSecretDerived = legacy.isSecretDerived || result.traces.any { it.isSecretDerived }
             if (result.traces.isNotEmpty() || result.warnings.isNotEmpty() || isSecretDerived) {
                 expansions += ActionArgumentExpansionTrace(
                     argName = name,
                     rawValue = rawValue,
-                    expandedValue = if (isSecretDerived) REDACTED_VALUE else result.value,
+                    expandedValue = if (isSecretDerived) REDACTED_VALUE else expanded,
                     expressions = result.traces.map { trace ->
                         if (trace.isSecretDerived) trace.copy(value = REDACTED_VALUE) else trace
                     },
@@ -851,7 +853,7 @@ class TaskRunner(
                     isSecretDerived = isSecretDerived,
                 )
             }
-            result.value
+            expanded
         }
 
         return ActionArgumentExpansionReport(expandedArgs, expansions, actionType)

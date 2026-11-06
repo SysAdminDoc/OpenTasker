@@ -2,6 +2,7 @@ package com.opentasker.core.engine
 
 import com.opentasker.core.engine.variables.ArrayStore
 import com.opentasker.core.engine.variables.VariableExpander
+import com.opentasker.core.expressions.InertTemplateText
 import com.opentasker.core.expressions.TemplateScope
 import com.opentasker.core.model.VariableNamePolicy
 import kotlinx.serialization.json.Json
@@ -15,9 +16,13 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 data class TrackedExpansion(
+    /** Ready for the template engine: a `{{` that came out of a variable's value stays inert. */
     val value: String,
     val isSecretDerived: Boolean,
-)
+) {
+    /** The finished text, when no template stage follows. */
+    val text: String get() = InertTemplateText.restore(value)
+}
 
 /**
  * In-memory variable store with a global scope and stack of local scopes.
@@ -155,7 +160,7 @@ class VariableStore {
 
     /** Expands a legacy expression while retaining whether any referenced input was secret. */
     fun expandTracked(s: String): TrackedExpansion = TrackedExpansion(
-        value = expand(s),
+        value = expander.expand(s, this, arrayStore, InertTemplateText::hide),
         isSecretDerived = variableReference.findAll(s).any { match ->
             val name = match.groupValues[1]
             isSensitive(name) || name in sensitiveArrayNames
@@ -192,6 +197,7 @@ class VariableStore {
                 localSensitiveStack.flatMapTo(rootLocalSensitiveNames.toMutableSet()) { it }
             },
             sensitiveArrays = sensitiveArrayNames.toSet(),
+            sensitiveEvent = event.keys.filterTo(mutableSetOf(), EventTaskVariables::isSensitive),
         )
     }
 

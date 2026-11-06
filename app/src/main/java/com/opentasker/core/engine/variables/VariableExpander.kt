@@ -26,24 +26,34 @@ class VariableExpander {
      * - "%VAR(regex:(\d+):1)" -> extract first digit group from VAR
      * - "%VAR(split:,)" -> split VAR by comma, return array
      */
-    fun expand(expr: String, variableStore: VariableStore, arrayStore: ArrayStore): String {
+    fun expand(
+        expr: String,
+        variableStore: VariableStore,
+        arrayStore: ArrayStore,
+        quoteValue: (String) -> String = { it },
+    ): String {
         return try {
-            expandInternal(expr, variableStore, arrayStore)
+            expandInternal(expr, variableStore, arrayStore, quoteValue)
         } catch (e: Exception) {
             // If evaluation fails, return original expression
             expr
         }
     }
 
-    private fun expandInternal(expr: String, variableStore: VariableStore, arrayStore: ArrayStore): String {
+    private fun expandInternal(
+        expr: String,
+        variableStore: VariableStore,
+        arrayStore: ArrayStore,
+        quoteValue: (String) -> String = { it },
+    ): String {
         // Handle conditionals: (cond) ? true_val : false_val
         val ternary = parseTernary(expr)
         if (ternary != null) {
             val result = evaluateConditionInternal(ternary.condition, variableStore, arrayStore)
-            return expandText(if (result) ternary.trueValue else ternary.falseValue, variableStore, arrayStore)
+            return expandText(if (result) ternary.trueValue else ternary.falseValue, variableStore, arrayStore, quoteValue)
         }
 
-        return expandText(expr, variableStore, arrayStore)
+        return expandText(expr, variableStore, arrayStore, quoteValue)
     }
 
     private data class Ternary(val condition: String, val trueValue: String, val falseValue: String)
@@ -77,7 +87,12 @@ class VariableExpander {
         )
     }
 
-    private fun expandText(expr: String, variableStore: VariableStore, arrayStore: ArrayStore): String {
+    private fun expandText(
+        expr: String,
+        variableStore: VariableStore,
+        arrayStore: ArrayStore,
+        quoteValue: (String) -> String,
+    ): String {
         if ('%' !in expr) return expr
 
         val out = StringBuilder(expr.length)
@@ -86,7 +101,7 @@ class VariableExpander {
             val c = expr[i]
             if (c == '%' && i + 1 < expr.length && expr[i + 1].isLetter()) {
                 val token = readVariableToken(expr, i, variableStore, arrayStore)
-                out.append(token.value)
+                out.append(quoteValue(token.value))
                 i = token.nextIndex
             } else {
                 out.append(c)
