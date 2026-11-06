@@ -696,5 +696,5 @@ object MacroDroidImporter {
     private const val LOOP_DELIMITER = "|"
     private const val MAX_FIXED_LOOP_COUNT = 1_000
     private const val UNSUPPORTED_EVENT_NAME = "macrodroid_unsupported"
-    private val MACRODROID_MAGIC_TEXT = Regex("""\[[^\]\s]+]|\{l?v=[^}]+}""")
+    private val MACRODROID_MAGIC_TEXT = Regex("""\[[^\]\s]+\]|\{l?v=[^}]+\}""")
 }
