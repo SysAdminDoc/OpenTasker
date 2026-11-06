@@ -24,6 +24,7 @@ object ShizukuShellRunner {
     private const val USER_SERVICE_TAG = "opentasker-power"
     private const val USER_SERVICE_VERSION = 2
     private const val CONNECTION_TIMEOUT_SECONDS = 2L
+    private const val POWER_MODE_OFF = "Shizuku power mode is off, so nothing ran. Turn it on from its row in Setup."
 
     private val lock = Any()
     private val connection = object : ServiceConnection {
@@ -86,7 +87,7 @@ object ShizukuShellRunner {
                 ShellResult.Failure("Invalid variant index $variantIndex for action '$actionId'")
             }
         if (ShizukuPowerBackend.killSwitchEnabled) {
-            return ShellResult.Failure("Shizuku kill switch is active")
+            return ShellResult.Failure(POWER_MODE_OFF)
         }
         val service = remoteServiceForUse()
             ?: return unavailable()
@@ -107,7 +108,7 @@ object ShizukuShellRunner {
     /** Runs the fixed screenshot command and lets the privileged process write only app storage. */
     fun captureScreenshot(path: String): ShellResult {
         if (ShizukuPowerBackend.killSwitchEnabled) {
-            return ShellResult.Failure("Shizuku kill switch is active")
+            return ShellResult.Failure(POWER_MODE_OFF)
         }
         if (!isSafeScreenshotPath(path)) {
             return ShellResult.Failure("Screenshot path must stay inside OpenTasker's app-specific external storage")
@@ -130,7 +131,7 @@ object ShizukuShellRunner {
     /** Blocks for as long as the script runs, so this belongs on a background thread. */
     internal fun runScript(request: ShizukuScriptRequest): ShizukuScriptReply {
         if (ShizukuPowerBackend.killSwitchEnabled) {
-            return ShizukuScriptReply.refused(ShizukuScriptPolicy.STATUS_FAILED, "Shizuku kill switch is active")
+            return ShizukuScriptReply.refused(ShizukuScriptPolicy.STATUS_FAILED, POWER_MODE_OFF)
         }
         val service = remoteServiceForUse()
             ?: return ShizukuScriptReply.refused(
@@ -249,6 +250,7 @@ object ShizukuShellRunner {
         }
     }
 
+    /** The only outcome without a transport: ordinary app processes are never used as a fallback. */
     private fun unavailable(): ShellResult =
         ShellResult.Failure(
             "Can't reach Shizuku, so nothing ran. Start Shizuku and allow OpenTasker in it, then check its row in Setup.",

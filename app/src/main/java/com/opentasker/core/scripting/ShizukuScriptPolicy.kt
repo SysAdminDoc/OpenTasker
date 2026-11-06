@@ -269,7 +269,7 @@ internal class ShizukuScriptCoordinator(
         if (!ready) {
             return rejected(
                 ShizukuScriptRejectionReason.NOT_READY,
-                "Shizuku is not ready. Start it, give OpenTasker access and check the kill switch in Setup",
+                "Shizuku isn't ready. Start it, allow OpenTasker in it, and turn on power mode from its row in Setup",
             )
         }
         val path = ShizukuScriptPolicy.normalizePath(invocation.path)

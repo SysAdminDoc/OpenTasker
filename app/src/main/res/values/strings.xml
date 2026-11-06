@@ -504,7 +504,7 @@
     <string name="setup_shizuku_title">Shizuku power mode</string>
     <string name="setup_shizuku_required_for">Elevated actions</string>
     <string name="setup_shizuku_status_not_installed">Shizuku is not running and no Shizuku manager is installed. Sui and Shizuku forks show up here once their service is running.</string>
-    <string name="setup_shizuku_status_disabled">Shizuku power mode is disabled by the persisted kill switch.</string>
+    <string name="setup_shizuku_status_disabled">Shizuku power mode is off. Turn it on here to use elevated actions.</string>
     <string name="setup_shizuku_status_manager_stopped">Shizuku is installed but its service is not running. Start it in the Shizuku app.</string>
     <string name="setup_shizuku_status_permission_needed">Shizuku is running but OpenTasker needs permission.</string>
     <string name="setup_shizuku_status_transport_unavailable">Shizuku has given permission, but OpenTasker cannot reach its helper service. Actions that need elevated access refuse to run until that connection comes back.</string>

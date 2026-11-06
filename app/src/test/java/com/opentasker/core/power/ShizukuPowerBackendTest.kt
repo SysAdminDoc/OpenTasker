@@ -78,7 +78,10 @@ class ShizukuPowerBackendTest {
         ShizukuPowerBackend.killSwitchEnabled = true
         val result = ShizukuShellRunner.execute("reboot")
         assertTrue(result is ShellResult.Failure)
-        assertTrue((result as ShellResult.Failure).reason.contains("kill switch"))
+        assertEquals(
+            "Shizuku power mode is off, so nothing ran. Turn it on from its row in Setup.",
+            (result as ShellResult.Failure).reason,
+        )
     }
 
     @Test

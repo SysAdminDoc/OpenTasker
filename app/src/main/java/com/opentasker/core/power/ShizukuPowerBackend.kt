@@ -115,7 +115,7 @@ object ShizukuPowerBackend {
         )
         killSwitchEnabled -> ShizukuPowerStatus(
             state = ShizukuPowerState.Disabled,
-            summary = "Shizuku power mode is disabled by the persisted kill switch.",
+            summary = "Shizuku power mode is off. Turn it on here to use elevated actions.",
         )
         !serviceRunning -> ShizukuPowerStatus(
             state = ShizukuPowerState.ManagerInstalled,
