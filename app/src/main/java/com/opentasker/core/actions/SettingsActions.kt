@@ -169,27 +169,38 @@ class AirplaneModeAction : DeclaredAction(ActionCatalog.require("airplane.toggle
 
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val state = args["state"]?.lowercase() ?: "toggle"
-        val variant = when (state) {
-            "on" -> 0
-            "off" -> 1
+        val target = when (state) {
+            "on" -> true
+            "off" -> false
             "toggle" -> {
-                val enabled = runCatching {
-                    Settings.Global.getInt(
-                        ctx.app.contentResolver,
-                        Settings.Global.AIRPLANE_MODE_ON,
-                        0,
-                    ) == 1
-                }.getOrElse { error ->
+                val enabled = runCatching { readAirplaneMode(ctx) }.getOrElse { error ->
                     return ActionResult.Failure("Airplane mode state could not be read: ${error.message ?: "unknown error"}")
                 }
-                if (enabled) 1 else 0
+                !enabled
             }
             else -> return ActionResult.Failure("invalid airplane mode state: $state")
         }
         ctx.logger("Airplane mode: $state")
-        return ctx.runShizukuAction("airplane.toggle", "Airplane mode", variant)
+        val result = ctx.runShizukuAction("airplane.toggle", "Airplane mode", if (target) 0 else 1)
+        if (result !is ActionResult.Success) return result
+
+        // Android 8 has no such command, and it still exits 0, so only the setting can prove it ran.
+        val applied = runCatching { readAirplaneMode(ctx) }.getOrElse { error ->
+            return ActionResult.Failure("Airplane mode state could not be read: ${error.message ?: "unknown error"}")
+        }
+        return airplaneModeOutcome(target, applied)
     }
+
+    private fun readAirplaneMode(ctx: ActionContext): Boolean =
+        Settings.Global.getInt(ctx.app.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) == 1
 }
+
+internal fun airplaneModeOutcome(target: Boolean, applied: Boolean): ActionResult =
+    if (applied == target) {
+        ActionResult.Success
+    } else {
+        ActionResult.Failure("Airplane mode is still ${if (applied) "on" else "off"}. This version of Android ignored the command.")
+    }
 
 /**
  * Toggle mobile data.

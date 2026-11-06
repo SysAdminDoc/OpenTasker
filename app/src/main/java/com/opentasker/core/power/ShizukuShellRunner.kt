@@ -259,9 +259,11 @@ object ShizukuShellRunner {
 
 internal object ShizukuCommandPolicy {
     private val commands: Map<String, List<List<String>>> = mapOf(
+        // Writing airplane_mode_on only flips the switch on screen: no broadcast goes out, so the
+        // modem and Wi-Fi stay on. This command is the route that tells the radios.
         "airplane.toggle" to listOf(
-            listOf("settings", "put", "global", "airplane_mode_on", "1"),
-            listOf("settings", "put", "global", "airplane_mode_on", "0"),
+            listOf("cmd", "connectivity", "airplane-mode", "enable"),
+            listOf("cmd", "connectivity", "airplane-mode", "disable"),
         ),
         "mobile.toggle" to listOf(
             listOf("svc", "data", "enable"),

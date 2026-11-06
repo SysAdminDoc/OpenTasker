@@ -96,8 +96,8 @@ class ShizukuPowerBackendTest {
     fun allowlistPinsEveryElevatedCommandVariant() {
         val expected = mapOf(
             "airplane.toggle" to listOf(
-                listOf("settings", "put", "global", "airplane_mode_on", "1"),
-                listOf("settings", "put", "global", "airplane_mode_on", "0"),
+                listOf("cmd", "connectivity", "airplane-mode", "enable"),
+                listOf("cmd", "connectivity", "airplane-mode", "disable"),
             ),
             "mobile.toggle" to listOf(
                 listOf("svc", "data", "enable"),
@@ -128,7 +128,11 @@ class ShizukuPowerBackendTest {
                 listOf("svc", "power", "reboot", "true"),
             ),
         )
-        assertFalse(ShizukuCommandPolicy.isExact("airplane.toggle", listOf("settings", "put", "global", "airplane_mode_on", "1", "--user", "0")))
+        assertFalse(
+            "Writing the setting leaves the modem and Wi-Fi on, so it must not come back as the airplane route",
+            ShizukuCommandPolicy.isExact("airplane.toggle", listOf("settings", "put", "global", "airplane_mode_on", "1")),
+        )
+        assertFalse(ShizukuCommandPolicy.isExact("airplane.toggle", listOf("cmd", "connectivity", "airplane-mode", "enable", "--user", "0")))
         assertFalse(
             "The always-on display write must not accept another secure key",
             ShizukuCommandPolicy.isExact("aod.set", listOf("settings", "put", "secure", "doze_enabled", "1")),
