@@ -169,7 +169,7 @@ class ShizukuPowerBackendTest {
         val result = ShizukuShellRunner.execute("reboot")
 
         assertTrue(result is ShellResult.Failure)
-        assertTrue((result as ShellResult.Failure).reason.contains("No privileged Shizuku user-service transport"))
+        assertTrue((result as ShellResult.Failure).reason.contains("Can't reach Shizuku, so nothing ran."))
         assertFalse(ShizukuShellRunner.hasPrivilegedTransport())
     }
 

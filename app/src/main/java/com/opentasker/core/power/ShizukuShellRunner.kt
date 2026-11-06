@@ -251,7 +251,7 @@ object ShizukuShellRunner {
 
     private fun unavailable(): ShellResult =
         ShellResult.Failure(
-            "No privileged Shizuku user-service transport is available; ordinary app processes are never used as a fallback",
+            "Can't reach Shizuku, so nothing ran. Start Shizuku and allow OpenTasker in it, then check its row in Setup.",
         )
 }
 
