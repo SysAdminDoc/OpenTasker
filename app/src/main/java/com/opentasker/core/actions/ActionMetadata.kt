@@ -250,10 +250,13 @@ fun registerActionMetadata() {
                 ActionField("id", R.string.catalog_action_notify_show_field_id_label, FieldType.NUMBER, hintRes = R.string.catalog_action_notify_show_field_id_hint, numberRule = integerRule(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong())),
                 ActionField("button1_label", R.string.catalog_action_notify_show_field_button1_label_label, hintRes = R.string.catalog_action_notify_show_field_button1_label_hint),
                 ActionField("button1_task_id", R.string.catalog_action_notify_show_field_button1_task_id_label, FieldType.TASK, hintRes = R.string.catalog_action_notify_show_field_button1_task_id_hint),
+                ActionField("button1_url", R.string.catalog_action_notify_show_field_button1_url_label, hintRes = R.string.catalog_action_notify_show_field_button1_url_hint),
                 ActionField("button2_label", R.string.catalog_action_notify_show_field_button2_label_label, hintRes = R.string.catalog_action_notify_show_field_button2_label_hint),
                 ActionField("button2_task_id", R.string.catalog_action_notify_show_field_button2_task_id_label, FieldType.TASK, hintRes = R.string.catalog_action_notify_show_field_button2_task_id_hint),
+                ActionField("button2_url", R.string.catalog_action_notify_show_field_button2_url_label, hintRes = R.string.catalog_action_notify_show_field_button2_url_hint),
                 ActionField("button3_label", R.string.catalog_action_notify_show_field_button3_label_label, hintRes = R.string.catalog_action_notify_show_field_button3_label_hint),
                 ActionField("button3_task_id", R.string.catalog_action_notify_show_field_button3_task_id_label, FieldType.TASK, hintRes = R.string.catalog_action_notify_show_field_button3_task_id_hint),
+                ActionField("button3_url", R.string.catalog_action_notify_show_field_button3_url_label, hintRes = R.string.catalog_action_notify_show_field_button3_url_hint),
             )
         )
     )

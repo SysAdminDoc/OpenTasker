@@ -193,6 +193,20 @@ object ContextMatchEvaluator {
             }
         }
 
+        if (actualEvent.equals(CallContextEvents.EVENT_INCOMING_CALL, ignoreCase = true)) {
+            // Exact on purpose: a caller nobody could check must not read as a stranger, so "unknown"
+            // satisfies neither "true" nor "false".
+            val expectedKnown = spec.config["knownContact"]?.trim().orEmpty()
+            if (expectedKnown.isNotBlank() &&
+                !event.metadata["knownContact"].orEmpty().equals(expectedKnown, ignoreCase = true)
+            ) return false
+
+            val numberFilter = spec.config["number"]?.trim().orEmpty()
+            if (numberFilter.isNotBlank() &&
+                !textMatches(event.metadata["number"].orEmpty(), numberFilter, regex)
+            ) return false
+        }
+
         val topicAllowlist = firstConfig(spec, "topic", "topics")
             .splitCsv()
             .map { it.lowercase(Locale.US) }

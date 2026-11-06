@@ -31,6 +31,7 @@ enum class SetupRequirement {
     SCREEN_RECORDING,
     PHYSICAL_ACTIVITY,
     PHONE_STATE,
+    CALL_LOG,
 }
 
 object SetupRequirementResolver {
@@ -116,6 +117,13 @@ object SetupRequirementResolver {
                     }
                 }
                 ContextType.EVENT -> when {
+                    // Android withholds a ringing call's number without the Call log permission, and
+                    // only Contacts can say the caller is a stranger.
+                    tokens.contains("incoming_call") -> {
+                        add(SetupRequirement.PHONE_STATE)
+                        add(SetupRequirement.CALL_LOG)
+                        add(SetupRequirement.CONTACTS)
+                    }
                     tokens.contains("screen_recording") -> add(SetupRequirement.SCREEN_RECORDING)
                     tokens.contains("sms_received") -> add(SetupRequirement.SMS)
                     tokens.containsAny("notification", "notify") -> add(SetupRequirement.NOTIFICATION_ACCESS)
@@ -133,6 +141,9 @@ object SetupRequirementResolver {
         when (type) {
             "brightness.set", "screen.timeout" -> add(SetupRequirement.WRITE_SETTINGS)
             "lock" -> add(SetupRequirement.DEVICE_ADMIN)
+            // A profile runs in the background, where Android silently drops the browser launch
+            // unless the app can draw over others.
+            "url.open" -> add(SetupRequirement.OVERLAY)
             "sms.send" -> add(SetupRequirement.SMS)
             "contacts.lookup" -> add(SetupRequirement.CONTACTS)
             "dnd.set", "zen.rule.set", "zen.rule.clear", "ringer.set", "volume.set", "media.mute" -> add(SetupRequirement.DND)

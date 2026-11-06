@@ -394,6 +394,16 @@ internal fun buildPermissionItems(
             section = SetupSection.NEEDED,
             requirements = setOf(SetupRequirement.PHONE_STATE),
         ) else null,
+        if (BuildConfig.SMS_ACTION_AVAILABLE) PermissionSetupItem(
+            title = context.getString(R.string.setup_call_log_title),
+            body = context.getString(R.string.setup_call_log_body),
+            granted = hasPermission(context, Manifest.permission.READ_CALL_LOG),
+            actionLabel = request,
+            action = PermissionAction.RuntimePermission(Manifest.permission.READ_CALL_LOG),
+            requiredFor = context.getString(R.string.setup_call_log_required_for),
+            section = SetupSection.NEEDED,
+            requirements = setOf(SetupRequirement.CALL_LOG),
+        ) else null,
         PermissionSetupItem(
             title = context.getString(R.string.setup_dnd_title),
             body = context.getString(R.string.setup_dnd_body),

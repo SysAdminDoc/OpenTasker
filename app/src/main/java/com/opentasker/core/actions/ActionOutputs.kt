@@ -112,7 +112,7 @@ data class EditorEventVariable(
     val type: ActionValueType,
 )
 
-/** Event fields a task can read when a share, SMS or notification trigger started it. */
+/** Event fields a task can read when a share, SMS, notification or call trigger started it. */
 val DEFAULT_EDITOR_EVENT_VARIABLES: List<EditorEventVariable> = listOf(
     EditorEventVariable("share_event", ActionValueType.BOOLEAN),
     EditorEventVariable("share_text", ActionValueType.TEXT),
@@ -129,6 +129,8 @@ val DEFAULT_EDITOR_EVENT_VARIABLES: List<EditorEventVariable> = listOf(
     EditorEventVariable("notification_package", ActionValueType.TEXT),
     EditorEventVariable("notification_title", ActionValueType.TEXT),
     EditorEventVariable("notification_body", ActionValueType.TEXT),
+    EditorEventVariable("incoming_number", ActionValueType.TEXT),
+    EditorEventVariable("incoming_known_contact", ActionValueType.TEXT),
 )
 
 /**

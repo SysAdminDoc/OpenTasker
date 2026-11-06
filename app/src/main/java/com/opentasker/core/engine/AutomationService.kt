@@ -36,10 +36,12 @@ import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.storage.recoveryMessage
 import com.opentasker.core.contexts.BluetoothContextEvents
 import com.opentasker.core.contexts.BootContextEvents
+import com.opentasker.core.contexts.CallContextEvents
 import com.opentasker.core.contexts.CameraMicContextEvents
 import com.opentasker.core.contexts.ContextEvent
 import com.opentasker.core.contexts.BroadcastContextEvents
 import com.opentasker.core.contexts.declaredBroadcastActions
+import com.opentasker.core.contexts.declaresIncomingCall
 import com.opentasker.core.contexts.PackageContextEvents
 import com.opentasker.core.contexts.PluginConditionSubscription
 import com.opentasker.core.contexts.PluginConditionSubscriptions
@@ -374,6 +376,7 @@ class AutomationService : Service() {
         job.cancel()
         logContextMonitorTransition(contextMonitorLifecycle.stopAll())
         BroadcastContextEvents.sync(this, emptySet())
+        CallContextEvents.sync(this, false)
         super.onDestroy()
     }
 
@@ -498,6 +501,7 @@ class AutomationService : Service() {
         // it has to follow the declared action set, which changes without any monitor starting or
         // stopping. sync() is a no-op when the set is unchanged and unregisters on an empty set.
         BroadcastContextEvents.sync(this, declaredBroadcastActions(profiles.flatMap { it.contexts }))
+        CallContextEvents.sync(this, declaresIncomingCall(profiles.flatMap { it.contexts }))
         engineLoaded = true
     }
 

@@ -1,6 +1,7 @@
 package com.opentasker.core.engine
 
 import com.opentasker.core.contexts.BroadcastContextEvents
+import com.opentasker.core.contexts.CallContextEvents
 import com.opentasker.core.contexts.ContextEvent
 import com.opentasker.core.contexts.SmsContextEvents
 
@@ -23,6 +24,7 @@ internal object EventTaskVariables {
         "sms_body",
         "notification_title",
         "notification_body",
+        "incoming_number",
     )
 
     fun isSensitive(name: String): Boolean = name in SENSITIVE
@@ -61,6 +63,10 @@ internal object EventTaskVariables {
                 "notification_package" to metadata["package"].orEmpty(),
                 "notification_title" to metadata["title"].orEmpty(),
                 "notification_body" to metadata["body"].orEmpty(),
+            )
+            CallContextEvents.EVENT_INCOMING_CALL -> mapOf(
+                "incoming_number" to metadata["number"].orEmpty(),
+                "incoming_known_contact" to metadata["knownContact"].orEmpty(),
             )
             else -> emptyMap()
         }

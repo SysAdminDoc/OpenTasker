@@ -28,6 +28,12 @@
     <string name="catalog_action_notify_show_field_button3_label_hint" formatted="false">Third button label</string>
     <string name="catalog_action_notify_show_field_button3_task_id_label" formatted="false">Button 3 task</string>
     <string name="catalog_action_notify_show_field_button3_task_id_hint" formatted="false">Task to run on tap</string>
+    <string name="catalog_action_notify_show_field_button1_url_label" formatted="false">Button 1 link</string>
+    <string name="catalog_action_notify_show_field_button1_url_hint" formatted="false">Web address to open on tap, used when no task is set</string>
+    <string name="catalog_action_notify_show_field_button2_url_label" formatted="false">Button 2 link</string>
+    <string name="catalog_action_notify_show_field_button2_url_hint" formatted="false">Web address to open on tap, used when no task is set</string>
+    <string name="catalog_action_notify_show_field_button3_url_label" formatted="false">Button 3 link</string>
+    <string name="catalog_action_notify_show_field_button3_url_hint" formatted="false">Web address to open on tap, used when no task is set</string>
     <string name="catalog_action_notify_cancel_name" formatted="false">Cancel Notification</string>
     <string name="catalog_action_notify_cancel_description" formatted="false">Cancel a notification by tag and/or ID</string>
     <string name="catalog_action_notify_cancel_field_tag_label" formatted="false">Tag</string>

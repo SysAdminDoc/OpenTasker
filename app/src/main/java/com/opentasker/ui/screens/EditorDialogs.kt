@@ -271,6 +271,7 @@ private fun blueprintSelectorLabel(selector: BlueprintSelectorKind): String = st
         BlueprintSelectorKind.INTEGER -> R.string.blueprint_input_type_integer
         BlueprintSelectorKind.DECIMAL -> R.string.blueprint_input_type_decimal
         BlueprintSelectorKind.TIME -> R.string.blueprint_input_type_time
+        BlueprintSelectorKind.CALLER_SEARCH_URL -> R.string.blueprint_input_type_caller_search_url
     },
 )
 

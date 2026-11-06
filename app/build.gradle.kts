@@ -218,6 +218,7 @@ android {
         manifestPlaceholders["smsWapPushPermissionName"] = if (smsReceiveAvailable) "android.permission.RECEIVE_WAP_PUSH" else "android.permission.INTERNET"
         manifestPlaceholders["smsTriggerEnabled"] = smsReceiveAvailable.toString()
         manifestPlaceholders["phoneStatePermissionName"] = if (smsActionAvailable) "android.permission.READ_PHONE_STATE" else "android.permission.ACCESS_NETWORK_STATE"
+        manifestPlaceholders["callLogPermissionName"] = if (smsActionAvailable) "android.permission.READ_CALL_LOG" else "android.permission.ACCESS_NETWORK_STATE"
     }
 
     signingConfigs {
@@ -1778,6 +1779,9 @@ tasks.register("verifyPlayManifestPolicy") {
         }
         check("android.permission.READ_PHONE_STATE" !in manifestText) {
             "Play distribution merged manifest must not contain READ_PHONE_STATE"
+        }
+        check("android.permission.READ_CALL_LOG" !in manifestText) {
+            "Play distribution merged manifest must not contain READ_CALL_LOG"
         }
         println("Play manifest policy check passed: SMS/phone-state permissions are absent.")
     }

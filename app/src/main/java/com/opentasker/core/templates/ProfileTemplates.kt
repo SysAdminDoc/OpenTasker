@@ -31,6 +31,7 @@ enum class BlueprintSelectorKind {
     INTEGER,
     DECIMAL,
     TIME,
+    CALLER_SEARCH_URL,
 }
 
 @Serializable
@@ -91,6 +92,11 @@ data class AutomationBlueprint(
      * task once a minute.
      */
     val cooldownSec: Int = 0,
+    /**
+     * Placeholders the user can type into an input that are filled when the task runs, so a search
+     * address can say {number} instead of a template expression. They aren't inputs of their own.
+     */
+    val runtimePlaceholders: Map<String, String> = emptyMap(),
 ) {
     /** Compatibility view for the existing guided-template screen. */
     val slots: List<BlueprintInput>
@@ -121,19 +127,20 @@ data class AutomationBlueprint(
             "Invalid blueprint values: ${invalid.joinToString()}"
         }
 
-        val taskName = expand("$title Task", values)
+        val expansions = values + runtimePlaceholders
+        val taskName = expand("$title Task", expansions)
         val task = Task(
             name = taskName,
             actions = actions.map { action ->
                 ActionSpec(
                     type = action.type,
-                    label = expand(action.label, values),
-                    args = action.args.mapValues { (_, value) -> expand(value, values) },
+                    label = expand(action.label, expansions),
+                    args = action.args.mapValues { (_, value) -> expand(value, expansions) },
                 )
             },
         )
         val profile = Profile(
-            name = expand(title, values),
+            name = expand(title, expansions),
             // Every blueprint installation is a review artifact. Enabling is an explicit user
             // action after capability, lint, and safety checks; a definition cannot bypass that
             // gate through metadata.
@@ -143,7 +150,7 @@ data class AutomationBlueprint(
             contexts = contexts.map { context ->
                 ContextSpec(
                     type = context.type,
-                    config = context.config.mapValues { (_, value) -> expand(value, values) },
+                    config = context.config.mapValues { (_, value) -> expand(value, expansions) },
                     invert = context.invert,
                 )
             },
@@ -197,6 +204,13 @@ fun BlueprintInput.validationError(value: String): String? {
         } catch (_: DateTimeParseException) {
             "use HH:mm"
         }
+        BlueprintSelectorKind.CALLER_SEARCH_URL -> when {
+            !value.startsWith("https://", ignoreCase = true) && !value.startsWith("http://", ignoreCase = true) ->
+                "must start with https://"
+            "{number}" !in value -> "must include {number} where the caller's number goes"
+            value.any { it.isWhitespace() || it.isISOControl() } -> "cannot contain spaces"
+            else -> null
+        }
     }
 }
 
@@ -214,6 +228,36 @@ private fun BlueprintInput.numericError(value: String, wholeNumber: Boolean, def
 private fun Double.stripTrailingZero(): String = toString().removeSuffix(".0")
 
 private val APP_ID_PATTERN = Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$")
+
+/** Encoded because a number's leading + would otherwise reach the search site as a space. */
+private val CALLER_NUMBER_PLACEHOLDER = mapOf("number" to "{{ event.incoming_number | urlencode }}")
+
+private fun callerSearchUrlInput() = TemplateSlot(
+    "searchUrl",
+    "Search URL",
+    "https://duckduckgo.com/?q={number}",
+    hint = "{number} becomes the caller's number",
+    selector = BlueprintSelectorKind.CALLER_SEARCH_URL,
+    section = "Search",
+)
+
+/** Only a checked stranger. A hidden caller or an unchecked number reads "unknown", not "false". */
+private fun incomingCallFromStranger() = TemplateContext(
+    ContextType.EVENT,
+    mapOf("event" to "incoming_call", "knownContact" to "false"),
+)
+
+private fun unknownCallerNotification() = TemplateAction(
+    "notify.show",
+    "Show the caller's number",
+    mapOf(
+        "title" to "Unknown caller",
+        "text" to "{{ event.incoming_number }}",
+        "channel" to "urgent",
+        "button1_label" to "Search",
+        "button1_url" to "{searchUrl}",
+    ),
+)
 
 object ProfileTemplateCatalog {
     val all: List<ProfileTemplate> = listOf(
@@ -403,6 +447,36 @@ object ProfileTemplateCatalog {
                 TemplateAction("brightness.set", "Dim screen", mapOf("level" to "24")),
                 TemplateAction("volume.set", "Lower media volume", mapOf("stream" to "music", "level" to "15")),
             ),
+        ),
+        ProfileTemplate(
+            id = "search-incoming-numbers",
+            title = "Search incoming phone numbers",
+            summary = "Search unknown incoming phone numbers using a configurable search engine.",
+            category = "Calls",
+            availability = TemplateAvailability.RequiresSetup,
+            safetyNote = "Creates a disabled profile. Needs Phone state, Call log, Contacts and notifications before enabling. " +
+                "The number leaves your phone only when you tap Search. Hidden callers and your contacts are never searched.",
+            inputs = listOf(callerSearchUrlInput()),
+            contexts = listOf(incomingCallFromStranger()),
+            actions = listOf(unknownCallerNotification()),
+            runtimePlaceholders = CALLER_NUMBER_PLACEHOLDER,
+        ),
+        ProfileTemplate(
+            id = "search-incoming-numbers-automatic",
+            title = "Search incoming phone numbers automatically",
+            summary = "Open a search for unknown incoming phone numbers as soon as the phone rings.",
+            category = "Calls",
+            availability = TemplateAvailability.RequiresSetup,
+            safetyNote = "Creates a disabled profile. Needs Phone state, Call log, Contacts, notifications and Display over other apps before enabling. " +
+                "Every unknown caller's number goes to the search site without asking. Without Display over other apps Android won't open the browser, " +
+                "so the notification stays as the way to search by hand. Hidden callers and your contacts are never searched.",
+            inputs = listOf(callerSearchUrlInput()),
+            contexts = listOf(incomingCallFromStranger()),
+            actions = listOf(
+                TemplateAction("url.open", "Search the number", mapOf("url" to "{searchUrl}")),
+                unknownCallerNotification(),
+            ),
+            runtimePlaceholders = CALLER_NUMBER_PLACEHOLDER,
         ),
     )
 

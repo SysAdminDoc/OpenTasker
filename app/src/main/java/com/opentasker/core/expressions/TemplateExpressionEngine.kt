@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -456,6 +457,11 @@ class TemplateExpressionEngine(
             "upper" -> FunctionApplication(current.copy(value = value.uppercase(), missing = false))
             "lower" -> FunctionApplication(current.copy(value = value.lowercase(), missing = false))
             "trim" -> FunctionApplication(current.copy(value = value.trim(), missing = false))
+            // Form encoding writes a space as +, which a phone number's own + would be confused
+            // with once decoded, so spaces become %20 and the result is safe anywhere in a URL.
+            "urlencode" -> FunctionApplication(
+                current.copy(value = URLEncoder.encode(value, "UTF-8").replace("+", "%20"), missing = false),
+            )
             "round" -> applyUnaryNumber(current) { it.roundToLong().toDouble() }
             "floor" -> applyUnaryNumber(current) { floor(it) }
             "add" -> applyBinaryNumber(current, arg, name) { left, right -> left + right }

@@ -73,14 +73,37 @@ class NotifyAction : DeclaredAction(ActionCatalog.require("notify.show")) {
 
         val taskReferences = (1..NotificationTaskBindings.BUTTON_COUNT).mapNotNull { buttonIndex ->
             NotificationTaskBindings.parse(args, buttonIndex)?.let { buttonIndex to it }
-        }
+        }.toMap()
         val taskCandidates = if (taskReferences.isEmpty()) {
             emptyList()
         } else {
             OpenTaskerApp_NoHilt.db.taskDao().getAll().map { NotificationTaskCandidate(it.id, it.name) }
         }
 
-        for ((i, reference) in taskReferences) {
+        for (i in 1..NotificationTaskBindings.BUTTON_COUNT) {
+            val reference = taskReferences[i]
+            if (reference == null) {
+                when (val link = NotificationLinkButton.parse(args, i)) {
+                    null -> Unit
+                    // The scheme only. The address can carry a caller's number or a message.
+                    is NotificationLinkButton.Blocked -> return ActionResult.Failure(
+                        "Notification button $i cannot open ${link.scheme.ifEmpty { "<no scheme>" }} links",
+                    )
+                    is NotificationLinkButton.Link -> builder.addAction(
+                        0,
+                        link.label,
+                        // A tap on a notification may start an activity from the background, which
+                        // url.open can't do without Display over other apps.
+                        PendingIntent.getActivity(
+                            ctx.app,
+                            PendingIntentRequestCodes.next(),
+                            Intent(Intent.ACTION_VIEW, Uri.parse(link.url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                        ),
+                    )
+                }
+                continue
+            }
             val resolution = NotificationTaskBindings.resolve(reference, taskCandidates)
             if (resolution !is NotificationTaskResolution.Bound) {
                 return ActionResult.Failure(

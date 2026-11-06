@@ -436,7 +436,7 @@
     <string name="setup_calendar_access_required_for">Calendar triggers</string>
     <string name="setup_contacts_access_title">Contacts access</string>
     <string name="setup_contacts_access_body">Needed for unattended contact lookup actions. Contact values are written as sensitive variables and never copied into run-log messages. On Android 17+, picker mode can grant only the selected fields instead.</string>
-    <string name="setup_contacts_access_required_for">Unattended contact lookup</string>
+    <string name="setup_contacts_access_required_for">Unattended contact lookup and telling a stranger\'s call from a contact\'s</string>
     <string name="setup_overlay_access_title">Overlay access</string>
     <string name="setup_overlay_access_body">Needed for scene overlays and controls displayed over other apps.</string>
     <string name="setup_overlay_access_required_for">Scenes, overlay UI</string>
@@ -490,8 +490,11 @@
     <string name="setup_sms_receive_body">Allows event=sms_received automations to receive sanitized sender and body values. Android 17 may delay standard OTP SMS delivery for up to three hours unless the app is exempt.</string>
     <string name="setup_sms_receive_required_for">SMS/MMS-received event contexts</string>
     <string name="setup_phone_state_title">Phone state</string>
-    <string name="setup_phone_state_body">Needed for roaming and phone-call state contexts. OpenTasker reads only the current state needed for matching and does not store phone numbers or call history.</string>
-    <string name="setup_phone_state_required_for">Roaming and phone-call contexts</string>
+    <string name="setup_phone_state_body">Needed for roaming and phone-call state contexts and the incoming call trigger. OpenTasker reads only the current state needed for matching and does not store phone numbers or call history.</string>
+    <string name="setup_phone_state_required_for">Roaming, phone-call contexts and incoming calls</string>
+    <string name="setup_call_log_title">Caller number</string>
+    <string name="setup_call_log_body">Android tells an app who is calling only if it holds the Call log permission. OpenTasker uses the number while the phone rings, and doesn\'t read or store your call history.</string>
+    <string name="setup_call_log_required_for">The incoming call trigger\'s number</string>
     <string name="setup_dnd_title">Do Not Disturb access</string>
     <string name="setup_dnd_body">Needed before OpenTasker can change interruption filters or create, update, and remove owned Zen rules.</string>
     <string name="setup_dnd_required_for">DND and Zen rule actions</string>
@@ -956,6 +959,13 @@
     <string name="context_field_event_extra_value_label">Extra value</string>
     <string name="context_field_event_extra_value_hint">Optional. Fire only when that extra contains this text</string>
     <string name="context_preset_broadcast_received">Received broadcast</string>
+    <string name="context_field_event_number_label">Caller number</string>
+    <string name="context_field_event_number_hint">Optional. Fire only for an incoming call whose number contains this</string>
+    <string name="context_field_event_known_contact_label">Caller in contacts</string>
+    <string name="context_field_event_known_contact_hint">Optional. true for a contact, false for a stranger</string>
+    <string name="context_preset_incoming_call">Incoming call</string>
+    <string name="context_preset_incoming_call_not_in_contacts">Incoming call, not in contacts</string>
+    <string name="context_incoming_call_note">A task reads the caller as {{ event.incoming_number }}. Android shares the number only with Call log allowed, and telling a stranger from a contact takes Contacts access. A hidden caller, or one nobody could check, never counts as a stranger.</string>
     <string name="context_broadcast_platform_action_note">This looks like a system action. Apps cannot send those, so a profile on one may never fire. OpenTasker has purpose-built triggers for the common system events.</string>
     <string name="context_broadcast_sender_unavailable_note">Android 13 and older never report who sent a broadcast, so this filter will not match anything on this device.</string>
     <string name="context_broadcast_sender_optin_note">Android names the sender only when the sending app opts in to sharing its identity. Most apps do not, and neither does adb. A broadcast whose sender is unknown is refused by this filter, so leave it blank unless you know your sender shares its identity.</string>
@@ -1191,6 +1201,7 @@
     <string name="blueprint_input_type_integer">Whole number</string>
     <string name="blueprint_input_type_decimal">Decimal number</string>
     <string name="blueprint_input_type_time">Time</string>
+    <string name="blueprint_input_type_caller_search_url">Search address</string>
     <string name="blueprint_input_supporting">Input type: %1$s</string>
     <string name="blueprint_input_bounds">%1$s · allowed range %2$s</string>
     <string name="blueprint_section_collapse">Collapse %1$s</string>

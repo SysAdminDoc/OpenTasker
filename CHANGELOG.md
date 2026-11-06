@@ -5,6 +5,10 @@
 ### Added
 
 - Run Task has an Inputs section. Each input becomes a variable in the task it runs, so a shared "Weather" task can read `{{ city }}` from whichever task called it. A lowercase name stays inside that task and a capitalized one sets a global. The engine already passed these along, but until now the only way to add one was to edit an exported bundle by hand.
+- An incoming call can start a task while the phone rings. The task gets `{{ event.incoming_number }}` and `{{ event.incoming_known_contact }}`, and the profile can match strangers only or part of a number. Reading the number takes a new Call log permission, which Setup asks for. A hidden caller, or one nobody could check, never counts as a stranger.
+- Two new templates search an unknown caller's number on a site you choose: `Search incoming phone numbers` puts a Search button on a notification, and `Search incoming phone numbers automatically` opens the search right away. Both take an address like `https://duckduckgo.com/?q={number}`.
+- Notification buttons can open a web address, with the same allowed links as Open URL. Tapping one works from the background without any extra permission.
+- A new `urlencode` template filter makes a value safe to put in a web address.
 
 ### Security
 
@@ -36,6 +40,7 @@
 
 ### Changed
 
+- Setup now lists Display over other apps for any enabled profile that uses Open URL, since Android silently drops a browser launch from the background without it.
 - The Install section of the README lists the release signing certificate in the form AppVerifier reads, and a release build now refuses to publish an APK signed with any other key.
 - Text throughout the app drops its long dashes. Ranges read "1 to 5", and separators use a dot.
 - Before a release is tagged, `tools/smoke-old-api.ps1` installs it over the previous release on Android 8 and Android 10 emulators set up like a Galaxy phone and opens every screen. Any crash stops the release. This is the check that would have caught #20.

@@ -23,6 +23,23 @@ class TemplateExpressionEngineTest {
     }
 
     @Test
+    fun urlEncodingKeepsANumbersPlusAndSpacesSafeInAnAddress() {
+        val result = engine.expand(
+            template = "https://example.com/?q={{ event.incoming_number | urlencode }}",
+            scope = TemplateScope(
+                event = mapOf("incoming_number" to "+1 555&x=y"),
+                sensitiveEvent = setOf("incoming_number"),
+            ),
+        )
+
+        assertEquals("https://example.com/?q=%2B1%20555%26x%3Dy", result.value)
+        assertTrue(
+            "Encoding a caller's number must not launder it out of the sensitive set",
+            result.traces.single().isSecretDerived,
+        )
+    }
+
+    @Test
     fun defaultFallbackFillsMissingValues() {
         val result = engine.expand(
             template = "Notify {{ recipient | default:\"Owner\" }}",

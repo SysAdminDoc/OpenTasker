@@ -64,6 +64,7 @@ internal fun setupRequirementLabelRes(requirement: SetupRequirement): Int = when
     SetupRequirement.SCREEN_RECORDING -> R.string.setup_screen_recording_title
     SetupRequirement.PHYSICAL_ACTIVITY -> R.string.setup_activity_recognition_title
     SetupRequirement.PHONE_STATE -> R.string.setup_phone_state_title
+    SetupRequirement.CALL_LOG -> R.string.setup_call_log_title
 }
 
 @StringRes

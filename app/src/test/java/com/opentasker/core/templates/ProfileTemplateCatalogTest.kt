@@ -23,6 +23,8 @@ class ProfileTemplateCatalogTest {
                 "find-my-phone",
                 "meeting-mode-calendar",
                 "nightstand-nfc-sleep",
+                "search-incoming-numbers",
+                "search-incoming-numbers-automatic",
             ),
             ids,
         )
@@ -57,8 +59,74 @@ class ProfileTemplateCatalogTest {
                     append(action.args.values.joinToString())
                 }
             }
-            assertFalse("${template.id} left unresolved slots in output: $rendered", rendered.contains('{') || rendered.contains('}'))
+            // A real template expression runs at task time. Only a bare {slot} would be a leftover.
+            val slotsOnly = rendered.replace(Regex("""\{\{.*?\}\}"""), "")
+            assertFalse("${template.id} left unresolved slots in output: $rendered", slotsOnly.contains('{') || slotsOnly.contains('}'))
         }
+    }
+
+    @Test
+    fun aCallerSearchBuildsItsAddressFromTheChosenSiteAndTheEncodedNumber() {
+        val encoded = "{{ event.incoming_number | urlencode }}"
+        val manual = ProfileTemplateCatalog.get("search-incoming-numbers")!!
+            .instantiate(mapOf("searchUrl" to "https://search.brave.com/search?q={number}&source=web"))
+        val notification = manual.task.actions.single()
+
+        assertEquals("notify.show", notification.type)
+        assertEquals("Search", notification.args["button1_label"])
+        assertEquals("https://search.brave.com/search?q=$encoded&source=web", notification.args["button1_url"])
+        assertEquals("{{ event.incoming_number }}", notification.args["text"])
+
+        val automatic = ProfileTemplateCatalog.get("search-incoming-numbers-automatic")!!
+            .instantiate(emptyMap())
+        assertEquals(listOf("url.open", "notify.show"), automatic.task.actions.map { it.type })
+        assertEquals("https://duckduckgo.com/?q=$encoded", automatic.task.actions.first().args["url"])
+    }
+
+    @Test
+    fun aCallerSearchNeverRunsForHiddenCallersOrContactsAndStartsOff() {
+        listOf("search-incoming-numbers", "search-incoming-numbers-automatic").forEach { id ->
+            val applied = ProfileTemplateCatalog.get(id)!!.instantiate(emptyMap())
+
+            assertFalse(applied.profile.enabled)
+            assertEquals(
+                mapOf("event" to "incoming_call", "knownContact" to "false"),
+                applied.profile.contexts.single().config,
+            )
+        }
+    }
+
+    @Test
+    fun aSearchAddressMustBeWebAndSayWhereTheNumberGoes() {
+        val template = ProfileTemplateCatalog.get("search-incoming-numbers")!!
+        listOf(
+            "duckduckgo.com/?q={number}",
+            "javascript:alert('{number}')",
+            "intent://x/{number}",
+            "https://duckduckgo.com/",
+            "https://duck duck.go/?q={number}",
+        ).forEach { bad ->
+            var refused = false
+            try {
+                template.instantiate(mapOf("searchUrl" to bad))
+            } catch (expected: IllegalArgumentException) {
+                refused = true
+            }
+            assertTrue("Accepted $bad", refused)
+        }
+    }
+
+    @Test
+    fun aSearchPlaceholderIsNotAnInputSomeoneCanSet() {
+        val template = ProfileTemplateCatalog.get("search-incoming-numbers")!!
+        var refused = false
+        try {
+            template.instantiate(mapOf("number" to "1234"))
+        } catch (expected: IllegalArgumentException) {
+            refused = true
+        }
+
+        assertTrue(refused)
     }
 
     @Test

@@ -63,6 +63,8 @@ import com.opentasker.core.contexts.ApplicationComponentMatcher
 import com.opentasker.core.contexts.BluetoothEventPresets
 import com.opentasker.core.contexts.BroadcastContextEvents
 import com.opentasker.core.contexts.BroadcastEventPresets
+import com.opentasker.core.contexts.CallContextEvents
+import com.opentasker.core.contexts.CallEventPresets
 import com.opentasker.core.contexts.DaySchedule
 import com.opentasker.core.contexts.EventContextPreset
 import com.opentasker.core.contexts.NfcTagWriteSession
@@ -302,6 +304,17 @@ internal fun ContextConfigDialog(
                         }
                     }
                     if (state.type == ContextType.EVENT &&
+                        config["event"].equals(CallContextEvents.EVENT_INCOMING_CALL, ignoreCase = true)
+                    ) {
+                        item("incoming-call-note") {
+                            Text(
+                                text = stringResource(R.string.context_incoming_call_note),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (state.type == ContextType.EVENT &&
                         config["event"].equals(BroadcastContextEvents.EVENT_BROADCAST, ignoreCase = true)
                     ) {
                         // Warn rather than refuse. A runtime receiver genuinely can hear some
@@ -341,6 +354,7 @@ internal fun ContextConfigDialog(
                         CalendarSunEventPresets.presetsFor(config["event"].orEmpty()) +
                             BluetoothEventPresets.allPresets() +
                             BroadcastEventPresets.allPresets() +
+                            CallEventPresets.allPresets() +
                             ScreenRecordingEventPresets.presetsFor(config["event"].orEmpty())
                     } else {
                         emptyList()
@@ -481,6 +495,8 @@ private fun contextFields(type: ContextType): List<ActionField> = when (type) {
         ActionField("action", R.string.context_field_event_action_label, hintRes = R.string.context_field_event_action_hint),
         ActionField("extraKey", R.string.context_field_event_extra_key_label, hintRes = R.string.context_field_event_extra_key_hint),
         ActionField("extraValue", R.string.context_field_event_extra_value_label, hintRes = R.string.context_field_event_extra_value_hint),
+        ActionField("number", R.string.context_field_event_number_label, hintRes = R.string.context_field_event_number_hint),
+        ActionField("knownContact", R.string.context_field_event_known_contact_label, hintRes = R.string.context_field_event_known_contact_hint),
         ActionField("tagId", R.string.context_field_event_tag_label, hintRes = R.string.context_field_event_tag_hint),
         ActionField("latitude", R.string.context_field_event_latitude_label, FieldType.NUMBER, hintRes = R.string.context_field_event_latitude_hint),
         ActionField("longitude", R.string.context_field_event_longitude_label, FieldType.NUMBER, hintRes = R.string.context_field_event_longitude_hint),

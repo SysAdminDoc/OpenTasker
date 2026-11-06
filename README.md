@@ -67,6 +67,7 @@
 - App foreground detection via UsageStats, with optional exact/glob Activity component matching and explicit unavailable-component reporting
 - Wi-Fi and data/internet connectivity via NetworkCallback
 - Notification listener with package/title/body filters. A matching notification hands the task `{{ event.notification_package }}`, `{{ event.notification_title }}` and `{{ event.notification_body }}`
+- Incoming calls while the phone rings. A task reads `{{ event.incoming_number }}` and `{{ event.incoming_known_contact }}`, and a profile can ask for strangers only or a part of the number
 - NFC tag scans with normalized ID matching and a one-time NDEF write helper
 - Calendar windows with redacted event metadata
 - Sunrise/sunset filters with coordinate, offset, and window support
@@ -125,7 +126,7 @@ Variable names follow Tasker's scope rule: an all-lowercase name is local to the
 
 - OEM battery-killer detection with per-vendor remediation (Samsung, Xiaomi, OnePlus, Oppo, Realme, Vivo, Huawei, etc.)
 - Alarm-backed time/day reevaluation through Doze, with a persisted engine heartbeat and periodic WorkManager watchdog that re-arms dropped ticks and foreground-service timeout recovery
-- Setup checklist covering notifications, exact alarms, battery optimization, usage access, overlays, location, physical activity, Bluetooth, SMS, phone state, DND, modify system settings, Shizuku, and Termux
+- Setup checklist covering notifications, exact alarms, battery optimization, usage access, overlays, location, physical activity, Bluetooth, SMS, phone state, call log, DND, modify system settings, Shizuku, and Termux
 - Optional Android 16+ promoted ongoing notifications for active tasks, with standard foreground-notification fallback when promotion is unavailable or denied
 - Context inspector with live source health, latest values, per-profile match explanations, and
   Loading/Ready/Stale/Error observation status with age-aware reporting
@@ -161,7 +162,7 @@ Untrusted imports are preflighted before object/DOM allocation. OpenTasker JSON 
 - Variable vault, Flow, Scenes, and Inspector surfaces with summary metrics, clear status language, and polished empty states
 - Shared installed-app picker across application, notification, action, and Locale plugin editors, with label/package search, app icons, validated manual entry, and a latest-observed Inspector shortcut
 - Metadata-driven action forms with stable-value selectors, bounded number validation, task/app/file pickers, typed output variable chips for safe step chaining, localized parameter summaries, and forward-compatible preservation of unfamiliar imported arguments
-- Guided profile templates with variable slots and safety notes
+- Guided profile templates with variable slots and safety notes, including two that search an unknown caller's number on a site you pick (one on a notification button, one automatically)
 - Scene element editor with drag-to-move, resize handles, multi-select, alignment guides, scaled canvas previews, overlay launch, accessible image metadata, validated sliders, and tap/long-press task bindings
 - Flow graphs with zoom/pan canvas previews, edge routing, branch/subflow markers, node deep links, and picker-backed add commands
 - Profile and task search bars

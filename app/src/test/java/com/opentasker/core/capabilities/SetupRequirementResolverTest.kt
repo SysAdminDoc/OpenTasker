@@ -16,6 +16,29 @@ class SetupRequirementResolverTest {
     }
 
     @Test
+    fun anIncomingCallTriggerAsksForEverythingItsNumberAndContactCheckNeed() {
+        val required = SetupRequirementResolver.resolveForTemplate(
+            actionTypes = emptyList(),
+            contexts = listOf(
+                ContextSpec(ContextType.EVENT, mapOf("event" to "incoming_call", "knownContact" to "false")),
+            ),
+        )
+
+        assertEquals(
+            setOf(SetupRequirement.PHONE_STATE, SetupRequirement.CALL_LOG, SetupRequirement.CONTACTS),
+            required,
+        )
+    }
+
+    @Test
+    fun openingALinkFromAProfileNeedsDisplayOverOtherApps() {
+        assertEquals(
+            setOf(SetupRequirement.OVERLAY),
+            SetupRequirementResolver.resolveForTemplate(listOf("url.open"), emptyList()),
+        )
+    }
+
+    @Test
     fun enabledProfileCombinesContextAndReachableTaskRequirements() {
         val child = Task(
             id = 2,

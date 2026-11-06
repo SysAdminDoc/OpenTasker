@@ -310,6 +310,10 @@ object SyntheticTriggerSimulator {
             spec.config["text"]?.trim()?.takeIf(String::isNotBlank)?.let { metadata["text"] = it }
             spec.config["uri"]?.trim()?.takeIf(String::isNotBlank)?.let { metadata["uris"] = it }
         }
+        if (actualEvent.equals("incoming_call", true)) {
+            spec.config["knownContact"]?.trim()?.takeIf(String::isNotBlank)?.let { metadata["knownContact"] = it }
+            spec.config["number"]?.trim()?.takeIf(String::isNotBlank)?.let { metadata["number"] = it }
+        }
         if (filter.isNotBlank()) metadata["filter"] = filter
         val issue = when {
             expectedEvent.isBlank() && filter.isBlank() ->
