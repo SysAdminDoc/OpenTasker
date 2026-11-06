@@ -70,7 +70,7 @@ internal fun SubTaskInputsEditor(
             }
         }
         OutlinedButton(onClick = { onChange(inputs + SubTaskInput("", "")) }) {
-            Icon(Icons.Filled.Add, contentDescription = null)
+            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.sub_task_input_add))
             Text(stringResource(R.string.sub_task_input_add))
         }
     }
