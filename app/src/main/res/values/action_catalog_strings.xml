@@ -155,7 +155,7 @@
     <string name="catalog_action_flow_wait_field_millis_label" formatted="false">Milliseconds</string>
     <string name="catalog_action_flow_wait_field_millis_hint" formatted="false">Duration in ms</string>
     <string name="catalog_action_task_run_name" formatted="false">Run Task</string>
-    <string name="catalog_action_task_run_description" formatted="false">Run another task as a reusable sub-task (shares variables; max 8 levels deep)</string>
+    <string name="catalog_action_task_run_description" formatted="false">Run another task as a sub-task, up to 8 levels deep. Inputs you add become variables in that task.</string>
     <string name="catalog_action_task_run_field_task_label" formatted="false">Task id or name</string>
     <string name="catalog_action_task_run_field_task_hint" formatted="false">Toggle Wi-Fi</string>
     <string name="catalog_action_flow_if_name" formatted="false">If</string>

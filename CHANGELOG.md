@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Run Task has an Inputs section. Each input becomes a variable in the task it runs, so a shared "Weather" task can read `{{ city }}` from whichever task called it. A lowercase name stays inside that task and a capitalized one sets a global. The engine already passed these along, but until now the only way to add one was to edit an exported bundle by hand.
+
 ### Security
 
 - The build moves to Kotlin 2.4.20 and KSP 2.3.12. Kotlin 2.4.20 fixes CVE-2026-53914, where the compiler could be fed a tampered build cache. OpenTasker has only ever built with a local cache, so no released APK was exposed, and now a build from source isn't either.

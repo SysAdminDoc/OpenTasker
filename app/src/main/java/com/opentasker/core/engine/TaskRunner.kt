@@ -821,6 +821,18 @@ class TaskRunner(
                         warnings = emptyList(),
                         isSecretDerived = true,
                     )
+                } else if (actionType == SUB_TASK_ACTION_ID && name !in SUB_TASK_REF_KEYS) {
+                    // Only expansions get a trace, so a sub-task input typed as plain text would
+                    // otherwise never appear in the run log of the step that passed it.
+                    val shown = if (ActionArgumentSensitivity.isSensitive(actionType, name)) REDACTED_VALUE else legacy.value
+                    expansions += ActionArgumentExpansionTrace(
+                        argName = name,
+                        rawValue = shown,
+                        expandedValue = shown,
+                        expressions = emptyList(),
+                        warnings = emptyList(),
+                        isSecretDerived = false,
+                    )
                 }
                 return@mapValues legacy.value
             }

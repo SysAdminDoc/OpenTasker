@@ -1825,4 +1825,14 @@
     <string name="ui_message_project_renamed">Project renamed</string>
     <string name="ui_message_project_reordered">Project reordered</string>
     <string name="ui_message_project_deleted">Project deleted</string>
+    <string name="sub_task_inputs_title">Inputs</string>
+    <string name="sub_task_inputs_help">Each input becomes a variable in the task this runs, so it can read {{ city }}. A lowercase name stays inside that task. A name with a capital letter sets a global variable, which is still there afterwards.</string>
+    <string name="sub_task_input_name">Name</string>
+    <string name="sub_task_input_value">Value</string>
+    <string name="sub_task_input_add">Add input</string>
+    <string name="sub_task_input_remove">Remove input %1$s</string>
+    <string name="sub_task_input_unnamed">without a name</string>
+    <string name="sub_task_input_error_name">Start with a letter, then use letters, digits, _ or -</string>
+    <string name="sub_task_input_error_reserved">task, name and id choose the task to run. Pick another name.</string>
+    <string name="sub_task_input_error_duplicate">Another input already uses this name</string>
 </resources>

@@ -67,6 +67,7 @@ import com.opentasker.core.actions.NotificationTaskBindings
 import com.opentasker.core.actions.NotificationTaskCandidate
 import com.opentasker.core.actions.NotificationTaskReference
 import com.opentasker.core.actions.NotificationTaskResolution
+import com.opentasker.core.actions.SubTaskInputs
 import com.opentasker.core.actions.VariableChipOption
 import com.opentasker.core.actions.acceptsVariableType
 import com.opentasker.core.actions.insertVariableChip
@@ -75,6 +76,7 @@ import com.opentasker.core.actions.typedVariableOptions
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.capabilities.CapabilityLevel
 import com.opentasker.core.engine.FlowControl
+import com.opentasker.core.engine.SUB_TASK_ACTION_ID
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.Task
 import com.opentasker.core.model.Variable
@@ -323,6 +325,18 @@ internal fun ActionConfigDialog(
             }
         )
     }
+    // Run Task passes every other argument to the sub-task as a variable; the form only has the
+    // task field, so the rest are edited here and put back on save (A-354).
+    val isSubTaskRun = state.metadata.id == SUB_TASK_ACTION_ID
+    val openedInputs = remember(state.existing?.args, state.metadata.id) {
+        if (isSubTaskRun) {
+            SubTaskInputs.from(state.existing?.args.orEmpty(), state.metadata.fields.mapTo(mutableSetOf()) { it.key })
+        } else {
+            emptyList()
+        }
+    }
+    var subTaskInputs by rememberSaveable(state.existing?.id, state.metadata.id) { mutableStateOf(openedInputs) }
+    val subTaskInputIssues = SubTaskInputs.validate(subTaskInputs)
     val initialTaskBindingIssues = remember(state.existing?.args, state.metadata.id, tasks) {
         unresolvedNotificationTaskBindings(
             actionId = state.metadata.id,
@@ -505,11 +519,17 @@ internal fun ActionConfigDialog(
                         )
                     }
                 }
+                if (isSubTaskRun) {
+                    item(key = "sub-task-inputs") {
+                        SubTaskInputsEditor(subTaskInputs, subTaskInputIssues) { subTaskInputs = it }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
-                enabled = validationIssues.isEmpty() && taskBindingIssues.isEmpty() && capability.canAdd,
+                enabled = validationIssues.isEmpty() && taskBindingIssues.isEmpty() && capability.canAdd &&
+                    subTaskInputIssues.isEmpty(),
                 onClick = {
                     onSave(
                         ActionSpec(
@@ -520,7 +540,9 @@ internal fun ActionConfigDialog(
                                 existing = state.existing?.args.orEmpty(),
                                 fields = state.metadata.fields,
                                 editedValues = values,
-                            ),
+                            ).let { merged ->
+                                if (isSubTaskRun) SubTaskInputs.applyTo(merged, openedInputs, subTaskInputs) else merged
+                            },
                             continueOnError = continueOnError,
                             condition = condition.trim().ifBlank { null },
                         )

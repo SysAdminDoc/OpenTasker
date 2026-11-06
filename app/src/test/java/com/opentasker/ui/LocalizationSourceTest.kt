@@ -21,6 +21,7 @@ class LocalizationSourceTest {
             "com/opentasker/ui/screens/ActiveAutomationLists.kt",
             "com/opentasker/ui/screens/PreflightReviewDialog.kt",
             "com/opentasker/ui/screens/ActionEditorDialogs.kt",
+            "com/opentasker/ui/screens/SubTaskInputsEditor.kt",
             "com/opentasker/ui/screens/AutomationFlowScreen.kt",
             "com/opentasker/ui/screens/ContextEditorDialogs.kt",
             "com/opentasker/ui/screens/EditorDialogs.kt",
