@@ -110,7 +110,7 @@ class TermuxScriptAction : DeclaredAction(ActionCatalog.require(TermuxScriptBack
 /**
  * Runs the user's own approved script as the Android shell user. The elevated actions in
  * [ShizukuPowerBackend.elevatedActionIds] each map to fixed commands, and this one deliberately
- * stays out of that set: what it runs is decided by the hash allowlist in Setup.
+ * stays out of that set: what it runs is decided by the hash allowlist in Settings.
  */
 class ShizukuScriptAction : DeclaredAction(ActionCatalog.require(ShizukuScriptPolicy.ACTION_ID)) {
 

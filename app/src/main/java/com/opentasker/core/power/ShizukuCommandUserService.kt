@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
  * This class is instantiated by Shizuku, not Android's app process. It deliberately has no
  * application fallback. [execute] takes only exact allowlisted commands. [runScript] is the one
  * route to arbitrary shell text, and it runs only a file whose bytes match the hash the host
- * sends, so the allowlist the user manages in Setup is what stands behind it.
+ * sends, so the allowlist the user manages in Settings is what stands behind it.
  */
 class ShizukuCommandUserService : IShizukuCommandService.Stub() {
     override fun execute(actionId: String, argv: Array<out String>, exitCode: IntArray): String {

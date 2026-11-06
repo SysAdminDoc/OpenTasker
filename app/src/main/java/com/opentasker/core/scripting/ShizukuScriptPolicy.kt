@@ -292,7 +292,7 @@ internal class ShizukuScriptCoordinator(
         val expectedHash = approvedHashFor(path)?.let(TermuxScriptPolicy::normalizeHash)
             ?: return rejected(
                 ShizukuScriptRejectionReason.NOT_APPROVED,
-                "Script is not on the approved Shizuku script list. Add its path and SHA-256 in Setup",
+                "Script is not on the approved Shizuku script list. Add its path and SHA-256 under More > Settings",
             )
         if (!limiter.tryAcquire(path)) {
             return rejected(

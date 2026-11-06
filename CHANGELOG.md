@@ -12,7 +12,7 @@
 - A new `urlencode` template filter makes a value safe to put in a web address.
 - A new Bluetooth device nearby context turns a profile on when a device you name is close by, even if it never connects (#25). You can use its name or address, and the Inspector lists what's around. Pairing a phone once lets Android recognize it after its address changes.
 - A new Connect or Disconnect VPN action turns a WireGuard or Tailscale tunnel on or off, and two new templates use it to drop the VPN on your home Wi-Fi and bring it back when you leave (#16). Both apps ignore a request they can't honor without saying so, so the action watches for the VPN to change and tells you what to check when it doesn't. Templates can now carry an exit task, which is what makes the "bring it back" half work.
-- A new Run Shizuku Script action runs your own shell script as the Android shell user, so it can do what `rish` or adb can (#15). Approve the script's path and SHA-256 in Setup first. OpenTasker reads the file once, checks the hash and runs those same bytes, so swapping the file after the check gets you nothing. Output goes into the same capped variables as a Termux script, and the Shizuku kill switch stops this too.
+- A new Run Shizuku Script action runs your own shell script as the Android shell user, so it can do what `rish` or adb can (#15). Approve the script's path and SHA-256 under More > Settings first. OpenTasker reads the file once, checks the hash and runs those same bytes, so swapping the file after the check gets you nothing. Output goes into the same capped variables as a Termux script, and the Shizuku kill switch stops this too.
 
 ### Security
 
