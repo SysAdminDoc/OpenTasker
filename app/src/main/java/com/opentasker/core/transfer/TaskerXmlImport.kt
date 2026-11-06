@@ -275,17 +275,21 @@ object TaskerXmlImporter {
     private fun parseAction(taskName: String, element: Element, actionIndex: Int): ParsedTaskerAction {
         val code = element.childText("code").ifBlank { element.getAttribute("code") }.ifBlank { "unknown" }
         val strings = element.actionStrings()
+        val byIndex = element.actionStringsByIndex()
         val intsByIndex = element.actionIntsByIndex()
+        val intVariables = element.actionIntVariablesByIndex()
         val normalized = code.lowercase()
         val actionWithLoss = when (normalized) {
             "523", "notify", "notify.show" -> ActionWithLoss(
                 action = ActionSpec(
                 type = "notify.show",
                 label = "Tasker notification",
-                args = mapOf(
-                    "title" to strings.getOrElse(0) { "Tasker notification" },
-                    "text" to strings.getOrElse(1) { strings.getOrElse(0) { "Imported from Tasker" } },
-                ),
+                // Tasker's Notify Cancel finds a notification by its title, so the title is the tag too.
+                args = buildMap {
+                    put("title", strings.getOrElse(0) { "Tasker notification" })
+                    put("text", strings.getOrElse(1) { strings.getOrElse(0) { "Imported from Tasker" } })
+                    strings.getOrNull(0)?.takeIf(String::isNotBlank)?.let { put("tag", it) }
+                },
                 ),
                 lossyWarning = "notification icon, priority, and channel settings were not imported",
             )
@@ -310,24 +314,24 @@ object TaskerXmlImporter {
                 ),
                 lossyWarning = "flash styling was represented as a standard notification",
             )
-            "547", "var.set", "variable.set" -> ActionWithLoss(
-                ActionSpec(
-                    type = "var.set",
-                    label = "Tasker variable set",
-                    args = mapOf(
-                        "name" to strings.getOrElse(0) { "%IMPORTED" },
-                        "value" to strings.getOrElse(1) { "" },
+            "547", "var.set", "variable.set" -> taskerVariableSet(strings, intsByIndex)
+            "30", "wait", "flow.wait" -> {
+                val duration = taskerDuration(
+                    actionName = "Wait",
+                    plainMillis = waitMillis(strings, intsByIndex).toString(),
+                    ints = intsByIndex,
+                    variables = intVariables,
+                    units = TASKER_WAIT_UNITS,
+                )
+                ActionWithLoss(
+                    action = ActionSpec(
+                        type = "flow.wait",
+                        label = "Tasker wait",
+                        args = mapOf("millis" to duration.value),
                     ),
-                ),
-                lossyWarning = null,
-            )
-            "30", "wait", "flow.wait" -> ActionWithLoss(
-                action = ActionSpec(
-                type = "flow.wait",
-                label = "Tasker wait",
-                args = mapOf("millis" to waitMillis(strings, intsByIndex).toString()),
-                ),
-            )
+                    lossyWarning = duration.warning,
+                )
+            }
             "559", "say", "tts.speak" -> ActionWithLoss(
                 action = ActionSpec(
                     type = "tts.speak",
@@ -335,101 +339,192 @@ object TaskerXmlImporter {
                     args = mapOf("text" to strings.getOrElse(0) { "" }),
                 ),
             )
-            "61", "vibrate" -> ActionWithLoss(
-                action = ActionSpec(
-                    type = "vibrate",
-                    label = "Tasker vibrate",
-                    args = mapOf("millis" to waitMillis(strings, intsByIndex).coerceIn(1L, 10_000L).toString()),
-                ),
-            )
-            "303", "304", "305", "307", "308", "volume.set" -> ActionWithLoss(
-                action = ActionSpec(
-                    type = "volume.set",
-                    label = "Tasker volume",
-                    args = mapOf(
-                        "stream" to taskerVolumeStream(normalized),
-                        "level" to taskerLevel(strings, intsByIndex),
+            "61", "vibrate" -> {
+                val duration = taskerDuration(
+                    actionName = "Vibrate",
+                    plainMillis = waitMillis(strings, intsByIndex).coerceIn(1L, 10_000L).toString(),
+                    ints = intsByIndex,
+                    variables = intVariables,
+                    units = TASKER_VIBRATE_UNITS,
+                )
+                ActionWithLoss(
+                    action = ActionSpec(
+                        type = "vibrate",
+                        label = "Tasker vibrate",
+                        args = mapOf("millis" to duration.value),
                     ),
-                ),
-                lossyWarning = "Tasker volume display/sound flags were not imported",
+                    lossyWarning = duration.warning,
+                )
+            }
+            "303", "304", "305", "307", "308", "volume.set" -> {
+                val level = intVariables[0]?.let { taskerNumberField("Volume", it) }
+                ActionWithLoss(
+                    action = ActionSpec(
+                        type = "volume.set",
+                        label = "Tasker volume",
+                        args = mapOf(
+                            "stream" to taskerVolumeStream(normalized),
+                            "level" to (level?.value ?: taskerLevel(strings, intsByIndex)),
+                        ),
+                    ),
+                    lossyWarning = joinWarnings(level?.warning, "Tasker volume display/sound flags were not imported"),
+                )
+            }
+            "810", "brightness", "brightness.set" -> {
+                val level = intVariables[0]?.let { taskerNumberField("Display Brightness", it) }
+                ActionWithLoss(
+                    ActionSpec(
+                        type = "brightness.set",
+                        label = "Tasker brightness",
+                        args = mapOf("brightness" to (level?.value ?: taskerScalar(strings, intsByIndex, "auto"))),
+                    ),
+                    lossyWarning = level?.warning,
+                )
+            }
+            "812", "screen.timeout" -> {
+                val total = strings.firstOrNull()?.trim()?.toLongOrNull() ?: literalMillis(intsByIndex, TASKER_TIMEOUT_UNITS)
+                if (total <= 0L && intVariables.isEmpty()) {
+                    // The shortest timeout this app can set is one second, which nobody wants by accident.
+                    taskerPlaceholder(code, "Tasker Display Timeout has no time set")
+                } else {
+                    val duration = taskerDuration(
+                        actionName = "Display Timeout",
+                        plainMillis = total.coerceIn(1_000L, TASKER_MAX_SCREEN_TIMEOUT_MS).toString(),
+                        ints = intsByIndex,
+                        variables = intVariables,
+                        units = TASKER_TIMEOUT_UNITS,
+                    )
+                    ActionWithLoss(
+                        ActionSpec(
+                            type = "screen.timeout",
+                            label = "Tasker screen timeout",
+                            args = mapOf("millis" to duration.value),
+                        ),
+                        lossyWarning = joinWarnings(
+                            duration.warning,
+                            "Tasker Display Timeout was capped at 30 minutes, the longest this app sets"
+                                .takeIf { total > TASKER_MAX_SCREEN_TIMEOUT_MS },
+                        ),
+                    )
+                }
+            }
+            "511", "torch", "torch.set" -> taskerSetField(
+                code, "Torch", "torch.set", strings, intsByIndex, intVariables,
+                warning = "Tasker Torch Level was not imported".takeIf { byIndex[1].orEmptyIfBlank() != null },
             )
-            "810", "brightness", "brightness.set" -> ActionWithLoss(
+            "294" -> taskerSetField(code, "Bluetooth", "bluetooth.toggle", strings, intsByIndex, intVariables)
+            "333" -> taskerSetField(code, "Airplane Mode", "airplane.toggle", strings, intsByIndex, intVariables)
+            "425" -> taskerSetField(code, "WiFi", "wifi.toggle", strings, intsByIndex, intVariables)
+            "192", "play", "sound.play" -> {
+                // Play Ringtone's arg1 is the sound. Older exports from this app wrote the path at arg0.
+                val path = byIndex[1].orEmptyIfBlank() ?: strings.firstOrNull().orEmpty()
+                ActionWithLoss(
+                    action = ActionSpec(
+                        type = "sound.play",
+                        label = "Tasker sound",
+                        args = mapOf("path" to path),
+                    ),
+                    lossyWarning = "Tasker Play Ringtone \"$path\" names a system sound, not a file, so it needs a file here"
+                        .takeIf { '/' !in path && !path.startsWith("%") },
+                )
+            }
+            "445" -> ActionWithLoss(
+                ActionSpec(type = "sound.play", label = "Tasker music play", args = mapOf("path" to byIndex[0].orEmpty())),
+                lossyWarning = listOfNotNull(
+                    "Start".takeIf { (intsByIndex[1] ?: 0) != 0 },
+                    "Loop".takeIf { (intsByIndex[2] ?: 0) != 0 },
+                ).takeIf { it.isNotEmpty() }?.let { "Tasker Music Play fields not imported: ${it.joinToString(", ")}" },
+            )
+            "443" -> taskerMediaControl(code, element, intsByIndex, intVariables)
+            "449", "sound.stop" -> ActionWithLoss(
+                ActionSpec(type = "sound.stop", label = "Tasker stop sound"),
+                lossyWarning = taskerMusicPlayerWarning("Music Stop").takeIf { normalized == "449" },
+            )
+            "451", "track.next" -> ActionWithLoss(
+                ActionSpec(type = "track.next", label = "Tasker next track"),
+                lossyWarning = taskerMusicPlayerWarning("Music Skip").takeIf { normalized == "451" },
+            )
+            "453", "track.previous" -> ActionWithLoss(
+                ActionSpec(type = "track.previous", label = "Tasker previous track"),
+                lossyWarning = taskerMusicPlayerWarning("Music Back").takeIf { normalized == "453" },
+            )
+            "15", "lock" -> ActionWithLoss(
+                ActionSpec(type = "lock", label = "Tasker lock device"),
+                lossyWarning = "Tasker Lock's code entry screen was not imported; this uses the device's own lock screen"
+                    .takeIf { normalized == "15" },
+            )
+            "16" -> ActionWithLoss(ActionSpec(type = "lock", label = "Tasker lock device"))
+            "20", "launch", "app.launch" -> {
+                // Tasker keeps the app in an <App> element and arg1 is its Data field, so the only
+                // <Str> that can be a package is arg0, which older exports from this app wrote.
+                val app = element.actionAppPackage(0)
+                ActionWithLoss(
+                    ActionSpec(
+                        type = "app.launch",
+                        label = "Tasker launch app",
+                        args = mapOf("package" to (app ?: byIndex[0].orEmpty())),
+                    ),
+                    lossyWarning = byIndex[1].orEmptyIfBlank()?.let { "Tasker Launch App's Data field was not imported: $it" },
+                )
+            }
+            "18" -> ActionWithLoss(
                 ActionSpec(
-                    type = "brightness.set",
-                    label = "Tasker brightness",
-                    args = mapOf("brightness" to taskerScalar(strings, intsByIndex, "auto")),
+                    type = "app.kill",
+                    label = "Tasker kill app",
+                    args = mapOf("package" to element.actionAppPackage(0).orEmpty()),
                 ),
-            )
-            "812", "screen.timeout" -> ActionWithLoss(
-                ActionSpec(
-                    type = "screen.timeout",
-                    label = "Tasker screen timeout",
-                    args = mapOf("millis" to waitMillis(strings, intsByIndex).coerceIn(1_000L, 1_800_000L).toString()),
-                ),
-            )
-            "511", "torch", "torch.set" -> ActionWithLoss(
-                action = ActionSpec(
-                    type = "torch.set",
-                    label = "Tasker torch",
-                    args = mapOf("state" to taskerOnOff(strings, intsByIndex)),
-                ),
-            )
-            "192", "play", "sound.play" -> ActionWithLoss(
-                action = ActionSpec(
-                    type = "sound.play",
-                    label = "Tasker sound",
-                    args = mapOf("path" to strings.getOrElse(0) { "" }),
-                ),
-            )
-            "449", "sound.stop" -> ActionWithLoss(ActionSpec(type = "sound.stop", label = "Tasker stop sound"))
-            "451", "track.next" -> ActionWithLoss(ActionSpec(type = "track.next", label = "Tasker next track"))
-            "453", "track.previous" -> ActionWithLoss(ActionSpec(type = "track.previous", label = "Tasker previous track"))
-            "15", "lock" -> ActionWithLoss(ActionSpec(type = "lock", label = "Tasker lock device"))
-            "20", "launch", "app.launch" -> ActionWithLoss(
-                ActionSpec(type = "app.launch", label = "Tasker launch app", args = mapOf("package" to strings.getOrElse(0) { "" })),
+                lossyWarning = "Tasker Kill App's Use Root option was not imported".takeIf { (intsByIndex[1] ?: 0) != 0 },
             )
             "25", "home", "home.go" -> ActionWithLoss(ActionSpec(type = "home.go", label = "Tasker go home"))
             "104", "browse", "url.open" -> ActionWithLoss(
                 ActionSpec(type = "url.open", label = "Tasker open URL", args = mapOf("url" to strings.getOrElse(0) { "" })),
+                lossyWarning = element.actionAppPackage(1)
+                    ?.let { "Tasker Browse URL's app $it was not imported; the default app opens the link" },
             )
-            "176", "screenshot", "screenshot.take" -> ActionWithLoss(ActionSpec(type = "screenshot.take", label = "Tasker screenshot"))
-            "339", "http.request" -> {
-                val byIndex = element.actionStringsByIndex()
-                val methodIndex = intsByIndex[TASKER_HTTP_METHOD_ARG]
-                val method = methodIndex?.let(TASKER_HTTP_METHODS::get)
-                val skipped = listOfNotNull(
-                    byIndex[TASKER_HTTP_QUERY_ARG].orEmptyIfBlank()?.let { "query parameters" },
-                    byIndex[TASKER_HTTP_FILE_TO_SEND_ARG].orEmptyIfBlank()?.let { "the file to send" },
-                    byIndex[TASKER_HTTP_OUTPUT_FILE_ARG].orEmptyIfBlank()?.let { "the output file" },
-                    "the request method (Tasker index $methodIndex)".takeIf { methodIndex != null && method == null },
-                )
-                ActionWithLoss(
-                    ActionSpec(
-                        type = "http.request",
-                        label = "Tasker HTTP request",
-                        args = buildMap {
-                            method?.let { put("method", it) }
-                            put("url", byIndex[TASKER_HTTP_URL_ARG].orEmpty())
-                            byIndex[TASKER_HTTP_HEADERS_ARG].orEmptyIfBlank()?.let { put("headers", it) }
-                            byIndex[TASKER_HTTP_BODY_ARG].orEmptyIfBlank()?.let { put("body", it) }
-                            intsByIndex[TASKER_HTTP_TIMEOUT_ARG]?.takeIf { it > 0 }?.let { put("timeout_sec", it.toString()) }
-                        },
-                    ),
-                    lossyWarning = skipped.takeIf { it.isNotEmpty() }
-                        ?.let { "Tasker HTTP request fields not imported: ${it.joinToString(", ")}" },
-                )
-            }
+            "176", "screenshot", "screenshot.take" -> ActionWithLoss(
+                ActionSpec(
+                    type = "screenshot.take",
+                    label = "Tasker screenshot",
+                    args = buildMap { byIndex[0].orEmptyIfBlank()?.let { put("path", it) } },
+                ),
+                lossyWarning = "Tasker Take Screenshot's Insert In Gallery option was not imported"
+                    .takeIf { (intsByIndex[1] ?: 0) != 0 },
+            )
+            "235" -> taskerCustomSetting(code, byIndex, intsByIndex)
+            "41" -> ActionWithLoss(
+                ActionSpec(
+                    type = "sms.send",
+                    label = "Tasker send SMS",
+                    args = mapOf("number" to byIndex[0].orEmpty(), "message" to byIndex[1].orEmpty()),
+                ),
+                lossyWarning = listOfNotNull(
+                    "Store In Messaging App".takeIf { (intsByIndex[2] ?: 0) != 0 },
+                    "SIM Card".takeIf { byIndex[3].orEmptyIfBlank() != null },
+                ).takeIf { it.isNotEmpty() }?.let { "Tasker Send SMS fields not imported: ${it.joinToString(", ")}" },
+            )
+            "417" -> ActionWithLoss(
+                ActionSpec(
+                    type = "file.read",
+                    label = "Tasker read file",
+                    args = buildMap {
+                        put("path", byIndex[0].orEmpty())
+                        byIndex[1].orEmptyIfBlank()?.let { put("var", it) }
+                    },
+                ),
+            )
+            "339", "http.request" -> taskerHttpRequest(byIndex, intsByIndex)
+            "118" -> taskerHttpGetOrPost(post = false, byIndex, intsByIndex)
+            "116" -> taskerHttpGetOrPost(post = true, byIndex, intsByIndex)
             "105", "clipboard.set" -> ActionWithLoss(
                 ActionSpec(
                     type = "clipboard.set",
                     label = "Tasker set clipboard",
-                    args = mapOf("text" to element.actionStringsByIndex()[0].orEmpty()),
+                    args = mapOf("text" to byIndex[0].orEmpty()),
                 ),
                 lossyWarning = "Tasker's clipboard \"Add\" option was not imported; the clipboard is replaced"
                     .takeIf { (intsByIndex[1] ?: 0) != 0 },
             )
             "410", "file.write" -> {
-                val byIndex = element.actionStringsByIndex()
                 // Tasker's Write File stores arg2=Append and arg3=Add Newline. Append maps onto this
                 // app's separate file.append action rather than a flag, so an appending Tasker action
                 // must not import as a truncating write.
@@ -452,25 +547,36 @@ object TaskerXmlImporter {
             )
             "43", "else", "flow.else" -> ActionWithLoss(ActionSpec(type = "flow.else", label = "Tasker else"))
             "38", "endif", "flow.endif" -> ActionWithLoss(ActionSpec(type = "flow.endif", label = "Tasker end if"))
-            "39", "for", "flow.foreach" -> ActionWithLoss(
-                ActionSpec(
-                    type = "flow.foreach",
-                    label = "Tasker for",
-                    args = mapOf(
-                        "list" to strings.getOrElse(0) { "" },
-                        "var" to strings.getOrElse(1) { "item" },
+            "39", "for", "flow.foreach" -> {
+                val items = byIndex[1].orEmpty().trim()
+                val array = TASKER_WHOLE_ARRAY.matchEntire(items)?.groupValues?.get(1)
+                ActionWithLoss(
+                    ActionSpec(
+                        type = "flow.foreach",
+                        label = "Tasker for",
+                        args = mapOf(
+                            "list" to (array ?: items),
+                            "var" to (byIndex[0].orEmptyIfBlank() ?: "item"),
+                        ),
                     ),
-                ),
-            )
+                    lossyWarning = "Tasker For over \"$items\" was kept as written; only a whole array like %name() loops here"
+                        .takeIf { array == null && items.isNotEmpty() },
+                )
+            }
             "40", "endfor", "flow.endfor" -> ActionWithLoss(ActionSpec(type = "flow.endfor", label = "Tasker end for"))
-            "137", "stop", "flow.stop" -> ActionWithLoss(ActionSpec(type = "flow.stop", label = "Tasker stop"))
-            "130", "perform.task", "task.run" -> ActionWithLoss(
-                ActionSpec(
-                    type = "task.run",
-                    label = "Tasker perform task",
-                    args = mapOf("task" to strings.firstOrNull().orEmpty().ifBlank { intsByIndex[0]?.toString().orEmpty() }),
-                ),
-            )
+            "137", "stop", "flow.stop" -> {
+                val otherTask = byIndex[1].orEmptyIfBlank()
+                if (otherTask != null) {
+                    // flow.stop ends the running task, so importing this as one would stop the wrong task.
+                    taskerPlaceholder(code, "Tasker Stop names another task to stop: $otherTask")
+                } else {
+                    ActionWithLoss(
+                        ActionSpec(type = "flow.stop", label = "Tasker stop"),
+                        lossyWarning = "Tasker Stop's With Error option was not imported".takeIf { (intsByIndex[0] ?: 0) != 0 },
+                    )
+                }
+            }
+            "130", "perform.task", "task.run" -> taskerPerformTask(element, strings, byIndex, intsByIndex)
             "log" -> ActionWithLoss(
                 action = ActionSpec(
                     type = "log",
@@ -520,15 +626,322 @@ object TaskerXmlImporter {
         )
     }
 
-    private fun unsupportedAction(code: String): ActionSpec =
+    private fun unsupportedAction(code: String, reason: String? = null): ActionSpec =
         ActionSpec(
             type = TASKER_UNSUPPORTED_ACTION_ID,
             label = "Unsupported Tasker action $code",
             args = mapOf(
                 "taskerCode" to code,
-                "summary" to "This Tasker action was preserved as an unsupported placeholder during import.",
+                "summary" to (reason ?: "This Tasker action was preserved as an unsupported placeholder during import."),
             ),
         )
+
+    /** A placeholder refuses to run, for the cases where running a near match would do the wrong thing. */
+    private fun taskerPlaceholder(code: String, reason: String): ActionWithLoss =
+        ActionWithLoss(unsupportedAction(code, reason), lossyWarning = reason)
+
+    private fun joinWarnings(vararg warnings: String?): String? =
+        warnings.filterNotNull().joinToString("; ").ifBlank { null }
+
+    private fun taskerMusicPlayerWarning(actionName: String): String =
+        "Tasker $actionName steers Tasker's own music player; here it presses the media key for whatever is playing"
+
+    /**
+     * A number field holding a variable. A plain `%x` needs nothing because actions expand it when
+     * they run, and `%x + 1` becomes a template. A null result is anything harder than that.
+     * [factor] converts the field's unit, so `%x` seconds can arrive as milliseconds.
+     */
+    private fun taskerNumberTemplate(text: String, factor: Long = 1L): String? {
+        val trimmed = text.trim()
+        val filters = mutableListOf<String>()
+        val name = if (TASKER_PLAIN_VARIABLE.matches(trimmed)) {
+            trimmed.removePrefix("%")
+        } else {
+            val sum = TASKER_SIMPLE_SUM.matchEntire(trimmed) ?: return null
+            filters += "${TASKER_SUM_FILTERS.getValue(sum.groupValues[2])}:${sum.groupValues[3]}"
+            sum.groupValues[1]
+        }
+        if (factor != 1L) filters += "mul:$factor"
+        return if (filters.isEmpty()) "%$name" else "{{ $name | ${filters.joinToString(" | ")} }}"
+    }
+
+    /**
+     * Anything too hard for a template stays as written and is named. It isn't a number when the
+     * action runs, so the action fails where it can be seen instead of muting someone's phone.
+     */
+    private fun taskerNumberField(actionName: String, text: String): ImportedField =
+        taskerNumberTemplate(text)?.let { ImportedField(it) }
+            ?: ImportedField(text, "Tasker $actionName holds a sum this app doesn't work out: $text")
+
+    private fun literalMillis(ints: Map<Int, Int>, units: List<Long>): Long =
+        units.withIndex().sumOf { (index, unit) -> (ints[index] ?: 0).toLong() * unit }
+
+    /**
+     * A duration whose fields each have a unit. One variable with every other field at zero keeps
+     * working at run time. Anything else falls back on [plainMillis] and names what was left out,
+     * because a template can't add several fields together.
+     */
+    private fun taskerDuration(
+        actionName: String,
+        plainMillis: String,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+        units: List<Long>,
+    ): ImportedField {
+        val used = variables.filterKeys { it < units.size }
+        if (used.isEmpty()) return ImportedField(plainMillis)
+        val only = used.entries.singleOrNull()
+        if (only != null && literalMillis(ints, units) == 0L) {
+            return taskerNumberTemplate(only.value, units[only.key])?.let { ImportedField(it) }
+                ?: ImportedField(only.value, "Tasker $actionName holds a sum this app doesn't work out: ${only.value}")
+        }
+        return ImportedField(
+            plainMillis,
+            "Tasker $actionName adds variables to its other fields, and only the plain numbers were imported: " +
+                used.values.joinToString(", "),
+        )
+    }
+
+    private fun taskerVariableSet(strings: List<String>, ints: Map<Int, Int>): ActionWithLoss {
+        val name = strings.getOrElse(0) { "%IMPORTED" }
+        val raw = strings.getOrElse(1) { "" }
+        val recurse = (ints[2] ?: 0) != 0
+        val doMaths = (ints[3] ?: 0) != 0
+        val append = (ints[4] ?: 0) != 0
+        val maths = when {
+            !doMaths -> ImportedField(raw)
+            raw.trim().toDoubleOrNull() != null -> ImportedField(raw.trim())
+            else -> taskerNumberTemplate(raw)?.let { ImportedField(it) }
+                ?: ImportedField(raw, "Tasker Variable Set's Do Maths isn't worked out here, so the text is set as written: $raw")
+        }
+        // "%apps" followed by more text would read as one longer variable name, so the old value
+        // comes from a template. An unset variable adds nothing, the same as Tasker's Append.
+        val appendTo = name.trim().takeIf { append && TASKER_PLAIN_VARIABLE.matches(it) }?.removePrefix("%")
+        return ActionWithLoss(
+            ActionSpec(
+                type = "var.set",
+                label = "Tasker variable set",
+                args = mapOf(
+                    "name" to name,
+                    "value" to (appendTo?.let { "{{ $it }}${maths.value}" } ?: maths.value),
+                ),
+            ),
+            lossyWarning = joinWarnings(
+                maths.warning,
+                "Tasker Variable Set's Append was not imported for $name".takeIf { append && appendTo == null },
+                "Tasker Variable Set's Recurse Variables was not imported for $name".takeIf { recurse },
+            ),
+        )
+    }
+
+    /** Tasker's on/off actions share one Set field: 0 off, 1 on, 2 toggle. Older exports from this app wrote the word. */
+    private fun taskerSetField(
+        code: String,
+        actionName: String,
+        type: String,
+        strings: List<String>,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+        warning: String? = null,
+    ): ActionWithLoss {
+        val text = strings.firstOrNull()?.trim()?.lowercase()
+        val state = when {
+            text == "on" || text == "off" || text == "toggle" -> text
+            0 in variables -> null
+            else -> TASKER_SET_STATES[ints[0] ?: 0]
+        } ?: return taskerPlaceholder(
+            code,
+            "Tasker $actionName's Set field holds ${variables[0] ?: ints[0]}, which isn't off, on or toggle",
+        )
+        return ActionWithLoss(
+            ActionSpec(type = type, label = "Tasker $actionName", args = mapOf("state" to state)),
+            lossyWarning = warning,
+        )
+    }
+
+    /** Media Control sends a media key, which is exactly what this app's own media actions do. */
+    private fun taskerMediaControl(
+        code: String,
+        element: Element,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
+        val command = ints[0] ?: 0
+        val type = TASKER_MEDIA_COMMANDS[command].takeIf { 0 !in variables }
+            ?: return taskerPlaceholder(
+                code,
+                "Tasker Media Control's ${TASKER_MEDIA_COMMAND_NAMES[command] ?: variables[0] ?: command} command has no match here",
+            )
+        return ActionWithLoss(
+            ActionSpec(type = type, label = "Tasker media control"),
+            lossyWarning = element.actionAppPackage(2)
+                ?.let { "Tasker Media Control aimed at $it was not imported; the key goes to whatever is playing" },
+        )
+    }
+
+    /**
+     * Custom Setting's read form leaves Value blank and names a variable, so importing it as a write
+     * would wipe the setting. Anything but a complete write stays a placeholder that refuses to run.
+     */
+    private fun taskerCustomSetting(code: String, byIndex: Map<Int, String>, ints: Map<Int, Int>): ActionWithLoss {
+        val table = ints[0]?.let(TASKER_SETTING_TABLES::get)
+        val name = byIndex[1].orEmpty().trim()
+        val value = byIndex[2].orEmptyIfBlank()
+        val readsInto = byIndex[4].orEmptyIfBlank()
+        val refusal = when {
+            readsInto != null -> "Tasker Custom Setting reads $name into $readsInto, and this app only writes settings"
+            table == null -> "Tasker Custom Setting $name uses a settings type this app doesn't know"
+            name.isEmpty() -> "Tasker Custom Setting has no setting name"
+            value == null -> "Tasker Custom Setting $name has no value to write"
+            else -> null
+        }
+        if (refusal != null || table == null || value == null) return taskerPlaceholder(code, refusal.orEmpty())
+        return ActionWithLoss(
+            ActionSpec(
+                type = "settings.write",
+                label = "Tasker custom setting",
+                args = mapOf("table" to table, "key" to name, "value" to value),
+            ),
+            lossyWarning = "Tasker Custom Setting's Use Root option was not imported".takeIf { (ints[3] ?: 0) != 0 },
+        )
+    }
+
+    /**
+     * Perform Task moved its fields once. Older exports have an Int at arg2 and par1, par2 and the
+     * return variable one field later. 9 of the 249 real actions examined used the older layout.
+     */
+    private fun taskerPerformTask(
+        element: Element,
+        strings: List<String>,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+    ): ActionWithLoss {
+        val olderLayout = element.directChildren("Int").any { it.argIndex() == 2 }
+        val parameterStart = if (olderLayout) 3 else 2
+        val returnVariable = byIndex[parameterStart + 2].orEmptyIfBlank()
+        val stops = !olderLayout && (ints[5] ?: 0) != 0
+        return ActionWithLoss(
+            ActionSpec(
+                type = "task.run",
+                label = "Tasker perform task",
+                args = buildMap {
+                    put("task", strings.firstOrNull().orEmpty().ifBlank { ints[0]?.toString().orEmpty() })
+                    byIndex[parameterStart].orEmptyIfBlank()?.let { put("par1", it) }
+                    byIndex[parameterStart + 1].orEmptyIfBlank()?.let { put("par2", it) }
+                },
+            ),
+            lossyWarning = joinWarnings(
+                returnVariable?.let { "Tasker Perform Task's Return Value Variable was not imported: $it" },
+                "Tasker Perform Task's Stop option was not imported".takeIf { stops },
+            ),
+        )
+    }
+
+    private fun taskerHttpRequest(byIndex: Map<Int, String>, ints: Map<Int, Int>): ActionWithLoss {
+        val methodIndex = ints[TASKER_HTTP_METHOD_ARG]
+        val method = methodIndex?.let(TASKER_HTTP_METHODS::get)
+        val url = byIndex[TASKER_HTTP_URL_ARG].orEmpty()
+        val query = byIndex[TASKER_HTTP_QUERY_ARG].orEmptyIfBlank()
+        val importedQuery = query?.let(::taskerColonQuery)
+        val body = byIndex[TASKER_HTTP_BODY_ARG].orEmptyIfBlank()
+        // A GET or HEAD with a body is refused when the request is built, so keeping it would break the action.
+        val bodyFits = method != null && method !in TASKER_HTTP_BODYLESS_METHODS
+        val followsRedirects = (ints[TASKER_HTTP_REDIRECTS_ARG] ?: 0) != 0
+        val skipped = listOfNotNull(
+            "query parameters".takeIf { query != null && importedQuery == null },
+            "the body, which a GET or HEAD request can't carry".takeIf { body != null && !bodyFits },
+            byIndex[TASKER_HTTP_FILE_TO_SEND_ARG].orEmptyIfBlank()?.let { "the file to send" },
+            byIndex[TASKER_HTTP_OUTPUT_FILE_ARG].orEmptyIfBlank()?.let { "the output file" },
+            "the request method (Tasker index $methodIndex)".takeIf { methodIndex != null && method == null },
+            "Trust Any Certificate".takeIf { (ints[TASKER_HTTP_TRUST_ARG] ?: 0) != 0 },
+            "Use Cookies".takeIf { (ints[TASKER_HTTP_COOKIES_ARG] ?: 0) != 0 },
+        )
+        return ActionWithLoss(
+            ActionSpec(
+                type = "http.request",
+                label = "Tasker HTTP request",
+                args = buildMap {
+                    method?.let { put("method", it) }
+                    put("url", url)
+                    importedQuery?.let { put("query", it) }
+                    byIndex[TASKER_HTTP_HEADERS_ARG].orEmptyIfBlank()?.let { put("headers", it) }
+                    if (bodyFits) body?.let { put("body", it) }
+                    ints[TASKER_HTTP_TIMEOUT_ARG]?.takeIf { it > 0 }?.let { put("timeout_sec", it.toString()) }
+                    if (followsRedirects) put("redirects", "same_origin")
+                    put("response_var", "%http_data")
+                    put("status_var", "%http_response_code")
+                    if (taskerUrlMayBePlainHttp(url)) put("allow_http", "true")
+                },
+            ),
+            lossyWarning = joinWarnings(
+                skipped.takeIf { it.isNotEmpty() }?.let { "Tasker HTTP request fields not imported: ${it.joinToString(", ")}" },
+                TASKER_SAME_SITE_REDIRECTS_WARNING.takeIf { followsRedirects },
+                TASKER_PLAIN_HTTP_WARNING.takeIf { url.startsWith("http://", ignoreCase = true) },
+            ),
+        )
+    }
+
+    /** Tasker's older HTTP Get and HTTP Post, which real exports still use. Their fields line up apart from arg2 and arg6. */
+    private fun taskerHttpGetOrPost(post: Boolean, byIndex: Map<Int, String>, ints: Map<Int, Int>): ActionWithLoss {
+        val url = taskerHttpUrl(byIndex[0].orEmpty(), byIndex[1].orEmpty())
+        val data = byIndex[2].orEmptyIfBlank()
+        val type = byIndex[6].orEmptyIfBlank()
+        val attributes = data.takeIf { !post }?.lines()?.filter(String::isNotBlank)
+        val query = attributes?.takeIf { lines -> lines.all { '=' in it } }?.joinToString("\n") { it.trim() }
+        val headers = listOfNotNull(
+            byIndex[3].orEmptyIfBlank()?.let { "Cookie: $it" },
+            byIndex[4].orEmptyIfBlank()?.let { "User-Agent: $it" },
+        )
+        val skipped = listOfNotNull(
+            "Attributes".takeIf { attributes != null && query == null },
+            "Mime Type $type".takeIf { !post && type != null && !type.startsWith("text/", ignoreCase = true) },
+            "Output File".takeIf { byIndex[7].orEmptyIfBlank() != null },
+            "Trust Any Certificate".takeIf { (ints[8] ?: 0) != 0 },
+        )
+        return ActionWithLoss(
+            ActionSpec(
+                type = "http.request",
+                label = if (post) "Tasker HTTP post" else "Tasker HTTP get",
+                args = buildMap {
+                    put("method", if (post) "POST" else "GET")
+                    put("url", url)
+                    query?.let { put("query", it) }
+                    if (post) {
+                        data?.let { put("body", it) }
+                        type?.let { put("content_type", it) }
+                    }
+                    if (headers.isNotEmpty()) put("headers", headers.joinToString("\n"))
+                    ints[5]?.takeIf { it > 0 }?.let { put("timeout_sec", it.toString()) }
+                    put("response_var", "%HTTPD")
+                    put("status_var", "%HTTPR")
+                    if (taskerUrlMayBePlainHttp(url)) put("allow_http", "true")
+                },
+            ),
+            lossyWarning = joinWarnings(
+                skipped.takeIf { it.isNotEmpty() }?.let { "Tasker HTTP fields not imported: ${it.joinToString(", ")}" },
+                TASKER_PLAIN_HTTP_WARNING.takeIf { url.startsWith("http://", ignoreCase = true) },
+            ),
+        )
+    }
+
+    /** Tasker's HTTP Request query is `key:value` per line and this app's is `key=value`. Null when a line is neither. */
+    private fun taskerColonQuery(text: String): String? {
+        val lines = text.lines().filter(String::isNotBlank)
+        if (lines.any { ':' !in it }) return null
+        return lines.joinToString("\n") { it.trim().replaceFirst(":", "=") }
+    }
+
+    /** Tasker's Server:Port assumes http when no scheme is written. A variable can hold anything, so it's left alone. */
+    private fun taskerHttpUrl(server: String, path: String): String {
+        val host = server.trim()
+        val base = if (host.isEmpty() || host.startsWith("%") || "://" in host) host else "http://$host"
+        val tail = path.trim()
+        return if (tail.isEmpty()) base else "${base.trimEnd('/')}/${tail.trimStart('/')}"
+    }
+
+    /** allow_http only ever reaches local network addresses, and a variable might hold one. */
+    private fun taskerUrlMayBePlainHttp(url: String): Boolean =
+        url.startsWith("%") || url.startsWith("http://", ignoreCase = true)
 
     private fun taskerVolumeStream(code: String): String = when (code) {
         "303" -> "alarm"
@@ -545,12 +958,6 @@ object TaskerXmlImporter {
         strings.firstOrNull()?.trim()?.takeIf { it.isNotBlank() }
             ?: intsByIndex[0]?.toString()
             ?: fallback
-
-    private fun taskerOnOff(strings: List<String>, intsByIndex: Map<Int, Int>): String {
-        val text = strings.firstOrNull()?.trim()?.lowercase()
-        if (text == "on" || text == "off" || text == "toggle") return text
-        return if ((intsByIndex[0] ?: 0) == 0) "off" else "on"
-    }
 
     private fun parseDocument(rawXml: String): Document {
         val factory = DocumentBuilderFactory.newInstance().apply {
@@ -597,6 +1004,22 @@ object TaskerXmlImporter {
                 ?: return@mapNotNull null
             index to value
         }.toMap()
+
+    /**
+     * Text of `<Int sr="argN"><var>%x</var></Int>`, which is how Tasker stores a variable or a sum in
+     * a number field. A `<var>` holding a plain number stays with [actionIntsByIndex].
+     */
+    private fun Element.actionIntVariablesByIndex(): Map<Int, String> =
+        directChildren("Int").mapNotNull { element ->
+            val index = element.argIndex().takeIf { it != Int.MAX_VALUE } ?: return@mapNotNull null
+            element.getAttribute("val").ifBlank { element.textContent.orEmpty() }.trim()
+                .takeIf { it.isNotEmpty() && it.toIntOrNull() == null }
+                ?.let { index to it }
+        }.toMap()
+
+    /** Package of `<App sr="argN"><appPkg>...</appPkg></App>`, where Tasker keeps a chosen app. */
+    private fun Element.actionAppPackage(index: Int): String? =
+        directChildren("App").firstOrNull { it.argIndex() == index }?.childText("appPkg")?.takeIf(String::isNotBlank)
 
     private fun waitMillis(strings: List<String>, intsByIndex: Map<Int, Int>): Long {
         val explicit = strings.firstOrNull()?.trim()?.toLongOrNull()
@@ -725,12 +1148,13 @@ object TaskerXmlImporter {
         val lossyWarning: String? = null,
     )
 
-    // Tasker's HTTP Request (code 339) argument layout, read off real exports rather than the help
-    // page, whose field order does not match the XML: arg1 is the method spinner, arg2 the URL,
-    // arg3 headers ("X-API-Version:1"), arg5 the request body (a JSON document on arg1=1 actions),
-    // arg7 the file to save the response into ("Pictures/bili/%BILI_NAME.jpg" on a download), and
-    // arg8 the timeout in seconds. arg4 and arg6 were empty in every sample examined, so they are
-    // reported as not imported rather than guessed into a field.
+    private data class ImportedField(val value: String, val warning: String? = null)
+
+    // Tasker's field layouts come from its own published action table, which Map-Tasker vendors as
+    // maptasker/assets/json/task_all_actions.json, checked against real exports found on GitHub.
+    // HTTP Request (code 339): arg0 Output Variables, arg1 Method, arg2 URL, arg3 Headers, arg4 Query
+    // Parameters, arg5 Body, arg6 File To Send, arg7 File To Save, arg8 Timeout in seconds, arg9 Trust
+    // Any Certificate, arg10 Automatically Follow Redirects, arg11 Use Cookies, arg12 Structure Output.
     private const val TASKER_HTTP_METHOD_ARG = 1
     private const val TASKER_HTTP_URL_ARG = 2
     private const val TASKER_HTTP_HEADERS_ARG = 3
@@ -739,13 +1163,66 @@ object TaskerXmlImporter {
     private const val TASKER_HTTP_FILE_TO_SEND_ARG = 6
     private const val TASKER_HTTP_OUTPUT_FILE_ARG = 7
     private const val TASKER_HTTP_TIMEOUT_ARG = 8
+    private const val TASKER_HTTP_TRUST_ARG = 9
+    private const val TASKER_HTTP_REDIRECTS_ARG = 10
+    private const val TASKER_HTTP_COOKIES_ARG = 11
 
     /**
-     * Only the two method indices observed in real exports are mapped. An unknown index imports
-     * without a method and says so, because turning an unrecognised verb into a GET would send a
-     * different request than the user wrote.
+     * Tasker's method spinner, as Map-Tasker lists it. Index 7 is TRACE, which this app doesn't send.
+     * An index missing here imports without a method and says so, because turning an unrecognised
+     * verb into a GET would send a different request than the user wrote.
      */
-    private val TASKER_HTTP_METHODS = mapOf(0 to "GET", 1 to "POST")
+    private val TASKER_HTTP_METHODS = mapOf(
+        0 to "GET",
+        1 to "POST",
+        2 to "HEAD",
+        3 to "PUT",
+        4 to "PATCH",
+        5 to "DELETE",
+        6 to "OPTIONS",
+    )
+
+    private val TASKER_HTTP_BODYLESS_METHODS = setOf("GET", "HEAD")
+
+    private const val TASKER_PLAIN_HTTP_WARNING =
+        "A plain http address only reaches local network devices here; public hosts need https"
+
+    private const val TASKER_SAME_SITE_REDIRECTS_WARNING =
+        "Tasker's Automatically Follow Redirects imports as following redirects on the same site only"
+
+    private const val TASKER_MAX_SCREEN_TIMEOUT_MS = 1_800_000L
+
+    // Wait is arg0 milliseconds, then seconds, minutes, hours, days. Display Timeout is seconds,
+    // minutes, hours. Vibrate has one field.
+    private val TASKER_WAIT_UNITS = listOf(1L, 1_000L, 60_000L, 3_600_000L, 86_400_000L)
+    private val TASKER_TIMEOUT_UNITS = listOf(1_000L, 60_000L, 3_600_000L)
+    private val TASKER_VIBRATE_UNITS = listOf(1L)
+
+    private val TASKER_SET_STATES = mapOf(0 to "off", 1 to "on", 2 to "toggle")
+
+    private val TASKER_SETTING_TABLES = mapOf(0 to "global", 1 to "secure", 2 to "system")
+
+    private val TASKER_MEDIA_COMMANDS = mapOf(
+        0 to "track.next",
+        1 to "sound.pause",
+        2 to "track.previous",
+        4 to "sound.stop",
+    )
+
+    private val TASKER_MEDIA_COMMAND_NAMES = mapOf(
+        3 to "Toggle Pause",
+        5 to "Play",
+        6 to "Rewind",
+        7 to "Fast Forward",
+    )
+
+    private val TASKER_PLAIN_VARIABLE = Regex("""%[A-Za-z][A-Za-z0-9_]*""")
+
+    private val TASKER_SIMPLE_SUM = Regex("""%([A-Za-z][A-Za-z0-9_]*)\s*([-+*/])\s*(\d+(?:\.\d+)?)""")
+
+    private val TASKER_SUM_FILTERS = mapOf("+" to "add", "-" to "sub", "*" to "mul", "/" to "div")
+
+    private val TASKER_WHOLE_ARRAY = Regex("""%([A-Za-z][A-Za-z0-9_]*)\(\)""")
 
     private val PROFILE_SCALAR_TAGS = setOf(
         "cdate",

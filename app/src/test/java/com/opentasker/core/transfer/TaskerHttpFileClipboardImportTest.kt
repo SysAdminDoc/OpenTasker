@@ -115,7 +115,7 @@ class TaskerHttpFileClipboardImportTest {
             """
             <Action sr="act0">
                 <code>339</code>
-                <Int sr="arg1" val="5"/>
+                <Int sr="arg1" val="99"/>
                 <Str sr="arg2" ve="3">https://example.invalid/thing</Str>
             </Action>
             """.trimIndent(),
@@ -125,7 +125,7 @@ class TaskerHttpFileClipboardImportTest {
         assertEquals("http.request", action.type)
         // Silently defaulting to GET would send a different request than the user wrote.
         assertNull(action.args["method"])
-        assertTrue(report.lossyWarnings.any { it.contains("the request method (Tasker index 5)") })
+        assertTrue(report.lossyWarnings.any { it.contains("the request method (Tasker index 99)") })
     }
 
     @Test

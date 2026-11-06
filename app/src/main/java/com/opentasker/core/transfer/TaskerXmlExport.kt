@@ -9,6 +9,7 @@ import com.opentasker.core.model.ProfileOverflowPolicy
 import com.opentasker.core.model.Task
 import com.opentasker.core.model.Variable
 import com.opentasker.core.diagnostics.ExportRedactionPolicy
+import com.opentasker.core.engine.SUB_TASK_REF_KEYS
 
 data class TaskerXmlExportReport(
     val xml: String,
@@ -28,23 +29,37 @@ data class SkippedExportAction(
 
 object TaskerXmlExporter {
 
+    // Codes and field layouts come from Tasker's own published action table, which Map-Tasker vendors
+    // as maptasker/assets/json/task_all_actions.json. There's no entry for "log": Tasker has no such
+    // action, and the code once written for it, 905, is Location Mode.
     private val REVERSE_ACTION_MAP: Map<String, String> = mapOf(
         "notify.show" to "523",
         "notify.cancel" to "779",
         "flow.wait" to "30",
-        "log" to "905",
         "var.set" to "547",
         "tts.speak" to "559",
         "vibrate" to "61",
         "torch.set" to "511",
-        "sound.play" to "192",
-        "sound.stop" to "449",
-        "track.next" to "451",
-        "track.previous" to "453",
+        "wifi.toggle" to "425",
+        "bluetooth.toggle" to "294",
+        "airplane.toggle" to "333",
+        "sound.play" to "445",
+        "sound.stop" to "443",
+        "sound.pause" to "443",
+        "track.next" to "443",
+        "track.previous" to "443",
         "home.go" to "25",
+        "lock" to "16",
         "app.launch" to "20",
+        "app.kill" to "18",
         "url.open" to "104",
         "screenshot.take" to "176",
+        "settings.write" to "235",
+        "sms.send" to "41",
+        "file.read" to "417",
+        "file.write" to "410",
+        "file.append" to "410",
+        "clipboard.set" to "105",
         "flow.if" to "37",
         "flow.else" to "43",
         "flow.endif" to "38",
@@ -161,16 +176,7 @@ object TaskerXmlExporter {
                     args["id"]?.let { appendStr(sb, 1, it) }
                 }
             }
-            "flow.wait" -> {
-                val millis = args["millis"]?.toLongOrNull() ?: 1000
-                val seconds = millis / 1000
-                val remainMs = millis % 1000
-                appendInt(sb, 0, remainMs.toString())
-                appendInt(sb, 1, seconds.toString())
-            }
-            "log" -> {
-                appendStr(sb, 0, args["message"] ?: "")
-            }
+            "flow.wait" -> appendWait(sb, args["millis"].orEmpty())
             "var.set" -> {
                 appendStr(sb, 0, args["name"] ?: "%VAR")
                 appendStr(sb, 1, args["value"] ?: "")
@@ -181,18 +187,91 @@ object TaskerXmlExporter {
                 val level = args["level"] ?: "0"
                 if (level == "mute" || level == "unmute") appendStr(sb, 0, level) else appendInt(sb, 0, level)
             }
-            "torch.set" -> appendStr(sb, 0, args["state"] ?: "toggle")
-            "sound.play" -> appendStr(sb, 0, args["path"] ?: "")
-            "app.launch" -> appendStr(sb, 0, args["package"] ?: "")
+            "torch.set", "wifi.toggle", "bluetooth.toggle", "airplane.toggle" ->
+                appendSetField(sb, action.type, args["state"] ?: "toggle", warnings)
+            "sound.play" -> {
+                appendStr(sb, 0, args["path"] ?: "")
+                appendInt(sb, 1, "0")
+                appendInt(sb, 2, "0")
+                if (args["volume"] != null) {
+                    warnings += "Tasker's Music Play has no volume of its own, so the volume on 'sound.play' was left out."
+                }
+            }
+            "sound.stop", "sound.pause", "track.next", "track.previous" -> {
+                appendInt(sb, 0, TASKER_MEDIA_COMMANDS.getValue(action.type))
+                appendInt(sb, 1, "1")
+            }
+            "app.launch", "app.kill" -> appendApp(sb, 0, args["package"] ?: "")
             "url.open" -> appendStr(sb, 0, args["url"] ?: "")
+            "screenshot.take" -> {
+                appendStr(sb, 0, args["path"] ?: args["filename"] ?: "")
+                appendInt(sb, 1, "0")
+            }
+            "settings.write" -> {
+                val table = args["table"].orEmpty().trim()
+                val tableIndex = TASKER_SETTING_TABLE_INDEXES[table.lowercase()]
+                if (tableIndex == null) {
+                    warnings += "Tasker's Custom Setting only knows global, secure and system, not '$table'."
+                }
+                appendInt(sb, 0, tableIndex ?: table)
+                appendStr(sb, 1, args["key"] ?: "")
+                appendStr(sb, 2, args["value"] ?: "")
+                appendInt(sb, 3, "0")
+                appendStr(sb, 4, "")
+            }
+            "sms.send" -> {
+                appendStr(sb, 0, args["number"] ?: "")
+                appendStr(sb, 1, args["message"] ?: "")
+                appendInt(sb, 2, "0")
+                appendStr(sb, 3, "")
+                appendInt(sb, 4, "0")
+            }
+            "file.read" -> {
+                appendStr(sb, 0, args["path"] ?: "")
+                appendStr(sb, 1, taskerVariableName(args["var"], "result"))
+            }
+            "file.write", "file.append" -> {
+                appendStr(sb, 0, args["path"] ?: "")
+                appendStr(sb, 1, args["text"] ?: args["content"] ?: "")
+                appendInt(sb, 2, if (action.type == "file.append") "1" else "0")
+            }
+            "clipboard.set" -> {
+                appendStr(sb, 0, args["text"] ?: "")
+                appendInt(sb, 1, "0")
+            }
             "flow.if" -> appendStr(sb, 0, args["condition"] ?: "true")
             "flow.foreach" -> {
-                appendStr(sb, 0, args["list"] ?: "")
-                appendStr(sb, 1, args["var"] ?: "item")
+                val list = args["list"].orEmpty()
+                val items = taskerForItems(list)
+                if (items == null && list.isNotBlank()) {
+                    warnings += "Tasker's For reads '$list' as a list of values, and here it needs a whole array."
+                }
+                appendStr(sb, 0, taskerVariableName(args["var"], "item"))
+                appendStr(sb, 1, items ?: list)
             }
-            "task.run" -> appendStr(sb, 0, args["task"] ?: args["name"] ?: args["id"] ?: "")
-            "brightness.set" -> appendStr(sb, 0, args["brightness"] ?: "auto")
-            "screen.timeout" -> appendInt(sb, 0, args["millis"] ?: "60000")
+            "task.run" -> {
+                appendStr(sb, 0, args["task"] ?: args["name"] ?: args["id"] ?: "")
+                appendInt(sb, 1, "%priority")
+                appendStr(sb, 2, args["par1"] ?: "")
+                appendStr(sb, 3, args["par2"] ?: "")
+                appendStr(sb, 4, "")
+                appendInt(sb, 5, "0")
+                val otherInputs = args.keys - SUB_TASK_REF_KEYS - setOf("par1", "par2")
+                if (otherInputs.isNotEmpty()) {
+                    warnings += "Tasker's Perform Task only passes par1 and par2, so these inputs were left out: " +
+                        otherInputs.sorted().joinToString(", ")
+                }
+            }
+            "brightness.set" -> {
+                val level = args["brightness"] ?: args["level"] ?: "auto"
+                if (level.trim().equals("auto", ignoreCase = true)) {
+                    appendStr(sb, 0, "auto")
+                    warnings += "Automatic brightness is a separate action in Tasker, so 'brightness.set' auto won't do anything there."
+                } else {
+                    appendInt(sb, 0, level)
+                }
+            }
+            "screen.timeout" -> appendDisplayTimeout(sb, args["millis"].orEmpty(), warnings)
         }
 
         appendConditionList(sb, action, redactionContext, warnings)
@@ -400,9 +479,89 @@ object TaskerXmlExporter {
         sb.appendLine("""      <Str sr="arg$index" ve="3">${escapeXml(value)}</Str>""")
     }
 
+    /** A number field holding a variable or a sum is written the way Tasker writes it, in a `<var>`. */
     private fun appendInt(sb: StringBuilder, index: Int, value: String) {
-        sb.appendLine("""      <Int sr="arg$index" val="${escapeXml(value)}"/>""")
+        val trimmed = value.trim()
+        if (trimmed.toIntOrNull() != null) {
+            sb.appendLine("""      <Int sr="arg$index" val="$trimmed"/>""")
+        } else {
+            sb.appendLine("""      <Int sr="arg$index"><var>${escapeXml(trimmed)}</var></Int>""")
+        }
     }
+
+    private fun appendApp(sb: StringBuilder, index: Int, packageName: String) {
+        sb.appendLine("""      <App sr="arg$index">""")
+        sb.appendLine("""        <appPkg>${escapeXml(packageName)}</appPkg>""")
+        sb.appendLine("""        <label>${escapeXml(packageName)}</label>""")
+        sb.appendLine("""      </App>""")
+    }
+
+    /** Wait's fields are milliseconds, seconds, minutes, hours and days, each within its own range. */
+    private fun appendWait(sb: StringBuilder, raw: String) {
+        val text = raw.trim().ifBlank { "1000" }
+        val millis = text.toLongOrNull()
+        if (millis == null) {
+            appendInt(sb, 0, text)
+            (1..4).forEach { appendInt(sb, it, "0") }
+            return
+        }
+        appendInt(sb, 0, (millis % 1000).toString())
+        appendInt(sb, 1, (millis / 1000 % 60).toString())
+        appendInt(sb, 2, (millis / 60_000 % 60).toString())
+        appendInt(sb, 3, (millis / 3_600_000 % 24).toString())
+        appendInt(sb, 4, (millis / 86_400_000).toString())
+    }
+
+    /** Display Timeout's fields are seconds, minutes and hours. */
+    private fun appendDisplayTimeout(sb: StringBuilder, raw: String, warnings: MutableList<String>) {
+        val text = raw.trim().ifBlank { "60000" }
+        val seconds = text.toLongOrNull()?.div(1000)
+        if (seconds == null) {
+            warnings += "'screen.timeout' holds milliseconds in $text, and Tasker's Display Timeout reads that field as seconds."
+            appendInt(sb, 0, text)
+            appendInt(sb, 1, "0")
+            appendInt(sb, 2, "0")
+            return
+        }
+        appendInt(sb, 0, (seconds % 60).toString())
+        appendInt(sb, 1, (seconds / 60 % 60).toString())
+        appendInt(sb, 2, (seconds / 3600).toString())
+    }
+
+    private fun appendSetField(sb: StringBuilder, type: String, state: String, warnings: MutableList<String>) {
+        val value = TASKER_SET_VALUES[state.trim().lowercase()]
+        if (value == null) {
+            warnings += "Tasker's Set field takes off, on or toggle, so '$type' with '$state' may not work there."
+        }
+        appendInt(sb, 0, value ?: state)
+    }
+
+    private fun taskerVariableName(name: String?, fallback: String): String {
+        val trimmed = name?.trim().orEmpty().ifBlank { fallback }
+        return if (trimmed.startsWith("%")) trimmed else "%$trimmed"
+    }
+
+    /** Tasker's For loops over `%name()`. Null when the list isn't one whole array. */
+    private fun taskerForItems(list: String): String? {
+        val trimmed = list.trim()
+        val name = (TEMPLATE_ARRAY.matchEntire(trimmed) ?: BARE_ARRAY.matchEntire(trimmed))?.groupValues?.get(1)
+        return name?.let { "%$it()" }
+    }
+
+    private val TASKER_SET_VALUES = mapOf("off" to "0", "on" to "1", "toggle" to "2")
+
+    private val TASKER_SETTING_TABLE_INDEXES = mapOf("global" to "0", "secure" to "1", "system" to "2")
+
+    private val TASKER_MEDIA_COMMANDS = mapOf(
+        "track.next" to "0",
+        "sound.pause" to "1",
+        "track.previous" to "2",
+        "sound.stop" to "4",
+    )
+
+    private val TEMPLATE_ARRAY = Regex("""\{\{\s*array\.([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")
+
+    private val BARE_ARRAY = Regex("""%?([A-Za-z][A-Za-z0-9_]*)(?:\(\))?""")
 
     private fun taskerCodeFor(action: ActionSpec): String? {
         if (action.type == "volume.set") {

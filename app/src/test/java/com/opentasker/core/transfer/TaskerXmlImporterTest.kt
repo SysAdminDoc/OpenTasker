@@ -208,7 +208,7 @@ class TaskerXmlImporterTest {
                         <Action><code>453</code></Action>
                         <Action><code>37</code><Str sr="arg0">%MODE = quiet</Str></Action>
                         <Action><code>43</code></Action><Action><code>38</code></Action>
-                        <Action><code>39</code><Str sr="arg0">%ITEMS</Str><Str sr="arg1">item</Str></Action>
+                        <Action><code>39</code><Str sr="arg0">item</Str><Str sr="arg1">%ITEMS()</Str></Action>
                         <Action><code>40</code></Action><Action><code>137</code></Action>
                     </Task>
                 </TaskerData>
@@ -224,6 +224,8 @@ class TaskerXmlImporterTest {
         assertEquals("music", actions[4].args["stream"])
         assertEquals("content://media/song", actions[6].args["path"])
         assertEquals("%MODE = quiet", actions[10].args["condition"])
+        assertEquals("ITEMS", actions[13].args["list"])
+        assertEquals("item", actions[13].args["var"])
         assertEquals(16, report.mappedActions.size)
         assertTrue(report.unsupportedActions.isEmpty())
         assertTrue(report.lossyWarnings.any { it.contains("volume") })

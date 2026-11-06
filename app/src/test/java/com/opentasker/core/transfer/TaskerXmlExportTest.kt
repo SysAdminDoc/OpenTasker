@@ -21,14 +21,14 @@ class TaskerXmlExportTest {
             actions = listOf(
                 ActionSpec(type = "notify.show", args = mapOf("title" to "Hello", "text" to "World")),
                 ActionSpec(type = "var.set", args = mapOf("name" to "%MODE", "value" to "on")),
-                ActionSpec(type = "wifi.toggle", args = mapOf("state" to "on")),
+                ActionSpec(type = "mqtt.publish", args = mapOf("topic" to "home/lights")),
             ),
         )
         val report = TaskerXmlExporter.export(emptyList(), listOf(task))
 
         assertEquals(1, report.exportedTaskCount)
         assertEquals(1, report.skippedActions.size)
-        assertEquals("wifi.toggle", report.skippedActions[0].actionType)
+        assertEquals("mqtt.publish", report.skippedActions[0].actionType)
         assertTrue(report.xml.contains("<code>523</code>"))
         assertTrue(report.xml.contains("<code>547</code>"))
         assertTrue(report.xml.contains("Hello"))
@@ -245,8 +245,8 @@ class TaskerXmlExportTest {
                             args = mapOf("url" to "https://example.test/api?token=sentinel"),
                         ),
                         ActionSpec(
-                            type = "log",
-                            args = mapOf("message" to "{{ global.API_TOKEN }}"),
+                            type = "tts.speak",
+                            args = mapOf("text" to "{{ global.API_TOKEN }}"),
                         ),
                     ),
                 ),
@@ -265,7 +265,7 @@ class TaskerXmlExportTest {
             id = 1,
             name = "Test & <task>",
             actions = listOf(
-                ActionSpec(type = "log", args = mapOf("message" to "value < 5 & done")),
+                ActionSpec(type = "tts.speak", args = mapOf("text" to "value < 5 & done")),
             ),
         )
         val report = TaskerXmlExporter.export(emptyList(), listOf(task))
@@ -342,7 +342,7 @@ class TaskerXmlExportTest {
         val report = TaskerXmlExporter.export(emptyList(), listOf(task))
 
         assertTrue(report.skippedActions.isEmpty())
-        listOf("523", "547", "559", "61", "307", "511", "192", "37", "43", "38", "39", "40", "137")
+        listOf("523", "547", "559", "61", "307", "511", "445", "37", "43", "38", "39", "40", "137")
             .forEach { code -> assertTrue("missing Tasker code $code", report.xml.contains("<code>$code</code>")) }
         assertTrue(report.xml.contains("content://media/song"))
     }
