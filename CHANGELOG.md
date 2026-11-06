@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- MacroDroid backups import (#30). The token limit that protects imports was hit by any whole-app `.mdr` of more than about 1.5 MB, and a password-protected `.emdr` was read as broken JSON. A MacroDroid file now gets a limit that fits a real backup, while what it converts into stays under the ordinary limits, and an `.emdr` asks for its export password and opens. When any import goes over a limit, the message names that limit.
 - Shizuku and Sui can reach OpenTasker (#22, #26, #31). OpenTasker never declared the small provider Shizuku uses to hand an app its connection, so Setup said Shizuku wasn't running even with the service up, and no elevated action could work. Setup also insisted on the stock Shizuku manager app, which shut out Sui and the forks, so a running service now counts however it got there. `Open Shizuku` opens Shizuku instead of its App info page, and Setup tells you when the permission was granted or refused.
 - Setup and Settings no longer crash the app as they open on Android 8 to 12 phones that can pair companion devices, which includes Galaxy phones (#20). If one of Setup's checks fails on a particular phone, even because that phone's Android build lacks the call it makes, its row now says "Couldn't check" and the rest of the screen carries on. The same goes for the list of paired devices.
 - A time trigger that can't be delivered no longer wakes the phone every five seconds to retry. Recovery now waits 5 seconds, then 30, then 5 minutes, and after that leaves it to the engine's own watchdog.

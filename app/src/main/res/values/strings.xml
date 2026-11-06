@@ -1508,6 +1508,13 @@
     <string name="import_document_opentasker_bundle">OpenTasker bundle</string>
     <string name="ui_error_document_unreadable">Couldn\'t open the selected %1$s.</string>
     <string name="ui_error_document_too_large">The selected %1$s is larger than %2$d MB.</string>
+    <string name="ui_error_import_budget">This file is too large to import. It goes over the limit for %1$s, which is %2$d.</string>
+    <string name="ui_error_import_not_recognized">This isn\'t a Tasker XML file or a MacroDroid export.</string>
+    <string name="dialog_macrodroid_password_title">Password-protected MacroDroid export</string>
+    <string name="dialog_macrodroid_password_body">MacroDroid encrypted this file when it was exported. Enter the password you chose then. OpenTasker doesn\'t save it.</string>
+    <string name="dialog_macrodroid_password_label">Export password</string>
+    <string name="dialog_macrodroid_password_wrong">That password doesn\'t open this file.</string>
+    <string name="dialog_macrodroid_password_open">Open</string>
     <string name="ui_error_write_settings_required">This automation needs Modify system settings. Open Setup, grant it, then try again.</string>
     <string name="run_log_source_profile">Profile</string>
     <string name="run_log_source_external_intent">External intent</string>

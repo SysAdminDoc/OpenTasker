@@ -86,17 +86,27 @@ object MacroDroidImporter {
         rawJson: String,
         appVersion: String,
         importedAtEpochMs: Long = System.currentTimeMillis(),
-    ): MacroDroidImportReport = parse(rawJson, appVersion, importedAtEpochMs, ImportResourceBudget.Default)
+    ): MacroDroidImportReport = parse(
+        rawJson = rawJson,
+        appVersion = appVersion,
+        importedAtEpochMs = importedAtEpochMs,
+        budget = ImportResourceBudget.Default,
+        sourceBudget = ImportResourceBudget.MacroDroidSource,
+    )
 
     internal fun parse(
         rawJson: String,
         appVersion: String,
         importedAtEpochMs: Long,
         budget: ImportResourceBudget,
+        sourceBudget: ImportResourceBudget = budget,
     ): MacroDroidImportReport {
         val normalized = rawJson.removePrefix(BYTE_ORDER_MARK).trim()
         require(normalized.isNotEmpty()) { "MacroDroid import is empty." }
-        ImportResourceGuard.requireJsonPreflight(normalized, budget)
+        // Checked before the scan: a file that was never JSON otherwise fails on token or depth
+        // limits, which reads as "too big" when it's the wrong kind of file.
+        require(normalized.startsWith("{")) { "MacroDroid import root must be a JSON object." }
+        ImportResourceGuard.requireJsonPreflight(normalized, sourceBudget)
 
         val root = json.parseToJsonElement(normalized) as? JsonObject
             ?: throw IllegalArgumentException("MacroDroid import root must be a JSON object.")

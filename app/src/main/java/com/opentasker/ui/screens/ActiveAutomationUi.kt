@@ -298,6 +298,7 @@ fun ActiveAutomationUi(
     var pendingDeleteOwnerId by rememberSaveable { mutableLongStateOf(NO_DIALOG_ENTITY_ID) }
     var importedProfileReviewId by rememberSaveable { mutableLongStateOf(NO_DIALOG_ENTITY_ID) }
     val taskerImportReview by viewModel.taskerImportReview.collectAsState()
+    val macroDroidPasswordPrompt by viewModel.macroDroidPasswordPrompt.collectAsState()
     val taskerImportBusy by viewModel.taskerImportBusy.collectAsState()
     val taskerImportProgress by viewModel.taskerImportProgress.collectAsState()
     val openTaskerBundleProgress by viewModel.openTaskerBundleProgress.collectAsState()
@@ -1002,6 +1003,17 @@ fun ActiveAutomationUi(
                 viewModel.acknowledgeAndEnableImportedProfile(profile.id)
                 importedProfileReviewId = NO_DIALOG_ENTITY_ID
             },
+        )
+    }
+
+    macroDroidPasswordPrompt?.let { prompt ->
+        MacroDroidPasswordDialog(
+            wrongPassword = prompt.wrongPassword,
+            busy = taskerImportBusy,
+            progress = taskerImportProgress,
+            onSubmit = { viewModel.openMacroDroidEncryptedExport(it, BuildConfig.VERSION_NAME) },
+            onDismiss = viewModel::clearMacroDroidPasswordPrompt,
+            onCancel = viewModel::cancelTransfers,
         )
     }
 

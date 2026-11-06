@@ -84,6 +84,7 @@ import com.opentasker.core.templates.BlueprintCatalogStore
 import com.opentasker.core.templates.BlueprintInstallation
 import com.opentasker.core.templates.BlueprintInstallationStore
 import com.opentasker.core.transfer.BundleImportPlan
+import com.opentasker.core.transfer.MacroDroidEncryptedExport
 import com.opentasker.core.transfer.MacroDroidImportPlanner
 import com.opentasker.core.transfer.MacroDroidImportReport
 import com.opentasker.core.transfer.MacroDroidImporter
@@ -94,6 +95,7 @@ import com.opentasker.core.transfer.OpenTaskerBundleTextImport
 import com.opentasker.core.transfer.PastedImportKind
 import com.opentasker.core.transfer.PastedImportSource
 import com.opentasker.core.transfer.TaskerImportPlanner
+import com.opentasker.core.transfer.TaskerOrMacroDroidDocument
 import com.opentasker.core.transfer.TaskerXmlExporter
 import com.opentasker.core.transfer.TaskerImportPreview
 import com.opentasker.core.transfer.TaskerXmlImportReport
@@ -158,6 +160,11 @@ internal data class TaskerImportReviewState(
     val mappedActionRows: List<String>,
     val unsupportedActionRows: List<String>,
 )
+
+/** A picked `.emdr`, waiting for the password it was exported with. */
+internal class MacroDroidPasswordPrompt(val bytes: ByteArray, val wrongPassword: Boolean = false) {
+    fun copy(wrongPassword: Boolean) = MacroDroidPasswordPrompt(bytes, wrongPassword)
+}
 
 private fun taskerImportReviewState(report: TaskerXmlImportReport): TaskerImportReviewState =
     TaskerImportReviewState(
@@ -380,6 +387,8 @@ class ActiveAutomationViewModel(
 
     private val _taskerImportReview = MutableStateFlow<TaskerImportReviewState?>(null)
     internal val taskerImportReview: StateFlow<TaskerImportReviewState?> = _taskerImportReview.asStateFlow()
+    private val _macroDroidPasswordPrompt = MutableStateFlow<MacroDroidPasswordPrompt?>(null)
+    internal val macroDroidPasswordPrompt: StateFlow<MacroDroidPasswordPrompt?> = _macroDroidPasswordPrompt.asStateFlow()
 
     private val automationTransfer = ImportExportCoordinator(viewModelScope)
     val taskerImportBusy: StateFlow<Boolean> = automationTransfer.busy
@@ -1122,8 +1131,17 @@ class ActiveAutomationViewModel(
             runTransferCatching {
                 withContext(Dispatchers.IO) {
                     report(TransferStage.Preflight)
-                    val raw = readBoundedTaskerOrMacroDroid(appContext, uri)
+                    val bytes = readBoundedTaskerOrMacroDroidBytes(appContext, uri)
                     report(TransferStage.Decode)
+                    val raw = when (val document = TaskerOrMacroDroidDocument.classify(bytes)) {
+                        is TaskerOrMacroDroidDocument.Text -> document.text
+                        TaskerOrMacroDroidDocument.Unrecognized ->
+                            throw UiRejection(R.string.ui_error_import_not_recognized)
+                        TaskerOrMacroDroidDocument.MacroDroidEncrypted -> {
+                            _macroDroidPasswordPrompt.value = MacroDroidPasswordPrompt(bytes)
+                            return@withContext null
+                        }
+                    }
                     if (raw.removePrefix("\uFEFF").trimStart().startsWith("<")) {
                         taskerImportReviewState(TaskerXmlImporter.parse(rawXml = raw, appVersion = appVersion))
                     } else {
@@ -1131,12 +1149,46 @@ class ActiveAutomationViewModel(
                     }
                 }
             }
-                .onSuccess {
-                    _taskerImportReview.value = it
-                    events.send(message(R.string.ui_message_automation_import_ready))
+                .onSuccess { review ->
+                    if (review != null) {
+                        _taskerImportReview.value = review
+                        events.send(message(R.string.ui_message_automation_import_ready))
+                    }
                 }
                 .onFailure { events.send(errorMessage(it, R.string.ui_error_automation_import_preview)) }
         }
+    }
+
+    /** A wrong password leaves the prompt up to try again. The password goes no further than here. */
+    fun openMacroDroidEncryptedExport(password: String, appVersion: String) {
+        val prompt = _macroDroidPasswordPrompt.value ?: return
+        automationTransfer.launch(FILE_PREVIEW_STEPS) { report ->
+            runTransferCatching {
+                withContext(Dispatchers.IO) {
+                    report(TransferStage.Decode)
+                    MacroDroidEncryptedExport.decrypt(prompt.bytes, password.toCharArray())?.let { json ->
+                        macroDroidImportReviewState(MacroDroidImporter.parse(rawJson = json, appVersion = appVersion))
+                    }
+                }
+            }
+                .onSuccess { review ->
+                    if (review == null) {
+                        _macroDroidPasswordPrompt.value = prompt.copy(wrongPassword = true)
+                    } else {
+                        _macroDroidPasswordPrompt.value = null
+                        _taskerImportReview.value = review
+                        events.send(message(R.string.ui_message_automation_import_ready))
+                    }
+                }
+                .onFailure {
+                    _macroDroidPasswordPrompt.value = null
+                    events.send(errorMessage(it, R.string.ui_error_automation_import_preview))
+                }
+        }
+    }
+
+    fun clearMacroDroidPasswordPrompt() {
+        _macroDroidPasswordPrompt.value = null
     }
 
     fun clearTaskerImportReview() {

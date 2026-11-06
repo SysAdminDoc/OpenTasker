@@ -6,8 +6,9 @@ import androidx.annotation.StringRes
 import com.opentasker.app.R
 import java.io.ByteArrayOutputStream
 
-internal fun readBoundedTaskerOrMacroDroid(context: Context, uri: Uri): String {
-    return readBoundedDocumentText(
+/** Raw bytes, because a password-protected MacroDroid export doesn't survive decoding as text. */
+internal fun readBoundedTaskerOrMacroDroidBytes(context: Context, uri: Uri): ByteArray {
+    return readBoundedDocumentBytes(
         context = context,
         uri = uri,
         maxBytes = TASKER_MACRODROID_IMPORT_MAX_BYTES,
@@ -16,20 +17,20 @@ internal fun readBoundedTaskerOrMacroDroid(context: Context, uri: Uri): String {
 }
 
 internal fun readBoundedOpenTaskerBundle(context: Context, uri: Uri): String {
-    return readBoundedDocumentText(
+    return readBoundedDocumentBytes(
         context = context,
         uri = uri,
         maxBytes = OPEN_TASKER_BUNDLE_IMPORT_MAX_BYTES,
         labelRes = R.string.import_document_opentasker_bundle,
-    )
+    ).toString(Charsets.UTF_8)
 }
 
-internal fun readBoundedDocumentText(
+internal fun readBoundedDocumentBytes(
     context: Context,
     uri: Uri,
     maxBytes: Int,
     @StringRes labelRes: Int,
-): String {
+): ByteArray {
     val label = context.getString(labelRes)
     val stream = context.contentResolver.openInputStream(uri)
         ?: throw UiRejection(R.string.ui_error_document_unreadable, listOf(label))
@@ -50,6 +51,6 @@ internal fun readBoundedDocumentText(
                 output.write(buffer, 0, read)
             }
         }
-        return output.toString(Charsets.UTF_8.name())
+        return output.toByteArray()
     }
 }

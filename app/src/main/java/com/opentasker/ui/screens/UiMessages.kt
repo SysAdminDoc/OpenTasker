@@ -8,6 +8,7 @@ import com.opentasker.app.R
 import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.storage.CorruptStoredRecordException
 import com.opentasker.core.storage.StorageDecodeIssue
+import com.opentasker.core.transfer.ImportBudgetExceededException
 
 data class UiMessage(
     // Deliberately unannotated: this is a string resource when [quantity] is null and a plurals
@@ -70,6 +71,7 @@ internal fun loggedUiErrorMessage(error: Throwable, @StringRes fallbackRes: Int)
  */
 internal fun uiErrorMessage(error: Throwable, @StringRes fallbackRes: Int): UiMessage = when (error) {
     is UiRejection -> UiMessage(error.copyRes, error.copyArgs)
+    is ImportBudgetExceededException -> UiMessage(R.string.ui_error_import_budget, listOf(error.budgetName, error.limit))
     is CorruptRecordOverwriteException,
     is CorruptStoredRecordException -> UiMessage(R.string.ui_error_corrupt_record)
     else -> UiMessage(fallbackRes)

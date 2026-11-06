@@ -60,7 +60,7 @@
 ### Triggers (contexts)
 
 - **Offline bundle import**. paste exported JSON or decoded QR text into the existing disabled-by-default review flow with bounded input validation
-- **MacroDroid migration**. Import full `.mdr` backups or single `.macro` shares into disabled profiles, with bounded decoding and an exact mapped, unsupported, and lossy review
+- **MacroDroid migration**. Import full `.mdr` backups, password-protected `.emdr` exports or single `.macro` shares into disabled profiles, with bounded decoding and an exact mapped, unsupported, and lossy review
 
 - Time/day schedules with presets, aliases, and ranges
 - Device state (battery, charging, headphones, screen, media playback, airplane, power save, Wi-Fi SSID, orientation, proximity, physical activity, speed, roaming, tethering, and phone-call state); sensor/GPS/phone callbacks are demand-gated per profile
@@ -144,10 +144,10 @@ Variable names follow Tasker's scope rule: an all-lowercase name is local to the
 - **Home Assistant / ntfy interoperability**. the Home Assistant webhook action accepts the Companion `message`/`data` envelope, including documented `command_*` values such as `command_broadcast_intent`. The push bridge accepts ntfy's `id`, `topic`, `title`, `time`, `tags`, `priority`, and other bounded metadata names; an ntfy `broadcast` action can target `com.opentasker.action.PUSH_EVENT` directly with the per-install token and needs no relay app. Message bodies and remote URLs stay out of event metadata and logs.
 - **OpenTasker JSON bundles**. schema-versioned export/import with deterministic legacy migrations, project membership preservation, computed action-power manifests, data-to-external-chain warnings, explicit keep/rename/replace review for variable-name conflicts, disabled-by-default installation, explicit first-enable acknowledgement, and secret values omitted by design
 - **Tasker XML import/export**. preview with migration/capability warnings, deterministic mapped/unsupported/lossy reporting, and safe batches for notification, variable, media, settings, and flow actions
-- **MacroDroid JSON import**. full `.mdr` backups and single `.macro` shares use the same review gate, with safe trigger/action conversions, explicit placeholders, and disabled-by-default profiles
+- **MacroDroid JSON import**. full `.mdr` backups, password-protected `.emdr` exports and single `.macro` shares use the same review gate, with safe trigger/action conversions, explicit placeholders, and disabled-by-default profiles
 - **Profile sharing**. offline share manifests with editable local preview, screenshot attachments, safety findings, import-plan review, and GitHub Discussions submission text; unverified shares stay blocked until the existing import review passes
 
-Untrusted imports are preflighted before object/DOM allocation. OpenTasker and MacroDroid JSON are capped at 16 Mi characters, 250,000 lexical tokens, and depth 64; Tasker XML is capped at 4 Mi characters, 100,000 nodes, and depth 64. Every format shares decoded limits of 5,000 top-level entities, 20,000 actions, 10,000 contexts, 10,000 scene elements, and 8 MiB of aggregate UTF-8 string data. A named budget violation aborts before the Room transaction.
+Untrusted imports are preflighted before object/DOM allocation. OpenTasker JSON is capped at 16 Mi characters, 250,000 lexical tokens, and depth 64. A MacroDroid source file gets 3 million tokens and depth 256 because a whole-app backup passes the ordinary limit at about 1.5 MB, and what it converts into still has to fit the ordinary limits; Tasker XML is capped at 4 Mi characters, 100,000 nodes, and depth 64. Every format shares decoded limits of 5,000 top-level entities, 20,000 actions, 10,000 contexts, 10,000 scene elements, and 8 MiB of aggregate UTF-8 string data. A named budget violation aborts before the Room transaction.
 
 ### UI and theming
 

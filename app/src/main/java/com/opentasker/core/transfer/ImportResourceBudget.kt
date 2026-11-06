@@ -36,6 +36,18 @@ internal data class ImportResourceBudget(
 ) {
     companion object {
         val Default = ImportResourceBudget()
+
+        /**
+         * For the source text of a MacroDroid backup, never for what comes out of it. A `.mdr` is a
+         * dump of the whole app, so a modest macro collection already passes the default token
+         * limit, and the importer skips most of what it holds. The 16 MiB file cap still bounds the
+         * read, and the converted bundle still has to fit [Default].
+         */
+        val MacroDroidSource = Default.copy(
+            maxJsonTokens = 3_000_000,
+            maxNestingDepth = 256,
+            maxAggregateStringBytes = 16L * 1024 * 1024,
+        )
     }
 }
 
