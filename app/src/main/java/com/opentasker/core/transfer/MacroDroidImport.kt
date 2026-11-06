@@ -324,6 +324,24 @@ object MacroDroidImporter {
             )
         }
         "SetVariableAction" -> mapSetVariableAction(action)
+        "ClipboardAction" -> {
+            val text = action.string("m_clipboardText")
+            if (text.isEmpty()) return null
+            ActionMapping(
+                actions = listOf(
+                    ActionSpec(
+                        type = "clipboard.set",
+                        label = "MacroDroid fill clipboard",
+                        args = mapOf("text" to text),
+                    ),
+                ),
+                lossyWarning = if (MACRODROID_MAGIC_TEXT.containsMatchIn(text)) {
+                    "its magic text was kept as written, and OpenTasker won't fill it in"
+                } else {
+                    null
+                },
+            )
+        }
         "SetAirplaneModeAction" -> {
             val state = when (action.int("m_state")) {
                 0 -> "on"
@@ -678,4 +696,5 @@ object MacroDroidImporter {
     private const val LOOP_DELIMITER = "|"
     private const val MAX_FIXED_LOOP_COUNT = 1_000
     private const val UNSUPPORTED_EVENT_NAME = "macrodroid_unsupported"
+    private val MACRODROID_MAGIC_TEXT = Regex("""\[[^\]\s]+]|\{l?v=[^}]+}""")
 }

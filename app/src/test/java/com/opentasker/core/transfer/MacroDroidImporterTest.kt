@@ -89,6 +89,56 @@ class MacroDroidImporterTest {
         assertEquals("off", report.bundle.profiles.single().contexts.single().config["value"])
     }
 
+    // The action body is what MacroDroid 6.1.5 wrote for Fill Clipboard, only the text varies.
+    private fun fillClipboardMacro(text: String): String = """
+        {
+          "macroExportVersion": 1,
+          "macro": {
+            "m_GUID": -5921165385892800725,
+            "m_name": "Fill",
+            "m_enabled": true,
+            "m_isOrCondition": false,
+            "m_triggerList": [
+              {"m_classType":"ScreenOnOffTrigger","m_screenOn":false,"m_constraintList":[],"m_isDisabled":false}
+            ],
+            "m_actionList": [
+              {"m_clipboardText":"$text","disableLogging":false,"m_SIGUID":-9016106706254424825,"m_classType":"ClipboardAction","m_comment":"","m_constraintList":[],"m_isDisabled":false,"m_isOrCondition":false}
+            ],
+            "m_constraintList": [],
+            "localVariables": []
+          }
+        }
+    """.trimIndent()
+
+    @Test
+    fun fillClipboardFromARealExportBecomesClipboardSet() {
+        val report = MacroDroidImporter.parse(fillClipboardMacro("hello"), "test", 0L)
+
+        val action = report.bundle.tasks.single().actions.single()
+        assertEquals("clipboard.set", action.type)
+        assertEquals("hello", action.args["text"])
+        assertTrue(report.unsupportedActions.isEmpty())
+        assertTrue(report.lossyWarnings.none { "ClipboardAction" in it })
+    }
+
+    @Test
+    fun fillClipboardWithMagicTextKeepsTheTextAndSaysItWontBeFilledIn() {
+        listOf("It is [battery] percent", "Hi {lv=name}", "Hi {v=name}").forEach { text ->
+            val report = MacroDroidImporter.parse(fillClipboardMacro(text), "test", 0L)
+
+            assertEquals(text, report.bundle.tasks.single().actions.single().args["text"])
+            assertTrue(text, report.lossyWarnings.single { "ClipboardAction" in it }.contains("magic text"))
+        }
+    }
+
+    @Test
+    fun fillClipboardWithNoTextStaysAPlaceholder() {
+        val report = MacroDroidImporter.parse(fillClipboardMacro(""), "test", 0L)
+
+        assertEquals("macrodroid.unsupported", report.bundle.tasks.single().actions.single().type)
+        assertEquals(1, report.unsupportedActions.size)
+    }
+
     @Test
     fun unsupportedAndDisabledSourceItemsFailClosedAsPlaceholders() {
         val report = MacroDroidImporter.parse(
