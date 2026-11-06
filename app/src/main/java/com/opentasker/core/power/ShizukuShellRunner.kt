@@ -31,6 +31,9 @@ object ShizukuShellRunner {
                 bindingLatch?.countDown()
                 bindingLatch = null
             }
+            // The first bind can outlast the wait in remoteServiceForUse, which leaves Setup
+            // showing "cannot reach its helper service" for a transport that is now up.
+            ShizukuPowerBackend.notifyStatusChanged()
         }
 
         override fun onServiceDisconnected(name: ComponentName) {

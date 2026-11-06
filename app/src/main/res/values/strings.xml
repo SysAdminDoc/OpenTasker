@@ -389,7 +389,7 @@
     <string name="setup_action_request">Request</string>
     <string name="setup_action_open_settings">Open settings</string>
     <string name="setup_action_open_setup_guide">Open setup guide</string>
-    <string name="setup_action_open_shizuku_settings">Open Shizuku settings</string>
+    <string name="setup_action_open_shizuku_settings">Open Shizuku</string>
     <string name="setup_action_request_permission">Request permission</string>
     <string name="setup_action_disable_power_mode">Disable power mode</string>
     <string name="setup_action_enable_power_mode">Enable power mode</string>
@@ -397,6 +397,8 @@
     <string name="setup_action_open_dontkillmyapp">Open dontkillmyapp.com</string>
     <string name="setup_shizuku_permission_requested">Shizuku permission requested.</string>
     <string name="setup_shizuku_permission_failed">Shizuku permission could not be requested; confirm the service is running.</string>
+    <string name="setup_shizuku_permission_granted">Shizuku gave OpenTasker permission.</string>
+    <string name="setup_shizuku_permission_denied">Shizuku said no. If it stopped asking, allow OpenTasker in the list of authorized apps inside Shizuku.</string>
     <string name="setup_shizuku_mode_disabled">Shizuku power mode disabled.</string>
     <string name="setup_shizuku_mode_enabled">Shizuku power mode enabled.</string>
 
@@ -495,9 +497,9 @@
     <string name="setup_dnd_required_for">DND and Zen rule actions</string>
     <string name="setup_shizuku_title">Shizuku power mode</string>
     <string name="setup_shizuku_required_for">Elevated actions</string>
-    <string name="setup_shizuku_status_not_installed">Shizuku manager is not installed.</string>
+    <string name="setup_shizuku_status_not_installed">Shizuku is not running and no Shizuku manager is installed. Sui and Shizuku forks show up here once their service is running.</string>
     <string name="setup_shizuku_status_disabled">Shizuku power mode is disabled by the persisted kill switch.</string>
-    <string name="setup_shizuku_status_manager_stopped">Shizuku manager is installed but the service is not running.</string>
+    <string name="setup_shizuku_status_manager_stopped">Shizuku is installed but its service is not running. Start it in the Shizuku app.</string>
     <string name="setup_shizuku_status_permission_needed">Shizuku is running but OpenTasker needs permission.</string>
     <string name="setup_shizuku_status_transport_unavailable">Shizuku has given permission, but OpenTasker cannot reach its helper service. Actions that need elevated access refuse to run until that connection comes back.</string>
     <string name="setup_shizuku_status_ready">Shizuku is running, it has given permission, and OpenTasker can reach its helper service.</string>

@@ -5,7 +5,12 @@ import android.content.pm.PackageManager
 import android.os.Build
 import com.opentasker.core.logging.AppLogger
 import androidx.core.content.edit
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import rikka.shizuku.Shizuku
+import java.util.concurrent.atomic.AtomicBoolean
 
 object ShizukuPowerBackend {
     const val MANAGER_PACKAGE = "moe.shizuku.privileged.api"
@@ -29,10 +34,45 @@ object ShizukuPowerBackend {
     var killSwitchEnabled: Boolean = true
         internal set
 
+    private val statusChangeEvents = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    /** Fires when the binder arrives or dies, or a permission answer lands, so Setup can re-read. */
+    val statusChanges: SharedFlow<Unit> = statusChangeEvents.asSharedFlow()
+
+    private val permissionResultEvents = MutableSharedFlow<Boolean>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    /** The answer to [requestPermission]: true when granted. */
+    val permissionResults: SharedFlow<Boolean> = permissionResultEvents.asSharedFlow()
+
+    private val listenersRegistered = AtomicBoolean(false)
+    private val binderReceivedListener = Shizuku.OnBinderReceivedListener { notifyStatusChanged() }
+    private val binderDeadListener = Shizuku.OnBinderDeadListener { notifyStatusChanged() }
+    private val permissionResultListener = Shizuku.OnRequestPermissionResultListener { _, grantResult ->
+        permissionResultEvents.tryEmit(grantResult == PackageManager.PERMISSION_GRANTED)
+        notifyStatusChanged()
+    }
+
     fun initialize(context: Context) {
         ShizukuShellRunner.initialize(context)
         killSwitchEnabled = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
             .getBoolean(KEY_KILL_SWITCH, true)
+        if (listenersRegistered.compareAndSet(false, true)) {
+            runCatching {
+                Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
+                Shizuku.addBinderDeadListener(binderDeadListener)
+                Shizuku.addRequestPermissionResultListener(permissionResultListener)
+            }.onFailure { AppLogger.error(TAG, "Failed to register Shizuku listeners", it) }
+        }
+    }
+
+    internal fun notifyStatusChanged() {
+        statusChangeEvents.tryEmit(Unit)
     }
 
     fun shutdown() {
@@ -67,9 +107,11 @@ object ShizukuPowerBackend {
         permissionGranted: Boolean = false,
         privilegedTransportAvailable: Boolean = false,
     ): ShizukuPowerStatus = when {
-        !managerInstalled -> ShizukuPowerStatus(
+        // A live binder outranks the package check: Sui has no manager app, and forks can ship
+        // under their own package name.
+        !managerInstalled && !serviceRunning -> ShizukuPowerStatus(
             state = ShizukuPowerState.NotInstalled,
-            summary = "Shizuku manager is not installed.",
+            summary = "Shizuku is not running and no Shizuku manager is installed.",
         )
         killSwitchEnabled -> ShizukuPowerStatus(
             state = ShizukuPowerState.Disabled,

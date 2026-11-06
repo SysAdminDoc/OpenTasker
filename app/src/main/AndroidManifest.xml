@@ -224,6 +224,18 @@
             </intent-filter>
         </service>
 
+        <!-- Shizuku and Sui hand the app their binder only through this provider. The library ships
+             the permission and V3_SUPPORT entries but leaves the provider to the app, and without it
+             pingBinder stays false however the server was started or the permission granted. The
+             system-only permission keeps ordinary apps out of the exported surface. -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
         <service
             android:name="com.opentasker.core.contexts.CompanionPresenceService"
             android:exported="true"

@@ -1,5 +1,7 @@
 package com.opentasker.core.power
 
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -21,6 +23,24 @@ class ShizukuManifestContractTest {
             "manifest must query Shizuku manager package",
             ShizukuPowerBackend.MANAGER_PACKAGE in queriedPackages,
         )
+    }
+
+    @Test
+    fun manifestDeclaresTheProviderThatDeliversTheBinder() {
+        val providers = loadMainManifest().getElementsByTagName("provider")
+        val provider = (0 until providers.length)
+            .map { providers.item(it).attributes }
+            .firstOrNull { it.getNamedItem("android:name")?.nodeValue == "rikka.shizuku.ShizukuProvider" }
+
+        assertNotNull("Shizuku and Sui can only hand over their binder through ShizukuProvider", provider)
+        fun attribute(name: String) = provider!!.getNamedItem("android:$name")?.nodeValue
+        // The server looks the provider up by "<package>.shizuku", and the library refuses to start
+        // when it is not exported or is multiprocess.
+        assertEquals("\${applicationId}.shizuku", attribute("authorities"))
+        assertEquals("true", attribute("exported"))
+        assertEquals("true", attribute("enabled"))
+        assertEquals("false", attribute("multiprocess"))
+        assertEquals("android.permission.INTERACT_ACROSS_USERS_FULL", attribute("permission"))
     }
 
     private fun loadMainManifest() =

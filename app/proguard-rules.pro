@@ -11,10 +11,10 @@
 -keep @androidx.room.Dao class *
 -keep @androidx.room.Entity class *
 
-# Shizuku AIDL stubs and IPC reflection
--keep class dev.rikka.shizuku.** { *; }
+# Shizuku AIDL stubs, binder hand-off and IPC reflection
 -keep class moe.shizuku.** { *; }
--keep interface rikka.shizuku.** { *; }
+-keep class rikka.shizuku.** { *; }
+-keep class rikka.sui.** { *; }
 -keep class com.opentasker.core.power.ShizukuCommandUserService { *; }
 -keep interface com.opentasker.core.power.IShizukuCommandService { *; }
 

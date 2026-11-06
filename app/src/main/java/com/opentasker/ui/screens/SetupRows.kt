@@ -69,8 +69,10 @@ internal fun buildPermissionItems(
         ShizukuPowerState.NotInstalled -> PermissionAction.SettingsIntent(
             Intent(Intent.ACTION_VIEW, Uri.parse(ShizukuPowerBackend.SETUP_URL)),
         )
+        // The service is started from inside Shizuku, so App info would be a dead end.
         ShizukuPowerState.ManagerInstalled -> PermissionAction.SettingsIntent(
-            packageDetailsIntent(ShizukuPowerBackend.MANAGER_PACKAGE),
+            context.packageManager.getLaunchIntentForPackage(ShizukuPowerBackend.MANAGER_PACKAGE)
+                ?: packageDetailsIntent(ShizukuPowerBackend.MANAGER_PACKAGE),
         )
         ShizukuPowerState.PermissionNeeded -> PermissionAction.ShizukuPermission
         ShizukuPowerState.BackendUnavailable,

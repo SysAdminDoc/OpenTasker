@@ -29,6 +29,26 @@ class ShizukuPowerBackendTest {
     }
 
     @Test
+    fun aLiveBinderCountsWithoutTheStockManagerPackage() {
+        fun status(
+            killSwitchEnabled: Boolean = false,
+            permissionGranted: Boolean = true,
+            transport: Boolean = true,
+        ) = ShizukuPowerBackend.statusFor(
+            managerInstalled = false,
+            killSwitchEnabled = killSwitchEnabled,
+            serviceRunning = true,
+            permissionGranted = permissionGranted,
+            privilegedTransportAvailable = transport,
+        ).state
+
+        assertEquals(ShizukuPowerState.Ready, status())
+        assertEquals(ShizukuPowerState.PermissionNeeded, status(permissionGranted = false))
+        assertEquals(ShizukuPowerState.BackendUnavailable, status(transport = false))
+        assertEquals(ShizukuPowerState.Disabled, status(killSwitchEnabled = true))
+    }
+
+    @Test
     fun elevatedActionHintsOnlyCoverRestrictedCandidates() {
         assertNotNull(ShizukuPowerBackend.hintForAction("reboot"))
         assertNotNull(ShizukuPowerBackend.hintForAction("airplane.toggle"))

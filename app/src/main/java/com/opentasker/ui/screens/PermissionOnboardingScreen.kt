@@ -69,6 +69,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -275,6 +276,11 @@ private class PermissionOnboardingViewModel(appContext: Context) : ViewModel() {
 
     init {
         refreshExternalState()
+        // Shizuku answers through its own dialog and delivers its binder late, neither of which
+        // is guaranteed to bring this screen back through ON_RESUME.
+        viewModelScope.launch {
+            ShizukuPowerBackend.statusChanges.collect { refreshTick.update { it + 1L } }
+        }
     }
 
     fun refresh() {
@@ -437,6 +443,8 @@ fun PermissionOnboardingScreen(
     val permissionDeniedSettingsMessage = stringResource(R.string.permission_denied_settings)
     val shizukuPermissionRequestedMessage = stringResource(R.string.setup_shizuku_permission_requested)
     val shizukuPermissionFailedMessage = stringResource(R.string.setup_shizuku_permission_failed)
+    val shizukuPermissionGrantedMessage = stringResource(R.string.setup_shizuku_permission_granted)
+    val shizukuPermissionDeniedMessage = stringResource(R.string.setup_shizuku_permission_denied)
     val shizukuModeDisabledMessage = stringResource(R.string.setup_shizuku_mode_disabled)
     val deviceAdminRemovedMessage = stringResource(R.string.setup_device_admin_removed)
     val grantCommandCopiedMessage = stringResource(R.string.setup_secure_settings_copied)
@@ -462,6 +470,12 @@ fun PermissionOnboardingScreen(
         }
         pendingPermission = null
         setupViewModel.refresh()
+    }
+
+    LaunchedEffect(Unit) {
+        ShizukuPowerBackend.permissionResults.collect { granted ->
+            onMessage(if (granted) shizukuPermissionGrantedMessage else shizukuPermissionDeniedMessage)
+        }
     }
 
     DisposableEffect(lifecycleOwner) {
