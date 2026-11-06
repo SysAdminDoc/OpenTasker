@@ -446,8 +446,8 @@ internal fun buildPermissionItems(
             requiredFor = context.getString(R.string.setup_secure_settings_required_for),
             optional = true,
             // No allowActionWhenGranted: the granted row renders a chevron labelled "Review app
-            // settings", which is true for Shizuku and Termux and wrong here, and a command to
-            // grant something already granted is not worth offering.
+            // settings", which is wrong here, and a command to grant something already granted is
+            // not worth offering.
             section = SetupSection.OPTIONAL,
         ),
         PermissionSetupItem(

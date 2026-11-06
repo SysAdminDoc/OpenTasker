@@ -102,6 +102,30 @@ class SetupProbesTest {
         assertTrue(body, body.endsWith(oem.dontKillMyAppUrl))
     }
 
+    @Test
+    fun aReadyShizukuRowOffersDisablePowerModeAsANamedButton() {
+        val ready = row(granted = true, optional = true).copy(
+            actionLabel = "Disable power mode",
+            action = PermissionAction.ShizukuKillSwitch(enabled = true),
+            allowActionWhenGranted = true,
+        )
+
+        assertEquals(SetupRowControl.ACTION_BUTTON, ready.control())
+    }
+
+    @Test
+    fun otherGrantedRowsKeepTheirChevronOrCheckMark() {
+        val settingsPage = PermissionAction.ShizukuPermission
+        val reviewable = row(granted = true).copy(action = settingsPage, allowActionWhenGranted = true)
+        val finished = row(granted = true).copy(action = settingsPage)
+        val missing = row(granted = false).copy(action = settingsPage)
+
+        assertEquals(SetupRowControl.REVIEW_CHEVRON, reviewable.control())
+        assertEquals(SetupRowControl.CHECK_MARK, finished.control())
+        assertEquals(SetupRowControl.ACTION_BUTTON, missing.control())
+        assertEquals(SetupRowControl.CHECK_MARK, row(granted = false).control())
+    }
+
     private fun row(granted: Boolean, optional: Boolean = false, unavailable: Boolean = false) = PermissionSetupItem(
         title = "Row",
         body = "",

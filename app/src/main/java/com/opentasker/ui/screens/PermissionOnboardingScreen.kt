@@ -1643,8 +1643,8 @@ private fun PermissionSetupCard(
                 Text(item.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(stateLabel, style = MaterialTheme.typography.labelMedium, color = stateColor)
             }
-            when {
-                !item.granted && item.action != PermissionAction.None -> {
+            when (item.control()) {
+                SetupRowControl.ACTION_BUTTON -> {
                     OutlinedButton(
                         onClick = onRunAction,
                         shape = RoundedCornerShape(DesignSystem.Radii.lg),
@@ -1652,12 +1652,12 @@ private fun PermissionSetupCard(
                         Text(item.actionLabel, maxLines = 1)
                     }
                 }
-                item.granted && item.allowActionWhenGranted -> {
+                SetupRowControl.REVIEW_CHEVRON -> {
                     IconButton(onClick = onRunAction) {
                         Icon(Icons.Filled.ChevronRight, contentDescription = stringResource(R.string.setup_review_settings))
                     }
                 }
-                else -> {
+                SetupRowControl.CHECK_MARK -> {
                     Icon(
                         Icons.Filled.CheckCircle,
                         contentDescription = stateLabel,

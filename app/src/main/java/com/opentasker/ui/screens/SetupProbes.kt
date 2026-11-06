@@ -50,3 +50,15 @@ internal fun PermissionSetupItem.status(): SetupRowStatus = when {
     granted -> SetupRowStatus.READY
     else -> SetupRowStatus.NEEDS_SETUP
 }
+
+/** What sits at the end of a Setup row. */
+internal enum class SetupRowControl { ACTION_BUTTON, REVIEW_CHEVRON, CHECK_MARK }
+
+internal fun PermissionSetupItem.control(): SetupRowControl = when {
+    !granted && action != PermissionAction.None -> SetupRowControl.ACTION_BUTTON
+    // Turning power mode off changes state, so it can't sit behind a chevron labelled "Review app
+    // settings". Tapping that chevron used to switch Shizuku off with no warning.
+    granted && action is PermissionAction.ShizukuKillSwitch -> SetupRowControl.ACTION_BUTTON
+    granted && allowActionWhenGranted -> SetupRowControl.REVIEW_CHEVRON
+    else -> SetupRowControl.CHECK_MARK
+}
