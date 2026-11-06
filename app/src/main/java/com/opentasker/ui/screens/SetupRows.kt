@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.core.content.ContextCompat
 import com.opentasker.app.BuildConfig
 import com.opentasker.app.R
+import com.opentasker.core.actions.VpnClient
+import com.opentasker.core.actions.VpnTunnelPolicy
 import com.opentasker.core.actions.hasWriteSecureSettings
 import com.opentasker.core.actions.secureSettingsGrantCommand
 import com.opentasker.core.permissions.OemBatteryGuidance
@@ -448,6 +450,16 @@ internal fun buildPermissionItems(
             allowActionWhenGranted = true,
             section = SetupSection.OPTIONAL,
         ),
+        if (VpnClient.WIREGUARD.isInstalled(context)) PermissionSetupItem(
+            title = context.getString(R.string.setup_wireguard_title),
+            body = context.getString(R.string.setup_wireguard_body),
+            granted = hasPermission(context, VpnTunnelPolicy.WIREGUARD_CONTROL_PERMISSION),
+            actionLabel = request,
+            action = PermissionAction.RuntimePermission(VpnTunnelPolicy.WIREGUARD_CONTROL_PERMISSION),
+            requiredFor = context.getString(R.string.setup_wireguard_required_for),
+            optional = true,
+            section = SetupSection.OPTIONAL,
+        ) else null,
         PermissionSetupItem(
             title = context.getString(R.string.setup_termux_title),
             body = context.getString(R.string.setup_termux_body, termuxSummary),

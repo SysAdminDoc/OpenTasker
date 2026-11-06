@@ -113,6 +113,7 @@ object AutomationSensitivityRegistry {
         "airplane.toggle",
         "aod.set",
         "wifi.scan",
+        "vpn.tunnel",
         "mobile.toggle",
         "screen.timeout",
         "settings.write",

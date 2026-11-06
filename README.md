@@ -39,7 +39,7 @@
 - **Profiles, contexts, tasks, actions**. a complete Room-backed automation pipeline with a Compose UI
 - **Companion presence triggers**. user-confirmed CompanionDeviceManager associations emit low-power present/absent events without a scanning loop, with setup-time revocation
 - **7 context families**. Application, Time, Day, Location, State, Event, and Plugin (Locale/Tasker condition)
-- **79 built-in actions** plus engine-handled flow control (`task.run` with named inputs, `if`/`else`/`end if`, `for each`/`end for`, `try`/`catch`/`end try`, `stop`)
+- **80 built-in actions** plus engine-handled flow control (`task.run` with named inputs, `if`/`else`/`end if`, `for each`/`end for`, `try`/`catch`/`end try`, `stop`)
 - **USB device contexts**. attach/detach event pulses expose bounded device, vendor, product, and class fields for local input-device automations
 - **Template expressions**. bounded `{{ ... }}` expansion with scoped variables, arrays, JSON paths, string/math/date functions, traces, and strict regex policy
 - **Side-effect-free preflight reviews**. preview a task or profile with synthetic event variables, expanded inputs, branch decisions, setup gaps, intended effects, and explicit blockers before any action runs
@@ -83,14 +83,14 @@
 - Locale/Tasker condition plugins. polled as first-class context predicates with last-known-state caching
 - Home Assistant bridge proof of concept. bounded outbound JSON webhooks with HTTPS-by-default policy, redacted webhook secrets, and transient retry/backoff
 
-### Actions (79 registered + 10 engine-handled)
+### Actions (80 registered + 10 engine-handled)
 
 | Category | Count | Examples |
 |----------|------:|---------|
 | Settings | 19 | Wi-Fi, Wi-Fi scan, Bluetooth, brightness, volume, airplane, mobile data, always-on display, screen timeout, write setting, DND, Zen rule set/clear, ringer mode, torch, tile state, temporary state, keyboard info, keyboard picker |
 | App | 10 | launch intent, launch app, publish shortcut, kill, archive, unarchive, go home, open URL, SMS, screenshot |
 | File | 5 | read, write, append, delete, list |
-| Network | 8 | HTTP Request, Home Assistant webhook, MQTT publish, legacy GET/POST aliases, ping, download, Wake-on-LAN |
+| Network | 9 | HTTP Request, Home Assistant webhook, MQTT publish, legacy GET/POST aliases, ping, download, Wake-on-LAN, WireGuard and Tailscale tunnels |
 | Media | 6 | play, stop, pause, next, previous, mute |
 | System | 7 | vibrate, clipboard set, reboot, lock, screen off, wake, log |
 | Notification | 4 | notify/toast, progress, cancel, TTS speak |
@@ -190,6 +190,10 @@ Untrusted imports are preflighted before object/DOM allocation. OpenTasker JSON 
 To run a Termux script, place it below `~/.termux/tasker/`, enable Termux's external-app access, and grant OpenTasker `RUN_COMMAND` permission from Setup. Add the script path and the expected 64-character SHA-256 under **Approved Termux scripts**; OpenTasker performs a hash preflight and rechecks inside the fixed execution wrapper before the script can run. A capture prefix such as `%script` writes bounded `%script_stdout`, `%script_stderr`, `%script_exit_code`, and original-length variables; captured content is never written to the run log.
 
 To run a script through Shizuku, put it where the shell user can read it (`/data/local/tmp` or shared storage), add its path and SHA-256 under **Approved Shizuku scripts** in Setup, and point a **Run Shizuku Script** action at it. It runs with `/system/bin/sh` as the shell user, so it doesn't need `rish` inside it and a `#!` line is ignored. Scripts can be up to 64 KB, and an edited script refuses to run until you approve its new hash. The capture prefix works the same way as above.
+
+### VPN tunnels
+
+Android has no general way for one app to switch another app's VPN, but WireGuard and Tailscale both accept a request to. Install the **WireGuard off at home** or **Tailscale off at home** template to drop the VPN on your home Wi-Fi and bring it back when you leave, or use **Connect or Disconnect VPN** in your own tasks. WireGuard needs two things first: **WireGuard tunnel control** in Setup and `Allow remote control apps` in its own settings. The action fails with a reason if the VPN doesn't actually change.
 
 ---
 

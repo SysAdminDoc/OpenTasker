@@ -131,6 +131,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "mobile.toggle",
     "aod.set",
     "wifi.scan",
+    "vpn.tunnel",
     "screen.timeout",
     "settings.write",
     "dnd.set",
@@ -727,6 +728,40 @@ fun registerActionMetadata() {
             categoryRes = R.string.catalog_category_settings,
             fields = listOf(
                 ActionField("state", R.string.catalog_action_airplane_toggle_field_state_label, FieldType.DROPDOWN, required = true, hintRes = R.string.catalog_action_airplane_toggle_field_state_hint, options = toggleOptions),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "vpn.tunnel",
+            nameRes = R.string.catalog_action_vpn_tunnel_name,
+            descriptionRes = R.string.catalog_action_vpn_tunnel_description,
+            categoryRes = R.string.catalog_category_network,
+            fields = listOf(
+                ActionField(
+                    "client",
+                    R.string.catalog_action_vpn_tunnel_field_client_label,
+                    FieldType.DROPDOWN,
+                    required = true,
+                    hintRes = R.string.catalog_action_vpn_tunnel_field_client_hint,
+                    options = listOf(
+                        option("wireguard", R.string.action_option_vpn_wireguard),
+                        option("tailscale", R.string.action_option_vpn_tailscale),
+                    ),
+                ),
+                ActionField(
+                    "state",
+                    R.string.catalog_action_vpn_tunnel_field_state_label,
+                    FieldType.DROPDOWN,
+                    required = true,
+                    hintRes = R.string.catalog_action_vpn_tunnel_field_state_hint,
+                    options = listOf(
+                        option("up", R.string.action_option_vpn_up),
+                        option("down", R.string.action_option_vpn_down),
+                    ),
+                ),
+                ActionField("tunnel", R.string.catalog_action_vpn_tunnel_field_tunnel_label, hintRes = R.string.catalog_action_vpn_tunnel_field_tunnel_hint),
             )
         )
     )

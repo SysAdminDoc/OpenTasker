@@ -728,6 +728,7 @@ class OpenTaskerBundleRepository(
                     installation = installation,
                     currentProfile = existingProfiles.firstOrNull { it.id == installation.profileId },
                     currentTask = existingTasks.firstOrNull { it.id == installation.taskId },
+                    currentExitTask = installation.exitTaskId?.let { id -> existingTasks.firstOrNull { it.id == id } },
                 )
             }
         }

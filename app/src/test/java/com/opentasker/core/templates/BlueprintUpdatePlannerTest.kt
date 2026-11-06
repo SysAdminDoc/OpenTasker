@@ -67,6 +67,30 @@ class BlueprintUpdatePlannerTest {
         assertTrue(review.document.isEmpty)
     }
 
+    @Test
+    fun anUpdateReportsAChangedExitTaskWithoutClaimingTheProfileLostIt() {
+        val updated = blueprint(version = 2).copy(
+            exitActions = listOf(TemplateAction("log", "New goodbye", mapOf("message" to "bye"))),
+        )
+        val applied = updated.instantiate(emptyMap())
+        val enterTask = applied.task.copy(id = 22)
+        val exitTask = applied.exitTask!!.copy(
+            id = 33,
+            actions = listOf(ActionSpec(type = "log", label = "Old goodbye", args = mapOf("message" to "ciao"))),
+        )
+        val profile = applied.profile.copy(id = 11, enterTaskId = enterTask.id, exitTaskId = exitTask.id)
+        val installation = BlueprintInstallation(updated.id, 1, profile.id, enterTask.id, updated.defaults(), exitTask.id)
+
+        val review = BlueprintUpdatePlanner.plan(updated, installation, profile, enterTask, exitTask)!!
+
+        assertTrue(review.hasChanges)
+        assertTrue(review.document.changes.none { it.path == "Exit task" })
+        assertEquals(1, review.document.entries.size)
+
+        val unchanged = BlueprintUpdatePlanner.plan(updated, installation, profile, enterTask, applied.exitTask!!.copy(id = 33))!!
+        assertTrue(unchanged.document.isEmpty)
+    }
+
     private fun blueprint(version: Int) = AutomationBlueprint(
         id = "planner-test",
         version = version,

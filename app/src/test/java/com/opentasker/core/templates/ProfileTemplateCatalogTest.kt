@@ -1,5 +1,7 @@
 package com.opentasker.core.templates
 
+import com.opentasker.core.actions.VpnTunnelParse
+import com.opentasker.core.actions.VpnTunnelPolicy
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.model.ContextType
 import org.junit.Assert.assertEquals
@@ -25,6 +27,8 @@ class ProfileTemplateCatalogTest {
                 "nightstand-nfc-sleep",
                 "search-incoming-numbers",
                 "search-incoming-numbers-automatic",
+                "vpn-off-at-home-tailscale",
+                "vpn-off-at-home-wireguard",
             ),
             ids,
         )
@@ -63,6 +67,38 @@ class ProfileTemplateCatalogTest {
             val slotsOnly = rendered.replace(Regex("""\{\{.*?\}\}"""), "")
             assertFalse("${template.id} left unresolved slots in output: $rendered", slotsOnly.contains('{') || slotsOnly.contains('}'))
         }
+    }
+
+    @Test
+    fun theVpnTemplatesDropTheTunnelAtHomeAndBringItBackOnLeaving() {
+        val wireGuard = ProfileTemplateCatalog.get("vpn-off-at-home-wireguard")!!
+            .instantiate(mapOf("ssid" to "Casa", "tunnel" to "wg-home"))
+        assertEquals(mapOf("key" to "wifi", "value" to "Casa"), wireGuard.profile.contexts.single().config)
+        assertEquals(
+            mapOf("client" to "wireguard", "state" to "down", "tunnel" to "wg-home"),
+            wireGuard.task.actions.single().args,
+        )
+        assertEquals(
+            mapOf("client" to "wireguard", "state" to "up", "tunnel" to "wg-home"),
+            wireGuard.exitTask!!.actions.single().args,
+        )
+
+        val tailscale = ProfileTemplateCatalog.get("vpn-off-at-home-tailscale")!!
+            .instantiate(mapOf("ssid" to "Casa"))
+        assertEquals(mapOf("client" to "tailscale", "state" to "down"), tailscale.task.actions.single().args)
+        assertEquals(mapOf("client" to "tailscale", "state" to "up"), tailscale.exitTask!!.actions.single().args)
+
+        val everyAction = listOf(wireGuard, tailscale).flatMap { it.task.actions + it.exitTask!!.actions }
+        assertTrue(
+            "Each one has to be a request the action accepts",
+            everyAction.all { VpnTunnelPolicy.parse(it.args) is VpnTunnelParse.Valid },
+        )
+        assertTrue("A different task has to run on the way out", wireGuard.task.name != wireGuard.exitTask!!.name)
+    }
+
+    @Test
+    fun aTemplateWithoutExitActionsHasNoExitTask() {
+        assertEquals(null, ProfileTemplateCatalog.get("wifi-arrival")!!.instantiate(emptyMap()).exitTask)
     }
 
     @Test

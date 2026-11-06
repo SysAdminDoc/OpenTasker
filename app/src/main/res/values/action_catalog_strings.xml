@@ -314,6 +314,18 @@
     <string name="catalog_action_volume_set_field_stream_label" formatted="false">Stream</string>
     <string name="catalog_action_volume_set_field_stream_hint" formatted="false">music, call, alarm</string>
     <string name="catalog_action_volume_set_field_level_label" formatted="false">Level (0-100)</string>
+    <string name="catalog_action_vpn_tunnel_name" formatted="false">Connect or Disconnect VPN</string>
+    <string name="catalog_action_vpn_tunnel_description" formatted="false">Turn a WireGuard or Tailscale tunnel on or off, then check that the VPN really changed.</string>
+    <string name="catalog_action_vpn_tunnel_field_client_label" formatted="false">VPN app</string>
+    <string name="catalog_action_vpn_tunnel_field_client_hint" formatted="false">The app that owns the tunnel</string>
+    <string name="catalog_action_vpn_tunnel_field_state_label" formatted="false">Connection</string>
+    <string name="catalog_action_vpn_tunnel_field_state_hint" formatted="false">Up connects, down disconnects</string>
+    <string name="catalog_action_vpn_tunnel_field_tunnel_label" formatted="false">Tunnel name</string>
+    <string name="catalog_action_vpn_tunnel_field_tunnel_hint" formatted="false">WireGuard only, exactly as the app shows it</string>
+    <string name="action_option_vpn_wireguard" formatted="false">WireGuard</string>
+    <string name="action_option_vpn_tailscale" formatted="false">Tailscale</string>
+    <string name="action_option_vpn_up" formatted="false">Up</string>
+    <string name="action_option_vpn_down" formatted="false">Down</string>
     <string name="catalog_action_wifi_scan_name" formatted="false">Scan Wi-Fi Networks</string>
     <string name="catalog_action_wifi_scan_description" formatted="false">List nearby access points into variables. Android limits how often a real scan runs, so results may come from the last cached scan.</string>
     <string name="catalog_action_wifi_scan_field_var_label" formatted="false">Variable prefix</string>

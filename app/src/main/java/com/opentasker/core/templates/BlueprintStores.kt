@@ -14,6 +14,7 @@ data class BlueprintInstallation(
     val profileId: Long,
     val taskId: Long,
     val inputValues: Map<String, String> = emptyMap(),
+    val exitTaskId: Long? = null,
 )
 
 private const val MAX_STORED_BLUEPRINTS = 128

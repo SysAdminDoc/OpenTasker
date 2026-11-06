@@ -121,6 +121,7 @@ object ActionCatalog {
         define("screen.off", ActionCategory.SETTINGS, ActionRetrySafety.IDEMPOTENT, ::ScreenOffAction),
         define("wake", ActionCategory.SETTINGS, ActionRetrySafety.IDEMPOTENT, ::WakeAction),
         define("log", ActionCategory.SYSTEM, ActionRetrySafety.NEVER, ::LogAction),
+        define("vpn.tunnel", ActionCategory.NET, ActionRetrySafety.IDEMPOTENT, ::VpnTunnelAction),
         define("script.termux.run", ActionCategory.PLUGIN, ActionRetrySafety.NEVER, ::TermuxScriptAction),
         define("script.shizuku.run", ActionCategory.PLUGIN, ActionRetrySafety.NEVER, ::ShizukuScriptAction),
         define("tasker.unsupported", ActionCategory.SYSTEM, ActionRetrySafety.NEVER, ::TaskerUnsupportedAction),

@@ -31,6 +31,7 @@ object BlueprintUpdatePlanner {
         installation: BlueprintInstallation,
         currentProfile: Profile?,
         currentTask: Task?,
+        currentExitTask: Task? = null,
     ): BlueprintUpdateReview? {
         if (blueprint.version <= installation.blueprintVersion) return null
 
@@ -57,6 +58,9 @@ object BlueprintUpdatePlanner {
         val candidateProfile = candidate.profile.copy(
             id = currentProfile.id,
             enterTaskId = currentTask.id,
+            // The candidate has no stored exit task of its own, and the task diff below is what
+            // reports a change to one. Comparing the link too would show a removal that isn't real.
+            exitTaskId = currentProfile.exitTaskId,
             projectId = currentProfile.projectId,
         )
         val taskNames = mapOf(currentTask.id to currentTask.name)
@@ -72,9 +76,14 @@ object BlueprintUpdatePlanner {
             beforeTaskNames = taskNames,
             afterTaskNames = mapOf(candidateTask.id to candidateTask.name),
         )
+        val candidateExitTask = candidate.exitTask?.copy(
+            id = currentExitTask?.id ?: 0L,
+            projectId = currentTask.projectId,
+        )
+        val exitTaskDiff = AutomationSemanticDiff.compareTask(before = currentExitTask, after = candidateExitTask)
         return base.copy(
             document = SemanticDiffDocument(
-                entries = listOfNotNull(profileDiff, taskDiff),
+                entries = listOfNotNull(profileDiff, taskDiff, exitTaskDiff),
             ),
         )
     }

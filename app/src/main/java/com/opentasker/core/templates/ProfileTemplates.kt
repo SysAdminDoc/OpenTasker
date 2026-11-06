@@ -67,6 +67,7 @@ data class TemplateContext(
 data class AppliedProfileTemplate(
     val task: Task,
     val profile: Profile,
+    val exitTask: Task? = null,
 )
 
 /**
@@ -97,6 +98,8 @@ data class AutomationBlueprint(
      * address can say {number} instead of a template expression. They aren't inputs of their own.
      */
     val runtimePlaceholders: Map<String, String> = emptyMap(),
+    /** What undoes the rule when its context stops matching, such as leaving the home Wi-Fi. */
+    val exitActions: List<TemplateAction> = emptyList(),
 ) {
     /** Compatibility view for the existing guided-template screen. */
     val slots: List<BlueprintInput>
@@ -131,14 +134,11 @@ data class AutomationBlueprint(
         val taskName = expand("$title Task", expansions)
         val task = Task(
             name = taskName,
-            actions = actions.map { action ->
-                ActionSpec(
-                    type = action.type,
-                    label = expand(action.label, expansions),
-                    args = action.args.mapValues { (_, value) -> expand(value, expansions) },
-                )
-            },
+            actions = actionSpecs(actions, expansions),
         )
+        val exitTask = exitActions.takeIf { it.isNotEmpty() }?.let { exit ->
+            Task(name = expand("$title Exit Task", expansions), actions = actionSpecs(exit, expansions))
+        }
         val profile = Profile(
             name = expand(title, expansions),
             // Every blueprint installation is a review artifact. Enabling is an explicit user
@@ -155,8 +155,17 @@ data class AutomationBlueprint(
                 )
             },
         )
-        return AppliedProfileTemplate(task = task, profile = profile)
+        return AppliedProfileTemplate(task = task, profile = profile, exitTask = exitTask)
     }
+
+    private fun actionSpecs(source: List<TemplateAction>, expansions: Map<String, String>): List<ActionSpec> =
+        source.map { action ->
+            ActionSpec(
+                type = action.type,
+                label = expand(action.label, expansions),
+                args = action.args.mapValues { (_, value) -> expand(value, expansions) },
+            )
+        }
 
     private fun expand(value: String, slotValues: Map<String, String>): String {
         var expanded = value
@@ -478,7 +487,43 @@ object ProfileTemplateCatalog {
             ),
             runtimePlaceholders = CALLER_NUMBER_PLACEHOLDER,
         ),
+        ProfileTemplate(
+            id = "vpn-off-at-home-wireguard",
+            title = "WireGuard off at home",
+            summary = "Turn a WireGuard tunnel off on your home Wi-Fi and back on when you leave it.",
+            category = "Network",
+            availability = TemplateAvailability.RequiresSetup,
+            safetyNote = "Creates a disabled profile. Needs location access to read the Wi-Fi name, WireGuard tunnel control in Setup, " +
+                "and Allow remote control apps turned on in the WireGuard settings. It only changes the VPN as you join or leave that network.",
+            inputs = listOf(
+                homeWifiInput(),
+                TemplateSlot("tunnel", "Tunnel name", "wg0", hint = "Exactly as WireGuard shows it"),
+            ),
+            contexts = listOf(onHomeWifi()),
+            actions = listOf(TemplateAction("vpn.tunnel", "Turn the VPN off", wireGuardArgs("down"))),
+            exitActions = listOf(TemplateAction("vpn.tunnel", "Turn the VPN on", wireGuardArgs("up"))),
+        ),
+        ProfileTemplate(
+            id = "vpn-off-at-home-tailscale",
+            title = "Tailscale off at home",
+            summary = "Disconnect Tailscale on your home Wi-Fi and reconnect when you leave it.",
+            category = "Network",
+            availability = TemplateAvailability.RequiresSetup,
+            safetyNote = "Creates a disabled profile. Needs location access to read the Wi-Fi name, and you need to be logged in to Tailscale. " +
+                "It only changes the VPN as you join or leave that network.",
+            inputs = listOf(homeWifiInput()),
+            contexts = listOf(onHomeWifi()),
+            actions = listOf(TemplateAction("vpn.tunnel", "Turn the VPN off", mapOf("client" to "tailscale", "state" to "down"))),
+            exitActions = listOf(TemplateAction("vpn.tunnel", "Turn the VPN on", mapOf("client" to "tailscale", "state" to "up"))),
+        ),
     )
+
+    private fun homeWifiInput() =
+        TemplateSlot("ssid", "Home Wi-Fi name", "Home WiFi", hint = "Exact SSID", selector = BlueprintSelectorKind.WIFI_SSID)
+
+    private fun onHomeWifi() = TemplateContext(ContextType.STATE, mapOf("key" to "wifi", "value" to "{ssid}"))
+
+    private fun wireGuardArgs(state: String) = mapOf("client" to "wireguard", "state" to state, "tunnel" to "{tunnel}")
 
     fun get(id: String): ProfileTemplate? = all.firstOrNull { it.id == id }
 }

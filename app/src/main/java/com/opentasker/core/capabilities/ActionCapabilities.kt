@@ -126,6 +126,7 @@ object ActionCapabilityRegistry {
         "airplane.toggle" to elevatedUnsupported("airplane.toggle", "Airplane mode changes require system or device-owner privileges.", R.string.capability_airplane_unsupported),
         "mobile.toggle" to elevatedUnsupported("mobile.toggle", "Mobile data changes require carrier, system, or device-owner privileges.", R.string.capability_mobile_data_unsupported),
         "aod.set" to elevatedUnsupported("aod.set", "Always-on display is a protected secure setting, and not every build honours it.", R.string.capability_aod_unsupported),
+        "vpn.tunnel" to ActionCapability(CapabilityLevel.RequiresSetup, "Requires WireGuard or Tailscale. WireGuard also needs its control permission and Allow remote control apps turned on.", R.string.capability_vpn_tunnel_setup),
         "wifi.scan" to ActionCapability(CapabilityLevel.RequiresSetup, "Requires location access, and Nearby Wi-Fi devices on Android 13+. Android rate-limits scans, so results may be a cached scan.", R.string.capability_wifi_scan_setup),
         "sms.send" to smsCapability(),
         "screenshot.take" to elevatedUnsupported("screenshot.take", "Screenshots require MediaProjection consent or privileged shell access.", R.string.capability_screenshot_unsupported),

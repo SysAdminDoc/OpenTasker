@@ -85,6 +85,9 @@
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
+    <!-- Lets a profile bring a WireGuard tunnel up or down. WireGuard declares this as a runtime
+         permission, and Setup only asks for it when WireGuard is installed. -->
+    <uses-permission android:name="com.wireguard.android.permission.CONTROL_TUNNELS" />
 
     <uses-feature
         android:name="android.hardware.telephony"
@@ -111,6 +114,8 @@
     <queries>
         <package android:name="com.termux" />
         <package android:name="moe.shizuku.privileged.api" />
+        <package android:name="com.wireguard.android" />
+        <package android:name="com.tailscale.ipn" />
         <!-- Scoped visibility for the shared installed-app picker; QUERY_ALL_PACKAGES is forbidden. -->
         <intent>
             <action android:name="android.intent.action.MAIN" />

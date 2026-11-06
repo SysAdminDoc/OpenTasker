@@ -1089,11 +1089,13 @@ class ActiveAutomationViewModel(
             val applied = template.instantiate(slotValues)
             val resolvedValues = template.defaults() + slotValues.mapValues { it.value.trim() }
             var taskId = 0L
+            var exitTaskId: Long? = null
             var profileId = 0L
             db.withTransaction {
                 taskId = db.taskDao().insert(applied.task.toEntity())
+                exitTaskId = applied.exitTask?.let { db.taskDao().insert(it.toEntity()) }
                 profileId = db.profileDao().insert(
-                    applied.profile.copy(enabled = false, enterTaskId = taskId).toEntity(),
+                    applied.profile.copy(enabled = false, enterTaskId = taskId, exitTaskId = exitTaskId).toEntity(),
                 )
             }
             blueprintCatalogStore.merge(listOf(template))
@@ -1104,6 +1106,7 @@ class ActiveAutomationViewModel(
                     profileId = profileId,
                     taskId = taskId,
                     inputValues = resolvedValues,
+                    exitTaskId = exitTaskId,
                 ),
             )
         }

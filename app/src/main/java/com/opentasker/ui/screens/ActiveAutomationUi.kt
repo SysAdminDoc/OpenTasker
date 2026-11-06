@@ -1198,7 +1198,7 @@ fun ActiveAutomationUi(
                 // on its first run with nothing explaining why, so send them to Setup scoped to
                 // exactly what this template is waiting on.
                 val needed = SetupRequirementResolver.resolveForTemplate(
-                    actionTypes = template.actions.map { it.type },
+                    actionTypes = (template.actions + template.exitActions).map { it.type },
                     contexts = template.contexts.map { ContextSpec(it.type, it.config) },
                 )
                 setupFocusRequirements = needed.map(SetupRequirement::name)

@@ -178,6 +178,7 @@
     <string name="capability_ime_set_unsupported" formatted="false">Android requires user selection before a normal app can switch the active input method.</string>
     <string name="capability_screen_off_unsupported" formatted="false">Screen-off requires Shizuku permission and its privileged user-service transport.</string>
     <string name="capability_wake_unsupported" formatted="false">Wake requires Shizuku permission and its privileged user-service transport.</string>
+    <string name="capability_vpn_tunnel_setup" formatted="false">Requires WireGuard or Tailscale. WireGuard also needs its control permission and Allow remote control apps turned on.</string>
     <string name="capability_shizuku_script_setup" formatted="false">Requires Shizuku access and an approved script hash.</string>
     <string name="capability_termux_setup" formatted="false">Requires Termux 0.109 or newer, RUN_COMMAND permission, and an approved script hash.</string>
     <string name="capability_tasker_import_unsupported" formatted="false">The imported Tasker action could not be mapped to a supported OpenTasker action.</string>

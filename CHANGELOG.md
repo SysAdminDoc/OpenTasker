@@ -9,6 +9,7 @@
 - Two new templates search an unknown caller's number on a site you choose: `Search incoming phone numbers` puts a Search button on a notification, and `Search incoming phone numbers automatically` opens the search right away. Both take an address like `https://duckduckgo.com/?q={number}`.
 - Notification buttons can open a web address, with the same allowed links as Open URL. Tapping one works from the background without any extra permission.
 - A new `urlencode` template filter makes a value safe to put in a web address.
+- A new Connect or Disconnect VPN action turns a WireGuard or Tailscale tunnel on or off, and two new templates use it to drop the VPN on your home Wi-Fi and bring it back when you leave (#16). Both apps ignore a request they can't honor without saying so, so the action watches for the VPN to change and tells you what to check when it doesn't. Templates can now carry an exit task, which is what makes the "bring it back" half work.
 - A new Run Shizuku Script action runs your own shell script as the Android shell user, so it can do what `rish` or adb can (#15). Approve the script's path and SHA-256 in Setup first. OpenTasker reads the file once, checks the hash and runs those same bytes, so swapping the file after the check gets you nothing. Output goes into the same capped variables as a Termux script, and the Shizuku kill switch stops this too.
 
 ### Security
