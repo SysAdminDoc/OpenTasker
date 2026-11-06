@@ -379,7 +379,7 @@ Issues and pull requests welcome. Open an issue to discuss a feature before buil
 
 ### Translations
 
-OpenTasker supports localization. The current release ships English only; English source copy lives in `app/src/main/res/values/strings.xml`, `action_catalog_strings.xml`, and `dynamic_surface_strings.xml`. The app uses AGP's generated per-app language configuration with `en-US` as the default. An alternate locale is included in a release only after at least 80% of the default `<string>` resources are translated; incomplete or empty locale directories are rejected by the release gate. Debug builds enable Android's `en-XA` and `ar-XB` pseudolocales for expansion and right-to-left checks. To contribute a translation:
+OpenTasker supports localization. English is the source language, and Simplified Chinese (`values-zh-rCN`, contributed by coolLitterBear) arrives with the next release. English source copy lives in `app/src/main/res/values/strings.xml`, `action_catalog_strings.xml`, and `dynamic_surface_strings.xml`. The app uses AGP's generated per-app language configuration with `en-US` as the default. An alternate locale is included in a release only after at least 80% of the default `<string>` resources are translated; incomplete or empty locale directories are rejected by the release gate. Debug builds enable Android's `en-XA` and `ar-XB` pseudolocales for expansion and right-to-left checks. To contribute a translation:
 
 1. Copy the three translatable XML files from `app/src/main/res/values/` to `app/src/main/res/values-<locale>/`
 2. Translate only the string values (not the `name` attributes)
