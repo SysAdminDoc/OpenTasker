@@ -7,6 +7,7 @@ import com.opentasker.core.actions.ActionCatalog
 import com.opentasker.core.platform.AndroidAudioHardening
 import com.opentasker.core.platform.AndroidAudioHardening.ANDROID_17_API
 import com.opentasker.core.power.ShizukuPowerBackend
+import com.opentasker.core.scripting.ShizukuScriptPolicy
 import com.opentasker.core.scripting.TermuxScriptBackend
 
 enum class CapabilityLevel {
@@ -143,6 +144,11 @@ object ActionCapabilityRegistry {
         "ime.set" to ActionCapability(CapabilityLevel.Unsupported, "Android requires user selection before a normal app can switch the active input method.", R.string.capability_ime_set_unsupported),
         "screen.off" to elevatedUnsupported("screen.off", "Screen-off requires privileged power management access.", R.string.capability_screen_off_unsupported),
         "wake" to elevatedUnsupported("wake", "Wake requires a foreground activity or privileged wake flow.", R.string.capability_wake_unsupported),
+        ShizukuScriptPolicy.ACTION_ID to ActionCapability(
+            CapabilityLevel.RequiresSetup,
+            "Shizuku access and an approved script hash are required.",
+            R.string.capability_shizuku_script_setup,
+        ),
         TermuxScriptBackend.ACTION_ID to ActionCapability(
             CapabilityLevel.RequiresSetup,
             TermuxScriptBackend.hintForAction(TermuxScriptBackend.ACTION_ID)?.message

@@ -9,6 +9,7 @@
 - Two new templates search an unknown caller's number on a site you choose: `Search incoming phone numbers` puts a Search button on a notification, and `Search incoming phone numbers automatically` opens the search right away. Both take an address like `https://duckduckgo.com/?q={number}`.
 - Notification buttons can open a web address, with the same allowed links as Open URL. Tapping one works from the background without any extra permission.
 - A new `urlencode` template filter makes a value safe to put in a web address.
+- A new Run Shizuku Script action runs your own shell script as the Android shell user, so it can do what `rish` or adb can (#15). Approve the script's path and SHA-256 in Setup first. OpenTasker reads the file once, checks the hash and runs those same bytes, so swapping the file after the check gets you nothing. Output goes into the same capped variables as a Termux script, and the Shizuku kill switch stops this too.
 
 ### Security
 

@@ -39,7 +39,7 @@
 - **Profiles, contexts, tasks, actions**. a complete Room-backed automation pipeline with a Compose UI
 - **Companion presence triggers**. user-confirmed CompanionDeviceManager associations emit low-power present/absent events without a scanning loop, with setup-time revocation
 - **7 context families**. Application, Time, Day, Location, State, Event, and Plugin (Locale/Tasker condition)
-- **78 built-in actions** plus engine-handled flow control (`task.run` with named inputs, `if`/`else`/`end if`, `for each`/`end for`, `try`/`catch`/`end try`, `stop`)
+- **79 built-in actions** plus engine-handled flow control (`task.run` with named inputs, `if`/`else`/`end if`, `for each`/`end for`, `try`/`catch`/`end try`, `stop`)
 - **USB device contexts**. attach/detach event pulses expose bounded device, vendor, product, and class fields for local input-device automations
 - **Template expressions**. bounded `{{ ... }}` expansion with scoped variables, arrays, JSON paths, string/math/date functions, traces, and strict regex policy
 - **Side-effect-free preflight reviews**. preview a task or profile with synthetic event variables, expanded inputs, branch decisions, setup gaps, intended effects, and explicit blockers before any action runs
@@ -83,7 +83,7 @@
 - Locale/Tasker condition plugins. polled as first-class context predicates with last-known-state caching
 - Home Assistant bridge proof of concept. bounded outbound JSON webhooks with HTTPS-by-default policy, redacted webhook secrets, and transient retry/backoff
 
-### Actions (78 registered + 10 engine-handled)
+### Actions (79 registered + 10 engine-handled)
 
 | Category | Count | Examples |
 |----------|------:|---------|
@@ -97,7 +97,7 @@
 | Variable | 13 | set variable, clipboard get, contacts lookup, read data (JSON/CSV/XML/HTML), date-time (format/parse/add), text (match/replace/split/join/substring) |
 | Flow | 1+10 | wait; engine: task.run, if/else/end if, for each/end for, try/catch/end try, stop |
 | Plugin | 2 | Locale setting dispatch, Locale condition query |
-| Script | 1 | SHA-256-pinned Termux `RUN_COMMAND` with bounded result capture |
+| Script | 2 | SHA-256-pinned Termux `RUN_COMMAND` and Shizuku shell scripts, both with bounded result capture |
 | Import | 2 | unsupported Tasker and MacroDroid action placeholders |
 
 Every action carries an explicit capability contract; an action with no reviewed contract resolves to unsupported rather than defaulting to available. Privileged actions (airplane, mobile data, always-on display, screenshot, reboot, screen off, kill app) are gated to fail honestly. Always-on display reads the setting back after writing it, so a build that accepts the write and ignores it reports a failure rather than a success. Set brightness and set screen timeout require the **Modify system settings** special access granted from Setup, and Wake-on-LAN requires local network access on Android 17+. Lock device needs the **Lock screen admin**, also turned on from Setup: Android only lets an app lock the screen through a device admin, and OpenTasker's asks for `force-lock` and nothing else, so it cannot wipe the device, set a password policy, or read anything. Turning it on means Android will not let you uninstall OpenTasker until you turn it back off, which the same Setup row does. No root, Shizuku, or accessibility service is involved, so it keeps working under Android 17 Advanced Protection. SMS is available in standard/F-Droid builds; Play builds omit SMS/phone-state permissions.
@@ -185,8 +185,11 @@ Untrusted imports are preflighted before object/DOM allocation. OpenTasker JSON 
 
 - Shizuku manager/service/permission status, a persisted default-on kill switch, and a fail-closed command allowlist; six elevated actions run through a separately bound AIDL user service and fail closed when Shizuku is absent, revoked, or stopped
 - Termux 0.109+ `RUN_COMMAND` integration with a user-managed SHA-256 allowlist, pre-run hash verification, timeouts, and bounded output variables
+- **Run Shizuku Script** runs your own shell script as the Android shell user, gated by its own SHA-256 allowlist and the same kill switch
 
 To run a Termux script, place it below `~/.termux/tasker/`, enable Termux's external-app access, and grant OpenTasker `RUN_COMMAND` permission from Setup. Add the script path and the expected 64-character SHA-256 under **Approved Termux scripts**; OpenTasker performs a hash preflight and rechecks inside the fixed execution wrapper before the script can run. A capture prefix such as `%script` writes bounded `%script_stdout`, `%script_stderr`, `%script_exit_code`, and original-length variables; captured content is never written to the run log.
+
+To run a script through Shizuku, put it where the shell user can read it (`/data/local/tmp` or shared storage), add its path and SHA-256 under **Approved Shizuku scripts** in Setup, and point a **Run Shizuku Script** action at it. It runs with `/system/bin/sh` as the shell user, so it doesn't need `rish` inside it and a `#!` line is ignored. Scripts can be up to 64 KB, and an edited script refuses to run until you approve its new hash. The capture prefix works the same way as above.
 
 ---
 

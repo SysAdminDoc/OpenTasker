@@ -1,6 +1,7 @@
 package com.opentasker.core.power
 
 import android.os.Parcel
+import com.opentasker.core.scripting.ShizukuScriptExecutor
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -8,10 +9,13 @@ import java.io.InputStream
 import java.util.concurrent.TimeUnit
 
 /**
- * Runs only the commands approved by [ShizukuCommandPolicy] in the Shizuku shell/root process.
+ * Runs the commands approved by [ShizukuCommandPolicy] and the user's approved scripts in the
+ * Shizuku shell/root process.
  *
  * This class is instantiated by Shizuku, not Android's app process. It deliberately has no
- * application fallback and exposes no general-purpose shell method to the host.
+ * application fallback. [execute] takes only exact allowlisted commands. [runScript] is the one
+ * route to arbitrary shell text, and it runs only a file whose bytes match the hash the host
+ * sends, so the allowlist the user manages in Setup is what stands behind it.
  */
 class ShizukuCommandUserService : IShizukuCommandService.Stub() {
     override fun execute(actionId: String, argv: Array<out String>, exitCode: IntArray): String {
@@ -76,6 +80,27 @@ class ShizukuCommandUserService : IShizukuCommandService.Stub() {
                 }
             }
         }.getOrElse { EXIT_EXECUTION_ERROR }
+    }
+
+    override fun runScript(
+        path: String,
+        expectedSha256: String,
+        args: Array<out String>,
+        timeoutMs: Long,
+        outcome: IntArray,
+        stderr: Array<String?>,
+    ): String {
+        val reply = ShizukuScriptExecutor.run(path, expectedSha256, args.toList(), timeoutMs) { command ->
+            Runtime.getRuntime().exec(command.toTypedArray())
+        }
+        if (outcome.size >= 4) {
+            outcome[0] = reply.status
+            outcome[1] = reply.exitCode
+            outcome[2] = reply.stdoutBytes
+            outcome[3] = reply.stderrBytes
+        }
+        if (stderr.isNotEmpty()) stderr[0] = reply.stderr
+        return reply.stdout
     }
 
     override fun destroy() {

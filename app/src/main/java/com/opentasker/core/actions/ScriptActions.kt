@@ -3,15 +3,23 @@ package com.opentasker.core.actions
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
 import com.opentasker.core.logging.AppLogger
+import com.opentasker.core.power.ShizukuPowerBackend
+import com.opentasker.core.power.ShizukuShellRunner
+import com.opentasker.core.scripting.ScriptAllowlistStore
+import com.opentasker.core.scripting.ShizukuScriptCoordinator
+import com.opentasker.core.scripting.ShizukuScriptExecutionResult
+import com.opentasker.core.scripting.ShizukuScriptInvocation
+import com.opentasker.core.scripting.ShizukuScriptPolicy
 import com.opentasker.core.scripting.TermuxCommandBroker
-import com.opentasker.core.scripting.TermuxScriptAllowlistStore
 import com.opentasker.core.scripting.TermuxScriptBackend
 import com.opentasker.core.scripting.TermuxScriptCoordinator
 import com.opentasker.core.scripting.TermuxScriptExecutionResult
 import com.opentasker.core.scripting.TermuxScriptInvocation
 import com.opentasker.core.scripting.TermuxScriptPolicy
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withContext
 
 class TermuxScriptAction : DeclaredAction(ActionCatalog.require(TermuxScriptBackend.ACTION_ID)) {
 
@@ -42,7 +50,7 @@ class TermuxScriptAction : DeclaredAction(ActionCatalog.require(TermuxScriptBack
                 ready = readiness,
                 invocation = invocation,
                 approvedHashFor = { normalizedExecutable ->
-                    TermuxScriptAllowlistStore(ctx.app).expectedHash(normalizedExecutable)
+                    ScriptAllowlistStore.termux(ctx.app).expectedHash(normalizedExecutable)
                 },
                 commandRunner = { request -> TermuxCommandBroker.execute(ctx.app, request) },
             )
@@ -95,6 +103,67 @@ class TermuxScriptAction : DeclaredAction(ActionCatalog.require(TermuxScriptBack
             )
             result.exitCode != 0 -> ActionResult.Failure("Termux script exited with code ${result.exitCode}")
             else -> ActionResult.Success
+        }
+    }
+}
+
+/**
+ * Runs the user's own approved script as the Android shell user. The elevated actions in
+ * [ShizukuPowerBackend.elevatedActionIds] each map to fixed commands, and this one deliberately
+ * stays out of that set: what it runs is decided by the hash allowlist in Setup.
+ */
+class ShizukuScriptAction : DeclaredAction(ActionCatalog.require(ShizukuScriptPolicy.ACTION_ID)) {
+
+    override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+        val path = args["path"]?.trim().orEmpty()
+        if (path.isEmpty()) return ActionResult.Failure("Missing 'path' argument")
+
+        val timeoutMs = TermuxScriptPolicy.parseTimeout(args["timeoutMs"])
+            ?: return ActionResult.Failure("Timeout must be a whole number of milliseconds")
+        val capturePrefix = args["capturePrefix"]?.trim()?.ifBlank { null }
+        if (capturePrefix != null && !TermuxScriptPolicy.isValidCapturePrefix(capturePrefix)) {
+            return ActionResult.Failure("Output variable prefix is invalid")
+        }
+
+        // Binding the service, reading the allowlist and the script itself all block.
+        val execution = withContext(Dispatchers.IO) {
+            ShizukuScriptCoordinator().execute(
+                ready = ShizukuPowerBackend.isReady(),
+                invocation = ShizukuScriptInvocation(path, args["arguments"], timeoutMs),
+                approvedHashFor = { approvedPath -> ScriptAllowlistStore.shizuku(ctx.app).expectedHash(approvedPath) },
+                runner = ShizukuShellRunner::runScript,
+            )
+        }
+        return when (execution) {
+            is ShizukuScriptExecutionResult.Rejected -> {
+                ctx.logger("Shizuku script rejected (${execution.reason}): ${execution.message}")
+                ActionResult.Failure(execution.message)
+            }
+            is ShizukuScriptExecutionResult.Completed -> completeExecution(ctx, capturePrefix, execution)
+        }
+    }
+
+    internal fun completeExecution(
+        ctx: ActionContext,
+        capturePrefix: String?,
+        execution: ShizukuScriptExecutionResult.Completed,
+    ): ActionResult {
+        val reply = execution.reply
+        if (capturePrefix != null) {
+            ctx.variables.set("${capturePrefix}_stdout", reply.stdout)
+            ctx.variables.set("${capturePrefix}_stderr", reply.stderr)
+            ctx.variables.set("${capturePrefix}_exit_code", reply.exitCode.toString())
+            ctx.variables.set("${capturePrefix}_stdout_length", reply.stdoutBytes.toString())
+            ctx.variables.set("${capturePrefix}_stderr_length", reply.stderrBytes.toString())
+        }
+        ctx.logger(
+            "Shizuku script completed: hash=${execution.approvedHash}; exit=${reply.exitCode}; " +
+                "stdout=<redacted:${reply.stdoutBytes}B>; stderr=<redacted:${reply.stderrBytes}B>",
+        )
+        return if (reply.exitCode == 0) {
+            ActionResult.Success
+        } else {
+            ActionResult.Failure("Shizuku script exited with code ${reply.exitCode}")
         }
     }
 }

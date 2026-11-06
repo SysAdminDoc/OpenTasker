@@ -70,6 +70,7 @@ object AutomationSensitivityRegistry {
         "contacts.lookup",
         "plugin.locale.query",
         "script.termux.run",
+        "script.shizuku.run",
         "screenshot.take",
         "file.read",
         "file.list",
@@ -80,6 +81,7 @@ object AutomationSensitivityRegistry {
         "plugin.locale.fire",
         "plugin.locale.query",
         "script.termux.run",
+        "script.shizuku.run",
         "app.launch",
         "url.open",
         "sms.send",
@@ -103,6 +105,7 @@ object AutomationSensitivityRegistry {
         "plugin.locale.fire",
         "plugin.locale.query",
         "script.termux.run",
+        "script.shizuku.run",
         "wifi.toggle",
         "bluetooth.toggle",
         "brightness.set",
@@ -151,6 +154,7 @@ object AutomationSensitivityRegistry {
 
     private val destructiveActionIds = setOf(
         "script.termux.run",
+        "script.shizuku.run",
         "app.kill",
         "app.archive",
         "file.write",

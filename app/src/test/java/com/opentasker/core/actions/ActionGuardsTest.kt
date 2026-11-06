@@ -4,6 +4,9 @@ import android.content.ContextWrapper
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
 import com.opentasker.core.engine.VariableStore
+import com.opentasker.core.scripting.ShizukuScriptExecutionResult
+import com.opentasker.core.scripting.ShizukuScriptPolicy
+import com.opentasker.core.scripting.ShizukuScriptReply
 import com.opentasker.core.scripting.TermuxCommandResult
 import com.opentasker.core.scripting.TermuxScriptExecutionResult
 import com.sun.net.httpserver.HttpServer
@@ -490,6 +493,67 @@ class ActionGuardsTest {
         val result = TermuxScriptAction().completeExecution(context, null, failed)
         assertTrue(result is ActionResult.Failure)
         assertTrue((result as ActionResult.Failure).message.contains("could not execute"))
+    }
+
+    // --- ShizukuScriptAction fail-closed ---
+
+    @Test
+    fun shizukuScriptNeedsAPathAndFailsClosedUntilShizukuIsReady() = runBlocking {
+        val missing = ShizukuScriptAction().run(ctx(), emptyMap())
+        assertTrue((missing as ActionResult.Failure).message.contains("path"))
+
+        val result = ShizukuScriptAction().run(ctx(), mapOf("path" to "/data/local/tmp/a.sh"))
+        assertTrue("A script must not run without Shizuku", result is ActionResult.Failure)
+        assertTrue((result as ActionResult.Failure).message.contains("not ready"))
+    }
+
+    @Test
+    fun shizukuScriptMapsBoundedResultsWithoutLoggingTheirContents() {
+        val variables = VariableStore()
+        val logs = mutableListOf<String>()
+        val context = ActionContext(ContextWrapper(null), variables, logger = logs::add)
+        val result = ShizukuScriptAction().completeExecution(
+            context,
+            "%script",
+            ShizukuScriptExecutionResult.Completed(
+                reply = ShizukuScriptReply(
+                    status = ShizukuScriptPolicy.STATUS_RAN,
+                    exitCode = 0,
+                    stdout = "private stdout",
+                    stderr = "private stderr",
+                    stdoutBytes = 90_000,
+                    stderrBytes = 14,
+                ),
+                approvedHash = "a".repeat(64),
+            ),
+        )
+
+        assertEquals(ActionResult.Success, result)
+        assertEquals("private stdout", variables.get("%script_stdout"))
+        assertEquals("private stderr", variables.get("%script_stderr"))
+        assertEquals("0", variables.get("%script_exit_code"))
+        assertEquals("The real size is reported even past the capture cap", "90000", variables.get("%script_stdout_length"))
+        assertTrue(logs.single().contains("stdout=<redacted:90000B>"))
+        assertTrue("stdout content leaked into logs", logs.none { "private stdout" in it })
+        assertTrue("stderr content leaked into logs", logs.none { "private stderr" in it })
+    }
+
+    @Test
+    fun shizukuScriptWithANonZeroExitFailsButKeepsItsOutput() {
+        val variables = VariableStore()
+        val context = ActionContext(ContextWrapper(null), variables, logger = {})
+        val result = ShizukuScriptAction().completeExecution(
+            context,
+            "%script",
+            ShizukuScriptExecutionResult.Completed(
+                reply = ShizukuScriptReply(status = ShizukuScriptPolicy.STATUS_RAN, exitCode = 2, stderr = "nope"),
+                approvedHash = "a".repeat(64),
+            ),
+        )
+
+        assertTrue((result as ActionResult.Failure).message.contains("code 2"))
+        assertEquals("2", variables.get("%script_exit_code"))
+        assertEquals("nope", variables.get("%script_stderr"))
     }
 
     // --- VolumeAction guards ---

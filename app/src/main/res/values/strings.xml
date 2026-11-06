@@ -506,6 +506,11 @@
     <string name="setup_shizuku_status_permission_needed">Shizuku is running but OpenTasker needs permission.</string>
     <string name="setup_shizuku_status_transport_unavailable">Shizuku has given permission, but OpenTasker cannot reach its helper service. Actions that need elevated access refuse to run until that connection comes back.</string>
     <string name="setup_shizuku_status_ready">Shizuku is running, it has given permission, and OpenTasker can reach its helper service.</string>
+    <string name="setup_shizuku_allowlist_title">Approved Shizuku scripts</string>
+    <string name="setup_shizuku_allowlist_body">These run as the Android shell user, with the same reach as adb. Keep the script where that user can read it, like /data/local/tmp or shared storage, and enter the SHA-256 from a trusted copy (sha256sum prints it). OpenTasker reads the file, checks the hash and runs exactly what it checked, so an edited script refuses to run until you approve it again.</string>
+    <string name="setup_shizuku_script_path_hint">/data/local/tmp/my_script.sh</string>
+    <string name="setup_shizuku_script_path_error">Use a full path that starts with / and has no . or .. segments.</string>
+    <string name="setup_shizuku_allowlist_empty">No scripts are approved yet, so Run Shizuku Script refuses to run.</string>
     <string name="setup_termux_title">Termux script bridge</string>
     <string name="setup_termux_status_missing">Termux is not installed.</string>
     <string name="setup_termux_status_version_unsupported">Termux 0.109 or newer is required for bounded command results.</string>

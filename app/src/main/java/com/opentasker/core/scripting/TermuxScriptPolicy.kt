@@ -268,7 +268,7 @@ internal object TermuxScriptPolicy {
     private fun isBoundedPath(path: String): Boolean =
         path.isNotBlank() && utf8Size(path) <= MAX_PATH_BYTES && path.none(Char::isISOControl)
 
-    private fun parseArguments(raw: String?): List<String>? {
+    fun parseArguments(raw: String?): List<String>? {
         if (raw.isNullOrBlank()) return emptyList()
         if (utf8Size(raw) > MAX_ARGUMENT_TOTAL_BYTES) return null
 

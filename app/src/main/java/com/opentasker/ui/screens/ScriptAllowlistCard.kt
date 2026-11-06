@@ -1,5 +1,7 @@
 package com.opentasker.ui.screens
 
+import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,31 +38,74 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.opentasker.ui.theme.DesignSystem
 import com.opentasker.app.R
-import com.opentasker.core.scripting.TermuxAllowlistSaveResult
-import com.opentasker.core.scripting.TermuxScriptAllowlistStore
+import com.opentasker.core.scripting.ApprovedScript
+import com.opentasker.core.scripting.ScriptAllowlistSaveResult
+import com.opentasker.core.scripting.ScriptAllowlistStore
 import com.opentasker.core.scripting.TermuxScriptPolicy
-import com.opentasker.core.scripting.ApprovedTermuxScript
 import com.opentasker.ui.utils.expandCollapseToggle
 import androidx.compose.runtime.produceState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** The wording that differs between the script allowlists. The rest of the card reads the same. */
+private data class ScriptAllowlistText(
+    @param:StringRes val title: Int,
+    @param:StringRes val body: Int,
+    @param:StringRes val pathHint: Int,
+    @param:StringRes val pathError: Int,
+    @param:StringRes val empty: Int,
+)
+
 @Composable
 internal fun TermuxScriptAllowlistCard(onMessage: (String) -> Unit) {
+    ScriptAllowlistCard(
+        text = ScriptAllowlistText(
+            title = R.string.setup_termux_allowlist_title,
+            body = R.string.setup_termux_allowlist_body,
+            pathHint = R.string.setup_termux_script_path_hint,
+            pathError = R.string.setup_termux_script_path_error,
+            empty = R.string.setup_termux_allowlist_empty,
+        ),
+        openStore = { ScriptAllowlistStore.termux(it) },
+        onMessage = onMessage,
+    )
+}
+
+@Composable
+internal fun ShizukuScriptAllowlistCard(onMessage: (String) -> Unit) {
+    ScriptAllowlistCard(
+        text = ScriptAllowlistText(
+            title = R.string.setup_shizuku_allowlist_title,
+            body = R.string.setup_shizuku_allowlist_body,
+            pathHint = R.string.setup_shizuku_script_path_hint,
+            pathError = R.string.setup_shizuku_script_path_error,
+            empty = R.string.setup_shizuku_allowlist_empty,
+        ),
+        openStore = { ScriptAllowlistStore.shizuku(it) },
+        onMessage = onMessage,
+    )
+}
+
+@Composable
+private fun ScriptAllowlistCard(
+    text: ScriptAllowlistText,
+    openStore: (Context) -> ScriptAllowlistStore,
+    onMessage: (String) -> Unit,
+) {
     val context = LocalContext.current
-    val store = remember(context) { TermuxScriptAllowlistStore(context) }
+    val store = remember(context) { openStore(context) }
     var executable by rememberSaveable { mutableStateOf("") }
     var sha256 by rememberSaveable { mutableStateOf("") }
     var expanded by rememberSaveable { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
     // SharedPreferences first-load is disk work; keep it off the composition thread.
-    val entries by produceState(initialValue = emptyList<ApprovedTermuxScript>(), store, revision) {
+    val entries by produceState(initialValue = emptyList<ApprovedScript>(), store, revision) {
         value = withContext(Dispatchers.IO) { store.entries() }
     }
-    val pathValid = TermuxScriptPolicy.normalizeExecutable(executable) != null
+    val pathValid = store.policy.normalizePath(executable) != null
     val hashValid = TermuxScriptPolicy.normalizeHash(sha256) != null
     val savedMessage = stringResource(R.string.setup_termux_script_saved)
-    val invalidPathMessage = stringResource(R.string.setup_termux_script_path_error)
+    val invalidPathMessage = stringResource(text.pathError)
     val invalidHashMessage = stringResource(R.string.setup_termux_script_hash_error)
     val allowlistFullMessage = stringResource(R.string.setup_termux_allowlist_full)
     val revokedMessage = stringResource(R.string.setup_termux_script_revoked)
@@ -78,7 +123,7 @@ internal fun TermuxScriptAllowlistCard(onMessage: (String) -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(stringResource(R.string.setup_termux_allowlist_title), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(text.title), style = MaterialTheme.typography.titleSmall)
                     Text(
                         stringResource(R.string.label_action_count, entries.size),
                         style = MaterialTheme.typography.labelMedium,
@@ -87,12 +132,12 @@ internal fun TermuxScriptAllowlistCard(onMessage: (String) -> Unit) {
                 }
                 Icon(
                     if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                    contentDescription = stringResource(R.string.setup_termux_allowlist_title),
+                    contentDescription = stringResource(text.title),
                 )
             }
             if (expanded) {
                 Text(
-                    stringResource(R.string.setup_termux_allowlist_body),
+                    stringResource(text.body),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -101,11 +146,11 @@ internal fun TermuxScriptAllowlistCard(onMessage: (String) -> Unit) {
                 onValueChange = { executable = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.setup_termux_script_path_label)) },
-                placeholder = { Text(stringResource(R.string.setup_termux_script_path_hint)) },
+                placeholder = { Text(stringResource(text.pathHint)) },
                 singleLine = true,
                 isError = executable.isNotBlank() && !pathValid,
                 supportingText = if (executable.isNotBlank() && !pathValid) {
-                    { Text(stringResource(R.string.setup_termux_script_path_error)) }
+                    { Text(stringResource(text.pathError)) }
                 } else {
                     null
                 },
@@ -128,15 +173,15 @@ internal fun TermuxScriptAllowlistCard(onMessage: (String) -> Unit) {
                 onClick = {
                     val result = store.approve(executable, sha256)
                     val message = when (result) {
-                        TermuxAllowlistSaveResult.SAVED -> {
+                        ScriptAllowlistSaveResult.SAVED -> {
                             executable = ""
                             sha256 = ""
                             revision++
                             savedMessage
                         }
-                        TermuxAllowlistSaveResult.INVALID_PATH -> invalidPathMessage
-                        TermuxAllowlistSaveResult.INVALID_HASH -> invalidHashMessage
-                        TermuxAllowlistSaveResult.FULL -> allowlistFullMessage
+                        ScriptAllowlistSaveResult.INVALID_PATH -> invalidPathMessage
+                        ScriptAllowlistSaveResult.INVALID_HASH -> invalidHashMessage
+                        ScriptAllowlistSaveResult.FULL -> allowlistFullMessage
                     }
                     onMessage(message)
                 },
@@ -150,7 +195,7 @@ internal fun TermuxScriptAllowlistCard(onMessage: (String) -> Unit) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
             if (entries.isEmpty()) {
                 Text(
-                    stringResource(R.string.setup_termux_allowlist_empty),
+                    stringResource(text.empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

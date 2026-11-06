@@ -120,6 +120,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "plugin.locale.fire",
     "plugin.locale.query",
     "script.termux.run",
+    "script.shizuku.run",
     "tasker.unsupported",
     "macrodroid.unsupported",
     "wifi.toggle",
@@ -606,6 +607,21 @@ fun registerActionMetadata() {
                 ActionField("timeoutMs", R.string.catalog_action_plugin_locale_query_field_timeoutms_label, FieldType.NUMBER, hintRes = R.string.catalog_action_plugin_locale_query_field_timeoutms_hint, numberRule = integerRule(1_000, 30_000)),
                 ActionField("resultVariable", R.string.catalog_action_plugin_locale_query_field_resultvariable_label, hintRes = R.string.catalog_action_plugin_locale_query_field_resultvariable_hint),
                 ActionField("requireSatisfied", R.string.catalog_action_plugin_locale_query_field_requiresatisfied_label, FieldType.CHECKBOX),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "script.shizuku.run",
+            nameRes = R.string.catalog_action_script_shizuku_run_name,
+            descriptionRes = R.string.catalog_action_script_shizuku_run_description,
+            categoryRes = R.string.catalog_category_script,
+            fields = listOf(
+                ActionField("path", R.string.catalog_action_script_shizuku_run_field_path_label, required = true, hintRes = R.string.catalog_action_script_shizuku_run_field_path_hint),
+                ActionField("arguments", R.string.catalog_action_script_shizuku_run_field_arguments_label, FieldType.MULTILINE, hintRes = R.string.catalog_action_script_shizuku_run_field_arguments_hint),
+                ActionField("capturePrefix", R.string.catalog_action_script_shizuku_run_field_captureprefix_label, hintRes = R.string.catalog_action_script_shizuku_run_field_captureprefix_hint),
+                ActionField("timeoutMs", R.string.catalog_action_script_shizuku_run_field_timeoutms_label, FieldType.NUMBER, hintRes = R.string.catalog_action_script_shizuku_run_field_timeoutms_hint, numberRule = integerRule(1_000, 120_000)),
             )
         )
     )

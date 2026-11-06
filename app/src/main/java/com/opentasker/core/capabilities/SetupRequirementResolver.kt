@@ -148,7 +148,8 @@ object SetupRequirementResolver {
             "contacts.lookup" -> add(SetupRequirement.CONTACTS)
             "dnd.set", "zen.rule.set", "zen.rule.clear", "ringer.set", "volume.set", "media.mute" -> add(SetupRequirement.DND)
             "http.request", "http.get", "http.post", "integration.home_assistant.webhook", "mqtt.publish", "ping", "download", "wol" -> add(SetupRequirement.LOCAL_NETWORK)
-            "script.termux.run" -> Unit // Termux is an optional integration, not a permission blocker.
+            // Termux and Shizuku are optional integrations, not permission blockers.
+            "script.termux.run", "script.shizuku.run" -> Unit
             "scene.show", "scene.overlay" -> add(SetupRequirement.OVERLAY)
         }
     }

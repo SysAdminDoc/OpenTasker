@@ -618,6 +618,7 @@ fun PermissionOnboardingScreen(
                 )
             }
             item { TermuxScriptAllowlistCard(onMessage) }
+            item { ShizukuScriptAllowlistCard(onMessage) }
             item { SettingsSectionLabel(stringResource(R.string.settings_section_integrations)) }
             item {
                 PushTriggerSetupCard(

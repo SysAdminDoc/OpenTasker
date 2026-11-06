@@ -245,6 +245,16 @@
     <string name="catalog_action_plugin_locale_query_field_resultvariable_label" formatted="false">Result variable</string>
     <string name="catalog_action_plugin_locale_query_field_resultvariable_hint" formatted="false">%plugin_state</string>
     <string name="catalog_action_plugin_locale_query_field_requiresatisfied_label" formatted="false">Fail unless satisfied</string>
+    <string name="catalog_action_script_shizuku_run_name" formatted="false">Run Shizuku Script</string>
+    <string name="catalog_action_script_shizuku_run_description" formatted="false">Run an approved shell script through Shizuku and optionally capture bounded output</string>
+    <string name="catalog_action_script_shizuku_run_field_path_label" formatted="false">Script path</string>
+    <string name="catalog_action_script_shizuku_run_field_path_hint" formatted="false">/data/local/tmp/my_script.sh</string>
+    <string name="catalog_action_script_shizuku_run_field_arguments_label" formatted="false">Arguments</string>
+    <string name="catalog_action_script_shizuku_run_field_arguments_hint" formatted="false">Optional shell-style arguments</string>
+    <string name="catalog_action_script_shizuku_run_field_captureprefix_label" formatted="false">Output variable prefix</string>
+    <string name="catalog_action_script_shizuku_run_field_captureprefix_hint" formatted="false">%script</string>
+    <string name="catalog_action_script_shizuku_run_field_timeoutms_label" formatted="false">Timeout ms</string>
+    <string name="catalog_action_script_shizuku_run_field_timeoutms_hint" formatted="false">30000 (1000 to 120000)</string>
     <string name="catalog_action_script_termux_run_name" formatted="false">Run Termux Script</string>
     <string name="catalog_action_script_termux_run_description" formatted="false">Run an approved Termux script and optionally capture bounded output</string>
     <string name="catalog_category_script" formatted="false">Script</string>

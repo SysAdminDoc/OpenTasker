@@ -6,6 +6,9 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
 import com.opentasker.app.BuildConfig
+import com.opentasker.core.scripting.ShizukuScriptPolicy
+import com.opentasker.core.scripting.ShizukuScriptReply
+import com.opentasker.core.scripting.ShizukuScriptRequest
 import rikka.shizuku.Shizuku
 import java.io.File
 import java.util.concurrent.CountDownLatch
@@ -19,7 +22,7 @@ import java.util.concurrent.TimeUnit
  */
 object ShizukuShellRunner {
     private const val USER_SERVICE_TAG = "opentasker-power"
-    private const val USER_SERVICE_VERSION = 1
+    private const val USER_SERVICE_VERSION = 2
     private const val CONNECTION_TIMEOUT_SECONDS = 2L
 
     private val lock = Any()
@@ -121,6 +124,44 @@ object ShizukuShellRunner {
         }.getOrElse { error ->
             invalidateRemoteService()
             ShellResult.Failure(error.message ?: "Shizuku user service disconnected")
+        }
+    }
+
+    /** Blocks for as long as the script runs, so this belongs on a background thread. */
+    internal fun runScript(request: ShizukuScriptRequest): ShizukuScriptReply {
+        if (ShizukuPowerBackend.killSwitchEnabled) {
+            return ShizukuScriptReply.refused(ShizukuScriptPolicy.STATUS_FAILED, "Shizuku kill switch is active")
+        }
+        val service = remoteServiceForUse()
+            ?: return ShizukuScriptReply.refused(
+                ShizukuScriptPolicy.STATUS_FAILED,
+                (unavailable() as ShellResult.Failure).reason,
+            )
+        val outcome = IntArray(4)
+        val stderr = arrayOfNulls<String>(1)
+        return runCatching {
+            val stdout = service.runScript(
+                request.path,
+                request.expectedSha256,
+                request.arguments.toTypedArray(),
+                request.timeoutMs,
+                outcome,
+                stderr,
+            )
+            ShizukuScriptReply(
+                status = outcome[0],
+                exitCode = outcome[1],
+                stdout = stdout.orEmpty(),
+                stderr = stderr[0].orEmpty(),
+                stdoutBytes = outcome[2],
+                stderrBytes = outcome[3],
+            )
+        }.getOrElse { error ->
+            invalidateRemoteService()
+            ShizukuScriptReply.refused(
+                ShizukuScriptPolicy.STATUS_FAILED,
+                error.message ?: "Shizuku user service disconnected",
+            )
         }
     }
 
