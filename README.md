@@ -352,8 +352,8 @@ All dependency versions are centralized in `gradle/libs.versions.toml`.
 Key remaining work:
 
 - Broad device-verified background geofence reliability evidence
-- API 37 platform readiness pass (FGS, predictive back, large-screen QA)
-- Device-run performance evidence is collected locally through the checked-in Macrobenchmark and Baseline Profile harness
+- API 37 foreground service readiness pass (predictive back and the tablet and freeform layouts were checked on 2026-11-07)
+- Performance numbers from real phones. The checked-in Macrobenchmark measures cold start, the first trip to Tasks and how long the automation engine takes to load your profiles, and the Baseline Profile ships in each release
 
 ## Non-goals
 

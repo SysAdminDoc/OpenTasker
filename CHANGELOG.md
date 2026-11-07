@@ -74,6 +74,7 @@
 - The main screen's view model hands the Run Log and the Setup card's backups to two classes of their own, and a test holds it under 2,000 lines. Nothing changes on screen. It was two lines short of its size limit, so the next feature on any screen would have failed the build.
 - The launch screen says what it's waiting for, like restoring a backup or encrypting an older database, instead of only spinning.
 - The external intents guide no longer tells Home Assistant Companion users to send `RUN_TASK`. Only apps signed with OpenTasker's own key may send it, so Android refused Companion without a word. The guide now shows the token-checked `PUSH_EVENT` route with a `push` profile, says where Android 17 records a refused broadcast, and covers the engine having to be on.
+- The performance benchmarks also time the automation engine's start, from the service coming up to its first load of your profiles, next to cold start and the first trip to Tasks. The Baseline Profile shipped with this release was regenerated from the current code.
 - A running backup shows a progress bar under its button. So does a preflight rerun, and its Close button turns into Stop until the run finishes. Reading an automation file fills its bar in two steps instead of looping. Backups still can't be stopped partway, because a stopped Export would leave a broken file where you asked for the backup.
 
 ## v0.2.94

@@ -12,6 +12,7 @@ import android.content.pm.ServiceInfo
 import android.location.LocationManager
 import android.os.Build
 import android.os.IBinder
+import android.os.Trace
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -65,6 +66,7 @@ import com.opentasker.core.storage.RunLogRetentionSettings
 import com.opentasker.core.storage.applyRetention
 import com.opentasker.core.storage.minimumTimestamp
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -215,11 +217,16 @@ class AutomationService : Service() {
             ServiceAudioEligibility.current = value
         }
     @Volatile private var engineLoaded = false
+    private val engineStartTraceOpen = AtomicBoolean(false)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        // Read by the engine-start macrobenchmark; ends when the first profile load finishes.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && engineStartTraceOpen.compareAndSet(false, true)) {
+            Trace.beginAsyncSection(ENGINE_START_TRACE_SECTION, ENGINE_START_TRACE_COOKIE)
+        }
         // The property's initial value bypasses its setter, so publish it once here.
         ServiceAudioEligibility.current = audioForegroundServiceEligibility
         // A recreated service starts a new causal attribution lifetime; do not connect a fresh
@@ -508,6 +515,9 @@ class AutomationService : Service() {
         BroadcastContextEvents.sync(this, declaredBroadcastActions(profiles.flatMap { it.contexts }))
         CallContextEvents.sync(this, declaresIncomingCall(profiles.flatMap { it.contexts }))
         engineLoaded = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && engineStartTraceOpen.compareAndSet(true, false)) {
+            Trace.endAsyncSection(ENGINE_START_TRACE_SECTION, ENGINE_START_TRACE_COOKIE)
+        }
     }
 
     private fun logContextMonitorTransition(transition: ContextMonitorTransition) {
@@ -1278,6 +1288,8 @@ class AutomationService : Service() {
         private const val MAX_QUEUED_TASKS = 50
         private const val MONITOR_SUBSCRIPTION_TIMEOUT_MS = 2_000L
         private const val ENGINE_HEARTBEAT_INTERVAL_MS = 60_000L
+        private const val ENGINE_START_TRACE_SECTION = "OpenTasker.engineStart"
+        private const val ENGINE_START_TRACE_COOKIE = 0x0E57
         private val RUN_LOG_PRUNE_INTERVAL_MS = TimeUnit.HOURS.toMillis(1)
     }
 }
