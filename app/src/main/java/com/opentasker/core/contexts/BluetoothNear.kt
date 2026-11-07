@@ -371,7 +371,7 @@ internal class NearbyBluetoothScanner(
     // Without the connect permission the answer is unknown, and discovery is what could hurt audio.
     private fun audioConnected(adapter: BluetoothAdapter): Boolean = runCatching {
         listOf(BluetoothProfile.A2DP, BluetoothProfile.HEADSET).any {
-            adapter.getProfileConnectionState(it) == BluetoothProfile.STATE_CONNECTED
+            adapter.getProfileConnectionState(it) == BluetoothAdapter.STATE_CONNECTED
         }
     }.getOrDefault(true)
 
