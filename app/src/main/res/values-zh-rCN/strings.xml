@@ -509,7 +509,7 @@
     <string name="setup_termux_body">%1$s 只有SHA-256哈希匹配的已批准脚本才能运行。</string>
     <string name="setup_termux_required_for">脚本操作</string>
     <string name="setup_termux_allowlist_title">已批准的Termux脚本</string>
-    <string name="setup_termux_allowlist_body">从可信副本输入期望的SHA-256。OpenTasker会在每次运行前立即验证Termux中的脚本。Termux还需要在 ~/.termux/termux.properties 中设置 allow-external-apps=true，否则不会返回结果且检查无法运行。</string>
+    <string name="setup_termux_allowlist_body">从可信副本输入期望的SHA-256。OpenTasker会在每次运行前立即验证Termux中的脚本。Termux还需要在 ~/.termux/termux.properties 中设置 allow-external-apps=true，否则不会返回结果且检查无法运行。脚本运行时不会读取 .bashrc 或 .profile，因此请使用命令的完整路径。</string>
     <string name="setup_termux_script_path_label">脚本路径</string>
     <string name="setup_termux_script_path_hint">~/.termux/tasker/my_script</string>
     <string name="setup_termux_script_path_error">请使用 ~/.termux/tasker 内的脚本，不要使用路径穿越。</string>

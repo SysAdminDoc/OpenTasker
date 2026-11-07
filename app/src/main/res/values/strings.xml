@@ -525,7 +525,7 @@
     <string name="setup_termux_body">%1$s Only approved scripts with a matching SHA-256 hash can run.</string>
     <string name="setup_termux_required_for">Script actions</string>
     <string name="setup_termux_allowlist_title">Approved Termux scripts</string>
-    <string name="setup_termux_allowlist_body">Enter the expected SHA-256 from a trusted copy. OpenTasker verifies the script in Termux immediately before every run. Termux also needs allow-external-apps=true in ~/.termux/termux.properties, or it returns no result and the check cannot run.</string>
+    <string name="setup_termux_allowlist_body">Enter the expected SHA-256 from a trusted copy. OpenTasker verifies the script in Termux immediately before every run. Termux also needs allow-external-apps=true in ~/.termux/termux.properties, or it returns no result and the check cannot run. Scripts run without your .bashrc or .profile, so call commands by their full path.</string>
     <string name="setup_termux_script_path_label">Script path</string>
     <string name="setup_termux_script_path_hint">~/.termux/tasker/my_script</string>
     <string name="setup_termux_script_path_error">Use a script inside ~/.termux/tasker without path traversal.</string>

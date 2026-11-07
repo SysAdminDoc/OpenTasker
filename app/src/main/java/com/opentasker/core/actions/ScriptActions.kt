@@ -101,7 +101,14 @@ class TermuxScriptAction : DeclaredAction(ActionCatalog.require(TermuxScriptBack
                     if (result.errorMessage.isNotEmpty()) append(": ").append(result.errorMessage)
                 },
             )
-            result.exitCode != 0 -> ActionResult.Failure("Termux script exited with code ${result.exitCode}")
+            result.exitCode != 0 -> ActionResult.Failure(
+                scriptExitMessage(
+                    "Termux script",
+                    result.exitCode,
+                    capturePrefix,
+                    "Termux doesn't read .bashrc or .profile for these runs, so use full paths or set PATH in the script.",
+                ),
+            )
             else -> ActionResult.Success
         }
     }
@@ -163,7 +170,37 @@ class ShizukuScriptAction : DeclaredAction(ActionCatalog.require(ShizukuScriptPo
         return if (reply.exitCode == 0) {
             ActionResult.Success
         } else {
-            ActionResult.Failure("Shizuku script exited with code ${reply.exitCode}")
+            ActionResult.Failure(
+                scriptExitMessage(
+                    "Shizuku script",
+                    reply.exitCode,
+                    capturePrefix,
+                    "It doesn't see your terminal's PATH, so use full paths.",
+                ),
+            )
         }
+    }
+}
+
+private const val COMMAND_NOT_FOUND_EXIT = 127
+
+/**
+ * Script output stays out of the run log, so a failure can't quote what went wrong. It says where
+ * that text went instead, and a missing command gets its usual cause.
+ */
+private fun scriptExitMessage(
+    label: String,
+    exitCode: Int,
+    capturePrefix: String?,
+    missingCommandHint: String,
+): String = buildString {
+    append(label).append(" exited with code ").append(exitCode).append('.')
+    if (exitCode == COMMAND_NOT_FOUND_EXIT) {
+        append(" A command in it wasn't found. ").append(missingCommandHint)
+    }
+    if (capturePrefix == null) {
+        append(" Set Output variable prefix to read its error output.")
+    } else {
+        append(" Its error output is in ").append(capturePrefix).append("_stderr.")
     }
 }
