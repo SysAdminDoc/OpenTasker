@@ -436,8 +436,8 @@
     <string name="setup_contacts_access_body">无人值守的联系人查找操作所需。联系人值会写入敏感变量，且绝不会复制到运行日志消息中。在Android 17及以上，选择器模式可以只授予所选字段。</string>
     <string name="setup_contacts_access_required_for">无人值守联系人查找</string>
     <string name="setup_overlay_access_title">叠加层访问</string>
-    <string name="setup_overlay_access_body">在其他应用之上显示场景叠加层和控件所需。</string>
-    <string name="setup_overlay_access_required_for">场景、叠加层UI</string>
+    <string name="setup_overlay_access_body">在其他应用之上显示场景叠加层和控件所需；OpenTasker在后台时，触发器打开应用、链接或主屏幕也需要此权限。Android中称为“显示在其他应用的上层”。</string>
+    <string name="setup_overlay_access_required_for">场景、叠加层UI、由触发器打开应用和链接</string>
     <string name="ui_message_run_busy">已有任务在运行。请等待其完成。</string>
     <string name="action_run_alone_busy">运行中…</string>
     <string name="device_admin_label">锁屏</string>

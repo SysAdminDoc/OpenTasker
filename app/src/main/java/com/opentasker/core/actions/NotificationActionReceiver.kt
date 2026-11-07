@@ -3,9 +3,11 @@ package com.opentasker.core.actions
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.core.content.ContextCompat
 import com.opentasker.core.engine.AutomationService
 import com.opentasker.core.logging.AppLogger
+import com.opentasker.core.platform.AppVisibilityTracker
 
 class NotificationActionReceiver : BroadcastReceiver() {
 
@@ -17,6 +19,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
         val buttonLabel = intent.getStringExtra(EXTRA_BUTTON_LABEL)
             ?: legacyTaskName
             ?: "Task ${taskId ?: "unknown"}"
+        // Before Android 12 a notification tap lets the app open a screen for a few seconds.
+        if (Build.VERSION.SDK_INT < 31) AppVisibilityTracker.noteUserPresence()
 
         // Hand the run to the already-foreground AutomationService and return immediately: the
         // receiver's ~10 s window is far too short for tasks that can wait up to 30 minutes, and a

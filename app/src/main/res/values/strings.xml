@@ -438,8 +438,8 @@
     <string name="setup_contacts_access_body">Needed for unattended contact lookup actions. Contact values are written as sensitive variables and never copied into run-log messages. On Android 17+, picker mode can grant only the selected fields instead.</string>
     <string name="setup_contacts_access_required_for">Unattended contact lookup and telling a stranger\'s call from a contact\'s</string>
     <string name="setup_overlay_access_title">Overlay access</string>
-    <string name="setup_overlay_access_body">Needed for scene overlays and controls displayed over other apps.</string>
-    <string name="setup_overlay_access_required_for">Scenes, overlay UI</string>
+    <string name="setup_overlay_access_body">Needed for scene overlays and controls displayed over other apps, and for a trigger to open an app, a link or the home screen while OpenTasker is in the background. Android calls this Display over other apps.</string>
+    <string name="setup_overlay_access_required_for">Scenes, overlay UI, opening apps and links from a trigger</string>
     <string name="ui_message_run_busy">Something is already running. Wait for it to finish.</string>
     <string name="action_run_alone_busy">Running…</string>
     <string name="device_admin_label">Lock screen</string>

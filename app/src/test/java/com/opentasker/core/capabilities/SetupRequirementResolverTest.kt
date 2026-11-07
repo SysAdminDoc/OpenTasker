@@ -44,11 +44,14 @@ class SetupRequirementResolverTest {
     }
 
     @Test
-    fun openingALinkFromAProfileNeedsDisplayOverOtherApps() {
-        assertEquals(
-            setOf(SetupRequirement.OVERLAY),
-            SetupRequirementResolver.resolveForTemplate(listOf("url.open"), emptyList()),
-        )
+    fun openingAScreenFromAProfileNeedsDisplayOverOtherApps() {
+        listOf("url.open", "app.launch", "home.go", "intent.launch").forEach { type ->
+            assertEquals(
+                type,
+                setOf(SetupRequirement.OVERLAY),
+                SetupRequirementResolver.resolveForTemplate(listOf(type), emptyList()),
+            )
+        }
     }
 
     @Test

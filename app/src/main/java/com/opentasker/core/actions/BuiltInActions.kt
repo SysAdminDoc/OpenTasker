@@ -458,7 +458,7 @@ class LaunchIntentAction : DeclaredAction(ActionCatalog.require("intent.launch")
                 ?: return ActionResult.Failure("target component was not found or is not exported")
             applyIntentPayload(intent, plan)
             val dispatchResult = when (plan.mode) {
-                IntentDispatchMode.ACTIVITY -> ctx.app.startActivity(intent)
+                IntentDispatchMode.ACTIVITY -> startActivityFromAction(ctx, intent, "the activity")
                 IntentDispatchMode.BROADCAST -> if (plan.resultVariable == null) {
                     ctx.app.sendBroadcast(intent)
                 } else {

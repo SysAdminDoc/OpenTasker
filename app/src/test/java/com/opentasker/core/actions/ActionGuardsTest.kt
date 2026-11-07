@@ -1,9 +1,11 @@
 package com.opentasker.core.actions
 
 import android.content.ContextWrapper
+import android.content.Intent
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
 import com.opentasker.core.engine.VariableStore
+import com.opentasker.core.platform.BackgroundActivityStart
 import com.opentasker.core.scripting.ShizukuScriptExecutionResult
 import com.opentasker.core.scripting.ShizukuScriptPolicy
 import com.opentasker.core.scripting.ShizukuScriptReply
@@ -420,6 +422,41 @@ class ActionGuardsTest {
         val action = LaunchAppAction()
         val result = action.run(ctx(), emptyMap())
         assertTrue("missing package should fail", result is ActionResult.Failure)
+    }
+
+    private class RecordingStarts : ContextWrapper(null) {
+        var started = 0
+
+        override fun startActivity(intent: Intent) {
+            started++
+        }
+    }
+
+    @Test
+    fun anActivityStartAndroidWillDropIsStillTriedButNotReportedAsSuccess() {
+        val app = RecordingStarts()
+        BackgroundActivityStart.likelyBlockedOverrideForTests = true
+        try {
+            val result = startActivityFromAction(ActionContext(app, VariableStore()), Intent(), "the link")
+            assertEquals("an exemption the app can't see must still get to open it", 1, app.started)
+            assertTrue("a dropped start must not read as success: $result", result is ActionResult.Failure)
+            assertTrue((result as ActionResult.Failure).message.contains("Overlay access"))
+        } finally {
+            BackgroundActivityStart.likelyBlockedOverrideForTests = null
+        }
+    }
+
+    @Test
+    fun anActivityStartAndroidAllowsReportsSuccess() {
+        val app = RecordingStarts()
+        BackgroundActivityStart.likelyBlockedOverrideForTests = false
+        try {
+            val result = startActivityFromAction(ActionContext(app, VariableStore()), Intent(), "the link")
+            assertEquals(1, app.started)
+            assertEquals(ActionResult.Success, result)
+        } finally {
+            BackgroundActivityStart.likelyBlockedOverrideForTests = null
+        }
     }
 
     // --- SetVariable guards ---

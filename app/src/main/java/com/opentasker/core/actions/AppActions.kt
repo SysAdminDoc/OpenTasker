@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import com.opentasker.app.BuildConfig
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
+import com.opentasker.core.platform.BackgroundActivityStart
 import com.opentasker.widget.TaskShortcutHelper
 
 /**
@@ -25,13 +26,23 @@ class LaunchAppAction : DeclaredAction(ActionCatalog.require("app.launch")) {
             val intent = ctx.app.packageManager.getLaunchIntentForPackage(pkg)
                 ?: return ActionResult.Failure("app not found: $pkg")
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            ctx.app.startActivity(intent)
+            val result = startActivityFromAction(ctx, intent, pkg)
             ctx.logger("Launch: $pkg")
-            ActionResult.Success
+            result
         } catch (e: Exception) {
             ActionResult.Failure("launch failed: ${e.message}")
         }
     }
+}
+
+/**
+ * Starts the activity whatever the odds, so a screen Android allows for a reason this app can't see
+ * still opens, then says so when Android most likely dropped it. [what] names it for that message.
+ */
+internal fun startActivityFromAction(ctx: ActionContext, intent: Intent, what: String): ActionResult {
+    val blocked = BackgroundActivityStart.likelyBlocked(ctx.app)
+    ctx.app.startActivity(intent)
+    return if (blocked) ActionResult.Failure(BackgroundActivityStart.failureMessage(what)) else ActionResult.Success
 }
 
 /** Publish a dynamic launcher shortcut or request a pinned shortcut for an existing task. */
@@ -79,9 +90,9 @@ class GoHomeAction : DeclaredAction(ActionCatalog.require("home.go")) {
             addCategory(Intent.CATEGORY_HOME)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
-        ctx.app.startActivity(intent)
+        val result = startActivityFromAction(ctx, intent, "the home screen")
         ctx.logger("Go to home")
-        return ActionResult.Success
+        return result
     }
 }
 
@@ -106,9 +117,9 @@ class OpenUrlAction : DeclaredAction(ActionCatalog.require("url.open")) {
         }
         return try {
             val intent = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            ctx.app.startActivity(intent)
+            val result = startActivityFromAction(ctx, intent, "the link")
             ctx.logger("Open URL: $url")
-            ActionResult.Success
+            result
         } catch (e: Exception) {
             ActionResult.Failure("open failed: ${e.message}")
         }

@@ -12,6 +12,7 @@ import androidx.annotation.RequiresApi
 import com.opentasker.core.apps.PackageNamePolicy
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
+import com.opentasker.core.platform.BackgroundActivityStart
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
@@ -187,6 +188,14 @@ class PackageArchiveStatusReceiver : BroadcastReceiver() {
                 PackageArchiveOperations.complete(
                     operationId,
                     PackageArchiveStatus(false, "Android asked for confirmation but supplied no screen to show"),
+                )
+                return
+            }
+            // A dropped screen would leave the operation waiting on a choice nobody was shown.
+            if (BackgroundActivityStart.likelyBlocked(context)) {
+                PackageArchiveOperations.complete(
+                    operationId,
+                    PackageArchiveStatus(false, BackgroundActivityStart.failureMessage("the confirmation screen")),
                 )
                 return
             }

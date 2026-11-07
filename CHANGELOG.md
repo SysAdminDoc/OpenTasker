@@ -53,11 +53,12 @@
 - Times in the run log, the Inspector and Diagnostics follow your phone's date order and 12- or 24-hour clock instead of always reading like 2026-09-26 18:40:00.
 - A backup taken while tasks are running is a clean copy. It used to copy the database file while other writes could still land in it, so a busy moment could leave a backup that failed its integrity check or quietly mixed two moments.
 - Play Sound on the Alarm stream was muted on Android 17 when a trigger started it in the background, even with exact-alarm access, and the run log still said it played. Android only honors that access once its audio server has refreshed its record of it, and a media player never asks it to. Play Sound now requests audio focus first, which does.
+- The actions that open an app, a link, the home screen or an activity intent logged success when Android had silently blocked them in the background. They now log a failure that names the setting that fixes it, Overlay access in Setup. The contact picker and the app archive confirmation stop right away for the same reason, where they used to wait on a screen that never opened. A home screen widget or shortcut tap can still open them without that setting, and a Quick Settings tile tap can't.
 - A restore keeps the database it replaced, including whatever the app wrote just before it closed, and Setup offers to roll back to it. That copy and the file from a restore that failed were missing from every list and count, so they sat at full size until app data was cleared.
 
 ### Changed
 
-- Setup now lists Display over other apps for any enabled profile that uses Open URL, since Android silently drops a browser launch from the background without it.
+- Setup now lists Display over other apps for any enabled profile that opens an app, a link, the home screen or an intent, since Android silently drops those from the background without it.
 - The Install section of the README lists the release signing certificate in the form AppVerifier reads, and a release build now refuses to publish an APK signed with any other key.
 - Text throughout the app drops its long dashes. Ranges read "1 to 5", and separators use a dot.
 - Before a release is tagged, `tools/smoke-old-api.ps1` installs it over the previous release on Android 8 and Android 10 emulators set up like a Galaxy phone and opens every screen. Any crash stops the release. This is the check that would have caught #20.

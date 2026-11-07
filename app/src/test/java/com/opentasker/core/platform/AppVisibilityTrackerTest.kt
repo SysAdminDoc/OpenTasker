@@ -1,17 +1,69 @@
 package com.opentasker.core.platform
 
 import android.app.Activity
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class AppVisibilityTrackerTest {
+    private var nowMs = 0L
+
+    @Before
+    fun useTestClock() {
+        AppVisibilityTracker.clockForTests = { nowMs }
+    }
+
+    @After
+    fun restoreClock() {
+        AppVisibilityTracker.clockForTests = null
+    }
+
+    private class TestActivity(private val finishing: Boolean = false) : Activity() {
+        override fun isFinishing() = finishing
+    }
+
+    @Test
+    fun aWidgetsActivityFinishingItselfRestartsTheTimeSinceTheUserWasHere() {
+        val widgetActivity = TestActivity(finishing = true)
+        nowMs = 1_000L
+        AppVisibilityTracker.onActivityStarted(widgetActivity)
+        nowMs = 4_000L
+        assertEquals(3_000L, AppVisibilityTracker.millisSinceUserPresence())
+        AppVisibilityTracker.onActivityStopped(widgetActivity)
+        nowMs = 4_500L
+        assertEquals(500L, AppVisibilityTracker.millisSinceUserPresence())
+    }
+
+    @Test
+    fun anActivityThatFinishesInsideOnCreateStillCounts() {
+        nowMs = 2_000L
+        AppVisibilityTracker.onActivityCreated(TestActivity(finishing = true), null)
+        nowMs = 2_300L
+        assertEquals(300L, AppVisibilityTracker.millisSinceUserPresence())
+    }
+
+    @Test
+    fun pressingHomeForgetsTheUserWasHere() {
+        val activity = TestActivity(finishing = false)
+        nowMs = 1_000L
+        AppVisibilityTracker.onActivityStarted(activity)
+        AppVisibilityTracker.onActivityStopped(activity)
+        nowMs = 1_100L
+        assertEquals(null, AppVisibilityTracker.millisSinceUserPresence())
+
+        AppVisibilityTracker.noteUserPresence()
+        nowMs = 1_200L
+        assertEquals("a noted tap counts", 100L, AppVisibilityTracker.millisSinceUserPresence())
+    }
+
     @Test
     fun resumeListenersHearAPromptClosingOverTheApp() {
         var calls = 0
         val listener: () -> Unit = { calls++ }
-        val activity = Activity()
+        val activity = TestActivity()
         AppVisibilityTracker.addResumeListener(listener)
         try {
             AppVisibilityTracker.onActivityStarted(activity)

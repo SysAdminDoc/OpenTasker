@@ -13,6 +13,7 @@ import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
 import com.opentasker.core.model.VariableNamePolicy
 import com.opentasker.core.platform.AppVisibilityTracker
+import com.opentasker.core.platform.BackgroundActivityStart
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val MAX_CLIPBOARD_CHARS = 64 * 1024
@@ -120,6 +121,10 @@ class ContactsLookupAction : DeclaredAction(ActionCatalog.require("contacts.look
     private suspend fun findWithPicker(ctx: ActionContext, query: String): List<ContactRecord> {
         if (Build.VERSION.SDK_INT < 37) {
             throw IllegalStateException("the Android 17 contact picker is unavailable on this device")
+        }
+        // Android would drop the picker and this would sit out the whole timeout for nothing.
+        if (BackgroundActivityStart.likelyBlocked(ctx.app)) {
+            throw IllegalStateException(BackgroundActivityStart.failureMessage("the contact picker"))
         }
         val requestId = ContactPickerCoordinator.nextRequestId()
         val result = ContactPickerCoordinator.register(requestId)
