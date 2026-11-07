@@ -10,7 +10,6 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,8 +27,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -70,7 +67,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -718,32 +714,14 @@ fun ActiveAutomationUi(
         }
         Row(Modifier.fillMaxSize()) {
             if (useNavigationRail) {
-                NavigationRail(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .widthIn(min = 88.dp, max = 128.dp),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .verticalScroll(rememberScrollState()),
-                    ) {
-                        adaptiveNavigationScreens.forEach { destination ->
-                            OpenTaskerNavigationItem(
-                                selected = screen == destination,
-                                onClick = {
-                                    screenOrdinal = destination.ordinal
-                                    showMoreDestinations = false
-                                },
-                                icon = destination.icon(),
-                                label = stringResource(destination.labelRes),
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-                }
+                OpenTaskerNavigationRail(
+                    selectedScreen = screen,
+                    onSelect = { destination ->
+                        screenOrdinal = destination.ordinal
+                        showMoreDestinations = false
+                    },
+                    scaffoldPadding = innerPadding,
+                )
             }
             Box(Modifier.weight(1f).fillMaxHeight()) {
         when (screen) {
