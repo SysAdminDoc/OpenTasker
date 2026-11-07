@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
@@ -990,6 +992,39 @@ class CriticalFlowComposeTest(private val fontScale: Float) {
         scrollToText("Add Step")
         composeTestRule.performAccessibilityChecks()
         composeTestRule.onNodeWithText("Add Step").assertIsDisplayed()
+    }
+
+    /** A check mark sat beside "1 issue(s)", and the icon read "Flow" to TalkBack. */
+    @Test
+    fun flowOverviewIconFollowsTheIssueCount() {
+        val task = Task(id = 7, name = "Lights", actions = listOf(ActionSpec(type = "notify.show", label = "Notify")))
+        var profiles by mutableStateOf(
+            listOf(
+                Profile(
+                    id = 3,
+                    name = "Evening lights",
+                    contexts = listOf(ContextSpec(ContextType.TIME, mapOf("start" to "18:00", "end" to "22:00"))),
+                    enterTaskId = task.id,
+                    exitTaskId = 99,
+                ),
+            ),
+        )
+        composeTestRule.setContent {
+            TestTheme {
+                AutomationFlowScreen(profiles = profiles, tasks = listOf(task), contentPadding = PaddingValues(0.dp))
+            }
+        }
+
+        composeTestRule.onNodeWithText("1 issue(s)").assertIsDisplayed()
+        composeTestRule.onNodeWithTag(FLOW_OVERVIEW_ISSUES_ICON_TAG, useUnmergedTree = true).assertExists()
+        composeTestRule.onNodeWithTag(FLOW_OVERVIEW_READY_ICON_TAG, useUnmergedTree = true).assertDoesNotExist()
+        composeTestRule.onAllNodesWithContentDescription("Flow", useUnmergedTree = true).assertCountEquals(0)
+
+        profiles = profiles.map { it.copy(exitTaskId = null) }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag(FLOW_OVERVIEW_READY_ICON_TAG, useUnmergedTree = true).assertExists()
+        composeTestRule.onNodeWithTag(FLOW_OVERVIEW_ISSUES_ICON_TAG, useUnmergedTree = true).assertDoesNotExist()
     }
 
     /** The create button floats over the list, so only the list's end has to clear it. */

@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SubdirectoryArrowRight
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -48,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -71,6 +73,9 @@ import com.opentasker.core.flow.AutomationFlowTarget
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
 import com.opentasker.core.model.AutomationInvariant
+
+internal const val FLOW_OVERVIEW_READY_ICON_TAG = "flow_overview_ready_icon"
+internal const val FLOW_OVERVIEW_ISSUES_ICON_TAG = "flow_overview_issues_icon"
 
 @Composable
 fun AutomationFlowScreen(
@@ -199,11 +204,15 @@ private fun FlowOverviewCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // A check mark sat beside "3 issue(s)" because the icon never changed with the count.
+            // The text beside it says the state, so the icon is decoration and reads nothing.
             Icon(
-                Icons.Filled.CheckCircle,
-                contentDescription = stringResource(R.string.nav_flow),
+                if (warningCount == 0) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                contentDescription = null,
                 tint = if (warningCount == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier
+                    .size(22.dp)
+                    .testTag(if (warningCount == 0) FLOW_OVERVIEW_READY_ICON_TAG else FLOW_OVERVIEW_ISSUES_ICON_TAG),
             )
             Text(
                 if (warningCount == 0) stringResource(R.string.status_ready) else stringResource(R.string.label_issue_count, warningCount),
