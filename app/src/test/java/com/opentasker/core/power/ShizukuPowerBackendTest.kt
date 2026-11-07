@@ -214,7 +214,14 @@ class ShizukuPowerBackendTest {
         assertTrue(service.contains("Runtime.getRuntime().exec"))
         assertFalse(service.contains("ProcessBuilder("))
         assertTrue(service.contains("ShizukuCommandPolicy.isExact"))
-        assertTrue(service.contains("16777114"))
+    }
+
+    @Test
+    fun theServiceAnswersTheDestroyCodeShizukuSends() {
+        // Taken from the Shizuku 13.1.5 library. Answering 16777114 instead left every service
+        // process running after its app died, until Shizuku itself restarted.
+        assertTrue(isShizukuDestroyTransaction(16777115))
+        assertFalse(isShizukuDestroyTransaction(16777114))
     }
 
     @Test

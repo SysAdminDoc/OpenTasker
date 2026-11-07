@@ -6,7 +6,16 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import rikka.shizuku.ShizukuApiConstants
+
+/**
+ * Shizuku's server ends a user service with this Binder code. An AIDL method pinned with
+ * `= 16777114` lands on the same code, because Binder codes start one above AIDL's ids.
+ */
+internal fun isShizukuDestroyTransaction(code: Int): Boolean =
+    code == ShizukuApiConstants.USER_SERVICE_TRANSACTION_destroy
 
 /**
  * Runs the commands approved by [ShizukuCommandPolicy] and the user's approved scripts in the
@@ -18,6 +27,8 @@ import java.util.concurrent.TimeUnit
  * sends, so the allowlist the user manages in Settings is what stands behind it.
  */
 class ShizukuCommandUserService : IShizukuCommandService.Stub() {
+    private val runningScripts = ConcurrentHashMap.newKeySet<Process>()
+
     override fun execute(actionId: String, argv: Array<out String>, exitCode: IntArray): String {
         if (!ShizukuCommandPolicy.isExact(actionId, argv.toList())) {
             setExitCode(exitCode, EXIT_REJECTED)
@@ -90,8 +101,16 @@ class ShizukuCommandUserService : IShizukuCommandService.Stub() {
         outcome: IntArray,
         stderr: Array<String?>,
     ): String {
-        val reply = ShizukuScriptExecutor.run(path, expectedSha256, args.toList(), timeoutMs) { command ->
-            Runtime.getRuntime().exec(command.toTypedArray())
+        var started: Process? = null
+        val reply = try {
+            ShizukuScriptExecutor.run(path, expectedSha256, args.toList(), timeoutMs) { command ->
+                Runtime.getRuntime().exec(command.toTypedArray()).also {
+                    started = it
+                    runningScripts += it
+                }
+            }
+        } finally {
+            started?.let(runningScripts::remove)
         }
         if (outcome.size >= 4) {
             outcome[0] = reply.status
@@ -109,11 +128,13 @@ class ShizukuCommandUserService : IShizukuCommandService.Stub() {
     override fun readWifiHotspot(): Int = ShizukuTethering.read()
 
     override fun destroy() {
+        // A script's timeout is enforced from this process, so its shell can't outlive it.
+        runningScripts.forEach { it.destroyForcibly() }
         System.exit(0)
     }
 
     override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
-        if (code == DESTROY_TRANSACTION_CODE) {
+        if (isShizukuDestroyTransaction(code)) {
             destroy()
             return true
         }
@@ -173,7 +194,6 @@ class ShizukuCommandUserService : IShizukuCommandService.Stub() {
         const val COMMAND_TIMEOUT_SECONDS = 10L
         const val STREAM_JOIN_TIMEOUT_MILLIS = 1_000L
         const val MAX_OUTPUT_BYTES = 8 * 1024
-        const val DESTROY_TRANSACTION_CODE = 16777114
         /** `/sdcard/Android/data/<pkg>/files`, plus the raw storage paths that resolve to it. */
         private val APP_EXTERNAL_FILES_ROOTS = listOf(
             "/storage/emulated/0/Android/data/com.opentasker.app/files",
