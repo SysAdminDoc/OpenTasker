@@ -1,5 +1,6 @@
 package com.opentasker.core.contexts
 
+import android.service.quicksettings.Tile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
@@ -13,6 +14,17 @@ class QuickSettingsTileTest {
         assertNull(QuickSettingsTileSlots.normalize(0))
         assertEquals(3, QuickSettingsTileSlots.slotForComponent(QuickSettingsTileServiceSlot3::class.java.name))
         assertEquals(QuickSettingsTileServiceSlot4::class.java, QuickSettingsTileSlots.componentClass(4))
+    }
+
+    @Test
+    fun aTileWithNoTaskStaysTappableSoItsSetupCanOpen() {
+        val unbound = QuickSettingsTileConfig(slot = 1, taskId = null, taskName = "")
+        assertEquals(Tile.STATE_INACTIVE, unbound.tileState())
+        assertEquals(Tile.STATE_INACTIVE, unbound.copy(active = true).tileState())
+
+        val bound = QuickSettingsTileConfig(slot = 1, taskId = 7, taskName = "Focus")
+        assertEquals(Tile.STATE_INACTIVE, bound.tileState())
+        assertEquals(Tile.STATE_ACTIVE, bound.copy(active = true).tileState())
     }
 
     @Test

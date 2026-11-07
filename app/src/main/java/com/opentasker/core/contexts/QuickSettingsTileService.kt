@@ -68,18 +68,29 @@ open class QuickSettingsTileService : TileService() {
             val label = config.label.ifBlank { config.taskName.ifBlank { getString(com.opentasker.app.R.string.app_name) } }
             tile.label = label
             if (Build.VERSION.SDK_INT >= 29) {
-                tile.subtitle = config.subtitle.ifBlank { getString(com.opentasker.app.R.string.qs_tile_subtitle_default) }
+                tile.subtitle = config.subtitle.ifBlank {
+                    getString(
+                        if (config.taskId == null) {
+                            com.opentasker.app.R.string.qs_tile_subtitle_no_task
+                        } else {
+                            com.opentasker.app.R.string.qs_tile_subtitle_default
+                        },
+                    )
+                }
             }
             tile.icon = config.icon(this)
-            tile.state = when {
-                config.taskId == null -> Tile.STATE_UNAVAILABLE
-                config.active -> Tile.STATE_ACTIVE
-                else -> Tile.STATE_INACTIVE
-            }
+            tile.state = config.tileState()
             tile.updateTile()
         }
     }
 }
+
+/**
+ * Never [Tile.STATE_UNAVAILABLE]: Android ignores taps on an unavailable tile, and a tap is how a tile
+ * with no task opens its setup screen.
+ */
+internal fun QuickSettingsTileConfig.tileState(): Int =
+    if (taskId != null && active) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
 
 class QuickSettingsTileServiceSlot2 : QuickSettingsTileService() {
     override val slot: Int = 2

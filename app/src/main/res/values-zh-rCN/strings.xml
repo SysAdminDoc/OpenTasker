@@ -2,6 +2,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="app_name">OpenTasker</string>
     <string name="qs_tile_subtitle_default">点击运行任务</string>
+    <string name="qs_tile_subtitle_no_task">点击选择任务</string>
     <string name="qs_tile_config_title">配置快捷设置磁贴</string>
     <string name="qs_tile_config_subtitle">选择此磁贴运行的任务及其外观。这是磁贴 %1$d。</string>
     <string name="qs_tile_choose_task">任务</string>
