@@ -7,6 +7,7 @@ import com.opentasker.core.actions.ActionCatalog
 import com.opentasker.core.platform.AndroidAudioHardening
 import com.opentasker.core.platform.AndroidAudioHardening.ANDROID_17_API
 import com.opentasker.core.power.ShizukuPowerBackend
+import com.opentasker.core.power.WifiHotspotPolicy
 import com.opentasker.core.scripting.ShizukuScriptPolicy
 import com.opentasker.core.scripting.TermuxScriptBackend
 
@@ -125,6 +126,7 @@ object ActionCapabilityRegistry {
         "torch.set" to ActionCapability(CapabilityLevel.Supported, "Uses camera flashlight.", R.string.capability_torch_ready),
         "airplane.toggle" to elevatedUnsupported("airplane.toggle", "Airplane mode changes require system or device-owner privileges.", R.string.capability_airplane_unsupported),
         "mobile.toggle" to elevatedUnsupported("mobile.toggle", "Mobile data changes require carrier, system, or device-owner privileges.", R.string.capability_mobile_data_unsupported),
+        "hotspot.toggle" to hotspotCapabilityForSdk(android.os.Build.VERSION.SDK_INT),
         "aod.set" to elevatedUnsupported("aod.set", "Always-on display is a protected secure setting, and not every build honours it.", R.string.capability_aod_unsupported),
         "vpn.tunnel" to ActionCapability(CapabilityLevel.RequiresSetup, "Requires WireGuard or Tailscale. WireGuard also needs its control permission and Allow remote control apps turned on.", R.string.capability_vpn_tunnel_setup),
         "wifi.scan" to ActionCapability(CapabilityLevel.RequiresSetup, "Requires location access, and Nearby Wi-Fi devices on Android 13+. Android rate-limits scans, so results may be a cached scan.", R.string.capability_wifi_scan_setup),
@@ -215,6 +217,21 @@ object ActionCapabilityRegistry {
             ActionCapability(CapabilityLevel.RequiresSetup, "Requires SMS permission; Play builds omit SMS actions for policy compliance.", R.string.capability_sms_permission)
         } else {
             ActionCapability(CapabilityLevel.Unsupported, "SMS action is unavailable in this distribution because SMS and phone-state permissions are omitted for Play policy compliance.", R.string.capability_sms_distribution_unsupported)
+        }
+
+    internal fun hotspotCapabilityForSdk(sdkInt: Int): ActionCapability =
+        if (sdkInt < WifiHotspotPolicy.MIN_SDK) {
+            ActionCapability(
+                CapabilityLevel.Unsupported,
+                "The Wi-Fi hotspot action needs Android 11 or newer.",
+                R.string.capability_hotspot_android_version,
+            )
+        } else {
+            elevatedUnsupported(
+                "hotspot.toggle",
+                "Turning the Wi-Fi hotspot on or off requires privileged tethering access.",
+                R.string.capability_hotspot_unsupported,
+            )
         }
 
     internal fun audioOutputCapabilityForSdk(sdkInt: Int, reason: String): ActionCapability =

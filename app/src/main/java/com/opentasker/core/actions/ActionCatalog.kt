@@ -71,6 +71,7 @@ object ActionCatalog {
         define("volume.set", ActionCategory.SETTINGS, ActionRetrySafety.IDEMPOTENT, ::VolumeAction),
         define("airplane.toggle", ActionCategory.SETTINGS, ActionRetrySafety.NEVER, ::AirplaneModeAction),
         define("mobile.toggle", ActionCategory.SETTINGS, ActionRetrySafety.NEVER, ::MobileDataAction),
+        define("hotspot.toggle", ActionCategory.SETTINGS, ActionRetrySafety.NEVER, ::WifiHotspotAction),
         // NEVER, not IDEMPOTENT: "toggle" recomputes from the live value, so a retry flips back.
         define("aod.set", ActionCategory.SETTINGS, ActionRetrySafety.NEVER, ::AlwaysOnDisplayAction),
         define("screen.timeout", ActionCategory.SETTINGS, ActionRetrySafety.IDEMPOTENT, ::ScreenTimeoutAction),

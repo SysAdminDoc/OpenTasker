@@ -5,4 +5,6 @@ interface IShizukuCommandService {
     int captureScreenshot(String actionId, String path);
     String runScript(String path, String expectedSha256, in String[] args, long timeoutMs, out int[] outcome, out String[] stderr);
     void destroy();
+    int setWifiHotspot(boolean enabled);
+    int readWifiHotspot();
 }

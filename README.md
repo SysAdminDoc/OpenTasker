@@ -39,7 +39,7 @@
 - **Profiles, contexts, tasks, actions**. a complete Room-backed automation pipeline with a Compose UI
 - **Companion presence triggers**. user-confirmed CompanionDeviceManager associations emit low-power present/absent events without a scanning loop, with setup-time revocation
 - **7 context families**. Application, Time, Day, Location, State, Event, and Plugin (Locale/Tasker condition)
-- **80 built-in actions** plus engine-handled flow control (`task.run` with named inputs, `if`/`else`/`end if`, `for each`/`end for`, `try`/`catch`/`end try`, `stop`)
+- **81 built-in actions** plus engine-handled flow control (`task.run` with named inputs, `if`/`else`/`end if`, `for each`/`end for`, `try`/`catch`/`end try`, `stop`)
 - **USB device contexts**. attach/detach event pulses expose bounded device, vendor, product, and class fields for local input-device automations
 - **Template expressions**. bounded `{{ ... }}` expansion with scoped variables, arrays, JSON paths, string/math/date functions, traces, and strict regex policy
 - **Side-effect-free preflight reviews**. preview a task or profile with synthetic event variables, expanded inputs, branch decisions, setup gaps, intended effects, and explicit blockers before any action runs
@@ -83,11 +83,11 @@
 - Locale/Tasker condition plugins. polled as first-class context predicates with last-known-state caching
 - Home Assistant bridge proof of concept. bounded outbound JSON webhooks with HTTPS-by-default policy, redacted webhook secrets, and transient retry/backoff
 
-### Actions (80 registered + 10 engine-handled)
+### Actions (81 registered + 10 engine-handled)
 
 | Category | Count | Examples |
 |----------|------:|---------|
-| Settings | 19 | Wi-Fi, Wi-Fi scan, Bluetooth, brightness, volume, airplane, mobile data, always-on display, screen timeout, write setting, DND, Zen rule set/clear, ringer mode, torch, tile state, temporary state, keyboard info, keyboard picker |
+| Settings | 20 | Wi-Fi, Wi-Fi scan, Bluetooth, brightness, volume, airplane, mobile data, Wi-Fi hotspot, always-on display, screen timeout, write setting, DND, Zen rule set/clear, ringer mode, torch, tile state, temporary state, keyboard info, keyboard picker |
 | App | 10 | launch intent, launch app, publish shortcut, kill, archive, unarchive, go home, open URL, SMS, screenshot |
 | File | 5 | read, write, append, delete, list |
 | Network | 9 | HTTP Request, Home Assistant webhook, MQTT publish, legacy GET/POST aliases, ping, download, Wake-on-LAN, WireGuard and Tailscale tunnels |
@@ -183,7 +183,7 @@ Untrusted imports are preflighted before object/DOM allocation. OpenTasker JSON 
 
 ### Power-user backends
 
-- Shizuku manager/service/permission status, a persisted default-on kill switch, and a fail-closed command allowlist; six elevated actions run through a separately bound AIDL user service and fail closed when Shizuku is absent, revoked, or stopped
+- Shizuku manager/service/permission status, a persisted default-on kill switch, and a fail-closed command allowlist; eight elevated actions run through a separately bound AIDL user service and fail closed when Shizuku is absent, revoked, or stopped
 - Termux 0.109+ `RUN_COMMAND` integration with a user-managed SHA-256 allowlist, pre-run hash verification, timeouts, and bounded output variables
 - **Run Shizuku Script** runs your own shell script as the Android shell user, gated by its own SHA-256 allowlist and the same kill switch
 

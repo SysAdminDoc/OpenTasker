@@ -103,6 +103,11 @@ class ShizukuCommandUserService : IShizukuCommandService.Stub() {
         return reply.stdout
     }
 
+    /** Starting or stopping tethering is a framework call, so no shell command goes through [execute]. */
+    override fun setWifiHotspot(enabled: Boolean): Int = ShizukuTethering.set(enabled)
+
+    override fun readWifiHotspot(): Int = ShizukuTethering.read()
+
     override fun destroy() {
         System.exit(0)
     }

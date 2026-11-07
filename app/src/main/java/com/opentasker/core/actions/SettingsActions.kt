@@ -22,7 +22,11 @@ import com.opentasker.core.contexts.QuickSettingsTileStore
 import com.opentasker.core.contexts.requestRefresh
 import com.opentasker.core.platform.AndroidAudioHardening
 import com.opentasker.core.platform.AudioUsageEligibility
+import com.opentasker.core.power.ShellResult
+import com.opentasker.core.power.ShizukuShellRunner
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
@@ -230,6 +234,44 @@ class MobileDataAction : DeclaredAction(ActionCatalog.require("mobile.toggle")) 
         }
         ctx.logger("Mobile data: $state")
         return ctx.runShizukuAction("mobile.toggle", "Mobile data", variant)
+    }
+}
+
+/**
+ * Toggle the Wi-Fi hotspot through Shizuku's shell identity. Android 8 to 10 fail plainly, because
+ * the older tethering API needs a callback class this route can't build.
+ *
+ * Args:
+ *   - "state": "on", "off", or "toggle"
+ */
+class WifiHotspotAction : DeclaredAction(ActionCatalog.require("hotspot.toggle")) {
+
+    override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+        val state = args["state"]?.trim()?.lowercase()?.ifEmpty { null } ?: "toggle"
+        if (state !in HOTSPOT_STATES) return ActionResult.Failure("invalid hotspot state: $state")
+        ctx.logger("Wi-Fi hotspot: $state")
+        // Both calls block until Android answers, for up to about 20 seconds.
+        return withContext(Dispatchers.IO) {
+            val target = if (state == "toggle") {
+                when (val current = ShizukuShellRunner.readWifiHotspot()) {
+                    is ShellResult.Failure -> return@withContext ActionResult.Failure(current.reason)
+                    is ShellResult.Success -> current.output != "on"
+                }
+            } else {
+                state == "on"
+            }
+            when (val result = ShizukuShellRunner.setWifiHotspot(target)) {
+                is ShellResult.Success -> {
+                    ctx.logger("Wi-Fi hotspot is ${result.output}")
+                    ActionResult.Success
+                }
+                is ShellResult.Failure -> ActionResult.Failure(result.reason)
+            }
+        }
+    }
+
+    private companion object {
+        val HOTSPOT_STATES = setOf("on", "off", "toggle")
     }
 }
 

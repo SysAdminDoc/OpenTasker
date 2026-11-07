@@ -415,6 +415,10 @@ object TaskerXmlImporter {
             "294" -> taskerSetField(code, "Bluetooth", "bluetooth.toggle", strings, intsByIndex, intVariables)
             "333" -> taskerSetField(code, "Airplane Mode", "airplane.toggle", strings, intsByIndex, intVariables)
             "425" -> taskerSetField(code, "WiFi", "wifi.toggle", strings, intsByIndex, intVariables)
+            "113" -> taskerSetField(
+                code, "WiFi Tether", "hotspot.toggle", strings, intsByIndex, intVariables,
+                warning = "Tasker WiFi Tether's Keep Wi-Fi when turning on was not imported".takeIf { (intsByIndex[1] ?: 0) != 0 },
+            )
             "192", "play", "sound.play" -> {
                 // Play Ringtone's arg1 is the sound. Older exports from this app wrote the path at arg0.
                 val path = byIndex[1].orEmptyIfBlank() ?: strings.firstOrNull().orEmpty()

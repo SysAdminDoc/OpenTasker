@@ -339,6 +339,7 @@ object AutomationLint {
             "volume.set" -> "volume:${args["stream"].orEmpty().ifBlank { "music" }.lowercase(Locale.US)}"
             "airplane.toggle" -> "airplane"
             "mobile.toggle" -> "mobile"
+            "hotspot.toggle" -> "hotspot"
             "screen.timeout" -> "screen_timeout"
             "dnd.set", "zen.rule.set", "zen.rule.clear" -> "dnd"
             "ringer.set" -> "ringer"

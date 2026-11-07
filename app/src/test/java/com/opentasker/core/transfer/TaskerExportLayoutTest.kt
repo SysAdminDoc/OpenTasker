@@ -71,6 +71,7 @@ class TaskerExportLayoutTest {
             "wifi.toggle" to "425",
             "bluetooth.toggle" to "294",
             "airplane.toggle" to "333",
+            "hotspot.toggle" to "113",
         ).forEach { (type, code) ->
             mapOf("off" to "0", "on" to "1", "toggle" to "2").forEach { (state, value) ->
                 assertHas(xml(type, "state" to state), "<code>$code</code>", """<Int sr="arg0" val="$value"/>""")

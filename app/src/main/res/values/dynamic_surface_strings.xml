@@ -170,6 +170,8 @@
     <string name="capability_wifi_scan_setup" formatted="false">Scanning needs location access, and Nearby Wi-Fi devices on Android 13 and later. Android rate-limits scans, so results may be the last cached scan rather than a fresh one.</string>
     <string name="capability_airplane_unsupported" formatted="false">Airplane mode changes require Shizuku permission and its privileged user-service transport.</string>
     <string name="capability_mobile_data_unsupported" formatted="false">Mobile data changes require Shizuku permission and its privileged user-service transport.</string>
+    <string name="capability_hotspot_unsupported" formatted="false">The Wi-Fi hotspot requires Android 11 or newer, Shizuku permission and its privileged user-service transport. Anyone with the saved password can join, and connected devices use your mobile data.</string>
+    <string name="capability_hotspot_android_version" formatted="false">The Wi-Fi hotspot action needs Android 11 or newer.</string>
     <string name="capability_screenshot_unsupported" formatted="false">Screenshots require Shizuku permission and its privileged user-service transport.</string>
     <string name="capability_reboot_unsupported" formatted="false">Reboot requires Shizuku permission and its privileged user-service transport.</string>
     <string name="capability_lock_setup" formatted="false">Requires the Lock screen device admin, which you turn on in Setup.</string>

@@ -301,7 +301,7 @@ class ReleaseTruthContractTest {
                 "Scene element editor with drag-to-move, resize handles, multi-select, alignment guides",
                 "Flow graphs with zoom/pan canvas previews, edge routing, branch/subflow markers",
                 "persisted default-on kill switch",
-                "six elevated actions run through a separately bound AIDL user service",
+                "eight elevated actions run through a separately bound AIDL user service",
                 "Termux 0.109+ `RUN_COMMAND` integration",
                 "Locale/Tasker condition context",
             ),

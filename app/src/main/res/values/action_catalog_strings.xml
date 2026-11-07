@@ -340,6 +340,10 @@
     <string name="catalog_action_airplane_toggle_description" formatted="false">Turn Airplane mode on or off</string>
     <string name="catalog_action_airplane_toggle_field_state_label" formatted="false">State</string>
     <string name="catalog_action_airplane_toggle_field_state_hint" formatted="false">on/off/toggle</string>
+    <string name="catalog_action_hotspot_toggle_name" formatted="false">Toggle Wi-Fi Hotspot</string>
+    <string name="catalog_action_hotspot_toggle_description" formatted="false">Turn the Wi-Fi hotspot on or off</string>
+    <string name="catalog_action_hotspot_toggle_field_state_label" formatted="false">State</string>
+    <string name="catalog_action_hotspot_toggle_field_state_hint" formatted="false">on/off/toggle</string>
     <string name="catalog_action_mobile_toggle_name" formatted="false">Toggle Mobile Data</string>
     <string name="catalog_action_mobile_toggle_description" formatted="false">Turn mobile data on or off</string>
     <string name="catalog_action_mobile_toggle_field_state_label" formatted="false">State</string>

@@ -137,11 +137,24 @@ class TaskerRealExportLayoutTest {
         assertWarns(code, "code")
     }
 
-    // Boolean Set fields: Torch (511), Bluetooth (294), Airplane Mode (333), WiFi (425)
+    // Boolean Set fields: Torch (511), Bluetooth (294), Airplane Mode (333), WiFi (425), WiFi Tether (113)
+
+    @Test
+    fun wifiTetherKeepWifiIsDroppedWithAWarning() {
+        val keepWifi = """<code>113</code><Int sr="arg0" val="1"/><Int sr="arg1" val="1"/>"""
+        val plain = """<code>113</code><Int sr="arg0" val="0"/><Int sr="arg1" val="0"/>"""
+
+        assertEquals("hotspot.toggle", action(keepWifi).type)
+        assertEquals("on", action(keepWifi).args["state"])
+        assertTrue(warnings(keepWifi).any { it.contains("Keep Wi-Fi") })
+
+        assertEquals("off", action(plain).args["state"])
+        assertFalse(warnings(plain).any { it.contains("Keep Wi-Fi") })
+    }
 
     @Test
     fun setFieldsReadZeroAsOffOneAsOnAndTwoAsToggle() {
-        val types = mapOf("511" to "torch.set", "294" to "bluetooth.toggle", "333" to "airplane.toggle", "425" to "wifi.toggle")
+        val types = mapOf("511" to "torch.set", "294" to "bluetooth.toggle", "333" to "airplane.toggle", "425" to "wifi.toggle", "113" to "hotspot.toggle")
         types.forEach { (code, type) ->
             listOf("0" to "off", "1" to "on", "2" to "toggle").forEach { (value, state) ->
                 val action = action("""<code>$code</code><Int sr="arg0" val="$value"/>""")

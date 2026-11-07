@@ -129,6 +129,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "volume.set",
     "airplane.toggle",
     "mobile.toggle",
+    "hotspot.toggle",
     "aod.set",
     "wifi.scan",
     "vpn.tunnel",
@@ -728,6 +729,18 @@ fun registerActionMetadata() {
             categoryRes = R.string.catalog_category_settings,
             fields = listOf(
                 ActionField("state", R.string.catalog_action_airplane_toggle_field_state_label, FieldType.DROPDOWN, required = true, hintRes = R.string.catalog_action_airplane_toggle_field_state_hint, options = toggleOptions),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "hotspot.toggle",
+            nameRes = R.string.catalog_action_hotspot_toggle_name,
+            descriptionRes = R.string.catalog_action_hotspot_toggle_description,
+            categoryRes = R.string.catalog_category_settings,
+            fields = listOf(
+                ActionField("state", R.string.catalog_action_hotspot_toggle_field_state_label, FieldType.DROPDOWN, required = true, hintRes = R.string.catalog_action_hotspot_toggle_field_state_hint, options = toggleOptions),
             )
         )
     )

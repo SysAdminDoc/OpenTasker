@@ -85,8 +85,24 @@ class ShizukuPowerBackendTest {
     }
 
     @Test
+    fun theHotspotHonorsTheKillSwitchAndNeverFallsBackToTheAppProcess() {
+        ShizukuPowerBackend.killSwitchEnabled = true
+        listOf(ShizukuShellRunner.setWifiHotspot(true), ShizukuShellRunner.readWifiHotspot()).forEach { result ->
+            assertEquals(
+                "Shizuku power mode is off, so nothing ran. Turn it on from its row in Setup.",
+                (result as ShellResult.Failure).reason,
+            )
+        }
+
+        ShizukuPowerBackend.killSwitchEnabled = false
+        listOf(ShizukuShellRunner.setWifiHotspot(false), ShizukuShellRunner.readWifiHotspot()).forEach { result ->
+            assertTrue((result as ShellResult.Failure).reason.contains("Can't reach Shizuku, so nothing ran."))
+        }
+    }
+
+    @Test
     fun allElevatedActionsAreInAllowlist() {
-        ShizukuPowerBackend.elevatedActionIds.forEach { actionId ->
+        (ShizukuPowerBackend.elevatedActionIds - ShizukuPowerBackend.frameworkActionIds).forEach { actionId ->
             assertTrue("$actionId should be in allowlist", ShizukuShellRunner.isAllowed(actionId))
             assertTrue("$actionId should have variants", ShizukuShellRunner.allowedVariantCount(actionId) > 0)
         }
@@ -113,7 +129,11 @@ class ShizukuPowerBackendTest {
             "wake" to listOf(listOf("input", "keyevent", "224")),
         )
 
-        assertEquals(ShizukuPowerBackend.elevatedActionIds, expected.keys)
+        assertEquals(ShizukuPowerBackend.elevatedActionIds - ShizukuPowerBackend.frameworkActionIds, expected.keys)
+        assertFalse(
+            "The hotspot is a framework call, so the shell route must not gain a command for it",
+            ShizukuCommandPolicy.isAllowed("hotspot.toggle"),
+        )
         expected.forEach { (actionId, variants) ->
             assertEquals("$actionId variant count", variants.size, ShizukuCommandPolicy.variantCount(actionId))
             variants.forEachIndexed { index, argv ->

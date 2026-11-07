@@ -89,7 +89,7 @@ class ActionContractCompletenessTest {
             .map { it.id }
             .toSet()
 
-        assertEquals("all built-in actions must remain registered", 80, registered.size)
+        assertEquals("all built-in actions must remain registered", 81, registered.size)
         assertEquals(
             setOf(
                 "app.archive", "app.unarchive", "brightness.set", "clipboard.get", "clipboard.set",
@@ -109,7 +109,7 @@ class ActionContractCompletenessTest {
 
     @Test
     fun runtimeMetadataAndCapabilitiesResolveFromTheCanonicalDeclaration() {
-        assertEquals(80, ActionCatalog.all.size)
+        assertEquals(81, ActionCatalog.all.size)
         ActionCatalog.all.forEach { definition ->
             val action = definition.factory()
             assertSame(definition, action.definition)
@@ -157,7 +157,7 @@ class ActionContractCompletenessTest {
                     ActionCapabilityRegistry.get(actionId).level,
                 )
             }
-        ShizukuPowerBackend.elevatedActionIds.forEach { actionId ->
+        (ShizukuPowerBackend.elevatedActionIds - ShizukuPowerBackend.frameworkActionIds).forEach { actionId ->
             assertEquals(
                 "$actionId must be RequiresSetup",
                 CapabilityLevel.RequiresSetup,

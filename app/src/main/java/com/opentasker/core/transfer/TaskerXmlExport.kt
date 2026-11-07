@@ -43,6 +43,7 @@ object TaskerXmlExporter {
         "wifi.toggle" to "425",
         "bluetooth.toggle" to "294",
         "airplane.toggle" to "333",
+        "hotspot.toggle" to "113",
         "sound.play" to "445",
         "sound.stop" to "443",
         "sound.pause" to "443",
@@ -187,7 +188,7 @@ object TaskerXmlExporter {
                 val level = args["level"] ?: "0"
                 if (level == "mute" || level == "unmute") appendStr(sb, 0, level) else appendInt(sb, 0, level)
             }
-            "torch.set", "wifi.toggle", "bluetooth.toggle", "airplane.toggle" ->
+            "torch.set", "wifi.toggle", "bluetooth.toggle", "airplane.toggle", "hotspot.toggle" ->
                 appendSetField(sb, action.type, args["state"] ?: "toggle", warnings)
             "sound.play" -> {
                 appendStr(sb, 0, args["path"] ?: "")

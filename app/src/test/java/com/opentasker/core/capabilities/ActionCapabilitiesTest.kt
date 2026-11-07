@@ -16,12 +16,25 @@ class ActionCapabilitiesTest {
 
     @Test
     fun elevatedActionsAreAddableButRequireShizukuSetup() {
-        ShizukuPowerBackend.elevatedActionIds.forEach { actionId ->
+        (ShizukuPowerBackend.elevatedActionIds - ShizukuPowerBackend.frameworkActionIds).forEach { actionId ->
             val capability = ActionCapabilityRegistry.get(actionId)
             assertEquals("$actionId must require setup", CapabilityLevel.RequiresSetup, capability.level)
             assertTrue(capability.canAdd)
             assertTrue(capability.reason.contains("Shizuku"))
         }
+    }
+
+    @Test
+    fun theHotspotActionNeedsAndroidElevenAndThenShizukuSetup() {
+        val current = ActionCapabilityRegistry.hotspotCapabilityForSdk(30)
+        val old = ActionCapabilityRegistry.hotspotCapabilityForSdk(29)
+
+        assertEquals(CapabilityLevel.RequiresSetup, current.level)
+        assertTrue(current.canAdd)
+        assertTrue(current.reason.contains("Shizuku"))
+        assertEquals(CapabilityLevel.Unsupported, old.level)
+        assertFalse(old.canAdd)
+        assertTrue(old.reason.contains("Android 11"))
     }
 
     @Test

@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
  */
 object ShizukuShellRunner {
     private const val USER_SERVICE_TAG = "opentasker-power"
-    private const val USER_SERVICE_VERSION = 2
+    private const val USER_SERVICE_VERSION = 3
     private const val CONNECTION_TIMEOUT_SECONDS = 2L
     private const val POWER_MODE_OFF = "Shizuku power mode is off, so nothing ran. Turn it on from its row in Setup."
 
@@ -121,6 +121,46 @@ object ShizukuShellRunner {
                 ShellResult.Success(path, exitCode)
             } else {
                 ShellResult.Failure("Screenshot command exited with code $exitCode")
+            }
+        }.getOrElse { error ->
+            invalidateRemoteService()
+            ShellResult.Failure(error.message ?: "Shizuku user service disconnected")
+        }
+    }
+
+    /** Blocks until Android reports the new state, up to about 20 seconds, so this belongs on a background thread. */
+    fun setWifiHotspot(enabled: Boolean): ShellResult {
+        if (ShizukuPowerBackend.killSwitchEnabled) {
+            return ShellResult.Failure(POWER_MODE_OFF)
+        }
+        val service = remoteServiceForUse()
+            ?: return unavailable()
+        return runCatching {
+            val code = service.setWifiHotspot(enabled)
+            if (code == WifiHotspotPolicy.OK) {
+                ShellResult.Success(if (enabled) "on" else "off", 0)
+            } else {
+                ShellResult.Failure(WifiHotspotPolicy.failureMessage(code, enabled))
+            }
+        }.getOrElse { error ->
+            invalidateRemoteService()
+            ShellResult.Failure(error.message ?: "Shizuku user service disconnected")
+        }
+    }
+
+    /** Succeeds with "on" or "off". */
+    fun readWifiHotspot(): ShellResult {
+        if (ShizukuPowerBackend.killSwitchEnabled) {
+            return ShellResult.Failure(POWER_MODE_OFF)
+        }
+        val service = remoteServiceForUse()
+            ?: return unavailable()
+        return runCatching {
+            when (val state = service.readWifiHotspot()) {
+                WifiHotspotPolicy.STATE_ON -> ShellResult.Success("on", 0)
+                WifiHotspotPolicy.STATE_OFF -> ShellResult.Success("off", 0)
+                WifiHotspotPolicy.STATE_UNKNOWN -> ShellResult.Failure("Android didn't report a Wi-Fi hotspot state.")
+                else -> ShellResult.Failure(WifiHotspotPolicy.failureMessage(state, enabled = true))
             }
         }.getOrElse { error ->
             invalidateRemoteService()

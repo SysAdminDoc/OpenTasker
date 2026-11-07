@@ -19,6 +19,9 @@ object ShizukuPowerBackend {
     private const val PREFERENCES = "shizuku-power"
     private const val KEY_KILL_SWITCH = "kill-switch-enabled"
 
+    /** Framework calls rather than shell commands, so they have no line in [ShizukuCommandPolicy]. */
+    val frameworkActionIds: Set<String> = setOf("hotspot.toggle")
+
     val elevatedActionIds: Set<String> = setOf(
         "airplane.toggle",
         "mobile.toggle",
@@ -27,7 +30,7 @@ object ShizukuPowerBackend {
         "reboot",
         "screen.off",
         "wake",
-    )
+    ) + frameworkActionIds
 
     /** Defaults on so a process restart never enables privileged behavior before preferences load. */
     @Volatile
