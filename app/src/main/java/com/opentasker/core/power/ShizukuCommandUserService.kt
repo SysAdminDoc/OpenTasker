@@ -8,14 +8,16 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import rikka.shizuku.ShizukuApiConstants
 
 /**
- * Shizuku's server ends a user service with this Binder code. An AIDL method pinned with
- * `= 16777114` lands on the same code, because Binder codes start one above AIDL's ids.
+ * The Binder code Shizuku's server ends a user service with. The library keeps its constant
+ * (`ShizukuApiConstants.USER_SERVICE_TRANSACTION_destroy`) to its own group, so the number lives
+ * here and a test holds it to the library's value. An AIDL method pinned with `= 16777114` lands
+ * on the same code, because Binder codes start one above AIDL's ids.
  */
-internal fun isShizukuDestroyTransaction(code: Int): Boolean =
-    code == ShizukuApiConstants.USER_SERVICE_TRANSACTION_destroy
+internal const val SHIZUKU_DESTROY_TRANSACTION = 16777115
+
+internal fun isShizukuDestroyTransaction(code: Int): Boolean = code == SHIZUKU_DESTROY_TRANSACTION
 
 /**
  * Runs the commands approved by [ShizukuCommandPolicy] and the user's approved scripts in the

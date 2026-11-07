@@ -5,7 +5,7 @@ import android.content.ContextWrapper
 import android.os.Build
 import android.os.IBinder
 import android.os.Process
-import android.util.Log
+import com.opentasker.core.logging.AppLogger
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
@@ -221,7 +221,7 @@ internal object ShizukuTethering {
 
     fun set(enabled: Boolean): Int = runCatching { changeWifiHotspot(enabled, gateway) }
         .getOrElse { failure ->
-            Log.w(TAG, "Couldn't change the Wi-Fi hotspot", failure)
+            AppLogger.warn(TAG, "Couldn't change the Wi-Fi hotspot", failure)
             WifiHotspotPolicy.NOT_REACHABLE
         }
 
@@ -229,7 +229,7 @@ internal object ShizukuTethering {
         if (Build.VERSION.SDK_INT < WifiHotspotPolicy.MIN_SDK) return WifiHotspotPolicy.ANDROID_TOO_OLD
         return runCatching { WifiHotspotPolicy.readState(gateway.apState()) }
             .getOrElse { failure ->
-                Log.w(TAG, "Couldn't read the Wi-Fi hotspot state", failure)
+                AppLogger.warn(TAG, "Couldn't read the Wi-Fi hotspot state", failure)
                 WifiHotspotPolicy.NOT_REACHABLE
             }
     }

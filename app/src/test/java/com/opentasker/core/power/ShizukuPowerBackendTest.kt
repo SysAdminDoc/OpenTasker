@@ -7,6 +7,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Test
+import rikka.shizuku.ShizukuApiConstants
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.readText
@@ -230,9 +231,11 @@ class ShizukuPowerBackendTest {
 
     @Test
     fun theServiceAnswersTheDestroyCodeShizukuSends() {
-        // Taken from the Shizuku 13.1.5 library. Answering 16777114 instead left every service
-        // process running after its app died, until Shizuku itself restarted.
-        assertTrue(isShizukuDestroyTransaction(16777115))
+        // Answering 16777114 instead left every service process running after its app died, until
+        // Shizuku itself restarted. Production can't read the library's constant, so a library
+        // upgrade that moves it fails here.
+        assertEquals(ShizukuApiConstants.USER_SERVICE_TRANSACTION_destroy, SHIZUKU_DESTROY_TRANSACTION)
+        assertTrue(isShizukuDestroyTransaction(ShizukuApiConstants.USER_SERVICE_TRANSACTION_destroy))
         assertFalse(isShizukuDestroyTransaction(16777114))
     }
 
