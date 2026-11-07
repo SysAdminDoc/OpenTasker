@@ -2,6 +2,8 @@ package com.opentasker.ui.screens
 
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -74,7 +76,10 @@ internal fun OpenTaskerBundleTextImportDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.import_paste_json_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm),
+            ) {
                 Text(
                     stringResource(R.string.import_paste_json_body),
                     style = MaterialTheme.typography.bodyMedium,
@@ -540,7 +545,10 @@ internal fun MacroDroidPasswordDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(stringResource(R.string.dialog_macrodroid_password_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text(stringResource(R.string.dialog_macrodroid_password_body))
                 OutlinedTextField(
                     value = password,

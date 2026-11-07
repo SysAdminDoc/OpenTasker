@@ -1,6 +1,8 @@
 package com.opentasker.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -214,6 +216,7 @@ fun VariablesScreen(
             text = {
                 Text(
                     stringResource(R.string.variables_delete_body),
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },
@@ -405,7 +408,10 @@ private fun VariableEditorDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md),
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = {

@@ -16,13 +16,36 @@ import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
 import com.opentasker.ui.theme.OpenTaskerTheme
+import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class AccessibilityRuntimeComposeTest {
+@RunWith(Parameterized::class)
+class AccessibilityRuntimeComposeTest(private val fontScale: Float) {
     @get:Rule
     val composeTestRule = createAccessibilityComposeRule()
+
+    private lateinit var restoreFontScale: () -> Unit
+
+    @Before
+    fun applyFontScale() {
+        restoreFontScale = composeTestRule.activity.useFontScale(fontScale)
+    }
+
+    @After
+    fun undoFontScale() {
+        restoreFontScale()
+    }
+
+    companion object {
+        @JvmStatic
+        @Parameterized.Parameters(name = "font {0}")
+        fun fontScales() = TESTED_FONT_SCALES
+    }
 
     @Test
     fun profilesScreenPassesRuntimeAccessibilityChecks() {

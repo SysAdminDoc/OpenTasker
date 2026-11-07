@@ -1,5 +1,7 @@
 package com.opentasker.ui.screens
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -149,7 +151,10 @@ private fun ProjectManagerDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.projects_manage)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it },
@@ -241,7 +246,10 @@ private fun ProjectManagerDialog(
             onDismissRequest = { deletingId = null },
             title = { Text(stringResource(R.string.projects_delete_title, deleting.name)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(stringResource(R.string.projects_delete_body))
                     ProjectTargetMenu(
                         projects = projects.filterNot { it.id == deleting.id },

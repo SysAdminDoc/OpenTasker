@@ -104,6 +104,7 @@ internal fun SceneElementDeleteDialog(
                     elementLabel,
                     state.scene.name,
                 ),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
                 style = MaterialTheme.typography.bodyMedium,
             )
         },
@@ -505,7 +506,10 @@ internal fun SceneEditorDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.scenes_create)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md),
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },

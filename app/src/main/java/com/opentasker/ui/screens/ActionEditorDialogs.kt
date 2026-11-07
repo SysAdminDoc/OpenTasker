@@ -5,6 +5,8 @@ import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -143,7 +145,10 @@ internal fun ActionPickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.dialog_add_action)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm),
+            ) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },

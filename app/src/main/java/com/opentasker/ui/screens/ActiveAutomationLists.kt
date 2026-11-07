@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -865,9 +866,9 @@ private fun ActionRow(
             Surface(
                 color = MaterialTheme.colorScheme.primaryContainer,
                 shape = RoundedCornerShape(DesignSystem.Radii.sm),
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.sizeIn(minWidth = 28.dp, minHeight = 28.dp),
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
                     Text(
                         text = "${index + 1}",
                         style = MaterialTheme.typography.labelMedium,

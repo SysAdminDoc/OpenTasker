@@ -57,6 +57,7 @@
 - A Quick Settings tile with no task went dead once you backed out of its setup screen, because Android ignores taps on a tile marked unavailable. It now stays tappable and says `Tap to choose a task`.
 - The Reboot action handed Android the word `false` as its reboot reason, so the phone recorded `reboot,false` as why it restarted. It now restarts with no reason given.
 - A restore keeps the database it replaced, including whatever the app wrote just before it closed, and Setup offers to roll back to it. That copy and the file from a restore that failed were missing from every list and count, so they sat at full size until app data was cleared.
+- At a large font size or in a short window, dialogs cut off whatever didn't fit with no way to reach it. The task editor's `Run both` and `Wait` choices were out of reach, and so was the app picker's search box. Dialog bodies scroll now, and the action number badges in a task grow with the text instead of clipping it.
 
 ### Changed
 

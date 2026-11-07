@@ -2,11 +2,14 @@ package com.opentasker.ui.screens
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -40,6 +43,7 @@ import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
+import com.opentasker.core.storage.RunLogRetentionPolicy
 import com.opentasker.core.templates.ProfileTemplateCatalog
 import com.opentasker.core.transfer.BundleImportPlan
 import com.opentasker.core.transfer.OpenTaskerBundle
@@ -47,15 +51,42 @@ import com.opentasker.core.transfer.VariableConflictAction
 import com.opentasker.core.transfer.VariableConflictResolution
 import com.opentasker.core.transfer.VariableImportConflict
 import com.opentasker.ui.theme.OpenTaskerTheme
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class CriticalFlowComposeTest {
+@RunWith(Parameterized::class)
+class CriticalFlowComposeTest(private val fontScale: Float) {
     @get:Rule
     val composeTestRule = createAccessibilityComposeRule()
+
+    private lateinit var restoreFontScale: () -> Unit
+
+    @Before
+    fun applyFontScale() {
+        restoreFontScale = composeTestRule.activity.useFontScale(fontScale)
+    }
+
+    @After
+    fun undoFontScale() {
+        restoreFontScale()
+    }
+
+    /** Works on content a lazy list hasn't composed yet, which performScrollTo can't find. */
+    private fun scrollToText(text: String) =
+        composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText(text))
+
+    companion object {
+        @JvmStatic
+        @Parameterized.Parameters(name = "font {0}")
+        fun fontScales() = TESTED_FONT_SCALES
+    }
 
     @Test
     fun templateSlotDialogRendersPackagedAutomationFields() {
@@ -73,6 +104,7 @@ class CriticalFlowComposeTest {
         composeTestRule.performAccessibilityChecks()
 
         composeTestRule.onNodeWithText("Work-hours focus").assertIsDisplayed()
+        scrollToText("Start time *")
         composeTestRule.onNodeWithText("Start time *").assertIsDisplayed()
         composeTestRule.onNodeWithText("Create for Review").assertIsEnabled()
     }
@@ -197,6 +229,8 @@ class CriticalFlowComposeTest {
         composeTestRule.onNodeWithText("Backup and restore").assertIsDisplayed()
         composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Locale execution grants"))
         composeTestRule.onNodeWithText("Locale execution grants").assertIsDisplayed()
+        composeTestRule.onAllNodes(hasScrollAction()).onFirst()
+            .performScrollToNode(hasText("No Locale execution grants are issued."))
         composeTestRule.onNodeWithText("No Locale execution grants are issued.").assertIsDisplayed()
     }
 
@@ -263,7 +297,7 @@ class CriticalFlowComposeTest {
         composeTestRule.onNodeWithText("Create Profile").assertIsDisplayed()
         composeTestRule.onNodeWithText("Save").assertIsNotEnabled()
         composeTestRule.onAllNodes(hasSetTextAction())[0].performTextInput("At work")
-        composeTestRule.onNodeWithText("Morning focus").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Morning focus").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Save").assertIsEnabled().performClick()
 
         assertEquals("At work:42", savedName)
@@ -470,7 +504,7 @@ class CriticalFlowComposeTest {
 
         composeTestRule.onAllNodes(hasSetTextAction())[1].performTextClearance()
         composeTestRule.onAllNodes(hasSetTextAction())[1].performTextInput("%armed == true")
-        composeTestRule.onNodeWithTag(ACTION_CONTINUE_ON_ERROR_TAG).performClick()
+        composeTestRule.onNodeWithTag(ACTION_CONTINUE_ON_ERROR_TAG).performScrollTo().performClick()
         composeTestRule.onNodeWithText("Save").performClick()
 
         assertEquals("%armed == true", saved?.condition)
@@ -667,6 +701,7 @@ class CriticalFlowComposeTest {
         composeTestRule.performAccessibilityChecks()
 
         composeTestRule.onNodeWithText("Review OpenTasker bundle").assertIsDisplayed()
+        scrollToText("Cannot import")
         composeTestRule.onNodeWithText("Cannot import").assertIsDisplayed()
         composeTestRule.onNodeWithText("Import Disabled").assertIsNotEnabled()
     }
@@ -709,7 +744,9 @@ class CriticalFlowComposeTest {
         composeTestRule.performAccessibilityChecks()
 
         composeTestRule.onNodeWithText("Import Disabled").assertIsNotEnabled()
+        scrollToText("Keep existing")
         composeTestRule.onNodeWithText("Keep existing").performClick()
+        scrollToText("Selected: Keep existing")
         composeTestRule.onNodeWithText("Selected: Keep existing").assertIsDisplayed()
         composeTestRule.onNodeWithText("Import for Review").assertIsEnabled()
         assertEquals(
@@ -758,6 +795,100 @@ class CriticalFlowComposeTest {
         composeTestRule.onNodeWithText("Use latest observed: Spotify (com.spotify.music)").performClick()
         assertEquals(InstalledApp("com.spotify.music", "Spotify"), selected)
     }
+
+    /**
+     * A dialog's text slot clips what doesn't fit, so at a large font or in a short window the end of
+     * the body is out of reach unless the body scrolls. A list inside the body doesn't count: it
+     * leaves whatever sits above it stuck in place, which is why these look for the field too.
+     */
+    @Test
+    fun dialogBodiesScrollToWhatDoesNotFit() {
+        val aroundField = hasScrollAction() and hasAnyDescendant(hasSetTextAction())
+        val preview = RunLogRetentionPreview(
+            policy = RunLogRetentionPolicy(),
+            storedCount = 10,
+            prunableCount = 2,
+            oldestTimestamp = null,
+        )
+        val dialogs = listOf(
+            DialogCase("task editor", aroundField) {
+                TaskEditorDialog(task = null, onDismiss = {}, onSave = { _, _, _ -> })
+            },
+            DialogCase("delete task", hasScrollAction()) {
+                DeleteConfirmationDialog(
+                    DeleteTarget.TaskTarget(Task(id = 1, name = "Morning focus")),
+                    onDismiss = {},
+                    onConfirm = {},
+                )
+            },
+            DialogCase("paste JSON", aroundField) {
+                OpenTaskerBundleTextImportDialog(
+                    text = "",
+                    busy = false,
+                    onTextChanged = {},
+                    onDismiss = {},
+                    onConfirm = {},
+                )
+            },
+            DialogCase("MacroDroid password", aroundField) {
+                MacroDroidPasswordDialog(
+                    wrongPassword = false,
+                    busy = false,
+                    progress = null,
+                    onSubmit = {},
+                    onDismiss = {},
+                    onCancel = {},
+                )
+            },
+            DialogCase("create scene", aroundField) {
+                SceneEditorDialog(onDismiss = {}, onSave = { _, _, _ -> })
+            },
+            DialogCase("global search", aroundField) {
+                GlobalSearchDialog(
+                    profiles = emptyList(),
+                    tasks = emptyList(),
+                    variables = emptyList(),
+                    scenes = emptyList(),
+                    onDismiss = {},
+                    onSelect = {},
+                )
+            },
+            DialogCase("action picker", aroundField) {
+                ActionPickerDialog(onDismiss = {}, onSelect = {})
+            },
+            DialogCase("context picker", aroundField) {
+                ContextTypePickerDialog(onDismiss = {}, onSelect = {})
+            },
+            DialogCase("app picker", aroundField) {
+                InstalledAppPickerDialog(
+                    suggestedPackage = null,
+                    appsOverride = listOf(InstalledApp("com.spotify.music", "Spotify")),
+                    onDismiss = {},
+                    onSelect = {},
+                )
+            },
+            DialogCase("run log retention", hasScrollAction()) {
+                RunLogRetentionPreviewDialog(preview, onDismiss = {}, onExportJson = {}, onConfirm = {})
+            },
+        )
+        val shown = mutableIntStateOf(0)
+        composeTestRule.setContent {
+            TestTheme { dialogs[shown.intValue].content() }
+        }
+
+        val stuck = dialogs.filterIndexed { index, dialog ->
+            composeTestRule.runOnIdle { shown.intValue = index }
+            composeTestRule.performAccessibilityChecks()
+            composeTestRule.onAllNodes(dialog.scrollsWhenMatched).fetchSemanticsNodes().isEmpty()
+        }
+        assertEquals(emptyList<String>(), stuck.map { it.name })
+    }
+
+    private class DialogCase(
+        val name: String,
+        val scrollsWhenMatched: SemanticsMatcher,
+        val content: @Composable () -> Unit,
+    )
 
     @Composable
     private fun TestTheme(content: @Composable () -> Unit) {

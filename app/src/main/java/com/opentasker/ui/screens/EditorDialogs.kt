@@ -312,7 +312,10 @@ internal fun TaskEditorDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (task == null) stringResource(R.string.dialog_create_task) else stringResource(R.string.dialog_edit_task)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md),
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -1119,7 +1122,10 @@ internal fun DeleteConfirmationDialog(
         },
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 Text(body, style = MaterialTheme.typography.bodyMedium)
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.24f),
@@ -1188,7 +1194,10 @@ internal fun TaskDeleteReferencesDialog(
         },
         title = { Text(stringResource(R.string.delete_task_references_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 Text(
                     stringResource(
                         R.string.delete_task_references_body,
@@ -1375,7 +1384,10 @@ internal fun RestoreReviewDialog(
         },
         title = { Text(stringResource(R.string.restore_review_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 Text(
                     stringResource(
                         R.string.restore_review_summary,

@@ -4,6 +4,8 @@ import android.os.Build
 import android.annotation.SuppressLint
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -115,7 +117,10 @@ internal fun ContextTypePickerDialog(onDismiss: () -> Unit, onSelect: (ContextTy
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.dialog_add_context)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm),
+            ) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
