@@ -142,8 +142,15 @@ object AutomationTargetContract {
      */
     fun extractVariableExtras(extras: Bundle?): Map<String, String> {
         if (extras == null) return emptyMap()
-        return extractVariableExtras(extras.keySet().associateWith { key -> extras.getString(key) })
+        return extractVariableExtras(extras.keySet(), extras::getString)
     }
+
+    /**
+     * Reads only the variable keys. Bundle.getString on an extra that isn't a string logs a
+     * ClassCastException stack trace, and every v2 request carries the int protocol version.
+     */
+    internal fun extractVariableExtras(keys: Set<String>, read: (String) -> String?): Map<String, String> =
+        extractVariableExtras(keys.filter { it.startsWith(VARIABLE_EXTRA_PREFIX) }.associateWith(read))
 
     internal fun extractVariableExtras(values: Map<String, String?>): Map<String, String> = values.keys
             .asSequence()

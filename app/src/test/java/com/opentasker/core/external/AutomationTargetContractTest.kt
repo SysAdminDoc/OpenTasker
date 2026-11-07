@@ -20,6 +20,24 @@ class AutomationTargetContractTest {
     }
 
     @Test
+    fun readsOnlyVariableExtrasAsStrings() {
+        val read = mutableListOf<String>()
+        val extras = mapOf(
+            "com.opentasker.extra.PROTOCOL_VERSION" to null,
+            "com.opentasker.extra.TASK_NAME" to "Morning briefing",
+            "com.opentasker.var.User" to "demo",
+        )
+
+        val variables = AutomationTargetContract.extractVariableExtras(extras.keys) { key ->
+            read += key
+            extras[key]
+        }
+
+        assertEquals(mapOf("User" to "demo"), variables)
+        assertEquals(listOf("com.opentasker.var.User"), read)
+    }
+
+    @Test
     fun buildsDocumentedVariableExtraNames() {
         assertEquals(
             "com.opentasker.var.User",

@@ -60,6 +60,7 @@
 - At a large font size or in a short window, dialogs cut off whatever didn't fit with no way to reach it. The task editor's `Run both` and `Wait` choices were out of reach, and so was the app picker's search box. Dialog bodies scroll now, and the action number badges in a task grow with the text instead of clipping it.
 - In a short window at a large font, the keyboard covered every match in the app picker while you typed. The keyboard's search key now puts it away and scrolls down to the matches.
 - Sharing something to OpenTasker no longer takes the app down if Android refuses to start its engine at that moment. The share stays queued and the engine picks it up the next time it runs.
+- Every task started from another app wrote a warning with a stack trace to the system log, because the receiver read the protocol version number as if it were text. It now reads only the variable extras.
 
 ### Changed
 
