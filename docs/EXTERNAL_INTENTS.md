@@ -9,6 +9,10 @@ Required permission: `com.opentasker.permission.AUTOMATION`
 
 The receiver is exported only behind this custom permission. Callers should send explicit broadcasts to the OpenTasker package and use ordered broadcasts when they need result extras.
 
+`AUTOMATION` is a signature permission. Android grants it only to apps signed with the same key as OpenTasker, so Home Assistant Companion, Tasker, MacroDroid and every other ordinary app get a `Permission Denial` when they send `RUN_TASK` or the other actions below. Android drops the broadcast before OpenTasker sees it, so nothing shows in the Run Log either.
+
+To trigger OpenTasker from another app, send `com.opentasker.action.PUSH_EVENT` instead and give a profile an Event context with event type `push` and the matching topic. That receiver is exported without a permission and checks a per-install token. Copy the token from Setup with `Copy legacy bridge token`, and keep it private, since anyone holding it can fire your push profiles. The ntfy section below lists the extras.
+
 ## Home Assistant Companion command vocabulary
 
 The `integration.home_assistant.webhook` action accepts the Home Assistant Companion envelope
@@ -19,8 +23,8 @@ directly when its `message` and `data` fields are used:
   "message": "command_broadcast_intent",
   "data": {
     "intent_package_name": "com.opentasker.app",
-    "intent_action": "com.opentasker.action.RUN_TASK",
-    "intent_extras": "com.opentasker.extra.PROTOCOL_VERSION:2:int,com.opentasker.extra.TASK_ID:1:long"
+    "intent_action": "com.opentasker.action.PUSH_EVENT",
+    "intent_extras": "com.opentasker.extra.PUSH_TOKEN:<the per-install token>,topic:ha,id:<unique event id>"
   }
 }
 ```
@@ -28,12 +32,13 @@ directly when its `message` and `data` fields are used:
 The command value and field names follow the [Home Assistant Companion notification command
 contract](https://companion.home-assistant.io/docs/notifications/notification-commands/). The
 raw `payload` field remains available for arbitrary webhook JSON and is mutually exclusive with
-`message`/`data`; `command_*` values are checked against the documented command vocabulary.
+`message`/`data`, and `command_*` values are checked against the documented command vocabulary.
 
-Home Assistant's `command_broadcast_intent` is a payload message, not a replacement for
-OpenTasker's namespaced Android actions. OpenTasker keeps `RUN_TASK`, `SET_PROFILE_ENABLED`,
-`QUERY_STATUS`, and `QUERY_EXECUTION` unchanged, and protocol-v2 callers must still provide
-`com.opentasker.extra.PROTOCOL_VERSION=2`.
+Companion sends the broadcast as itself. It isn't signed with OpenTasker's key, so a
+`command_broadcast_intent` aimed at `RUN_TASK` is refused by Android (see Security boundary).
+Point it at `PUSH_EVENT` as above and let a profile with an Event context of type `push` and
+topic `ha` run the task. Give each command its own `id`, because a repeated topic and id within
+30 seconds counts as the same delivery.
 
 ## ntfy push and broadcast compatibility
 
@@ -54,9 +59,9 @@ id=<unique event id>
 
 ntfy documents this as the `broadcast` action and supports `extras.<name>=<value>` in its short
 form. OpenTasker does not register the unauthenticated `io.heckel.ntfy.MESSAGE_RECEIVED` action:
-an arbitrary installed app could otherwise inject a push trigger. The message body is accepted
-for size accounting but is deliberately omitted from event metadata and logs; this is the one
-intentional divergence from ntfy's `message` extra. Click and attachment URLs are also omitted
+an arbitrary installed app could otherwise inject a push trigger. The message body counts toward
+the size limit but stays out of event metadata and logs, which is the one place this differs from
+ntfy's `message` extra. Click and attachment URLs stay out too
 because they can contain credentials or remote identifiers. Use `topic`, `id`, `title`, `tags`,
 and the other bounded metadata fields for event matching.
 
@@ -72,8 +77,13 @@ task: Android expects broadcast work to finish in roughly 10 seconds while an Op
 wait up to 30 minutes, so a reply that carried the task's terminal result was reporting an outcome
 that had not happened yet. The system could kill the receiver mid-run with no run-log entry.
 
-Callers **must** declare the protocol version. A request without it is refused with an explicit
-error naming the required extra, rather than being silently reinterpreted.
+Callers have to declare the protocol version. A request without it gets refused with an error
+naming the extra it needs.
+
+The engine has to be running. If it was stopped and OpenTasker is in the background, Android 12
+and later won't let a broadcast start it, so the reply is an error starting with `Engine service
+could not be started` and the execution is recorded as `FAILED`. Leaving the engine on (its
+notification stays in the shade) avoids this.
 
 Extras:
 
@@ -148,10 +158,17 @@ Ordered-broadcast result extras include task/profile counts, enabled profile cou
 
 ## adb examples
 
+A plain `adb shell` doesn't hold the signature permission either, so these get `Permission Denial`
+from Android. They work from a root shell (`adb root` on an emulator or a userdebug build). On a
+regular phone, use the `PUSH_EVENT` example instead. `am broadcast` still prints `Broadcast
+completed: result=0` for a refused one. Android 17 doesn't log the denial to logcat either, but
+`adb shell dumpsys activity broadcasts history` lists it as skipped with the permission it needed.
+
 ```bash
 adb shell am broadcast \
   -a com.opentasker.action.RUN_TASK \
   -p com.opentasker.app \
+  --ei com.opentasker.extra.PROTOCOL_VERSION 2 \
   --el com.opentasker.extra.TASK_ID 1 \
   --es com.opentasker.var.User "demo"
 ```
@@ -162,4 +179,13 @@ adb shell am broadcast \
   -p com.opentasker.app \
   --el com.opentasker.extra.PROFILE_ID 1 \
   --ez com.opentasker.extra.ENABLED true
+```
+
+```bash
+adb shell am broadcast \
+  -a com.opentasker.action.PUSH_EVENT \
+  -p com.opentasker.app \
+  --es com.opentasker.extra.PUSH_TOKEN "<the per-install token>" \
+  --es topic ha \
+  --es id "test-1"
 ```
