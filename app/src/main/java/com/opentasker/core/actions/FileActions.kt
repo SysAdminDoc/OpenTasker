@@ -196,11 +196,14 @@ internal fun resolveSandboxTarget(baseDir: File, path: String, mustExist: Boolea
     return normalized
 }
 
-/** True if any existing path component between [baseDir] (exclusive) and [target] is a symlink. */
+/**
+ * True if any path component between [baseDir] (exclusive) and [target] is a symlink. `File.exists`
+ * follows links, so asking it first would wave through a link whose target is missing.
+ */
 private fun containsSymlinkComponent(baseDir: File, target: File): Boolean {
     var current: File? = target
     while (current != null && current != baseDir) {
-        if (current.exists() && Files.isSymbolicLink(current.toPath())) return true
+        if (Files.isSymbolicLink(current.toPath())) return true
         current = current.parentFile
     }
     return false

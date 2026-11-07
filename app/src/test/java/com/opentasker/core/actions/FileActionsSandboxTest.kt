@@ -58,4 +58,18 @@ class FileActionsSandboxTest {
         // The symlink itself, even as the final component, is refused.
         assertNull(resolveSandboxTarget(baseDir, "escape"))
     }
+
+    @Test
+    fun refusesSymlinkComponentWhoseTargetIsMissing() {
+        val baseDir = base()
+        val neverCreated = File(temp.root, "never-created")
+        val link = File(baseDir, "dangling")
+        val created = runCatching {
+            Files.createSymbolicLink(link.toPath(), neverCreated.toPath())
+        }.isSuccess
+        assumeTrue("platform cannot create symlinks", created)
+
+        assertNull(resolveSandboxTarget(baseDir, "dangling/secret.txt"))
+        assertNull(resolveSandboxTarget(baseDir, "dangling"))
+    }
 }
