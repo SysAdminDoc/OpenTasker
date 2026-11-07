@@ -115,8 +115,12 @@ class ProfileTemplateCatalogTest {
 
         val automatic = ProfileTemplateCatalog.get("search-incoming-numbers-automatic")!!
             .instantiate(emptyMap())
-        assertEquals(listOf("url.open", "notify.show"), automatic.task.actions.map { it.type })
-        assertEquals("https://duckduckgo.com/?q=$encoded", automatic.task.actions.first().args["url"])
+        assertEquals(
+            "a blocked url.open fails the task, so the by-hand notification has to come first",
+            listOf("notify.show", "url.open"),
+            automatic.task.actions.map { it.type },
+        )
+        assertEquals("https://duckduckgo.com/?q=$encoded", automatic.task.actions.last().args["url"])
     }
 
     @Test

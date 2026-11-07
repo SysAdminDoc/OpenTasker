@@ -3,6 +3,7 @@ package com.opentasker.core.platform
 import android.content.Context
 import android.os.Build
 import android.provider.Settings
+import com.opentasker.core.contexts.CompanionDeviceAssociation
 
 /**
  * Android 10 and later drop an activity start from an app the user can't see without saying so:
@@ -25,16 +26,19 @@ internal object BackgroundActivityStart {
         appVisible: Boolean,
         millisSinceUserPresence: Long?,
         canDrawOverlays: Boolean,
+        hasCompanionPairing: Boolean = false,
     ): Boolean {
-        if (sdkInt < FIRST_RESTRICTED_API || appVisible || canDrawOverlays) return false
+        if (sdkInt < FIRST_RESTRICTED_API || appVisible || canDrawOverlays || hasCompanionPairing) return false
         return millisSinceUserPresence == null || millisSinceUserPresence >= GRACE_PERIOD_MS
     }
 
+    /** Android also lets an app with a paired companion device start activities from the background. */
     fun likelyBlocked(context: Context): Boolean = likelyBlockedOverrideForTests ?: likelyBlocked(
         sdkInt = Build.VERSION.SDK_INT,
         appVisible = AppVisibilityTracker.isAppVisible,
         millisSinceUserPresence = AppVisibilityTracker.millisSinceUserPresence(),
         canDrawOverlays = Settings.canDrawOverlays(context),
+        hasCompanionPairing = CompanionDeviceAssociation.list(context).isNotEmpty(),
     )
 
     fun failureMessage(what: String): String =

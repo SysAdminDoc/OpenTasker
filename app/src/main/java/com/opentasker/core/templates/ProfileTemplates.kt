@@ -481,9 +481,10 @@ object ProfileTemplateCatalog {
                 "so the notification stays as the way to search by hand. Hidden callers and your contacts are never searched.",
             inputs = listOf(callerSearchUrlInput()),
             contexts = listOf(incomingCallFromStranger()),
+            // The notification comes first: a blocked url.open fails the task, and it has to stay behind.
             actions = listOf(
-                TemplateAction("url.open", "Search the number", mapOf("url" to "{searchUrl}")),
                 unknownCallerNotification(),
+                TemplateAction("url.open", "Search the number", mapOf("url" to "{searchUrl}")),
             ),
             runtimePlaceholders = CALLER_NUMBER_PLACEHOLDER,
         ),

@@ -10,7 +10,8 @@ class BackgroundActivityStartTest {
         appVisible: Boolean = false,
         millisSinceUserPresence: Long? = null,
         canDrawOverlays: Boolean = false,
-    ) = BackgroundActivityStart.likelyBlocked(sdkInt, appVisible, millisSinceUserPresence, canDrawOverlays)
+        hasCompanionPairing: Boolean = false,
+    ) = BackgroundActivityStart.likelyBlocked(sdkInt, appVisible, millisSinceUserPresence, canDrawOverlays, hasCompanionPairing)
 
     @Test
     fun aTriggerFiringWithTheAppHiddenIsBlockedFromAndroid10On() {
@@ -29,6 +30,11 @@ class BackgroundActivityStartTest {
     fun beingOnScreenOrHoldingOverlayAccessAllowsIt() {
         assertFalse(blocked(appVisible = true))
         assertFalse(blocked(canDrawOverlays = true))
+    }
+
+    @Test
+    fun aPairedCompanionDeviceExemptsTheApp() {
+        assertFalse(blocked(hasCompanionPairing = true))
     }
 
     @Test
