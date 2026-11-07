@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.SemanticsMatcher
@@ -62,6 +63,24 @@ internal fun AndroidComposeTestRule<*, *>.performAccessibilityChecks() {
     waitForIdle()
     assertNoClippedText()
     assertNoOverlappingControls()
+    assertNoRepeatedReadings()
+}
+
+/**
+ * A control whose screen-reader reading says the same words twice, like an icon described "Tasks"
+ * above a "Tasks" label: TalkBack reads "Tasks, Tasks". The merged tree is what TalkBack reads per
+ * focus stop, so a nested control with its own stop (a switch inside a row) counts on its own.
+ */
+private fun AndroidComposeTestRule<*, *>.assertNoRepeatedReadings() {
+    val repeated = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick))
+        .fetchSemanticsNodes(atLeastOneRootRequired = false)
+        .mapNotNull { node ->
+            val said = node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() +
+                node.config.getOrNull(SemanticsProperties.Text).orEmpty().map { it.text }
+            val words = said.map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+            said.joinToString(", ").takeIf { words.size != words.toSet().size }
+        }
+    assertTrue("Read twice by a screen reader: $repeated", repeated.isEmpty())
 }
 
 /**

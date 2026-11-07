@@ -808,10 +808,10 @@ internal fun SelectableOption(
 
 @Composable
 internal fun automationModeDescription(mode: AutomationMode): String = when (mode) {
-    AutomationMode.SINGLE -> stringResource(R.string.automation_mode_single)
-    AutomationMode.RESTART -> stringResource(R.string.automation_mode_restart)
-    AutomationMode.QUEUED -> stringResource(R.string.automation_mode_queued)
-    AutomationMode.PARALLEL -> stringResource(R.string.automation_mode_parallel)
+    AutomationMode.SINGLE -> stringResource(R.string.automation_mode_single_body)
+    AutomationMode.RESTART -> stringResource(R.string.automation_mode_restart_body)
+    AutomationMode.QUEUED -> stringResource(R.string.automation_mode_queued_body)
+    AutomationMode.PARALLEL -> stringResource(R.string.automation_mode_parallel_body)
 }
 
 @Composable
@@ -1378,7 +1378,7 @@ internal fun RestoreReviewDialog(
         icon = {
             Icon(
                 Icons.Filled.Info,
-                contentDescription = stringResource(R.string.restore_review_title),
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
             )
         },

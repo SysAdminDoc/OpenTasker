@@ -161,9 +161,10 @@ internal fun OpenTaskerHeader(
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
+                // Decoration: the title beside it already names the screen.
                 Icon(
                     imageVector = screen.icon(),
-                    contentDescription = stringResource(screen.labelRes),
+                    contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .padding(12.dp)
@@ -214,9 +215,10 @@ internal fun OpenTaskerNavigationItem(
                 ),
             contentAlignment = Alignment.Center,
         ) {
+            // The label below names the destination; describing the icon too made TalkBack say it twice.
             Icon(
                 icon,
-                contentDescription = label,
+                contentDescription = null,
                 tint = contentColor,
                 modifier = Modifier.size(22.dp),
             )

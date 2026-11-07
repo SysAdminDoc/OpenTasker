@@ -122,7 +122,7 @@ fun VariablesScreen(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 label = { Text(stringResource(R.string.variables_search_label)) },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.variables_search_label)) },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = if (searchQuery.isNotBlank()) {
                     {
                         IconButton(onClick = { searchQuery = "" }) {
@@ -177,7 +177,7 @@ fun VariablesScreen(
                     onClick = { showCreateDialog = true },
                     shape = RoundedCornerShape(DesignSystem.Radii.md),
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.variables_create))
+                    Icon(Icons.Filled.Add, contentDescription = null)
                     Text(stringResource(R.string.variables_create), modifier = Modifier.padding(start = 6.dp))
                 }
             }

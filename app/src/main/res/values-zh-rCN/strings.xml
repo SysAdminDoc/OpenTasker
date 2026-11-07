@@ -576,6 +576,8 @@
     <string name="run_log_any_task">任意任务</string>
     <string name="run_log_search_label">搜索任务或消息</string>
     <string name="run_log_search_hint">权限、Wi-Fi、任务名称</string>
+    <string name="run_log_show_filters">显示筛选条件</string>
+    <string name="run_log_hide_filters">隐藏筛选条件</string>
     <string name="run_log_share_diagnostic">分享诊断报告</string>
     <string name="run_log_share_short">分享</string>
     <string name="share_uri_unreadable">OpenTasker无法读取共享的文件。请以读取权限重新分享它。</string>
@@ -983,7 +985,6 @@
     <string name="scenes_scene_name">场景名称</string>
     <string name="scenes_canvas_size">画布 %1$d x %2$d dp</string>
     <string name="scenes_empty_content_description">场景库为空</string>
-    <string name="scenes_add_element_content_description">添加元素</string>
     <string name="scenes_edit_element_content_description">编辑元素</string>
     <string name="scenes_delete_element_content_description">删除元素</string>
     <string name="scenes_remove_element_content_description">移除元素</string>
@@ -1079,6 +1080,10 @@
     <plurals name="semantic_diff_summary_scenes">
         <item quantity="one">%1$d 个场景</item>
         <item quantity="other">%1$d 个场景</item>
+    </plurals>
+    <plurals name="setup_script_allowlist_count">
+        <item quantity="one">已批准 %1$d 个脚本</item>
+        <item quantity="other">已批准 %1$d 个脚本</item>
     </plurals>
     <plurals name="semantic_diff_summary_variables">
         <item quantity="one">%1$d 个变量</item>
@@ -1212,10 +1217,10 @@
     <string name="task_priority_invalid">请输入 0 到 10 之间的值。</string>
     <string name="profile_enable_after_save_helper">在审阅上下文和操作前保持关闭。</string>
     <string name="profile_cooldown_invalid">请以整数形式输入秒数。</string>
-    <string name="automation_mode_single">运行期间忽略</string>
-    <string name="automation_mode_restart">取消并重启</string>
-    <string name="automation_mode_queued">按顺序再次运行</string>
-    <string name="automation_mode_parallel">允许重叠</string>
+    <string name="automation_mode_single_body">如果配置文件再次触发时任务仍在运行，则跳过这次运行，并在运行日志中记录。</string>
+    <string name="automation_mode_restart_body">停止正在运行的任务，然后重新开始。</string>
+    <string name="automation_mode_queued_body">等正在运行的任务完成后再运行。最多可有 50 次运行排队等待。</string>
+    <string name="automation_mode_parallel_body">在已在运行的任务之外，再同时启动一次运行。</string>
     <string name="action_remove_action">移除操作</string>
     <string name="action_remove_context">移除上下文</string>
     <string name="delete_profile_body">这会移除&quot;%1$s&quot;及其上下文。关联的任务仍可用；你可以从提示条恢复该配置文件。</string>

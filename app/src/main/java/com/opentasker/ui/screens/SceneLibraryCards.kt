@@ -98,7 +98,7 @@ internal fun SceneEmptyState(
                     modifier = Modifier.fillMaxWidth(),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(DesignSystem.Radii.lg),
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.scenes_create))
+                    Icon(Icons.Filled.Add, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.scenes_create))
                 }
@@ -245,7 +245,7 @@ internal fun SceneCard(
             )
 
             if (expanded) OutlinedButton(onClick = onAddElement, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.scenes_add_element_content_description))
+                Icon(Icons.Filled.Add, contentDescription = null)
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.action_add_element))
             }

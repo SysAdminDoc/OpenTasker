@@ -92,7 +92,7 @@ internal fun AutomationInvariantPanel(
                     )
                 }
                 OutlinedButton(onClick = { editingId = NEW_INVARIANT_ID }) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.automation_invariant_add))
+                    Icon(Icons.Filled.Add, contentDescription = null)
                     Text(stringResource(R.string.automation_invariant_add), modifier = Modifier.padding(start = 6.dp))
                 }
             }

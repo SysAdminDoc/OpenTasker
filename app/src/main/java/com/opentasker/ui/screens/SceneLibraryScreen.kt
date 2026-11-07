@@ -156,7 +156,7 @@ fun SceneLibraryScreen(
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text(stringResource(R.string.scenes_search_hint)) },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.scenes_search_hint)) },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     trailingIcon = if (searchQuery.isNotEmpty()) {
                         {
                             IconButton(onClick = { searchQuery = "" }) {
@@ -205,6 +205,7 @@ fun SceneLibraryScreen(
         }
         ExtendedFloatingActionButton(
             onClick = { showCreateDialog = true },
+            // Material3 clears the extended FAB's text semantics, so the icon's description is the button's name.
             icon = { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.scenes_create)) },
             text = { Text(stringResource(R.string.scenes_create)) },
             modifier = Modifier

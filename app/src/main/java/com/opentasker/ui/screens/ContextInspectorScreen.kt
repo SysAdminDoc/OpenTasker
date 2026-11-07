@@ -723,7 +723,7 @@ private fun ProfileInspectorCard(
                         ) {
                             Icon(
                                 Icons.Filled.Info,
-                                contentDescription = stringResource(R.string.inspector_lint_title),
+                                contentDescription = null,
                                 tint = lintColor,
                                 modifier = Modifier.size(20.dp),
                             )

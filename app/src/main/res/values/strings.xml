@@ -592,6 +592,8 @@
     <string name="run_log_any_task">Any task</string>
     <string name="run_log_search_label">Search task or message</string>
     <string name="run_log_search_hint">permission, Wi-Fi, task name</string>
+    <string name="run_log_show_filters">Show filters</string>
+    <string name="run_log_hide_filters">Hide filters</string>
     <string name="run_log_share_diagnostic">Share diagnostic report</string>
     <string name="run_log_share_short">Share</string>
     <string name="share_uri_unreadable">OpenTasker could not read the shared file. Re-share it with read access.</string>
@@ -1006,7 +1008,6 @@
     <string name="scenes_scene_name">Scene name</string>
     <string name="scenes_canvas_size">Canvas %1$d x %2$d dp</string>
     <string name="scenes_empty_content_description">Scene library empty</string>
-    <string name="scenes_add_element_content_description">Add element</string>
     <string name="scenes_edit_element_content_description">Edit element</string>
     <string name="scenes_delete_element_content_description">Delete element</string>
     <string name="scenes_remove_element_content_description">Remove element</string>
@@ -1102,6 +1103,10 @@
     <plurals name="semantic_diff_summary_scenes">
         <item quantity="one">%1$d scene</item>
         <item quantity="other">%1$d scenes</item>
+    </plurals>
+    <plurals name="setup_script_allowlist_count">
+        <item quantity="one">%1$d approved script</item>
+        <item quantity="other">%1$d approved scripts</item>
     </plurals>
     <plurals name="semantic_diff_summary_variables">
         <item quantity="one">%1$d variable</item>
@@ -1236,10 +1241,10 @@
     <string name="task_priority_invalid">Enter a value from 0 to 10.</string>
     <string name="profile_enable_after_save_helper">Leave off until contexts and actions are reviewed.</string>
     <string name="profile_cooldown_invalid">Enter seconds as a whole number.</string>
-    <string name="automation_mode_single">ignore while running</string>
-    <string name="automation_mode_restart">cancel and restart</string>
-    <string name="automation_mode_queued">run again in order</string>
-    <string name="automation_mode_parallel">allow overlap</string>
+    <string name="automation_mode_single_body">If the task is still running when the profile fires again, skip the new run and note it in the Run Log.</string>
+    <string name="automation_mode_restart_body">Stop the running task and start it over.</string>
+    <string name="automation_mode_queued_body">Let the running task finish, then run again. Up to 50 runs can wait their turn.</string>
+    <string name="automation_mode_parallel_body">Start another run alongside the one already going.</string>
     <string name="action_remove_action">Remove Action</string>
     <string name="action_remove_context">Remove Context</string>
     <string name="delete_profile_body">This removes &quot;%1$s&quot; and its contexts. The linked task remains available; you can restore the profile from the snackbar.</string>

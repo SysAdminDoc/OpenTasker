@@ -202,7 +202,7 @@ internal fun ProfilesScreen(
                     onValueChange = { profileSearchQuery = it },
                     modifier = Modifier.weight(1f),
                     placeholder = { Text(stringResource(R.string.workspace_search_profiles)) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.variables_search_label)) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = if (profileSearchQuery.isNotEmpty()) {
                         { IconButton(onClick = { profileSearchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.variables_search_clear)) } }
                     } else null,
@@ -389,9 +389,10 @@ private fun ProfileCard(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.66f),
                     shape = RoundedCornerShape(DesignSystem.Radii.md),
                 ) {
+                    // Decorative: the switch carries "<name> profile status" and its state.
                     Icon(
                         Icons.Filled.CheckCircle,
-                        contentDescription = stringResource(R.string.a11y_profile_status, profile.name),
+                        contentDescription = null,
                         tint = if (profile.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(10.dp).size(22.dp),
                     )
@@ -527,7 +528,7 @@ internal fun TasksScreen(
                 onValueChange = { taskSearchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text(stringResource(R.string.workspace_search_tasks)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.run_log_search_label)) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = if (taskSearchQuery.isNotEmpty()) {
                     { IconButton(onClick = { taskSearchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.variables_search_clear)) } }
                 } else null,

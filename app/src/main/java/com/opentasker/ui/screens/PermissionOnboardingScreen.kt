@@ -1464,9 +1464,10 @@ internal fun BackupSetupCard(
                     Text(stringResource(R.string.setup_backup_label), style = MaterialTheme.typography.titleSmall)
                     Text(summary, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 }
+                // The row already reads the summary and its expanded state.
                 Icon(
                     if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                    contentDescription = summary,
+                    contentDescription = null,
                 )
             }
             if (expanded) {

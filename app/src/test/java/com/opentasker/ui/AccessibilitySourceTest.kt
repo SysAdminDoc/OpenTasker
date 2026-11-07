@@ -15,13 +15,99 @@ class AccessibilitySourceTest {
     ).first(Files::exists)
     private val uiSourceRoot: Path = mainSourceRoot.resolve("com/opentasker/ui")
 
+    // A null description is right for an icon beside its own label (describing both made TalkBack
+    // read the label twice). It's wrong only where the icon is the whole control.
     @Test
-    fun uiSourceDoesNotShipNullContentDescriptions() {
-        val offenders = kotlinFiles()
-            .filter { it.readText().contains("contentDescription = null") }
-            .map { uiSourceRoot.relativize(it).toString() }
+    fun iconOnlyButtonsKeepAnAccessibleName() {
+        val offenders = kotlinFiles().flatMap { file ->
+            unnamedIconOnlyButtons(file.readText()).map { "${uiSourceRoot.relativize(file)}: $it" }
+        }
 
-        assertTrue("Null content descriptions found in $offenders", offenders.isEmpty())
+        assertTrue("Icon-only buttons with no accessible name: $offenders", offenders.isEmpty())
+    }
+
+    @Test
+    fun iconOnlyButtonCheckCatchesAnUnnamedButton() {
+        val planted = """
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, contentDescription = null)
+            }
+            IconButton(onClick = onEdit, modifier = Modifier.semantics { contentDescription = editLabel }) {
+                Icon(Icons.Filled.Edit, contentDescription = null)
+            }
+            OutlinedButton(onClick = onAdd) {
+                Icon(Icons.Filled.Add, contentDescription = null)
+                Text(addLabel)
+            }
+        """.trimIndent()
+
+        assertEquals(listOf("IconButton(onClick = onDelete)"), unnamedIconOnlyButtons(planted))
+    }
+
+    // The icon/text slot form of ExtendedFloatingActionButton clears its text's semantics, so the
+    // icon's description is the only name the button has.
+    @Test
+    fun extendedFabsKeepTheirIconDescription() {
+        val offenders = kotlinFiles().flatMap { file ->
+            unnamedExtendedFabs(file.readText()).map { "${uiSourceRoot.relativize(file)}: $it" }
+        }
+
+        assertTrue("Extended FABs with no accessible name: $offenders", offenders.isEmpty())
+    }
+
+    @Test
+    fun extendedFabCheckCatchesANullIcon() {
+        val planted = """
+            ExtendedFloatingActionButton(
+                onClick = onNew,
+                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                text = { Text(newLabel) },
+            )
+            ExtendedFloatingActionButton(
+                onClick = onCreate,
+                icon = { Icon(Icons.Filled.Add, contentDescription = createLabel) },
+                text = { Text(createLabel) },
+            )
+            ExtendedFloatingActionButton(onClick = onAdd) {
+                Icon(Icons.Filled.Add, contentDescription = null)
+                Text(addLabel)
+            }
+        """.trimIndent()
+
+        assertEquals(listOf("line 1"), unnamedExtendedFabs(planted))
+    }
+
+    private fun unnamedExtendedFabs(source: String): List<String> =
+        EXTENDED_FAB.findAll(source).mapNotNull { match ->
+            val paramsEnd = closingIndex(source, match.range.last, '(', ')') ?: return@mapNotNull null
+            val params = source.substring(match.range.first, paramsEnd + 1)
+            val slotForm = "icon =" in params && "text =" in params
+            val descriptions = CONTENT_DESCRIPTION.findAll(params).map { it.groupValues[1] }.toList()
+            val line = source.substring(0, match.range.first).count { it == '\n' } + 1
+            "line $line".takeIf { slotForm && descriptions.all { it == "null" } }
+        }.toList()
+
+    private fun unnamedIconOnlyButtons(source: String): List<String> =
+        ICON_ONLY_BUTTON.findAll(source).mapNotNull { match ->
+            val paramsEnd = closingIndex(source, match.range.last, '(', ')') ?: return@mapNotNull null
+            val bodyStart = source.indexOf('{', paramsEnd).takeIf { start ->
+                start >= 0 && source.substring(paramsEnd + 1, start).isBlank()
+            } ?: return@mapNotNull null
+            val bodyEnd = closingIndex(source, bodyStart, '{', '}') ?: return@mapNotNull null
+            val params = source.substring(match.range.first, paramsEnd + 1)
+            val body = source.substring(bodyStart, bodyEnd + 1)
+            params.takeIf { "contentDescription = null" in body && "contentDescription" !in it }
+        }.toList()
+
+    private fun closingIndex(source: String, openIndex: Int, open: Char, close: Char): Int? {
+        var depth = 0
+        for (index in openIndex until source.length) {
+            when (source[index]) {
+                open -> depth++
+                close -> if (--depth == 0) return index
+            }
+        }
+        return null
     }
 
     @Test
@@ -229,4 +315,14 @@ class AccessibilitySourceTest {
                 .filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(".kt") }
                 .toList()
         }
+
+    private companion object {
+        val ICON_ONLY_BUTTON = Regex(
+            """\b(IconButton|FilledIconButton|FilledTonalIconButton|OutlinedIconButton|IconToggleButton|""" +
+                """FilledIconToggleButton|OutlinedIconToggleButton|FloatingActionButton|""" +
+                """SmallFloatingActionButton|LargeFloatingActionButton)\s*\(""",
+        )
+        val EXTENDED_FAB = Regex("""\bExtendedFloatingActionButton\s*\(""")
+        val CONTENT_DESCRIPTION = Regex("""contentDescription\s*=\s*(\w+)""")
+    }
 }

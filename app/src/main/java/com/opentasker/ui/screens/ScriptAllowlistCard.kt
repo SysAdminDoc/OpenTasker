@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -125,14 +126,15 @@ private fun ScriptAllowlistCard(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(stringResource(text.title), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        stringResource(R.string.label_action_count, entries.size),
+                        pluralStringResource(R.plurals.setup_script_allowlist_count, entries.size, entries.size),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
+                // The row already reads the title and its expanded state.
                 Icon(
                     if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                    contentDescription = stringResource(text.title),
+                    contentDescription = null,
                 )
             }
             if (expanded) {

@@ -386,6 +386,7 @@ private fun RunLogFilterCard(
                 OutlinedTextField(
                     value = query,
                     onValueChange = onQueryChange,
+                    label = { Text(stringResource(R.string.run_log_search_label)) },
                     placeholder = { Text(stringResource(R.string.run_log_search_hint)) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
@@ -393,7 +394,7 @@ private fun RunLogFilterCard(
                 IconButton(onClick = { expanded = !expanded }) {
                     Icon(
                         Icons.Filled.FilterList,
-                        contentDescription = stringResource(if (expanded) R.string.action_collapse else R.string.action_expand),
+                        contentDescription = stringResource(if (expanded) R.string.run_log_hide_filters else R.string.run_log_show_filters),
                         tint = if (hasActiveFilters) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     )
                 }

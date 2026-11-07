@@ -95,7 +95,7 @@ internal fun InstalledAppFieldInput(
         OutlinedButton(onClick = { pickerVisible = true }, modifier = Modifier.fillMaxWidth()) {
             Icon(
                 Icons.Filled.Search,
-                contentDescription = stringResource(R.string.app_picker_browse),
+                contentDescription = null,
                 modifier = Modifier.size(18.dp),
             )
             Text(stringResource(R.string.app_picker_browse))
@@ -189,7 +189,7 @@ internal fun InstalledAppPickerDialog(
                     leadingIcon = {
                         Icon(
                             Icons.Filled.Search,
-                            contentDescription = stringResource(R.string.app_picker_search),
+                            contentDescription = null,
                         )
                     },
                     singleLine = true,

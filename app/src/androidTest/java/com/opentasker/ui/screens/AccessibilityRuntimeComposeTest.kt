@@ -3,11 +3,14 @@ package com.opentasker.ui.screens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
@@ -119,6 +122,44 @@ class AccessibilityRuntimeComposeTest(private val fontScale: Float) {
 
         val failure = runCatching { composeTestRule.performAccessibilityChecks() }.exceptionOrNull()
         assertTrue("An unlabeled icon button must fail the runtime accessibility check", failure != null)
+    }
+
+    @Test
+    fun bottomNavigationItemReadsItsLabelOnce() {
+        composeTestRule.setContent {
+            OpenTaskerTheme {
+                Row {
+                    OpenTaskerNavigationItem(
+                        selected = true,
+                        onClick = {},
+                        icon = Icons.Filled.Delete,
+                        label = "Tasks",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+
+        composeTestRule.performAccessibilityChecks()
+        composeTestRule.onNodeWithText("Tasks").assertIsDisplayed()
+    }
+
+    @Test
+    fun accessibilityChecksRejectARepeatedReading() {
+        composeTestRule.setContent {
+            OpenTaskerTheme {
+                Row(Modifier.heightIn(min = 48.dp).clickable(onClick = {})) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                    Text("Delete")
+                }
+            }
+        }
+
+        val failure = runCatching { composeTestRule.performAccessibilityChecks() }.exceptionOrNull()
+        assertTrue(
+            "An icon described the same as its label must fail the check, got $failure",
+            failure?.message.orEmpty().contains("Read twice"),
+        )
     }
 
     @Test

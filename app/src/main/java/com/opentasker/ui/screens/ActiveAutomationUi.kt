@@ -614,6 +614,7 @@ fun ActiveAutomationUi(
                     shape = RoundedCornerShape(DesignSystem.Radii.lg),
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
+                    // Material3 clears the extended FAB's text semantics, so the icon's description is the button's name.
                     icon = { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.task_new)) },
                     text = { Text(stringResource(R.string.task_new)) },
                 )
@@ -665,7 +666,7 @@ fun ActiveAutomationUi(
                                 secondaryNavigationScreens.forEach { destination ->
                                     DropdownMenuItem(
                                         text = { Text(stringResource(destination.labelRes)) },
-                                        leadingIcon = { Icon(destination.icon(), contentDescription = stringResource(destination.labelRes)) },
+                                        leadingIcon = { Icon(destination.icon(), contentDescription = null) },
                                         onClick = {
                                             screenOrdinal = destination.ordinal
                                             showMoreDestinations = false
