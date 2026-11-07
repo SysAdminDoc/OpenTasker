@@ -55,6 +55,7 @@
 - Play Sound on the Alarm stream was muted on Android 17 when a trigger started it in the background, even with exact-alarm access, and the run log still said it played. Android only honors that access once its audio server has refreshed its record of it, and a media player never asks it to. Play Sound now requests audio focus first, which does.
 - The actions that open an app, a link, the home screen or an activity intent logged success when Android had silently blocked them in the background. They now log a failure that names the setting that fixes it, Overlay access in Setup. The contact picker and the app archive confirmation stop right away for the same reason, where they used to wait on a screen that never opened. A home screen widget or shortcut tap can still open them without that setting, and a Quick Settings tile tap can't.
 - A Quick Settings tile with no task went dead once you backed out of its setup screen, because Android ignores taps on a tile marked unavailable. It now stays tappable and says `Tap to choose a task`.
+- The Reboot action handed Android the word `false` as its reboot reason, so the phone recorded `reboot,false` as why it restarted. It now restarts with no reason given.
 - A restore keeps the database it replaced, including whatever the app wrote just before it closed, and Setup offers to roll back to it. That copy and the file from a restore that failed were missing from every list and count, so they sat at full size until app data was cleared.
 
 ### Changed

@@ -125,7 +125,7 @@ class ShizukuPowerBackendTest {
                 listOf("settings", "put", "secure", "doze_always_on", "0"),
             ),
             "screenshot.take" to listOf(listOf("screencap", "-p")),
-            "reboot" to listOf(listOf("svc", "power", "reboot", "false")),
+            "reboot" to listOf(listOf("svc", "power", "reboot")),
             "screen.off" to listOf(listOf("input", "keyevent", "223")),
             "wake" to listOf(listOf("input", "keyevent", "224")),
         )

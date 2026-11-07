@@ -318,8 +318,9 @@ internal object ShizukuCommandPolicy {
         "screenshot.take" to listOf(
             listOf("screencap", "-p"),
         ),
+        // Whatever follows "reboot" is a reason that reaches init as the boot target.
         "reboot" to listOf(
-            listOf("svc", "power", "reboot", "false"),
+            listOf("svc", "power", "reboot"),
         ),
         "screen.off" to listOf(
             listOf("input", "keyevent", "223"),
