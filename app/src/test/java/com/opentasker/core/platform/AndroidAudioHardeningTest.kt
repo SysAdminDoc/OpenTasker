@@ -78,7 +78,10 @@ class AndroidAudioHardeningTest {
 
     @Test
     fun exactAlarmPermissionOnlyExemptsAlarmUsage() {
-        val eligibility = AudioRuntimeEligibility(exactAlarmPermission = true)
+        val eligibility = AudioRuntimeEligibility(
+            foregroundService = AudioForegroundServiceEligibility.BACKGROUND_STARTED,
+            exactAlarmPermission = true,
+        )
 
         val alarm = AndroidAudioHardening.evaluate(
             eligibility = eligibility,
@@ -93,6 +96,21 @@ class AndroidAudioHardeningTest {
 
         assertTrue(alarm.allowed)
         assertFalse(general.allowed)
+    }
+
+    @Test
+    fun exactAlarmAccessDoesNotCoverAlarmAudioWithNoForegroundServiceRunning() {
+        val decision = AndroidAudioHardening.evaluate(
+            eligibility = AudioRuntimeEligibility(
+                foregroundService = AudioForegroundServiceEligibility.NONE,
+                exactAlarmPermission = true,
+            ),
+            usage = AudioUsageEligibility.ALARM,
+            sdkInt = 37,
+        )
+
+        assertFalse(decision.allowed)
+        assertTrue(decision.reason, decision.reason.contains("No eligible foreground service"))
     }
 
     @Test

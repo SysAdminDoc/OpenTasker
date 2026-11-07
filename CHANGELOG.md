@@ -52,6 +52,7 @@
 - Stopping an import or a preflight no longer reports it as failed. Stop used to show an error and write one to the log for something you asked for.
 - Times in the run log, the Inspector and Diagnostics follow your phone's date order and 12- or 24-hour clock instead of always reading like 2026-09-26 18:40:00.
 - A backup taken while tasks are running is a clean copy. It used to copy the database file while other writes could still land in it, so a busy moment could leave a backup that failed its integrity check or quietly mixed two moments.
+- Play Sound on the Alarm stream was muted on Android 17 when a trigger started it in the background, even with exact-alarm access, and the run log still said it played. Android only honors that access once its audio server has refreshed its record of it, and a media player never asks it to. Play Sound now requests audio focus first, which does.
 - A restore keeps the database it replaced, including whatever the app wrote just before it closed, and Setup offers to roll back to it. That copy and the file from a restore that failed were missing from every list and count, so they sat at full size until app data was cleared.
 
 ### Changed

@@ -2,6 +2,7 @@ package com.opentasker.core.actions
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
@@ -38,30 +39,54 @@ class PlaySoundAction : DeclaredAction(ActionCatalog.require("sound.play")) {
         )?.let { return it }
         val volume = args["volume"]?.toFloatOrNull()?.let { (it / 100f).coerceIn(0f, 1f) }
 
-        val player = try {
-            val uri = if (path.contains("://")) Uri.parse(path) else Uri.parse("file://$path")
-            // Local sources only. MediaPlayer will happily stream a remote URL, and that traffic
-            // never passes the HTTP action's policy checks - which is the sole justification for
-            // the manifest's cleartext allowance - so a public http:// sound would have punched
-            // straight through the private-network rule this app documents as enforced in code.
-            val scheme = uri.scheme?.lowercase()
-            if (scheme != null && scheme !in LOCAL_SOUND_SCHEMES) {
-                return ActionResult.Failure(
-                    "sound.play accepts a file path or content URI; $scheme:// sources are not supported",
-                )
-            }
-            val created = if (stream == AudioOutputStream.ALARM) {
-                val sessionId = ctx.app.getSystemService(AudioManager::class.java).generateAudioSessionId()
-                val attributes = alarmAudioAttributes(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                MediaPlayer.create(ctx.app, uri, null, attributes, sessionId)
-            } else {
-                MediaPlayer.create(ctx.app, uri)
-            }
-            created ?: return ActionResult.Failure("could not create player for: $path")
-        } catch (ex: Exception) {
-            return ActionResult.Failure("failed to open: ${ex.message}", ex)
+        val uri = if (path.contains("://")) Uri.parse(path) else Uri.parse("file://$path")
+        // Local sources only. MediaPlayer will happily stream a remote URL, and that traffic
+        // never passes the HTTP action's policy checks - which is the sole justification for
+        // the manifest's cleartext allowance - so a public http:// sound would have punched
+        // straight through the private-network rule this app documents as enforced in code.
+        val scheme = uri.scheme?.lowercase()
+        if (scheme != null && scheme !in LOCAL_SOUND_SCHEMES) {
+            return ActionResult.Failure(
+                "sound.play accepts a file path or content URI; $scheme:// sources are not supported",
+            )
         }
 
+        if (stream != AudioOutputStream.ALARM) {
+            val player = try {
+                MediaPlayer.create(ctx.app, uri) ?: return ActionResult.Failure("could not create player for: $path")
+            } catch (ex: Exception) {
+                return ActionResult.Failure("failed to open: ${ex.message}", ex)
+            }
+            return playToEnd(ctx, player, path, volume)
+        }
+
+        val audioManager = ctx.app.getSystemService(AudioManager::class.java)
+        val attributes = alarmAudioAttributes(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            .setAudioAttributes(attributes)
+            .build()
+        // Android 17 only exempts alarm audio once its audio server has seen the exact-alarm grant, and
+        // that record is refreshed by the app's own focus or volume call or its own AudioTrack. A
+        // MediaPlayer's track lives in the media server, so without this request the sound is muted in
+        // the background while the player still runs to completion and reports success. A refused
+        // request (a phone call holds focus) changes nothing about the record, so the sound still plays.
+        if (audioManager.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            ctx.logger("Audio focus was not granted for the alarm sound")
+        }
+        return try {
+            val player = try {
+                MediaPlayer.create(ctx.app, uri, null, attributes, audioManager.generateAudioSessionId())
+                    ?: return ActionResult.Failure("could not create player for: $path")
+            } catch (ex: Exception) {
+                return ActionResult.Failure("failed to open: ${ex.message}", ex)
+            }
+            playToEnd(ctx, player, path, volume)
+        } finally {
+            audioManager.abandonAudioFocusRequest(focus)
+        }
+    }
+
+    private suspend fun playToEnd(ctx: ActionContext, player: MediaPlayer, path: String, volume: Float?): ActionResult {
         if (volume != null) {
             player.setVolume(volume, volume)
         }

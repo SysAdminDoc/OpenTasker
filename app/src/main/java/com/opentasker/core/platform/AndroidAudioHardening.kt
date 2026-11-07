@@ -90,10 +90,16 @@ internal object AndroidAudioHardening {
                 reason = "The automation foreground service has while-in-use eligibility",
             )
         }
-        if (usage == AudioUsageEligibility.ALARM && eligibility.exactAlarmPermission) {
+        // Exact-alarm access only lowers the enforcement to the level that wants a foreground service
+        // of any kind. With no service running, Android still mutes alarm audio while the app is hidden.
+        if (
+            usage == AudioUsageEligibility.ALARM &&
+            eligibility.exactAlarmPermission &&
+            eligibility.foregroundService != AudioForegroundServiceEligibility.NONE
+        ) {
             return AudioHardeningDecision(
                 allowed = true,
-                reason = "Exact-alarm permission permits alarm-usage audio",
+                reason = "Exact-alarm permission permits alarm-usage audio from a foreground service",
             )
         }
 
