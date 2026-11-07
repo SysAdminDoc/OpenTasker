@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.core.content.ContextCompat
 import com.opentasker.app.R
 import com.opentasker.core.engine.AutomationService
+import com.opentasker.core.logging.AppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -46,10 +47,15 @@ class ShareReceiverActivity : Activity() {
                 ShareContextEvents.publishFromIntent(this@ShareReceiverActivity, intent)
             }) {
                 SharePublishResult.ACCEPTED -> {
-                    ContextCompat.startForegroundService(
-                        this@ShareReceiverActivity,
-                        Intent(this@ShareReceiverActivity, AutomationService::class.java),
-                    )
+                    // Nothing above this coroutine catches, so a refused start would end the process.
+                    runCatching {
+                        ContextCompat.startForegroundService(
+                            this@ShareReceiverActivity,
+                            Intent(this@ShareReceiverActivity, AutomationService::class.java),
+                        )
+                    }.onFailure { error ->
+                        AppLogger.error("ShareReceiver", "Could not start the engine for a share", error)
+                    }
                 }
                 SharePublishResult.URI_NOT_READABLE -> {
                     showShareError(R.string.share_uri_unreadable)
