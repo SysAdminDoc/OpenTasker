@@ -165,6 +165,21 @@ import kotlinx.coroutines.flow.update
 internal const val SETUP_FOCUS_BANNER_TAG = "setup_focus_banner"
 internal const val SETUP_PLATFORM_BLOCKED_TAG = "setup_platform_blocked"
 
+/**
+ * The template banner tells the user the rows below still need access, so it shows only while a
+ * row the template waits on is pending. The focus outlives the grants (it is kept for the whole
+ * session), and showing the banner unconditionally put "needs the access listed below" over a
+ * screen reading 9 of 9 ready. Until the rows load it stays, since it is why the user is here.
+ */
+internal fun setupFocusBannerVisible(
+    focusRequirements: Set<SetupRequirement>,
+    loadedItems: List<PermissionSetupItem>?,
+): Boolean {
+    if (focusRequirements.isEmpty()) return false
+    val items = loadedItems ?: return true
+    return items.any { item -> !item.granted && item.requirements.any(focusRequirements::contains) }
+}
+
 internal enum class SetupSection {
     ENGINE,
     NEEDED,
@@ -533,7 +548,7 @@ fun PermissionOnboardingScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (focusRequirements.isNotEmpty()) item {
+        if (setupFocusBannerVisible(focusRequirements, loadedItems)) item {
             Card(
                 modifier = Modifier.fillMaxWidth().testTag(SETUP_FOCUS_BANNER_TAG),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
