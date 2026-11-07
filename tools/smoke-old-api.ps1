@@ -220,11 +220,19 @@ function Add-CompanionFeature([string]$Serial) {
 }
 
 function Get-UiNodes([string]$Serial) {
-    Invoke-Adb $Serial shell uiautomator dump /sdcard/ot-smoke.xml | Out-Null
-    # exec-out, not shell: a dump is one long line, and a shell read cut it at 4,096 bytes on API 26.
-    $raw = (Invoke-Adb $Serial exec-out cat /sdcard/ot-smoke.xml).Text
-    if ($raw -notmatch '<hierarchy') { return @() }
-    ([xml]$raw.Substring($raw.IndexOf('<?xml'))).SelectNodes('//node')
+    # A dump can fail while a screen is still settling, and the file from the last screen would then
+    # read as this one, so it goes first and a failed dump gets two more tries.
+    foreach ($attempt in 1..3) {
+        Invoke-Adb $Serial shell rm -f /sdcard/ot-smoke.xml | Out-Null
+        Invoke-Adb $Serial shell uiautomator dump /sdcard/ot-smoke.xml | Out-Null
+        # exec-out, not shell: a dump is one long line, and a shell read cut it at 4,096 bytes on API 26.
+        $raw = (Invoke-Adb $Serial exec-out cat /sdcard/ot-smoke.xml).Text
+        if ($raw -match '<hierarchy') {
+            return ([xml]$raw.Substring($raw.IndexOf('<?xml'))).SelectNodes('//node')
+        }
+        Start-Sleep -Seconds 2
+    }
+    return @()
 }
 
 function Invoke-TapLabel([string]$Serial, [string]$Label) {
