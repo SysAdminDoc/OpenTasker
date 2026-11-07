@@ -6,6 +6,7 @@ import androidx.compose.ui.res.stringResource
 import com.opentasker.app.R
 import com.opentasker.core.actions.ActionMetadataRegistry
 import com.opentasker.core.capabilities.CapabilityLevel
+import com.opentasker.core.capabilities.PlatformSupport
 import com.opentasker.core.capabilities.SetupRequirement
 import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.model.AutomationMode
@@ -66,6 +67,15 @@ internal fun setupRequirementLabelRes(requirement: SetupRequirement): Int = when
     SetupRequirement.PHYSICAL_ACTIVITY -> R.string.setup_activity_recognition_title
     SetupRequirement.PHONE_STATE -> R.string.setup_phone_state_title
     SetupRequirement.CALL_LOG -> R.string.setup_call_log_title
+}
+
+@StringRes
+internal fun platformFamilyLabelRes(family: PlatformSupport.BlockedFamily): Int = when (family) {
+    PlatformSupport.BlockedFamily.CAMERA_MIC -> R.string.platform_family_camera_mic
+    PlatformSupport.BlockedFamily.BROADCAST_SENDER -> R.string.platform_family_broadcast_sender
+    PlatformSupport.BlockedFamily.SCREEN_RECORDING -> R.string.platform_family_screen_recording
+    PlatformSupport.BlockedFamily.ADVANCED_PROTECTION -> R.string.platform_family_advanced_protection
+    PlatformSupport.BlockedFamily.BLUETOOTH_SECURITY -> R.string.platform_family_bluetooth_security
 }
 
 @StringRes

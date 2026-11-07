@@ -479,6 +479,14 @@
     <string name="setup_screen_recording_title">屏幕录制检测</string>
     <string name="setup_screen_recording_body">在Android 15及更新版本上，当此应用在屏幕录制中变得可见或不可见时，OpenTasker可以做出反应。此触发不会捕获任何屏幕内容。</string>
     <string name="setup_screen_recording_required_for">屏幕录制事件上下文</string>
+    <string name="setup_platform_blocked_title">部分触发条件无法在此手机上触发</string>
+    <string name="setup_platform_blocked_body">此手机运行Android %1$s。下列配置文件等待的是更新版本Android才提供的功能，在手机升级之前不会在此运行。</string>
+    <string name="setup_platform_blocked_line">%1$s：%2$s需要Android %3$s</string>
+    <string name="platform_family_camera_mic">摄像头或麦克风使用</string>
+    <string name="platform_family_broadcast_sender">来自指定应用的广播</string>
+    <string name="platform_family_screen_recording">屏幕录制</string>
+    <string name="platform_family_advanced_protection">高级保护状态变化</string>
+    <string name="platform_family_bluetooth_security">蓝牙密钥或加密变化</string>
     <string name="setup_advanced_protection_title">高级保护已开启</string>
     <string name="setup_advanced_protection_body">Android高级保护可能限制与自动化相关的能力。OpenTasker不使用辅助功能，但某些特权扩展在此保护启用时可能受限。</string>
     <string name="setup_local_network_required_for">局域网网络操作</string>
@@ -723,6 +731,8 @@
     <string name="inspector_no_value">尚未观察到值</string>
     <string name="inspector_no_contexts">没有上下文</string>
     <string name="inspector_no_contexts_body">此配置文件无法匹配，因为它没有配置任何上下文条目。</string>
+    <string name="inspector_platform_blocked_title">无法在此手机上触发</string>
+    <string name="inspector_platform_blocked_body">监测%1$s需要Android %2$s，而此手机运行Android %3$s。</string>
     <string name="inspector_simulate_trigger">模拟触发</string>
     <string name="inspector_lint_title">自动化检查结果</string>
     <string name="inspector_lint_count">%1$d 条结果</string>

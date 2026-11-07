@@ -77,6 +77,7 @@ import com.opentasker.core.capabilities.AutomationLintReport
 import com.opentasker.core.capabilities.AutomationLintSeverity
 import com.opentasker.core.capabilities.AutomationLintStrings
 import com.opentasker.core.capabilities.AutomationInvariantStore
+import com.opentasker.core.capabilities.PlatformSupport
 import com.opentasker.core.contexts.BroadcastContextEvents
 import com.opentasker.core.engine.CausalLoopDiagnostics
 import com.opentasker.core.location.LocationDwellStateStore
@@ -618,6 +619,23 @@ private fun ProfileInspectorCard(
                         else -> stringResource(R.string.status_blocked)
                     },
                     color = color,
+                )
+            }
+            // Outside the details: "Blocked" with no reason is the whole symptom of a trigger this
+            // release can't deliver, so the reason has to be visible without digging.
+            val platformBlocked = remember(profile.profile) {
+                profile.profile?.let { PlatformSupport.blockedTriggers(listOf(it), Build.VERSION.SDK_INT) }.orEmpty()
+            }
+            platformBlocked.forEach { blocked ->
+                InspectorNotice(
+                    title = stringResource(R.string.inspector_platform_blocked_title),
+                    body = stringResource(
+                        R.string.inspector_platform_blocked_body,
+                        stringResource(platformFamilyLabelRes(blocked.trigger)),
+                        PlatformSupport.androidRelease(blocked.trigger.minimumApi),
+                        Build.VERSION.RELEASE,
+                    ),
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
             if (detailsExpanded) {

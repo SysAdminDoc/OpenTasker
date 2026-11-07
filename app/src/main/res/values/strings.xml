@@ -484,6 +484,14 @@
     <string name="setup_screen_recording_title">Screen recording detection</string>
     <string name="setup_screen_recording_body">On Android 15 and newer, OpenTasker can react when this app becomes visible or invisible in a screen recording. No screen contents are captured by this trigger.</string>
     <string name="setup_screen_recording_required_for">Screen recording event contexts</string>
+    <string name="setup_platform_blocked_title">Some triggers can\'t fire on this phone</string>
+    <string name="setup_platform_blocked_body">This phone runs Android %1$s. The profiles below wait on something Android added later, so they won\'t run here until the phone updates.</string>
+    <string name="setup_platform_blocked_line">%1$s: %2$s needs Android %3$s</string>
+    <string name="platform_family_camera_mic">camera or microphone use</string>
+    <string name="platform_family_broadcast_sender">a broadcast from one named app</string>
+    <string name="platform_family_screen_recording">screen recording</string>
+    <string name="platform_family_advanced_protection">an Advanced Protection change</string>
+    <string name="platform_family_bluetooth_security">a Bluetooth key or encryption change</string>
     <string name="setup_advanced_protection_title">Advanced Protection is on</string>
     <string name="setup_advanced_protection_body">Android Advanced Protection can restrict automation-related capabilities. OpenTasker does not use Accessibility, but some privileged extensions may be limited while this protection is enabled.</string>
     <string name="setup_local_network_required_for">LAN network actions</string>
@@ -739,6 +747,8 @@
     <string name="inspector_no_value">No value observed yet</string>
     <string name="inspector_no_contexts">No contexts</string>
     <string name="inspector_no_contexts_body">This profile cannot match because it has no context entries configured.</string>
+    <string name="inspector_platform_blocked_title">Can\'t fire on this phone</string>
+    <string name="inspector_platform_blocked_body">Watching for %1$s needs Android %2$s, and this phone runs Android %3$s.</string>
     <string name="inspector_simulate_trigger">Simulate trigger</string>
     <string name="inspector_lint_title">Automation lint findings</string>
     <string name="inspector_lint_count">%1$d finding(s)</string>

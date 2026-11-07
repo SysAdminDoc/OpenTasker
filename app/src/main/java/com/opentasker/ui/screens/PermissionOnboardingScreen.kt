@@ -127,6 +127,7 @@ import com.opentasker.core.scripting.TermuxScriptBackend
 import com.opentasker.core.support.ProjectLinks
 import com.opentasker.core.scripting.TermuxScriptState
 import androidx.compose.ui.platform.testTag
+import com.opentasker.core.capabilities.PlatformSupport
 import com.opentasker.core.capabilities.SetupRequirement
 import com.opentasker.core.capabilities.SetupRequirementResolver
 import com.opentasker.core.platform.LockDeviceAdminReceiver
@@ -162,6 +163,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 internal const val SETUP_FOCUS_BANNER_TAG = "setup_focus_banner"
+internal const val SETUP_PLATFORM_BLOCKED_TAG = "setup_platform_blocked"
 
 internal enum class SetupSection {
     ENGINE,
@@ -493,6 +495,11 @@ fun PermissionOnboardingScreen(
     val automationRequirements = remember(profiles, tasks) {
         SetupRequirementResolver.resolve(profiles, tasks)
     }
+    // A trigger waiting on an API this release doesn't have starts as a no-op, so its profile
+    // never fires and nothing ever errors. No grant can fix it, which is why it isn't a row.
+    val platformBlocked = remember(profiles) {
+        PlatformSupport.blockedTriggers(profiles, Build.VERSION.SDK_INT)
+    }
     // A template installed from onboarding surfaces the grants it needs. This *adds* those rows,
     // it never hides anything: a freshly installed template is disabled by default, so
     // automationRequirements is still empty and the NEEDED rows it depends on would otherwise not
@@ -550,6 +557,9 @@ fun PermissionOnboardingScreen(
                 grantedCount = grantedCount,
                 requiredCount = requiredItems.size,
             )
+        }
+        if (!settingsOnly && platformBlocked.isNotEmpty()) item {
+            PlatformBlockedCard(blocked = platformBlocked, androidRelease = Build.VERSION.RELEASE)
         }
 
         if (settingsOnly) {
@@ -1937,6 +1947,38 @@ private fun snapshotStatusLabel(context: Context, status: ConfigurationSnapshotS
 /** In the phone's own date order and clock, like every other visible time (A-363). */
 private fun formatSnapshotTimestamp(context: Context, epochMs: Long): String =
     displayDateTimeFormat(context, withSeconds = false).format(Date(epochMs))
+
+/** Enabled profiles whose triggers this Android release can't deliver, one line each. */
+@Composable
+internal fun PlatformBlockedCard(blocked: List<PlatformSupport.BlockedTrigger>, androidRelease: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth().testTag(SETUP_PLATFORM_BLOCKED_TAG),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.42f)),
+        shape = RoundedCornerShape(DesignSystem.Radii.md),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(R.string.setup_platform_blocked_title), style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.setup_platform_blocked_body, androidRelease),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            blocked.forEach { entry ->
+                Text(
+                    stringResource(
+                        R.string.setup_platform_blocked_line,
+                        entry.profileName,
+                        stringResource(platformFamilyLabelRes(entry.trigger)),
+                        PlatformSupport.androidRelease(entry.trigger.minimumApi),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        }
+    }
+}
 
 /**
  * The ready count at the top of Setup. Before the first permission read there are no rows, and an

@@ -356,17 +356,20 @@ internal fun buildPermissionItems(
             section = SetupSection.NEEDED,
             requirements = setOf(SetupRequirement.BLUETOOTH_SCAN),
         ),
-        PermissionSetupItem(
+        // Below Android 15 there is nothing to grant: the trigger can't fire at all. Listing it as
+        // Ready said the opposite, so the row is left out and Setup's platform card names the
+        // profiles that wait on it instead.
+        if (Build.VERSION.SDK_INT >= 35) PermissionSetupItem(
             title = context.getString(R.string.setup_screen_recording_title),
             body = context.getString(R.string.setup_screen_recording_body),
-            granted = Build.VERSION.SDK_INT < 35 || hasPermission(context, Manifest.permission.DETECT_SCREEN_RECORDING),
+            granted = hasPermission(context, Manifest.permission.DETECT_SCREEN_RECORDING),
             actionLabel = context.getString(R.string.status_ready),
             action = PermissionAction.None,
             requiredFor = context.getString(R.string.setup_screen_recording_required_for),
             optional = true,
             section = SetupSection.OPTIONAL,
             requirements = setOf(SetupRequirement.SCREEN_RECORDING),
-        ),
+        ) else null,
         if (Build.VERSION.SDK_INT >= ANDROID_17_API) PermissionSetupItem(
             title = context.getString(R.string.setup_local_network_title),
             body = context.getString(R.string.setup_local_network_body),
