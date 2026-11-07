@@ -165,19 +165,19 @@
     <string name="capability_dnd_access" formatted="false">需要勿扰模式访问权限。</string>
     <string name="capability_zen_rule_access" formatted="false">需要勿扰模式访问权限；Android 15及以上使用带设备效果的专有Zen规则。</string>
     <string name="capability_torch_ready" formatted="false">使用相机闪光灯。</string>
-    <string name="capability_aod_unsupported" formatted="false">更改常亮显示需要Shizuku权限及其特权用户服务传输，某些版本会完全忽略该设置。</string>
+    <string name="capability_aod_unsupported" formatted="false">更改常亮显示需要Shizuku权限及其特权用户服务传输，某些版本会完全忽略该设置。屏幕常亮会消耗更多电量。</string>
     <string name="capability_wifi_scan_setup" formatted="false">扫描需要位置访问权限，以及Android 13及以上版本的“附近Wi-Fi设备”权限。Android会限制扫描频率，因此结果可能是最近一次缓存扫描而非全新扫描。</string>
-    <string name="capability_airplane_unsupported" formatted="false">更改飞行模式需要Shizuku权限及其特权用户服务传输。</string>
-    <string name="capability_mobile_data_unsupported" formatted="false">更改移动数据需要Shizuku权限及其特权用户服务传输。</string>
-    <string name="capability_screenshot_unsupported" formatted="false">屏幕截图需要Shizuku权限及其特权用户服务传输。</string>
-    <string name="capability_reboot_unsupported" formatted="false">重启需要Shizuku权限及其特权用户服务传输。</string>
+    <string name="capability_airplane_unsupported" formatted="false">更改飞行模式需要Shizuku权限及其特权用户服务传输。开启后，通话、移动数据和（通常）Wi-Fi 会中断，直到有操作将其关闭。</string>
+    <string name="capability_mobile_data_unsupported" formatted="false">更改移动数据需要Shizuku权限及其特权用户服务传输。关闭后，依赖数据的功能都会停止，包括对这台手机的远程访问。</string>
+    <string name="capability_screenshot_unsupported" formatted="false">屏幕截图需要Shizuku权限及其特权用户服务传输。会把屏幕上的所有内容（包括密码和消息）保存到 OpenTasker 的存储空间。</string>
+    <string name="capability_reboot_unsupported" formatted="false">重启需要Shizuku权限及其特权用户服务传输。手机会立即重启，不作提醒，未保存的内容会丢失。在开机触发器上运行重启任务可能导致循环重启。</string>
     <string name="capability_lock_setup" formatted="false">需要锁屏设备管理员权限，请在设置中开启。</string>
     <string name="capability_tile_ready" formatted="false">更新已配置的OpenTasker快捷设置磁贴。</string>
     <string name="capability_temporary_state_ready" formatted="false">应用一个可逆的设置并安排一个持久恢复。</string>
     <string name="capability_ime_info_ready" formatted="false">报告当前和已启用的输入法。</string>
     <string name="capability_ime_set_unsupported" formatted="false">Android要求普通应用切换活动输入法前必须先由用户选择。</string>
-    <string name="capability_screen_off_unsupported" formatted="false">关闭屏幕需要Shizuku权限及其特权用户服务传输。</string>
-    <string name="capability_wake_unsupported" formatted="false">唤醒需要Shizuku权限及其特权用户服务传输。</string>
+    <string name="capability_screen_off_unsupported" formatted="false">关闭屏幕需要Shizuku权限及其特权用户服务传输。即使有人正在使用，屏幕也会熄灭，手机可能随之锁定。</string>
+    <string name="capability_wake_unsupported" formatted="false">唤醒需要Shizuku权限及其特权用户服务传输。屏幕会在无人触碰时亮起，显示锁屏内容并消耗电量。</string>
     <string name="capability_termux_setup" formatted="false">需要Termux 0.109或更高版本、RUN_COMMAND权限以及已批准的脚本哈希。</string>
     <string name="capability_tasker_import_unsupported" formatted="false">导入的Tasker操作无法映射到受支持的OpenTasker操作。</string>
     <string name="capability_macrodroid_import_unsupported" formatted="false">导入的MacroDroid操作无法映射到受支持的OpenTasker操作。</string>

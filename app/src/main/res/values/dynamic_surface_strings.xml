@@ -166,21 +166,21 @@
     <string name="capability_dnd_access" formatted="false">Requires Do Not Disturb access.</string>
     <string name="capability_zen_rule_access" formatted="false">Requires Do Not Disturb access; Android 15+ uses owned Zen rules with device effects.</string>
     <string name="capability_torch_ready" formatted="false">Uses the camera flashlight.</string>
-    <string name="capability_aod_unsupported" formatted="false">Always-on display changes require Shizuku permission and its privileged user-service transport, and some builds ignore the setting entirely.</string>
+    <string name="capability_aod_unsupported" formatted="false">Always-on display changes require Shizuku permission and its privileged user-service transport, and some builds ignore the setting entirely. A display that stays on uses more battery.</string>
     <string name="capability_wifi_scan_setup" formatted="false">Scanning needs location access, and Nearby Wi-Fi devices on Android 13 and later. Android rate-limits scans, so results may be the last cached scan rather than a fresh one.</string>
-    <string name="capability_airplane_unsupported" formatted="false">Airplane mode changes require Shizuku permission and its privileged user-service transport.</string>
-    <string name="capability_mobile_data_unsupported" formatted="false">Mobile data changes require Shizuku permission and its privileged user-service transport.</string>
+    <string name="capability_airplane_unsupported" formatted="false">Airplane mode changes require Shizuku permission and its privileged user-service transport. Turning it on cuts calls, mobile data and usually Wi-Fi until something turns it back off.</string>
+    <string name="capability_mobile_data_unsupported" formatted="false">Mobile data changes require Shizuku permission and its privileged user-service transport. Turning it off stops anything that needs data, including remote access to this phone.</string>
     <string name="capability_hotspot_unsupported" formatted="false">The Wi-Fi hotspot requires Android 11 or newer, Shizuku permission and its privileged user-service transport. Anyone with the saved password can join, and connected devices use your mobile data.</string>
     <string name="capability_hotspot_android_version" formatted="false">The Wi-Fi hotspot action needs Android 11 or newer.</string>
-    <string name="capability_screenshot_unsupported" formatted="false">Screenshots require Shizuku permission and its privileged user-service transport.</string>
-    <string name="capability_reboot_unsupported" formatted="false">Reboot requires Shizuku permission and its privileged user-service transport.</string>
+    <string name="capability_screenshot_unsupported" formatted="false">Screenshots require Shizuku permission and its privileged user-service transport. Each one saves whatever is on screen to OpenTasker\'s storage, passwords and messages included.</string>
+    <string name="capability_reboot_unsupported" formatted="false">Reboot requires Shizuku permission and its privileged user-service transport. The phone restarts right away with no warning and unsaved work is lost. A reboot task on a boot trigger can loop.</string>
     <string name="capability_lock_setup" formatted="false">Requires the Lock screen device admin, which you turn on in Setup.</string>
     <string name="capability_tile_ready" formatted="false">Updates a configured OpenTasker Quick Settings tile.</string>
     <string name="capability_temporary_state_ready" formatted="false">Applies a reversible setting and schedules a durable restore.</string>
     <string name="capability_ime_info_ready" formatted="false">Reports the current and enabled input methods.</string>
     <string name="capability_ime_set_unsupported" formatted="false">Android requires user selection before a normal app can switch the active input method.</string>
-    <string name="capability_screen_off_unsupported" formatted="false">Screen-off requires Shizuku permission and its privileged user-service transport.</string>
-    <string name="capability_wake_unsupported" formatted="false">Wake requires Shizuku permission and its privileged user-service transport.</string>
+    <string name="capability_screen_off_unsupported" formatted="false">Screen-off requires Shizuku permission and its privileged user-service transport. The screen goes dark even if someone is using the phone, and it may lock.</string>
+    <string name="capability_wake_unsupported" formatted="false">Wake requires Shizuku permission and its privileged user-service transport. The screen turns on untouched, showing whatever is on the lock screen and using battery.</string>
     <string name="capability_vpn_tunnel_setup" formatted="false">Requires WireGuard or Tailscale. WireGuard also needs its control permission and Allow remote control apps turned on.</string>
     <string name="capability_shizuku_script_setup" formatted="false">Requires Shizuku access and an approved script hash.</string>
     <string name="capability_termux_setup" formatted="false">Requires Termux 0.109 or newer, RUN_COMMAND permission, and an approved script hash.</string>

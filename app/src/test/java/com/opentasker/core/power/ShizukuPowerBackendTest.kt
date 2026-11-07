@@ -217,6 +217,18 @@ class ShizukuPowerBackendTest {
     }
 
     @Test
+    fun everyElevatedActionSaysWhatItCanDoToThePerson() {
+        val risks = ShizukuPowerBackend.elevatedActionIds.map { id ->
+            val risk = ShizukuPowerBackend.riskByAction[id]
+            assertNotNull("$id has no risk sentence", risk)
+            assertTrue(ShizukuPowerBackend.hintForAction(id)!!.message.endsWith(risk!!))
+            risk
+        }
+
+        assertEquals("Each action has its own risk", risks.size, risks.toSet().size)
+    }
+
+    @Test
     fun theServiceAnswersTheDestroyCodeShizukuSends() {
         // Taken from the Shizuku 13.1.5 library. Answering 16777114 instead left every service
         // process running after its app died, until Shizuku itself restarted.

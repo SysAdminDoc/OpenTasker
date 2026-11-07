@@ -139,11 +139,26 @@ object ShizukuPowerBackend {
         )
     }
 
+    /** What each elevated action can do to the person holding the phone, shown before it's used. */
+    internal val riskByAction: Map<String, String> = mapOf(
+        "airplane.toggle" to "Turning it on cuts calls, mobile data and usually Wi-Fi until something turns it back off.",
+        "mobile.toggle" to "Turning it off stops anything that needs data, including remote access to this phone.",
+        "aod.set" to "A display that stays on uses more battery.",
+        "screenshot.take" to "It saves whatever is on screen to OpenTasker's storage, passwords and messages included.",
+        "reboot" to "The phone restarts right away with no warning and unsaved work is lost. A reboot task on a boot trigger can loop.",
+        "screen.off" to "The screen goes dark even if someone is using the phone, and it may lock.",
+        "wake" to "The screen turns on untouched, showing whatever is on the lock screen and using battery.",
+        "hotspot.toggle" to "Anyone with the saved password can join, and connected devices use your mobile data.",
+    )
+
     fun hintForAction(actionId: String): ShizukuActionHint? =
         if (actionId in elevatedActionIds) {
             ShizukuActionHint(
                 actionId = actionId,
-                message = "This action requires Shizuku permission and its privileged user-service transport.",
+                message = listOfNotNull(
+                    "This action requires Shizuku permission and its privileged user-service transport.",
+                    riskByAction[actionId],
+                ).joinToString(" "),
             )
         } else {
             null
