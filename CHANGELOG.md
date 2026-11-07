@@ -16,6 +16,7 @@
 - Play Sound and Say have an Audio stream choice, Music or Alarm. On Android 17 a task started in the background can't be heard on Music, and Android lets it through on Alarm once exact-alarm access is granted in Setup. Alarm follows the alarm volume, so it's opt-in. Tasker's alarm stream comes across on import and export.
 - Each Shizuku action's Setup note now says what it can do to your phone, like dropping every connection or restarting without asking.
 - A new Run Shizuku Script action runs your own shell script as the Android shell user, so it can do what `rish` or adb can (#15). Approve the script's path and SHA-256 under More > Settings first. OpenTasker reads the file once, checks the hash and runs those same bytes, so swapping the file after the check gets you nothing. Output goes into the same capped variables as a Termux script, and the Shizuku kill switch stops this too.
+- The README now says OpenTasker doesn't use an accessibility service, so Android's Advanced Protection limit on those services doesn't touch it. It also got a cleanup pass for wording.
 
 ### Security
 
