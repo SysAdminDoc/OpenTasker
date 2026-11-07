@@ -14,7 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -33,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,7 +46,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
@@ -53,6 +60,7 @@ import com.opentasker.core.apps.InstalledAppSearch
 import com.opentasker.core.apps.PackageNamePolicy
 import com.opentasker.ui.theme.DesignSystem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -152,6 +160,11 @@ internal fun InstalledAppPickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.app_picker_title)) },
         text = {
+            // The dialog has its own window and focus owner. Read outside this content lambda,
+            // this returns the host screen's focus manager, which can't clear the search field.
+            val focusManager = LocalFocusManager.current
+            val scope = rememberCoroutineScope()
+            val resultsArea = remember { BringIntoViewRequester() }
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md),
@@ -166,6 +179,9 @@ internal fun InstalledAppPickerDialog(
                         Text(stringResource(R.string.app_picker_use_observed, app.label, app.packageName))
                     }
                 }
+                // In a short window (split screen, landscape, large font) the keyboard can cover
+                // every result, and the field is then scrolled into view with the matches below
+                // it. The keyboard's search key closes the keyboard and scrolls to the matches.
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
@@ -177,21 +193,30 @@ internal fun InstalledAppPickerDialog(
                         )
                     },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(
+                        onSearch = {
+                            focusManager.clearFocus()
+                            scope.launch { resultsArea.bringIntoView() }
+                        },
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                when {
-                    loadState.loading -> CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
-                    loadState.error != null -> Text(
-                        stringResource(R.string.app_picker_load_error, loadState.error.orEmpty()),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                    results.isEmpty() -> Text(stringResource(R.string.app_picker_empty))
-                    else -> LazyColumn(
-                        modifier = Modifier.heightIn(max = 360.dp),
-                        verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm),
-                    ) {
-                        items(results, key = InstalledApp::packageName) { app ->
-                            InstalledAppRow(app = app, onClick = { onSelect(app) })
+                Column(Modifier.fillMaxWidth().bringIntoViewRequester(resultsArea)) {
+                    when {
+                        loadState.loading -> CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
+                        loadState.error != null -> Text(
+                            stringResource(R.string.app_picker_load_error, loadState.error.orEmpty()),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        results.isEmpty() -> Text(stringResource(R.string.app_picker_empty))
+                        else -> LazyColumn(
+                            modifier = Modifier.heightIn(max = 360.dp),
+                            verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm),
+                        ) {
+                            items(results, key = InstalledApp::packageName) { app ->
+                                InstalledAppRow(app = app, onClick = { onSelect(app) })
+                            }
                         }
                     }
                 }

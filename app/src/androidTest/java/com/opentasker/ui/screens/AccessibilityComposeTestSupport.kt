@@ -7,6 +7,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.isRoot
@@ -46,8 +47,16 @@ internal fun Activity.useFontScale(scale: Float): () -> Unit {
 }
 
 internal fun AndroidComposeTestRule<*, *>.performAccessibilityChecks() {
-    waitUntil(timeoutMillis = 10_000) {
-        runCatching { onAllNodes(isRoot()).fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false)
+    var lastFailure: Throwable? = null
+    try {
+        waitUntil(timeoutMillis = 10_000) {
+            runCatching { onAllNodes(isRoot()).fetchSemanticsNodes().isNotEmpty() }
+                .onFailure { lastFailure = it }
+                .getOrDefault(false)
+        }
+    } catch (timeout: ComposeTimeoutException) {
+        // The framework only sees a composition while its activity is resumed, so name the state.
+        throw AssertionError("No window to check, activity is ${activity.lifecycle.currentState}: $lastFailure", timeout)
     }
     onRoot().tryPerformAccessibilityChecks()
     waitForIdle()
@@ -59,11 +68,13 @@ internal fun AndroidComposeTestRule<*, *>.performAccessibilityChecks() {
  * Text cut off by a box too small for it, the way a fixed height breaks at a large font size. The
  * framework checks don't look for this. Text asking for an ellipsis has chosen to shorten itself.
  * The text is measured again inside its node's real bounds, because the layout the semantics action
- * returns is redone at the parent's full width and reports a height far below the drawn one.
+ * returns is redone at the parent's full width and reports a height far below the drawn one. Text
+ * that scrolls itself is skipped: its node is only the viewport, and the rest is a scroll away.
  */
 private fun AndroidComposeTestRule<*, *>.assertNoClippedText() {
     val clipped = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult), useUnmergedTree = true)
         .fetchSemanticsNodes(atLeastOneRootRequired = false)
+        .filterNot { node -> SemanticsActions.ScrollBy in node.config }
         .mapNotNull { node ->
             val layouts = mutableListOf<TextLayoutResult>()
             node.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(layouts)
@@ -89,8 +100,10 @@ private fun TextLayoutResult.isClippedIn(node: SemanticsNode): Boolean {
 
 /** Two controls that aren't nested and share pixels: a tap on the shared part reaches only one. */
 private fun AndroidComposeTestRule<*, *>.assertNoOverlappingControls() {
+    // A list item scrolled away can stay composed but unplaced, still reporting its old position.
     val controls = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick))
         .fetchSemanticsNodes(atLeastOneRootRequired = false)
+        .filter { node -> node.layoutInfo.isPlaced }
     val overlaps = mutableListOf<String>()
     controls.forEachIndexed { index, first ->
         controls.drop(index + 1).forEach { second ->

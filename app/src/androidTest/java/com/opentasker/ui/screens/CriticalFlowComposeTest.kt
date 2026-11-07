@@ -1,19 +1,26 @@
 package com.opentasker.ui.screens
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -23,8 +30,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.unit.dp
@@ -37,11 +46,18 @@ import com.opentasker.core.actions.ActionNumberRule
 import com.opentasker.core.actions.FieldType
 import com.opentasker.core.apps.InstalledApp
 import com.opentasker.core.capabilities.SetupRequirement
+import com.opentasker.core.engine.ActionExecutionTrace
+import com.opentasker.core.engine.ActionTraceStatus
+import com.opentasker.core.engine.runLogMessage
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.CollisionMode
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.Profile
+import com.opentasker.core.model.RunLogEntry
+import com.opentasker.core.model.Scene
+import com.opentasker.core.model.SceneElement
+import com.opentasker.core.model.SceneElementType
 import com.opentasker.core.model.Task
 import com.opentasker.core.storage.RunLogRetentionPolicy
 import com.opentasker.core.templates.ProfileTemplateCatalog
@@ -128,8 +144,8 @@ class CriticalFlowComposeTest(private val fontScale: Float) {
             }
         }
 
-        composeTestRule.onAllNodes(hasScrollAction()).onFirst()
-            .performScrollToNode(hasText("Run onboarding again"))
+        scrollToText("Run onboarding again")
+        scrollToText("Show templates")
         composeTestRule.onNodeWithText("Show templates").performClick()
         assertTrue("Settings must be able to reopen the template picker", reopenedTemplatePicker)
     }
@@ -394,6 +410,7 @@ class CriticalFlowComposeTest(private val fontScale: Float) {
             }
         }
 
+        scrollToText("Use a 24-hour time such as 07:30.")
         composeTestRule.onNodeWithText("Use a 24-hour time such as 07:30.").assertIsDisplayed()
     }
 
@@ -772,8 +789,17 @@ class CriticalFlowComposeTest(private val fontScale: Float) {
         }
         composeTestRule.performAccessibilityChecks()
 
-        composeTestRule.onNodeWithText("Search by app or package").performTextInput("spotify.music")
-        composeTestRule.onNodeWithText("Spotify").assertIsDisplayed().performClick()
+        val search = composeTestRule.onNodeWithText("Search by app or package")
+        search.performTextInput("spotify.music")
+        // A short window at a large font leaves no room beside the keyboard, so the search key
+        // has to put it away and bring the matches up. Nothing here scrolls for the user: the
+        // match has to show on its own. The keyboard closes in its own process, hence the wait.
+        search.performImeAction()
+        search.assertIsNotFocused()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onNodeWithText("Spotify").isDisplayed()
+        }
+        composeTestRule.onNodeWithText("Spotify").performClick()
         assertEquals(InstalledApp("com.spotify.music", "Spotify"), selected)
     }
 
@@ -792,6 +818,7 @@ class CriticalFlowComposeTest(private val fontScale: Float) {
         }
         composeTestRule.performAccessibilityChecks()
 
+        scrollToText("Use latest observed: Spotify (com.spotify.music)")
         composeTestRule.onNodeWithText("Use latest observed: Spotify (com.spotify.music)").performClick()
         assertEquals(InstalledApp("com.spotify.music", "Spotify"), selected)
     }
@@ -883,6 +910,197 @@ class CriticalFlowComposeTest(private val fontScale: Float) {
         }
         assertEquals(emptyList<String>(), stuck.map { it.name })
     }
+
+    @Test
+    fun runLogTracesStayReadableWhenExpanded() {
+        val traces = List(6) { index ->
+            ActionExecutionTrace(
+                index = index,
+                actionType = "notify.show",
+                label = "Show the evening summary notification, step $index",
+                durationMs = 120L * index,
+                status = if (index == 2) ActionTraceStatus.FAILURE else ActionTraceStatus.SUCCESS,
+                message = if (index == 2) "Notification permission is off" else "Completed",
+                expandedArgSummary = "title=Evening, text=Lights on at sunset",
+            )
+        }
+        val entry = RunLogEntry(
+            id = 1,
+            taskId = 7,
+            taskName = "Evening routine",
+            durationMs = 900,
+            success = false,
+            message = runLogMessage(source = "Manual", traces = traces),
+        )
+        composeTestRule.setContent {
+            TestTheme {
+                RunLogScreenContent(
+                    logs = listOf(entry),
+                    tasks = listOf(Task(id = 7, name = "Evening routine")),
+                    retentionPolicy = RunLogRetentionPolicy(),
+                    onRetentionPolicyChange = {},
+                    onShareDiagnostic = {},
+                    contentPadding = PaddingValues(0.dp),
+                )
+            }
+        }
+        composeTestRule.performAccessibilityChecks()
+
+        val list = composeTestRule.onNodeWithTag(RUN_LOG_LIST_TAG)
+        list.performScrollToNode(hasText("Show all 6 actions"))
+        composeTestRule.performAccessibilityChecks()
+        composeTestRule.onNodeWithText("Show all 6 actions").performClick()
+        list.performScrollToNode(hasText("Show fewer (6 total)"))
+        composeTestRule.performAccessibilityChecks()
+        composeTestRule.onNodeWithText("Show fewer (6 total)").assertIsDisplayed()
+        composeTestRule.onNodeWithText("6. Show the evening summary notification, step 5").assertExists()
+    }
+
+    @Test
+    fun flowGraphStaysUsableWithContextsAndSteps() {
+        val task = Task(
+            id = 7,
+            name = "Evening routine",
+            actions = listOf(
+                ActionSpec(type = "notify.show", label = "Show the evening summary"),
+                ActionSpec(type = "task.run", label = "Run the lights task", args = mapOf("task_id" to "8")),
+                ActionSpec(type = "flow.wait", label = "Wait a minute", condition = "{{ event.x }} == 1"),
+            ),
+        )
+        val profile = Profile(
+            id = 3,
+            name = "Evening lights",
+            contexts = listOf(ContextSpec(ContextType.TIME, mapOf("start" to "18:00", "end" to "22:00"))),
+            enterTaskId = task.id,
+            exitTaskId = 99,
+        )
+        composeTestRule.setContent {
+            TestTheme {
+                AutomationFlowScreen(
+                    profiles = listOf(profile),
+                    tasks = listOf(task, Task(id = 8, name = "Lights")),
+                    contentPadding = PaddingValues(0.dp),
+                )
+            }
+        }
+        composeTestRule.performAccessibilityChecks()
+
+        scrollToText("Add Context")
+        composeTestRule.performAccessibilityChecks()
+        scrollToText("Add Step")
+        composeTestRule.performAccessibilityChecks()
+        composeTestRule.onNodeWithText("Add Step").assertIsDisplayed()
+    }
+
+    /** The create button floats over the list, so only the list's end has to clear it. */
+    @Test
+    fun sceneListEndClearsTheCreateButton() {
+        composeTestRule.setContent {
+            TestTheme {
+                SceneLibraryScreen(
+                    scenes = listOf(sceneWithEveryElementType),
+                    tasks = listOf(Task(id = 7, name = "Lights")),
+                    onCreateScene = { _, _, _, _ -> },
+                    onUpdateScene = { _, _, _ -> },
+                    onRemoveElement = { _, _ -> },
+                    onDeleteScene = {},
+                    contentPadding = PaddingValues(0.dp),
+                )
+            }
+        }
+        composeTestRule.performAccessibilityChecks()
+
+        scrollToText("Dashboard")
+        composeTestRule.onNodeWithText("Dashboard").performClick()
+        val list = composeTestRule.onAllNodes(hasScrollAction()).onFirst()
+        list.performSemanticsAction(SemanticsActions.ScrollBy) { scroll -> scroll(0f, 100_000f) }
+        composeTestRule.waitForIdle()
+        composeTestRule.performAccessibilityChecks()
+
+        // In a short window at a large font the scene's notes after the last element are taller
+        // than the screen, so measure the list's real last line rather than a fixed control.
+        // Items that scrolled away stay composed but unplaced, with stale bounds, so skip them.
+        val contentBottom = generateSequence(list.fetchSemanticsNode().children) { level ->
+            level.flatMap { it.children }.ifEmpty { null }
+        }.flatten().filter { it.layoutInfo.isPlaced }.maxOf { it.boundsInRoot.bottom }
+        // The button's label is only in the unmerged tree, so find the clickable node around it.
+        val createTop = composeTestRule
+            .onNode(hasClickAction() and hasAnyDescendant(hasText("Create Scene")), useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot.top
+        assertTrue(
+            "The list's last line ($contentBottom px) must end above the create button ($createTop px)",
+            contentBottom <= createTop,
+        )
+        composeTestRule.onAllNodesWithContentDescription("Move element right 1 dp").onLast()
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun sceneCardStaysUsableWithEveryElementType() {
+        composeTestRule.setContent {
+            TestTheme {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    SceneCard(
+                        scene = sceneWithEveryElementType,
+                        tasks = listOf(Task(id = 7, name = "Lights")),
+                        onAddElement = {},
+                        onEditElement = { _, _ -> },
+                        onDeleteElement = { _, _ -> },
+                        onUpdateScene = { _, _ -> },
+                        canUndo = true,
+                        canRedo = false,
+                        onUndo = {},
+                        onRedo = {},
+                        onDelete = {},
+                        onDuplicate = {},
+                    )
+                }
+            }
+        }
+        composeTestRule.performAccessibilityChecks()
+
+        composeTestRule.onNodeWithText("Dashboard").performClick()
+        composeTestRule.performAccessibilityChecks()
+        scrollToText("Add Element")
+        composeTestRule.performAccessibilityChecks()
+        composeTestRule.onAllNodesWithContentDescription("Move element right 1 dp").onLast().performScrollTo()
+        composeTestRule.performAccessibilityChecks()
+    }
+
+    @Test
+    fun sceneElementEditorScrollsToWhatDoesNotFit() {
+        composeTestRule.setContent {
+            TestTheme {
+                SceneElementEditorDialog(
+                    state = SceneElementEditorState(scene = sceneWithEveryElementType),
+                    tasks = listOf(Task(id = 7, name = "Lights")),
+                    onDismiss = {},
+                    onSave = {},
+                )
+            }
+        }
+        composeTestRule.performAccessibilityChecks()
+
+        val editorBody = hasScrollAction() and hasAnyDescendant(hasSetTextAction())
+        assertTrue(
+            "The element editor must scroll to what doesn't fit",
+            composeTestRule.onAllNodes(editorBody).fetchSemanticsNodes().isNotEmpty(),
+        )
+    }
+
+    private val sceneWithEveryElementType = Scene(
+        id = 1,
+        name = "Dashboard",
+        widthDp = 320,
+        heightDp = 240,
+        elements = listOf(
+            SceneElement(id = 1, type = SceneElementType.BUTTON, xDp = 16, yDp = 16, widthDp = 120, heightDp = 48, tapTaskId = 7),
+            SceneElement(id = 2, type = SceneElementType.TEXT, xDp = 16, yDp = 72, widthDp = 200, heightDp = 32),
+            SceneElement(id = 3, type = SceneElementType.SLIDER, xDp = 16, yDp = 112, widthDp = 200, heightDp = 48),
+            SceneElement(id = 4, type = SceneElementType.IMAGE, xDp = 16, yDp = 168, widthDp = 64, heightDp = 64),
+        ),
+    )
 
     private class DialogCase(
         val name: String,
