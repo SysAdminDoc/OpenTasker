@@ -93,7 +93,12 @@ class AudioActionEligibilityTest {
 
     @Test
     fun exactAlarmPermissionOnlyAttemptsAlarmStreamOperation() = runBlocking {
-        val eligibility = AudioRuntimeEligibility(exactAlarmPermission = true)
+        // A boot-started service is a foreground service without while-in-use eligibility,
+        // which is the case exact-alarm access exists for.
+        val eligibility = AudioRuntimeEligibility(
+            exactAlarmPermission = true,
+            foregroundService = AudioForegroundServiceEligibility.BACKGROUND_STARTED,
+        )
 
         val alarm = VolumeAction().run(
             ctx(eligibility),
@@ -106,6 +111,18 @@ class AudioActionEligibilityTest {
 
         assertAttempted(alarm)
         assertBlocked(music, "volume control")
+    }
+
+    @Test
+    fun exactAlarmPermissionWithoutAForegroundServiceStillRefusesAlarmStream() = runBlocking {
+        // Measured on API 37: with no foreground service running, Android mutes alarm audio
+        // from a hidden app even with exact-alarm access.
+        val result = VolumeAction().run(
+            ctx(AudioRuntimeEligibility(exactAlarmPermission = true)),
+            mapOf("stream" to "alarm", "level" to "5"),
+        )
+
+        assertBlocked(result, "volume control")
     }
 
     @Test
