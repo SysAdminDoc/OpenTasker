@@ -155,6 +155,16 @@ class TaskerExportLayoutTest {
     }
 
     @Test
+    fun theAlarmStreamSurvivesARoundTrip() {
+        assertHas(xml("sound.play", "path" to "a.mp3", "stream" to "alarm"), """<Int sr="arg3" val="4"/>""")
+        assertHas(xml("tts.speak", "text" to "hi", "stream" to "alarm"), """<Int sr="arg2" val="4"/>""")
+        assertEquals("alarm", roundTrip("sound.play", "path" to "a.mp3", "stream" to "alarm").args["stream"])
+        assertEquals("alarm", roundTrip("tts.speak", "text" to "hi", "stream" to "alarm").args["stream"])
+        assertEquals(null, roundTrip("sound.play", "path" to "a.mp3").args["stream"])
+        assertEquals(null, roundTrip("tts.speak", "text" to "hi").args["stream"])
+    }
+
+    @Test
     fun lockAndScreenshotExport() {
         assertHas(xml("lock"), "<code>16</code>")
         assertEquals("lock", roundTrip("lock").type)

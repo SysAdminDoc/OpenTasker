@@ -515,6 +515,15 @@ class TaskerRealExportLayoutTest {
     }
 
     @Test
+    fun taskerAlarmStreamComesAcrossAndOtherStreamsStayAsTheyWere() {
+        assertEquals("alarm", action("""<code>445</code><Str sr="arg0" ve="3">a.mp3</Str><Int sr="arg3" val="4"/>""").args["stream"])
+        assertEquals(null, action("""<code>445</code><Str sr="arg0" ve="3">a.mp3</Str><Int sr="arg3" val="3"/>""").args["stream"])
+        assertEquals("alarm", action("""<code>559</code><Str sr="arg0" ve="3">hi</Str><Str sr="arg1" ve="3"/><Int sr="arg2" val="4"/>""").args["stream"])
+        assertEquals(null, action("""<code>559</code><Str sr="arg0" ve="3">hi</Str><Str sr="arg1" ve="3"/><Int sr="arg2" val="3"/>""").args["stream"])
+        assertEquals("alarm", action("""<code>192</code><Int sr="arg0" val="1"/><Str sr="arg1" ve="3">/a.ogg</Str><Int sr="arg2" val="4"/>""").args["stream"])
+    }
+
+    @Test
     fun tasksOwnMusicPlayerJumpsSayTheySteerWhateverIsPlaying() {
         assertEquals("track.next", action("<code>451</code>").type)
         assertWarns("<code>451</code>", "Music Skip")

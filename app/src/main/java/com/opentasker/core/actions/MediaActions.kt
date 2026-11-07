@@ -1,6 +1,7 @@
 package com.opentasker.core.actions
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
@@ -9,6 +10,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
 import com.opentasker.core.platform.AndroidAudioHardening
+import com.opentasker.core.platform.AudioOutputStream
 import com.opentasker.core.platform.AudioUsageEligibility
 
 /**
@@ -17,6 +19,7 @@ import com.opentasker.core.platform.AudioUsageEligibility
  * Args:
  *   - "path": file path or URI (e.g., content://media/external/audio/media/123)
  *   - "volume": 0-100 (optional)
+ *   - "stream": music (default) or alarm (optional)
  */
 /** Schemes MediaPlayer may open directly: everything else must go through the HTTP action. */
 private val LOCAL_SOUND_SCHEMES = setOf("file", "content", "android.resource")
@@ -25,7 +28,14 @@ class PlaySoundAction : DeclaredAction(ActionCatalog.require("sound.play")) {
 
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val path = args["path"] ?: return ActionResult.Failure("missing path")
-        AndroidAudioHardening.failureIfIneligible(ctx, "sound playback")?.let { return it }
+        val stream = AudioOutputStream.parse(args["stream"])
+            ?: return ActionResult.Failure("invalid stream: ${args["stream"]}")
+        AndroidAudioHardening.failureIfIneligible(
+            ctx,
+            "sound playback",
+            stream.usage,
+            offersAlarmStream = stream == AudioOutputStream.MUSIC,
+        )?.let { return it }
         val volume = args["volume"]?.toFloatOrNull()?.let { (it / 100f).coerceIn(0f, 1f) }
 
         val player = try {
@@ -40,8 +50,14 @@ class PlaySoundAction : DeclaredAction(ActionCatalog.require("sound.play")) {
                     "sound.play accepts a file path or content URI; $scheme:// sources are not supported",
                 )
             }
-            MediaPlayer.create(ctx.app, uri)
-                ?: return ActionResult.Failure("could not create player for: $path")
+            val created = if (stream == AudioOutputStream.ALARM) {
+                val sessionId = ctx.app.getSystemService(AudioManager::class.java).generateAudioSessionId()
+                val attributes = alarmAudioAttributes(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                MediaPlayer.create(ctx.app, uri, null, attributes, sessionId)
+            } else {
+                MediaPlayer.create(ctx.app, uri)
+            }
+            created ?: return ActionResult.Failure("could not create player for: $path")
         } catch (ex: Exception) {
             return ActionResult.Failure("failed to open: ${ex.message}", ex)
         }
@@ -152,6 +168,12 @@ private fun dispatchMediaKey(ctx: ActionContext, keyCode: Int): ActionResult {
         ActionResult.Failure("media key dispatch failed: ${ex.message}", ex)
     }
 }
+
+internal fun alarmAudioAttributes(contentType: Int): AudioAttributes =
+    AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_ALARM)
+        .setContentType(contentType)
+        .build()
 
 private fun streamType(name: String): Int? = when (name.lowercase()) {
     "music", "media" -> AudioManager.STREAM_MUSIC

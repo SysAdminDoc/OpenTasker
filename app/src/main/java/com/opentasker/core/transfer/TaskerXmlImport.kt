@@ -43,6 +43,12 @@ data class TaskerUnsupportedAction(
     val actionIndex: Int,
 )
 
+/** Tasker stores an audio stream as Android's own number, and 4 is AudioManager.STREAM_ALARM. */
+internal const val TASKER_ALARM_STREAM = 4
+
+private fun taskerAlarmStreamArg(stream: Int?): Map<String, String> =
+    if (stream == TASKER_ALARM_STREAM) mapOf("stream" to "alarm") else emptyMap()
+
 object TaskerXmlImporter {
     fun parse(
         rawXml: String,
@@ -336,7 +342,7 @@ object TaskerXmlImporter {
                 action = ActionSpec(
                     type = "tts.speak",
                     label = "Tasker speech",
-                    args = mapOf("text" to strings.getOrElse(0) { "" }),
+                    args = mapOf("text" to strings.getOrElse(0) { "" }) + taskerAlarmStreamArg(intsByIndex[2]),
                 ),
             )
             "61", "vibrate" -> {
@@ -426,14 +432,18 @@ object TaskerXmlImporter {
                     action = ActionSpec(
                         type = "sound.play",
                         label = "Tasker sound",
-                        args = mapOf("path" to path),
+                        args = mapOf("path" to path) + taskerAlarmStreamArg(intsByIndex[2]),
                     ),
                     lossyWarning = "Tasker Play Ringtone \"$path\" names a system sound, not a file, so it needs a file here"
                         .takeIf { '/' !in path && !path.startsWith("%") },
                 )
             }
             "445" -> ActionWithLoss(
-                ActionSpec(type = "sound.play", label = "Tasker music play", args = mapOf("path" to byIndex[0].orEmpty())),
+                ActionSpec(
+                    type = "sound.play",
+                    label = "Tasker music play",
+                    args = mapOf("path" to byIndex[0].orEmpty()) + taskerAlarmStreamArg(intsByIndex[3]),
+                ),
                 lossyWarning = listOfNotNull(
                     "Start".takeIf { (intsByIndex[1] ?: 0) != 0 },
                     "Loop".takeIf { (intsByIndex[2] ?: 0) != 0 },

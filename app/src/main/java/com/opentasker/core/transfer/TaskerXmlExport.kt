@@ -182,7 +182,13 @@ object TaskerXmlExporter {
                 appendStr(sb, 0, args["name"] ?: "%VAR")
                 appendStr(sb, 1, args["value"] ?: "")
             }
-            "tts.speak" -> appendStr(sb, 0, args["text"] ?: "")
+            "tts.speak" -> {
+                appendStr(sb, 0, args["text"] ?: "")
+                if (args["stream"] == "alarm") {
+                    appendStr(sb, 1, "")
+                    appendInt(sb, 2, TASKER_ALARM_STREAM.toString())
+                }
+            }
             "vibrate" -> appendInt(sb, 0, args["millis"] ?: "100")
             "volume.set" -> {
                 val level = args["level"] ?: "0"
@@ -194,6 +200,7 @@ object TaskerXmlExporter {
                 appendStr(sb, 0, args["path"] ?: "")
                 appendInt(sb, 1, "0")
                 appendInt(sb, 2, "0")
+                if (args["stream"] == "alarm") appendInt(sb, 3, TASKER_ALARM_STREAM.toString())
                 if (args["volume"] != null) {
                     warnings += "Tasker's Music Play has no volume of its own, so the volume on 'sound.play' was left out."
                 }

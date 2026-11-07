@@ -17,6 +17,25 @@ enum class AudioUsageEligibility {
 }
 
 /**
+ * Where a played or spoken sound goes. Alarm audio is the one kind Android 17 lets a task started
+ * from the background make, so it's offered as a choice. It follows the alarm volume.
+ */
+internal enum class AudioOutputStream(val usage: AudioUsageEligibility) {
+    MUSIC(AudioUsageEligibility.GENERAL),
+    ALARM(AudioUsageEligibility.ALARM),
+    ;
+
+    companion object {
+        /** A blank value is the music stream every saved action has always played on. */
+        fun parse(value: String?): AudioOutputStream? = when (value.orEmpty().trim().lowercase()) {
+            "", "music" -> MUSIC
+            "alarm" -> ALARM
+            else -> null
+        }
+    }
+}
+
+/**
  * The automation service's current foreground-service audio eligibility, for code in the same
  * process that runs outside the service. The temporary-state restore runs from WorkManager and
  * builds its own action context; left at the default it claimed no eligibility at all, so on
@@ -54,6 +73,7 @@ internal object AndroidAudioHardening {
         usage: AudioUsageEligibility = AudioUsageEligibility.GENERAL,
         sdkInt: Int = sdkIntOverrideForTests ?: Build.VERSION.SDK_INT,
         targetSdkInt: Int = ANDROID_17_API,
+        offersAlarmStream: Boolean = false,
     ): AudioHardeningDecision {
         if (!isRestricted(sdkInt)) {
             return AudioHardeningDecision(allowed = true, reason = "Android audio hardening does not apply")
@@ -86,10 +106,12 @@ internal object AndroidAudioHardening {
                     "Open OpenTasker, then retry the task from the visible app."
             AudioForegroundServiceEligibility.WHILE_IN_USE -> error("handled above")
         }
-        val alarmHint = if (usage == AudioUsageEligibility.ALARM && !eligibility.exactAlarmPermission) {
-            " Grant exact-alarm access in Setup to permit alarm-stream changes while backgrounded."
-        } else {
-            ""
+        val alarmHint = when {
+            usage == AudioUsageEligibility.ALARM && !eligibility.exactAlarmPermission ->
+                " Grant exact-alarm access in Setup to permit alarm-stream changes while backgrounded."
+            offersAlarmStream ->
+                " Or set this action's stream to Alarm, which can play in the background with exact-alarm access."
+            else -> ""
         }
         return AudioHardeningDecision(allowed = false, reason = recovery + alarmHint)
     }
@@ -98,6 +120,7 @@ internal object AndroidAudioHardening {
         ctx: ActionContext,
         operation: String,
         usage: AudioUsageEligibility = AudioUsageEligibility.GENERAL,
+        offersAlarmStream: Boolean = false,
     ): ActionResult.Failure? {
         val targetSdkInt = runCatching { ctx.app.applicationInfo.targetSdkVersion }
             .getOrDefault(ANDROID_17_API)
@@ -112,6 +135,7 @@ internal object AndroidAudioHardening {
             eligibility = currentEligibility,
             usage = usage,
             targetSdkInt = targetSdkInt,
+            offersAlarmStream = offersAlarmStream,
         )
         return if (decision.allowed) {
             null

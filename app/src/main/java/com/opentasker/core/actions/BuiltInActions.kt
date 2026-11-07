@@ -23,6 +23,7 @@ import com.opentasker.core.engine.ActionResult
 import com.opentasker.core.engine.isArgumentSensitive
 import com.opentasker.core.model.VariableNamePolicy
 import com.opentasker.core.platform.AndroidAudioHardening
+import com.opentasker.core.platform.AudioOutputStream
 import com.opentasker.core.platform.PromotedOngoingNotificationSupport
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -343,6 +344,7 @@ private const val REDACTED_VARIABLE_VALUE = ActionArgumentSensitivity.REDACTED
  *
  * Args:
  *   - "text": text to speak
+ *   - "stream": music (default) or alarm (optional)
  */
 class SayAction : DeclaredAction(ActionCatalog.require("tts.speak")) {
 
@@ -352,7 +354,14 @@ class SayAction : DeclaredAction(ActionCatalog.require("tts.speak")) {
         if (text.length > MAX_TTS_CHARS) {
             return ActionResult.Failure("text exceeds $MAX_TTS_CHARS character limit (${text.length})")
         }
-        AndroidAudioHardening.failureIfIneligible(ctx, "text-to-speech output")?.let { return it }
+        val stream = AudioOutputStream.parse(args["stream"])
+            ?: return ActionResult.Failure("invalid stream: ${args["stream"]}")
+        AndroidAudioHardening.failureIfIneligible(
+            ctx,
+            "text-to-speech output",
+            stream.usage,
+            offersAlarmStream = stream == AudioOutputStream.MUSIC,
+        )?.let { return it }
         return suspendCancellableCoroutine { cont ->
             var tts: android.speech.tts.TextToSpeech? = null
             val resumed = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -375,6 +384,9 @@ class SayAction : DeclaredAction(ActionCatalog.require("tts.speak")) {
                     override fun onError(utteranceId: String?) { completeOnce(ActionResult.Failure("TTS utterance failed")) }
                 })
                 ctx.logger("TTS: ${text.take(80)}${if (text.length > 80) "..." else ""}")
+                if (stream == AudioOutputStream.ALARM) {
+                    engine.setAudioAttributes(alarmAudioAttributes(android.media.AudioAttributes.CONTENT_TYPE_SPEECH))
+                }
                 val queued = engine.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "opentasker_say")
                 if (queued != android.speech.tts.TextToSpeech.SUCCESS) {
                     // No utterance callback will ever fire for a failed queue; fail fast

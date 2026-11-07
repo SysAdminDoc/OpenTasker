@@ -211,6 +211,11 @@ private val audioStreamOptions = listOf(
     option("voice", R.string.action_option_stream_voice),
 )
 
+private val audioOutputOptions = listOf(
+    option("music", R.string.action_option_stream_music),
+    option("alarm", R.string.action_option_stream_alarm),
+)
+
 private val temporaryStateTargetOptions = listOf(
     option("brightness.set", R.string.catalog_action_brightness_set_name),
     option("volume.set", R.string.catalog_action_volume_set_name),
@@ -461,6 +466,7 @@ fun registerActionMetadata() {
             categoryRes = R.string.catalog_category_notification,
             fields = listOf(
                 ActionField("text", R.string.catalog_action_tts_speak_field_text_label, FieldType.MULTILINE, required = true),
+                ActionField("stream", R.string.catalog_action_tts_speak_field_stream_label, FieldType.DROPDOWN, hintRes = R.string.catalog_action_tts_speak_field_stream_hint, options = audioOutputOptions),
             )
         )
     )
@@ -1395,6 +1401,7 @@ fun registerActionMetadata() {
             fields = listOf(
                 ActionField("path", R.string.catalog_action_sound_play_field_path_label, FieldType.FILE, required = true, fileRule = deviceFileRule),
                 ActionField("volume", R.string.catalog_action_sound_play_field_volume_label, FieldType.NUMBER, hintRes = R.string.catalog_action_sound_play_field_volume_hint, numberRule = decimalRule(0.0, 100.0)),
+                ActionField("stream", R.string.catalog_action_sound_play_field_stream_label, FieldType.DROPDOWN, hintRes = R.string.catalog_action_sound_play_field_stream_hint, options = audioOutputOptions),
             )
         )
     )

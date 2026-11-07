@@ -155,6 +155,8 @@
     <string name="catalog_action_tts_speak_name" formatted="false">Say (Text-to-Speech)</string>
     <string name="catalog_action_tts_speak_description" formatted="false">Speak text aloud using the device speaker</string>
     <string name="catalog_action_tts_speak_field_text_label" formatted="false">Text to speak</string>
+    <string name="catalog_action_tts_speak_field_stream_label" formatted="false">Audio stream</string>
+    <string name="catalog_action_tts_speak_field_stream_hint" formatted="false">Music by default. On Android 17 a task started in the background can only be heard on Alarm, which needs exact-alarm access and follows the alarm volume.</string>
     <string name="catalog_action_flow_wait_name" formatted="false">Wait</string>
     <string name="catalog_action_flow_wait_description" formatted="false">Pause task execution for a specified duration</string>
     <string name="catalog_category_flow" formatted="false">Flow</string>
@@ -582,6 +584,8 @@
     <string name="catalog_action_sound_play_field_path_label" formatted="false">Sound file path</string>
     <string name="catalog_action_sound_play_field_volume_label" formatted="false">Volume (0-100)</string>
     <string name="catalog_action_sound_play_field_volume_hint" formatted="false">Optional; uses current volume when empty</string>
+    <string name="catalog_action_sound_play_field_stream_label" formatted="false">Audio stream</string>
+    <string name="catalog_action_sound_play_field_stream_hint" formatted="false">Music by default. On Android 17 a task started in the background can only be heard on Alarm, which needs exact-alarm access and follows the alarm volume.</string>
     <string name="catalog_action_sound_stop_name" formatted="false">Stop Sound</string>
     <string name="catalog_action_sound_stop_description" formatted="false">Stop playback</string>
     <string name="catalog_action_sound_pause_name" formatted="false">Pause Sound</string>
