@@ -6,6 +6,7 @@
 
 - The local release gate no longer runs its device tests on every phone and emulator adb can see. It uses the one attached device, or the one you name with `-Serial`, and stops before building when there are several and none is named.
 - The local release gate finishes again. Since the release certificate check went in on September 30, the release staging step couldn't be saved to Gradle's configuration cache, so every gate run failed after all its checks had passed.
+- The local release gate sets its own Gradle memory. It compiles Kotlin, runs lint and drives the device tests in one Gradle process, and a smaller class-metadata limit in a user-level `gradle.properties` (which beats the project's) made it run out three tests in.
 
 ## v0.2.95 - 2026-11-07
 

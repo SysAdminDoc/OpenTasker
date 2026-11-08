@@ -153,10 +153,15 @@ function Invoke-Gradle {
     }
 }
 
+# The gate forks one single-use daemon that also hosts the Kotlin compiler, lint and the
+# connected-test platform, so it sizes that JVM itself. A user-home gradle.properties beats the
+# repo's jvmargs, and only the command line beats that; a 512 MB metaspace cap there ran out
+# three tests into connectedDebugAndroidTest.
 $CommonGradleArguments = @(
     "--no-daemon",
     "--console=plain",
-    "--project-prop=kotlin.compiler.execution.strategy=in-process"
+    "--project-prop=kotlin.compiler.execution.strategy=in-process",
+    "-Dorg.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC -Dfile.encoding=UTF-8"
 )
 
 if ($SeedFailure) {
