@@ -24,6 +24,7 @@ import org.gradle.testing.jacoco.tasks.JacocoReport
 import com.opentasker.build.VerifyLocaleResourcesTask
 import com.opentasker.build.VerifyReleaseTruthTask
 import com.opentasker.build.VerifyRoomSchemaTask
+import com.opentasker.build.publishedCertificateSha256
 
 // Kept close under the current count. A floor far below it lets a large batch of tests be
 // deleted silently; the headroom only absorbs intentional consolidation. The count spans the core
@@ -1374,13 +1375,6 @@ abstract class StageReleaseAssetTask : DefaultTask() {
     }
 }
 
-/** The certificate README.md publishes under the package name, as lowercase hex without colons. */
-fun publishedCertificateSha256(readme: String): String {
-    val published = Regex("""com\.opentasker\.app\r?\n((?:[0-9A-F]{2}:){31}[0-9A-F]{2})""").find(readme)
-        ?: error("README.md must publish the release certificate on the line after com.opentasker.app")
-    return published.groupValues[1].replace(":", "").lowercase()
-}
-
 val releaseRuntimeCoordinates = providers.provider {
     val configuration = configurations.single { candidate ->
         candidate.isCanBeResolved && candidate.name.equals("releaseRuntimeClasspath", ignoreCase = true)
@@ -1818,9 +1812,12 @@ val stageReleaseAsset = tasks.register<StageReleaseAssetTask>("stageReleaseAsset
         providers.fileContents(rootProject.layout.projectDirectory.file("README.md")).asText
             .map { readme -> publishedCertificateSha256(readme) },
     )
+    // Read outside the lambda: touching `android` inside it would capture the build script, which
+    // the configuration cache can't store.
+    val buildToolsVersion = android.buildToolsVersion
     apkSignerPath.set(
         androidComponents.sdkComponents.sdkDirectory.map { sdk ->
-            val toolsDir = sdk.dir("build-tools/${android.buildToolsVersion}").asFile
+            val toolsDir = sdk.dir("build-tools/$buildToolsVersion").asFile
             val windowsTool = toolsDir.resolve("apksigner.bat")
             val tool = if (windowsTool.isFile) windowsTool else toolsDir.resolve("apksigner")
             tool.absolutePath

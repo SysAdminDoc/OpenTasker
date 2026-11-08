@@ -5,6 +5,8 @@ local.properties
 .idea/
 .DS_Store
 build/
+# The buildSrc source package is named `build`; the line above would hide new files there.
+!buildSrc/src/main/kotlin/com/opentasker/build/
 app/build/
 fdroid/build/
 fdroid/logs/
