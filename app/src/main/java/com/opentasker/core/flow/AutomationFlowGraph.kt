@@ -143,7 +143,7 @@ object AutomationFlowGraphBuilder {
             title = profile.name,
             detail = listOf(
                 strings.profileDetail(profile.enabled, profile.automationMode.name.lowercase(), profile.cooldownSec),
-            ).joinToString(" - "),
+            ).joinToString(FLOW_DETAIL_SEPARATOR),
             muted = !profile.enabled,
             changed = "profile:${profile.id}" in changedNodeKeys,
             target = AutomationFlowTarget.Profile(profile.id),

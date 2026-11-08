@@ -4,6 +4,8 @@ import android.app.job.JobScheduler
 import android.app.usage.UsageStatsManager
 import android.content.pm.ServiceInfo
 import androidx.work.WorkInfo
+import com.opentasker.core.engine.EngineExitCorrelation
+import com.opentasker.core.engine.EngineExitCorrelationState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -64,6 +66,19 @@ class EngineHealthReaderTest {
         assertTrue(EngineHealthReader.standbyConsequenceLabel(UsageStatsManager.STANDBY_BUCKET_RARE).contains("may be delayed"))
         assertTrue(EngineHealthReader.standbyConsequenceLabel(UsageStatsManager.STANDBY_BUCKET_RESTRICTED).contains("heavily delayed"))
         assertTrue(EngineHealthReader.standbyConsequenceLabel(UsageStatsManager.STANDBY_BUCKET_ACTIVE).contains("minimal restrictions"))
+        assertEquals("Rare. Time triggers and workers may be delayed.", EngineHealthReader.standbyConsequenceLabel(UsageStatsManager.STANDBY_BUCKET_RARE))
+    }
+
+    @Test
+    fun aMatchedProcessExitReadsAsSentences() {
+        val matched = EngineExitCorrelation(
+            state = EngineExitCorrelationState.MATCHED,
+            reason = "Low memory",
+            description = "killed by the system",
+            gapMillis = 180_000L,
+        )
+
+        assertEquals("Reason: Low memory (killed by the system). Heartbeat gap: 3m", EngineHealthReader.processExitReason(matched))
     }
 
     @Test

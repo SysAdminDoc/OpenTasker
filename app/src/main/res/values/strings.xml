@@ -1044,7 +1044,7 @@
     <string name="workspace_missing_task">Missing task #%1$d</string>
     <string name="workspace_profile_cannot_match">Profile cannot match yet</string>
     <string name="workspace_profile_cannot_match_body">Add at least one context before relying on this profile.</string>
-    <string name="workspace_task_priority">Priority %1$d - %2$s</string>
+    <string name="workspace_task_priority">Priority %1$d · %2$s</string>
     <string name="workspace_task_has_no_actions">Task has no actions</string>
     <string name="workspace_task_has_no_actions_body">Add at least one action before attaching this task to an enabled profile.</string>
     <string name="workspace_no_arguments">No arguments</string>
@@ -1064,7 +1064,7 @@
     <string name="flow_waiting_for_profile">Waiting for profile</string>
     <string name="flow_overview_title">Flow overview</string>
     <string name="flow_overview_body">Profile graph generated from your saved profiles and tasks.</string>
-    <string name="flow_context_action_summary">%1$d context(s) - %2$d action(s)</string>
+    <string name="flow_context_action_summary">%1$d context(s) · %2$d action(s)</string>
     <string name="flow_all_context_rules">all context rules</string>
     <string name="flow_add_content_description">Add</string>
     <string name="flow_lane_contexts">Contexts</string>
@@ -1189,14 +1189,14 @@
     <string name="semantic_diff_value_wait">Wait</string>
     <string name="flow_node_accessibility">%1$s</string>
     <string name="flow_outputs_accessibility">Outputs: %1$s</string>
-    <string name="flow_profile_detail">%1$s - Mode %2$s - Cooldown %3$ds</string>
+    <string name="flow_profile_detail">%1$s · Mode %2$s · Cooldown %3$ds</string>
     <string name="flow_warning_no_contexts">Profile has no contexts.</string>
     <string name="flow_edge_match">must match</string>
     <string name="flow_edge_not_match">must not match</string>
     <string name="flow_missing_task_title">Missing %1$s task</string>
     <string name="flow_missing_task_warning">%1$s task %2$d is missing.</string>
     <string name="flow_missing_task_detail">Task id %1$d is referenced by %2$s</string>
-    <string name="flow_task_detail">%1$d action(s) - priority %2$d</string>
+    <string name="flow_task_detail">%1$d action(s) · priority %2$d</string>
     <string name="flow_warning_no_actions">%1$s has no actions.</string>
     <string name="flow_context_title">Context %1$d: %2$s</string>
     <string name="flow_action_subtask_title">Step %1$d: run sub-task "%2$s"</string>
@@ -1281,7 +1281,7 @@
     <string name="label_x_dp">X dp</string>
     <string name="label_y_dp">Y dp</string>
     <string name="scenes_overview_summary">%1$d element(s) across %2$d scene(s)</string>
-    <string name="scenes_card_summary">%1$d x %2$d dp - %3$d element(s)</string>
+    <string name="scenes_card_summary">%1$d x %2$d dp · %3$d element(s)</string>
     <string name="scenes_remove_element_body">This removes the %1$s element from &quot;%2$s&quot;.</string>
     <string name="scenes_element_bounds">Bounds %1$d,%2$d %3$dx%4$d dp</string>
     <string name="scenes_binding_tap">Tap: %1$s</string>
@@ -1409,7 +1409,7 @@
     <string name="diagnostics_no_crashes">No captured crashes.</string>
     <string name="diagnostics_app_log">In-app log (%1$d recent)</string>
     <string name="diagnostics_no_app_logs">No in-app log entries in this process yet.</string>
-    <string name="diagnostics_crash_record">%1$s - %2$s</string>
+    <string name="diagnostics_crash_record">%1$s · %2$s</string>
     <string name="diagnostics_log_record">%1$s  %2$s/%3$s</string>
     <string name="diagnostics_log_level_debug">Debug</string>
     <string name="diagnostics_log_level_info">Info</string>
@@ -1680,7 +1680,7 @@
     <string name="run_log_summary_failed">%1$d failed</string>
     <string name="run_log_summary_skipped">%1$d skipped</string>
     <string name="run_log_latest">Latest: %1$s</string>
-    <string name="run_log_trace_detail">%1$s - %2$d ms - %3$s</string>
+    <string name="run_log_trace_detail">%1$s · %2$d ms · %3$s</string>
     <string name="run_log_trace_expanded">Expanded: %1$s</string>
     <string name="run_log_template_warnings">%1$d template warning(s)</string>
     <string name="run_log_expression_value">%1$s → %2$s</string>
@@ -1716,7 +1716,7 @@
     <string name="inspector_time_seconds">%1$d s ago</string>
     <string name="inspector_time_minutes">%1$d m ago</string>
     <string name="inspector_time_hours">%1$d h ago</string>
-    <string name="inspector_time_absolute">%1$s - %2$s</string>
+    <string name="inspector_time_absolute">%1$s · %2$s</string>
     <string name="inspector_dwell_target">" of %1$s"</string>
     <string name="inspector_dwell_inside">Dwell: inside for %1$s%2$s.</string>
     <string name="inspector_dwell_inside_waiting">Dwell: inside; waiting for a stable entry time.</string>

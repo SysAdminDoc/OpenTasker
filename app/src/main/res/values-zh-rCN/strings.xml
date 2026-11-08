@@ -1021,7 +1021,7 @@
     <string name="workspace_missing_task">缺失任务 #%1$d</string>
     <string name="workspace_profile_cannot_match">配置文件尚无法匹配</string>
     <string name="workspace_profile_cannot_match_body">在依赖此配置文件前至少添加一个上下文。</string>
-    <string name="workspace_task_priority">优先级 %1$d - %2$s</string>
+    <string name="workspace_task_priority">优先级 %1$d · %2$s</string>
     <string name="workspace_task_has_no_actions">任务没有操作</string>
     <string name="workspace_task_has_no_actions_body">将此任务附加到已启用的配置文件前至少添加一个操作。</string>
     <string name="workspace_no_arguments">无参数</string>
@@ -1041,7 +1041,7 @@
     <string name="flow_waiting_for_profile">正在等待配置文件</string>
     <string name="flow_overview_title">流程概览</string>
     <string name="flow_overview_body">由你保存的配置文件和任务生成的配置文件图。</string>
-    <string name="flow_context_action_summary">%1$d 个上下文 - %2$d 个操作</string>
+    <string name="flow_context_action_summary">%1$d 个上下文 · %2$d 个操作</string>
     <string name="flow_all_context_rules">所有上下文规则</string>
     <string name="flow_add_content_description">添加</string>
     <string name="flow_lane_contexts">上下文</string>
@@ -1166,14 +1166,14 @@
     <string name="semantic_diff_value_wait">等待</string>
     <string name="flow_node_accessibility">%1$s</string>
     <string name="flow_outputs_accessibility">输出：%1$s</string>
-    <string name="flow_profile_detail">%1$s - 模式 %2$s - 冷却 %3$d 秒</string>
+    <string name="flow_profile_detail">%1$s · 模式 %2$s · 冷却 %3$d 秒</string>
     <string name="flow_warning_no_contexts">配置文件没有上下文。</string>
     <string name="flow_edge_match">必须匹配</string>
     <string name="flow_edge_not_match">不得匹配</string>
     <string name="flow_missing_task_title">缺失 %1$s 任务</string>
     <string name="flow_missing_task_warning">%1$s 任务 %2$d 缺失。</string>
     <string name="flow_missing_task_detail">任务ID %1$d 被 %2$s 引用</string>
-    <string name="flow_task_detail">%1$d 个操作 - 优先级 %2$d</string>
+    <string name="flow_task_detail">%1$d 个操作 · 优先级 %2$d</string>
     <string name="flow_warning_no_actions">%1$s 没有操作。</string>
     <string name="flow_context_title">上下文 %1$d：%2$s</string>
     <string name="flow_action_subtask_title">步骤 %1$d：运行子任务 "%2$s"</string>
@@ -1257,7 +1257,7 @@
     <string name="label_x_dp">X dp</string>
     <string name="label_y_dp">Y dp</string>
     <string name="scenes_overview_summary">%1$d 个元素，分布 %2$d 个场景</string>
-    <string name="scenes_card_summary">%1$d x %2$d dp - %3$d 个元素</string>
+    <string name="scenes_card_summary">%1$d x %2$d dp · %3$d 个元素</string>
     <string name="scenes_remove_element_body">这会从&quot;%2$s&quot;中移除 %1$s 元素。</string>
     <string name="scenes_element_bounds">边界 %1$d,%2$d %3$dx%4$d dp</string>
     <string name="scenes_binding_tap">点击：%1$s</string>
@@ -1385,7 +1385,7 @@
     <string name="diagnostics_no_crashes">没有捕获的崩溃。</string>
     <string name="diagnostics_app_log">应用内日志（%1$d 条最近）</string>
     <string name="diagnostics_no_app_logs">此进程中还没有应用内日志条目。</string>
-    <string name="diagnostics_crash_record">%1$s - %2$s</string>
+    <string name="diagnostics_crash_record">%1$s · %2$s</string>
     <string name="diagnostics_log_record">%1$s  %2$s/%3$s</string>
     <string name="diagnostics_log_level_debug">调试</string>
     <string name="diagnostics_log_level_info">信息</string>
@@ -1649,7 +1649,7 @@
     <string name="run_log_summary_failed">%1$d 个失败</string>
     <string name="run_log_summary_skipped">%1$d 个跳过</string>
     <string name="run_log_latest">最新：%1$s</string>
-    <string name="run_log_trace_detail">%1$s - %2$d 毫秒 - %3$s</string>
+    <string name="run_log_trace_detail">%1$s · %2$d 毫秒 · %3$s</string>
     <string name="run_log_trace_expanded">已展开：%1$s</string>
     <string name="run_log_template_warnings">%1$d 条模板警告</string>
     <string name="run_log_expression_value">%1$s → %2$s</string>
@@ -1685,7 +1685,7 @@
     <string name="inspector_time_seconds">%1$d 秒前</string>
     <string name="inspector_time_minutes">%1$d 分钟前</string>
     <string name="inspector_time_hours">%1$d 小时前</string>
-    <string name="inspector_time_absolute">%1$s - %2$s</string>
+    <string name="inspector_time_absolute">%1$s · %2$s</string>
     <string name="inspector_dwell_target">"共 %1$s"</string>
     <string name="inspector_dwell_inside">停留：在区域内 %1$s%2$s。</string>
     <string name="inspector_dwell_inside_waiting">停留：在区域内；正在等待稳定的进入时间。</string>

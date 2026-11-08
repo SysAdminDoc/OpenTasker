@@ -307,8 +307,8 @@ object EngineHealthReader {
             "Heartbeat gap detected, but no matching historical process-exit record was reported."
         EngineExitCorrelationState.MATCHED -> buildString {
             append("Reason: ").append(correlation.reason ?: "Unknown")
-            correlation.description?.let { append(" — ").append(it) }
-            correlation.gapMillis?.let { append("; heartbeat gap: ").append(ageLabel(it)) }
+            correlation.description?.let { append(" (").append(it).append(")") }
+            correlation.gapMillis?.let { append(". Heartbeat gap: ").append(ageLabel(it)) }
         }
     }
 
@@ -565,12 +565,12 @@ object EngineHealthReader {
             ?: "Standby bucket consequence is unavailable on this device."
 
     internal fun standbyConsequenceLabel(bucket: Int): String = when (bucket) {
-        UsageStatsManager.STANDBY_BUCKET_ACTIVE -> "Active — time triggers and workers have minimal restrictions."
-        UsageStatsManager.STANDBY_BUCKET_WORKING_SET -> "Working set — normal background delivery is expected."
-        UsageStatsManager.STANDBY_BUCKET_FREQUENT -> "Frequent — delivery may be deferred when the device is idle."
-        UsageStatsManager.STANDBY_BUCKET_RARE -> "Rare — time triggers and workers may be delayed."
-        UsageStatsManager.STANDBY_BUCKET_RESTRICTED -> "Restricted — time triggers and workers may be heavily delayed."
-        else -> "Unknown standby bucket — delivery impact cannot be determined."
+        UsageStatsManager.STANDBY_BUCKET_ACTIVE -> "Active. Time triggers and workers have minimal restrictions."
+        UsageStatsManager.STANDBY_BUCKET_WORKING_SET -> "Working set. Normal background delivery is expected."
+        UsageStatsManager.STANDBY_BUCKET_FREQUENT -> "Frequent. Delivery may be deferred when the device is idle."
+        UsageStatsManager.STANDBY_BUCKET_RARE -> "Rare. Time triggers and workers may be delayed."
+        UsageStatsManager.STANDBY_BUCKET_RESTRICTED -> "Restricted. Time triggers and workers may be heavily delayed."
+        else -> "Unknown standby bucket. The effect on delivery can't be determined."
     }
 
     private fun standbyBucketValue(context: Context): Int? {

@@ -114,5 +114,5 @@ private class ResourceSemanticDiffStrings(
 private object EnglishSemanticDiffStrings : SemanticDiffStrings {
     override fun path(path: String): String = path
 
-    override fun value(path: String, value: String?): String = value ?: "—"
+    override fun value(path: String, value: String?): String = value ?: "none"
 }

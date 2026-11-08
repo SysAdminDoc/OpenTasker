@@ -70,7 +70,7 @@ object DiagnosticExport {
             sb.appendLine("Active executions: ${health.activeExecutionCount}")
             sb.appendLine("Pending external executions: ${health.pendingExecutionCount}")
             health.signals.forEach { signal ->
-                sb.appendLine("Health signal ${signal.key}: ${signal.state} — ${redactSensitive(signal.reason)}")
+                sb.appendLine("Health signal ${signal.key}: ${signal.state}. ${redactSensitive(signal.reason)}")
             }
         } catch (e: Exception) {
             sb.appendLine("  (failed to read engine health: ${redactSensitive(e.message.orEmpty())})")

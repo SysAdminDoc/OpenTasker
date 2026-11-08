@@ -70,6 +70,7 @@ import com.opentasker.core.flow.AutomationFlowGraphBuilder
 import com.opentasker.core.flow.AutomationFlowNode
 import com.opentasker.core.flow.AutomationFlowNodeKind
 import com.opentasker.core.flow.AutomationFlowTarget
+import com.opentasker.core.flow.FLOW_DETAIL_SEPARATOR
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
 import com.opentasker.core.model.AutomationInvariant
@@ -705,7 +706,7 @@ private fun nodeColor(kind: AutomationFlowNodeKind, muted: Boolean): Color {
 @Composable
 private fun displayTitle(node: AutomationFlowNode): String {
     if (node.kind != AutomationFlowNodeKind.ACTION) return node.title
-    val actionType = node.detail?.substringBefore(" - ") ?: return node.title
+    val actionType = node.detail?.substringBefore(FLOW_DETAIL_SEPARATOR) ?: return node.title
     val metadata = ActionMetadataRegistry.get(actionType) ?: return node.title
     return node.title.replace(actionType, stringResource(metadata.nameRes))
 }

@@ -333,7 +333,7 @@ object BackupEncryption {
         IOException("Backup file exceeds ${maxBytes / 1024 / 1024} MB limit")
 
     private fun decryptionFailure(cause: Exception): IOException =
-        IOException("Decryption failed — wrong passphrase or corrupted file", cause)
+        IOException("Decryption failed. The passphrase is wrong or the file is damaged.", cause)
 
     private val EMPTY_BYTES = ByteArray(0)
 }
