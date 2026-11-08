@@ -3,6 +3,7 @@ package com.opentasker.core.actions
 import android.app.KeyguardManager
 import android.content.Context
 import android.os.ParcelFileDescriptor
+import android.os.PowerManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.opentasker.core.engine.ActionContext
@@ -39,17 +40,31 @@ class LockDeviceActionInstrumentedTest {
     private val keyguard: KeyguardManager
         get() = context.getSystemService(KeyguardManager::class.java)
 
+    private val power: PowerManager
+        get() = context.getSystemService(PowerManager::class.java)
+
     /** The lock-screen setting found before the lock test changed it; null when nothing changed. */
     private var lockScreenDisabledBefore: String? = null
 
     @After
     fun tearDown() {
         removeAdmin()
-        // Put back what the test found, or every later test runs behind a keyguard. Forcing
-        // "disabled" here would also switch off the lock screen of any device that had one.
         lockScreenDisabledBefore?.let { before ->
-            shell("locksettings set-disabled $before")
+            // lockNow() also turns the screen off, and dismissing the keyguard doesn't turn it back
+            // on. Left asleep, every later UI test in the run launches its activity into a dark
+            // screen and stops at once, and a keyguard dismissed while asleep can stay half shown
+            // after the next wake. So wake first, dismiss while awake, and only then put back the
+            // lock-screen setting the test found (forcing "disabled" would switch off the lock
+            // screen of a device that had one).
+            shell("input keyevent KEYCODE_WAKEUP")
+            waitUntil("awake") { power.isInteractive }
             shell("wm dismiss-keyguard")
+            val unlocked = waitUntil("unlocked") { !keyguard.isKeyguardLocked }
+            shell("locksettings set-disabled $before")
+            assertTrue(
+                "the test must leave the screen on and unlocked for the tests after it",
+                unlocked && power.isInteractive,
+            )
         }
     }
 
