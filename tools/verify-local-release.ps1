@@ -1,7 +1,10 @@
 [CmdletBinding()]
 param(
     [switch]$SeedFailure,
-    [switch]$BootstrapOnly
+    [switch]$BootstrapOnly,
+    # The device the gate's connectedDebugAndroidTest runs on. Without it the gate needs exactly
+    # one attached device or an ANDROID_SERIAL already set.
+    [string]$Serial
 )
 
 $ErrorActionPreference = "Stop"
@@ -86,6 +89,31 @@ if ($BootstrapOnly) {
     Write-Host "Gradle bootstrap-only verification passed."
     return
 }
+
+function Select-ConnectedTestDevice {
+    # localQualityGate depends on connectedDebugAndroidTest, which installs, instruments and then
+    # uninstalls on every device adb can see, phones and other people's emulators included. AGP
+    # honors ANDROID_SERIAL, so name one device before Gradle starts.
+    if (-not [string]::IsNullOrWhiteSpace($Serial)) { $env:ANDROID_SERIAL = $Serial }
+    $sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } elseif ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT } else { Join-Path $env:LOCALAPPDATA "Android\Sdk" }
+    $adb = Join-Path $sdk "platform-tools\adb.exe"
+    if (-not (Test-Path -LiteralPath $adb -PathType Leaf)) { throw "adb not found at $adb" }
+    $attached = @(& $adb devices | Select-Object -Skip 1 | Where-Object { $_ -match "^(\S+)\s+device$" } | ForEach-Object { ($_ -split "\s+")[0] })
+    if (-not [string]::IsNullOrWhiteSpace($env:ANDROID_SERIAL)) {
+        if ($attached -notcontains $env:ANDROID_SERIAL) {
+            throw "ANDROID_SERIAL $($env:ANDROID_SERIAL) is not an attached device. Attached: $($attached -join ', ')"
+        }
+        Write-Host "Connected tests run on $($env:ANDROID_SERIAL) only."
+        return
+    }
+    if ($attached.Count -ne 1) {
+        throw "adb sees $($attached.Count) devices ($($attached -join ', ')). The gate's connected tests would run on all of them; pass -Serial <device> for the one this run may use."
+    }
+    Write-Host "Connected tests run on $($attached[0]), the only attached device."
+}
+
+# A seeded-failure run never reaches the connected tests, so it needs no device.
+if (-not $SeedFailure) { Select-ConnectedTestDevice }
 
 if (-not (Test-Path -LiteralPath $DependencyVerificationScript -PathType Leaf)) {
     throw "Dependency verification script not found at $DependencyVerificationScript"

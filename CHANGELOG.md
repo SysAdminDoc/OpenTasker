@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- The local release gate no longer runs its device tests on every phone and emulator adb can see. It uses the one attached device, or the one you name with `-Serial`, and stops before building when there are several and none is named.
+
 ## v0.2.95 - 2026-11-07
 
 ### Added
