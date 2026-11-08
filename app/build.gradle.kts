@@ -1960,8 +1960,11 @@ tasks.register("generateFdroidChangelog") {
     outputs.file(outputFile)
 
     doLast {
+        // Skip the rest of the heading line: "## v1.2.3 - 2026-01-01" leaves " - 2026-01-01", which
+        // trims to "- 2026-01-01" and would otherwise be read as the first entry.
         val section = changelogFile.readText()
             .substringAfter("## v$versionName", "")
+            .substringAfter(NEWLINE, "")
             .substringBefore(NEWLINE + "## ")
         check(section.isNotBlank()) {
             "CHANGELOG.md has no '## v$versionName' section to generate a store changelog from"
