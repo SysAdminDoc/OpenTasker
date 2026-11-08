@@ -1,13 +1,13 @@
 # Changelog
 
-## Unreleased
+## v0.2.95 - 2026-11-07
 
 ### Added
 
 - OpenTasker speaks Simplified Chinese, a full translation contributed by coolLitterBear (#24). Pick it under Android's per-app language setting, or it follows your phone.
 - Run Task has an Inputs section. Each input becomes a variable in the task it runs, so a shared "Weather" task can read `{{ city }}` from whichever task called it. A lowercase name stays inside that task and a capitalized one sets a global. The engine already passed these along, but until now the only way to add one was to edit an exported bundle by hand.
 - An incoming call can start a task while the phone rings. The task gets `{{ event.incoming_number }}` and `{{ event.incoming_known_contact }}`, and the profile can match strangers only or part of a number. Reading the number takes a new Call log permission, which Setup asks for. A hidden caller, or one nobody could check, never counts as a stranger.
-- Two new templates search an unknown caller's number on a site you choose: `Search incoming phone numbers` puts a Search button on a notification, and `Search incoming phone numbers automatically` opens the search right away. Both take an address like `https://duckduckgo.com/?q={number}`.
+- Two new templates search an unknown caller's number on a site you choose (#19): `Search incoming phone numbers` puts a Search button on a notification, and `Search incoming phone numbers automatically` opens the search right away. Both take an address like `https://duckduckgo.com/?q={number}`.
 - Notification buttons can open a web address, with the same allowed links as Open URL. Tapping one works from the background without any extra permission.
 - A new `urlencode` template filter makes a value safe to put in a web address.
 - A new Bluetooth device nearby context turns a profile on when a device you name is close by, even if it never connects (#25). You can use its name or address, and the Inspector lists what's around. Pairing a phone once lets Android recognize it after its address changes.

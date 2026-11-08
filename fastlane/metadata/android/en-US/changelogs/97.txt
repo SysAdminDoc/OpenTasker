@@ -1,0 +1,6 @@
+Setup and Settings no longer crash as they open on Android 8 to 12 phones that can pair companion devices, Galaxy phones included.
+Shizuku and Sui can reach OpenTasker.
+MacroDroid backups import.
+OpenTasker speaks Simplified Chinese, a full translation contributed by coolLitterBear.
+An incoming call can start a task while the phone rings.
+There are new actions for a VPN, the Wi-Fi hotspot and your own Shizuku scripts, and a context for a Bluetooth device nearby.
