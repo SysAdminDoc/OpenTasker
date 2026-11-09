@@ -4,4 +4,6 @@
     <exclude domain="database" path="opentasker.db-shm" />
     <exclude domain="database" path="opentasker.db-wal" />
     <exclude domain="sharedpref" path="" />
+    <exclude domain="file" path="backups" />
+    <exclude domain="file" path="crash_logs" />
 </full-backup-content>

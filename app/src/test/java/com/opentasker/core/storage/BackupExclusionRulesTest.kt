@@ -41,6 +41,29 @@ class BackupExclusionRulesTest {
         assertTrue("device-transfer must exclude db + prefs", excludes(transfer))
     }
 
+    private fun excludedFileDirs(node: org.w3c.dom.Node): Set<String> {
+        val children = node.childNodes
+        return (0 until children.length)
+            .map { children.item(it) }
+            .filter { it.nodeName == "exclude" && it.attributes?.getNamedItem("domain")?.nodeValue == "file" }
+            .mapNotNull { it.attributes?.getNamedItem("path")?.nodeValue }
+            .toSet()
+    }
+
+    /**
+     * A local backup is the database again, sealed with a key that never leaves the phone, and a
+     * crash log is written before redaction. Neither is any use on another device.
+     */
+    @Test
+    fun localBackupsAndCrashLogsStayOnThePhone() {
+        val root = parse("data_extraction_rules.xml")
+        val wanted = setOf("backups", "crash_logs")
+
+        assertTrue(excludedFileDirs(root.getElementsByTagName("device-transfer").item(0)).containsAll(wanted))
+        assertTrue(excludedFileDirs(root.getElementsByTagName("cloud-backup").item(0)).containsAll(wanted))
+        assertTrue(excludedFileDirs(parse("backup_rules.xml")).containsAll(wanted))
+    }
+
     @Test
     fun legacyFullBackupContentExcludesDbAndPrefs() {
         val root = parse("backup_rules.xml")
