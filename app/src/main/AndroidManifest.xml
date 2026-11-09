@@ -113,6 +113,10 @@
         android:description="@string/permission_automation_description"
         android:label="@string/permission_automation_label"
         android:protectionLevel="signature" />
+    <!-- Declaring a permission doesn't grant it. Scene buttons and Locale plugin fires send their
+         run request with this as the receiver permission, and Android delivers such a broadcast
+         only to a package that holds it, the sender's own included. -->
+    <uses-permission android:name="com.opentasker.permission.AUTOMATION" />
 
     <queries>
         <package android:name="com.termux" />
