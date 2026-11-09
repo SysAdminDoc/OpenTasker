@@ -49,7 +49,9 @@ class VariableExpander {
         // Handle conditionals: (cond) ? true_val : false_val
         val ternary = parseTernary(expr)
         if (ternary != null) {
-            val result = evaluateConditionInternal(ternary.condition, variableStore, arrayStore)
+            val result = evaluateConditionInternal(ternary.condition) { operand ->
+                expandInternal(operand, variableStore, arrayStore)
+            }
             return expandText(if (result) ternary.trueValue else ternary.falseValue, variableStore, arrayStore, quoteValue)
         }
 
@@ -256,22 +258,42 @@ class VariableExpander {
         return body.substring(0, splitAt) to groupIdx
     }
 
-    fun evaluateCondition(cond: String, variableStore: VariableStore, arrayStore: ArrayStore): Boolean =
+    /**
+     * Evaluates [cond] as the author typed it. Its `||`, `&&`, parentheses and comparison operator
+     * are read from that text first, and only then is each operand handed to [expandOperand], once.
+     *
+     * Callers must not expand [cond] themselves. A value is a stranger's words as often as not (an
+     * SMS body, a notification title), and expanding before parsing let `true ||` in a message add
+     * a branch to the condition, and let `%PIN` in a message be read back as the PIN's value when
+     * the operand was expanded a second time.
+     *
+     * [expandOperand] defaults to legacy `%var` expansion. A caller with a template stage passes
+     * its own, and a `{{ ... }}` block in [cond] is kept whole for it.
+     */
+    fun evaluateCondition(
+        cond: String,
+        variableStore: VariableStore,
+        arrayStore: ArrayStore,
+        expandOperand: ((String) -> String)? = null,
+    ): Boolean =
         try {
-            evaluateConditionInternal(cond, variableStore, arrayStore)
+            evaluateConditionInternal(
+                cond,
+                expandOperand ?: { operand -> expandInternal(operand, variableStore, arrayStore) },
+            )
         } catch (e: Exception) {
             false
         }
 
-    private fun evaluateConditionInternal(cond: String, store: VariableStore, arrays: ArrayStore): Boolean {
+    private fun evaluateConditionInternal(cond: String, expandOperand: (String) -> String): Boolean {
         val normalized = stripOuterParens(cond.trim())
         if (normalized.isEmpty()) return false
 
         splitTopLevel(normalized, "||")?.let { parts ->
-            return parts.any { evaluateConditionInternal(it, store, arrays) }
+            return parts.any { evaluateConditionInternal(it, expandOperand) }
         }
         splitTopLevel(normalized, "&&")?.let { parts ->
-            return parts.all { evaluateConditionInternal(it, store, arrays) }
+            return parts.all { evaluateConditionInternal(it, expandOperand) }
         }
 
         // A real binary comparison always wins over the unary is_set/not_set reading: e.g.
@@ -283,11 +305,12 @@ class VariableExpander {
         // operator, since parseComparison always gets first look.
         val comparison = parseComparison(normalized)
         if (comparison == null) {
-            unaryExistenceResult(normalized, store, arrays)?.let { return it }
-            return normalized.toBoolean()
+            unaryExistenceResult(normalized, expandOperand)?.let { return it }
+            // A variable on its own, such as `%enabled`, is a boolean once it has its value.
+            return expandOperand(normalized).trim().toBoolean()
         }
-        val left = expandInternal(comparison.left, store, arrays)
-        val right = expandInternal(comparison.right, store, arrays)
+        val left = expandOperand(comparison.left)
+        val right = expandOperand(comparison.right)
 
         return when (comparison.operator) {
             ComparisonOperator.EQ -> left == right
@@ -338,12 +361,28 @@ class VariableExpander {
         }
     }
 
+    /**
+     * The index just past a `{{ ... }}` block opening at [index], or -1 when none opens there. The
+     * structure scans step over these: a template's pipes, quoted defaults and brackets belong to
+     * the template stage, never to the condition around it.
+     */
+    private fun templateBlockEnd(expr: String, index: Int): Int {
+        if (!expr.startsWith("{{", index)) return -1
+        val close = expr.indexOf("}}", index + 2)
+        return if (close == -1) -1 else close + 2
+    }
+
     private fun splitTopLevel(expr: String, delimiter: String): List<String>? {
         val parts = mutableListOf<String>()
         var depth = 0
         var partStart = 0
         var index = 0
         while (index < expr.length) {
+            val templateEnd = templateBlockEnd(expr, index)
+            if (templateEnd != -1) {
+                index = templateEnd
+                continue
+            }
             when (expr[index]) {
                 '(' -> depth++
                 ')' -> if (depth > 0) depth--
@@ -368,29 +407,17 @@ class VariableExpander {
      * Returns null when `normalized` doesn't end with either suffix at all, so the caller can
      * fall through to its own default (`normalized.toBoolean()`).
      *
-     * This evaluator has two call paths with different pre-expansion behavior:
-     * TaskRunner.evaluateConditionString expands the whole condition once before calling in, but
-     * VariableStore.evaluateCondition (used directly by callers/tests that don't go through
-     * TaskRunner) does not expand at all -- `normalized` can arrive as raw `%variable` text. The
-     * binary comparison branch stays correct under both by calling expandInternal on its operands
-     * regardless of whether the caller already did; this needs the same self-sufficiency, so it
-     * must not assume expansion already happened.
-     *
-     * Empty (post-expansion) operand is a real, meaningful case, not a malformed condition: when
-     * the source variable is unset and the caller pre-expanded (the TaskRunner path), e.g.
-     * "%text not_set" arrives as just " not_set" (empty value + the literal suffix), and
-     * `cond.trim()` at the top of [evaluateConditionInternal] then eats that boundary space -- so
-     * an empty-operand match and a bare "not_set"/"is_set" with nothing before it are
-     * indistinguishable by the time we see them, and both correctly mean "the value is empty".
+     * `normalized` is the author's text, so the operand still holds its `%variable` and is expanded
+     * here, once. A bare "is_set"/"not_set" with nothing before it means "the value is empty".
      */
-    private fun unaryExistenceResult(normalized: String, store: VariableStore, arrays: ArrayStore): Boolean? {
+    private fun unaryExistenceResult(normalized: String, expandOperand: (String) -> String): Boolean? {
         for ((suffix, wantsNonEmpty) in UNARY_EXISTENCE_SUFFIXES) {
             val bareSuffix = suffix.trim()
             if (normalized.equals(bareSuffix, ignoreCase = true)) {
                 return !wantsNonEmpty
             }
             if (normalized.endsWith(suffix, ignoreCase = true)) {
-                val operand = expandInternal(normalized.removeSuffix(suffix).trim(), store, arrays)
+                val operand = expandOperand(normalized.removeSuffix(suffix).trim())
                 return if (wantsNonEmpty) operand.isNotEmpty() else operand.isEmpty()
             }
         }
@@ -407,7 +434,13 @@ class VariableExpander {
 
     private fun matchingCloseParen(expr: String, openIndex: Int): Int {
         var depth = 0
-        for (index in openIndex until expr.length) {
+        var index = openIndex
+        while (index < expr.length) {
+            val templateEnd = templateBlockEnd(expr, index)
+            if (templateEnd != -1) {
+                index = templateEnd
+                continue
+            }
             when (expr[index]) {
                 '(' -> depth++
                 ')' -> {
@@ -415,6 +448,7 @@ class VariableExpander {
                     if (depth == 0) return index
                 }
             }
+            index++
         }
         return -1
     }
@@ -424,6 +458,11 @@ class VariableExpander {
         var depth = 0
         var index = 0
         while (index < expr.length) {
+            val templateEnd = templateBlockEnd(expr, index)
+            if (templateEnd != -1) {
+                index = templateEnd
+                continue
+            }
             when (expr[index]) {
                 '(' -> depth++
                 ')' -> if (depth > 0) depth--

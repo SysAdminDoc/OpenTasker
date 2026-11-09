@@ -8,6 +8,9 @@
 - Release APKs no longer carry the Git commit they were built from or Google's encrypted dependency list. Native libraries go in exactly as their libraries ship them instead of being stripped by whatever NDK the build machine has, and the release baseline profile is now part of the source. Any one of these made a build from source come out different from ours.
 - The public keys that sign our dependencies now live in `gradle/verification-keyring.keys`. A fresh machine used to download them from public keyservers, which don't reliably have them (Error Prone's never came back), and the build stopped before compiling anything.
 
+### Security
+
+- A value can't change what a condition asks anymore. An If or a loop that compared `%sms_body` had the message pasted in before the condition was read, so a text containing `x | 1 = 1` could turn false into true, and one that named another variable could read it. Conditions are split into their parts first now and each side is filled in after that, and the run preview agrees with the real run on these. Two small changes come with it: `%empty != word` is true when the variable is empty, and a variable on its own works as a ternary's condition.
 ### Fixed
 
 - The local release gate no longer runs its device tests on every phone and emulator adb can see. It uses the one attached device, or the one you name with `-Serial`, and stops before building when there are several and none is named.

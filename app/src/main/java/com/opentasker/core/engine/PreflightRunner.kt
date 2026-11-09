@@ -561,7 +561,8 @@ object PreflightRunner {
     private fun evaluate(raw: String, variables: VariableStore, input: PreflightInputs): ConditionResult {
         val expanded = expand(raw, variables, input)
         return ConditionResult(
-            value = variables.evaluateCondition(expanded.value),
+            // The same evaluation a run does, on the raw text. The expansion above is only shown.
+            value = variables.evaluateCondition(raw, TemplateExpressionEngine(), input.eventVariables),
             display = if (expanded.traces.any { it.isSecretDerived }) ActionArgumentSensitivity.REDACTED else expanded.value,
             warnings = expanded.warnings,
         )

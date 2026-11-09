@@ -3,6 +3,7 @@ package com.opentasker.core.engine
 import com.opentasker.core.engine.variables.ArrayStore
 import com.opentasker.core.engine.variables.VariableExpander
 import com.opentasker.core.expressions.InertTemplateText
+import com.opentasker.core.expressions.TemplateExpressionEngine
 import com.opentasker.core.expressions.TemplateScope
 import com.opentasker.core.model.VariableNamePolicy
 import kotlinx.serialization.json.Json
@@ -180,6 +181,32 @@ class VariableStore {
 
     fun evaluateCondition(expr: String): Boolean {
         return expander.evaluateCondition(expr, this, arrayStore)
+    }
+
+    /**
+     * Evaluates a condition the way a run does: its structure is read from [expr] as typed, then
+     * each operand goes through legacy `%var` expansion and the bounded `{{ ... }}` stage once.
+     * Pass [expr] unexpanded, because a value that has already been substituted would be parsed
+     * as part of the condition.
+     */
+    fun evaluateCondition(
+        expr: String,
+        templates: TemplateExpressionEngine,
+        eventVariables: Map<String, String> = emptyMap(),
+    ): Boolean {
+        val scope by lazy(LazyThreadSafetyMode.NONE) { toTemplateScope(eventVariables) }
+        // A template the engine can't read fails the whole condition, whichever branch holds it.
+        if (expr.contains("{{") && templates.expand(expandTracked(expr).value, scope).warnings.isNotEmpty()) {
+            return false
+        }
+        return expander.evaluateCondition(expr, this, arrayStore) { operand ->
+            val legacy = expandTracked(operand)
+            if (!legacy.value.contains("{{")) {
+                legacy.text
+            } else {
+                InertTemplateText.restore(templates.expand(legacy.value, scope).value)
+            }
+        }
     }
 
     fun toTemplateScope(event: Map<String, String> = emptyMap()): TemplateScope {
