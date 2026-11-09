@@ -5,23 +5,50 @@ import android.content.Intent
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import com.opentasker.app.OpenTaskerApp_NoHilt
 import com.opentasker.core.external.AutomationTargetContract
 import com.opentasker.core.external.InternalTaskRunSource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 open class QuickSettingsTileService : TileService() {
 
     protected open val slot = QuickSettingsTileSlots.DEFAULT
     private val store by lazy { QuickSettingsTileStore(this) }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    // Refreshed each time the panel opens, because a tap has to decide without waiting on the
+    // database and tasks can be deleted without this service hearing about it.
+    private var boundTaskMissing = false
 
     override fun onStartListening() {
         super.onStartListening()
         updateTile()
+        val taskId = store.load(slot).taskId ?: return
+        scope.launch {
+            val missing = withContext(Dispatchers.IO) {
+                runCatching { OpenTaskerApp_NoHilt.awaitDb().taskDao().getById(taskId) == null }.getOrDefault(false)
+            }
+            if (missing != boundTaskMissing) {
+                boundTaskMissing = missing
+                updateTile()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
     }
 
     override fun onClick() {
         super.onClick()
         val config = store.load(slot)
-        if (config.taskId == null) {
+        if (config.taskId == null || boundTaskMissing) {
             val configureIntent = Intent(this, QuickSettingsTileConfigActivity::class.java)
                 .putExtra(QuickSettingsTileConfigActivity.EXTRA_SLOT, slot)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -68,18 +95,22 @@ open class QuickSettingsTileService : TileService() {
             val label = config.label.ifBlank { config.taskName.ifBlank { getString(com.opentasker.app.R.string.app_name) } }
             tile.label = label
             if (Build.VERSION.SDK_INT >= 29) {
-                tile.subtitle = config.subtitle.ifBlank {
-                    getString(
-                        if (config.taskId == null) {
-                            com.opentasker.app.R.string.qs_tile_subtitle_no_task
-                        } else {
-                            com.opentasker.app.R.string.qs_tile_subtitle_default
-                        },
-                    )
+                tile.subtitle = if (boundTaskMissing) {
+                    getString(com.opentasker.app.R.string.qs_tile_subtitle_no_task)
+                } else {
+                    config.subtitle.ifBlank {
+                        getString(
+                            if (config.taskId == null) {
+                                com.opentasker.app.R.string.qs_tile_subtitle_no_task
+                            } else {
+                                com.opentasker.app.R.string.qs_tile_subtitle_default
+                            },
+                        )
+                    }
                 }
             }
             tile.icon = config.icon(this)
-            tile.state = config.tileState()
+            tile.state = config.tileState(taskMissing = boundTaskMissing)
             tile.updateTile()
         }
     }
@@ -89,8 +120,8 @@ open class QuickSettingsTileService : TileService() {
  * Never [Tile.STATE_UNAVAILABLE]: Android ignores taps on an unavailable tile, and a tap is how a tile
  * with no task opens its setup screen.
  */
-internal fun QuickSettingsTileConfig.tileState(): Int =
-    if (taskId != null && active) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+internal fun QuickSettingsTileConfig.tileState(taskMissing: Boolean = false): Int =
+    if (taskId != null && active && !taskMissing) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
 
 class QuickSettingsTileServiceSlot2 : QuickSettingsTileService() {
     override val slot: Int = 2

@@ -25,6 +25,7 @@ class QuickSettingsTileTest {
         val bound = QuickSettingsTileConfig(slot = 1, taskId = 7, taskName = "Focus")
         assertEquals(Tile.STATE_INACTIVE, bound.tileState())
         assertEquals(Tile.STATE_ACTIVE, bound.copy(active = true).tileState())
+        assertEquals(Tile.STATE_INACTIVE, bound.copy(active = true).tileState(taskMissing = true))
     }
 
     @Test
