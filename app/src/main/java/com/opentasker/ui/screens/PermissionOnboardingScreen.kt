@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.app.NotificationManager
 import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -75,6 +76,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -118,7 +120,9 @@ import com.opentasker.ui.theme.ThemeMode
 import com.opentasker.ui.theme.ThemePreference
 import com.opentasker.ui.theme.DesignSystem
 import java.util.Date
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import com.opentasker.core.permissions.UsageAccess
 import com.opentasker.core.power.ShizukuPowerBackend
 import com.opentasker.core.power.ShizukuPowerState
@@ -468,6 +472,7 @@ fun PermissionOnboardingScreen(
     val deviceAdminRemovedMessage = stringResource(R.string.setup_device_admin_removed)
     val grantCommandCopiedMessage = stringResource(R.string.setup_secure_settings_copied)
     val deviceAdminRemoveFailedMessage = stringResource(R.string.setup_device_admin_remove_failed)
+    val scope = rememberCoroutineScope()
     val shizukuModeEnabledMessage = stringResource(R.string.setup_shizuku_mode_enabled)
     val pushDistributorSelectedMessage = stringResource(R.string.setup_push_distributor_selected)
     val pushDistributorUnavailableMessage = stringResource(R.string.setup_push_distributor_unavailable)
@@ -745,12 +750,16 @@ fun PermissionOnboardingScreen(
                             // Android has no "open my admin's page" intent, so removal has to
                             // happen here. Uninstalling is blocked while an admin is active, so
                             // leaving the user only a route into system settings would be a trap.
-                            val removed = runCatching {
-                                context.getSystemService(DevicePolicyManager::class.java)
-                                    ?.removeActiveAdmin(LockDeviceAdminReceiver.component(context))
-                            }.isSuccess
-                            onMessage(if (removed) deviceAdminRemovedMessage else deviceAdminRemoveFailedMessage)
-                            setupViewModel.refresh()
+                            val manager = context.getSystemService(DevicePolicyManager::class.java)
+                            val component = LockDeviceAdminReceiver.component(context)
+                            val requested = manager != null && runCatching { manager.removeActiveAdmin(component) }.isSuccess
+                            scope.launch {
+                                // removeActiveAdmin returns before the admin is gone, so refreshing
+                                // straight away still showed it active next to a "removed" message.
+                                val removed = requested && awaitDeviceAdminRemoved(manager, component)
+                                onMessage(if (removed) deviceAdminRemovedMessage else deviceAdminRemoveFailedMessage)
+                                setupViewModel.refresh()
+                            }
                         }
                             }
                         },
@@ -2067,3 +2076,12 @@ internal fun SetupProgressCard(loaded: Boolean, grantedCount: Int, requiredCount
         }
     }
 }
+
+private const val DEVICE_ADMIN_REMOVAL_TIMEOUT_MS = 3_000L
+private const val DEVICE_ADMIN_REMOVAL_POLL_MS = 50L
+
+private suspend fun awaitDeviceAdminRemoved(manager: DevicePolicyManager?, component: ComponentName): Boolean =
+    manager != null && withTimeoutOrNull(DEVICE_ADMIN_REMOVAL_TIMEOUT_MS) {
+        while (manager.isAdminActive(component)) delay(DEVICE_ADMIN_REMOVAL_POLL_MS)
+        true
+    } == true
