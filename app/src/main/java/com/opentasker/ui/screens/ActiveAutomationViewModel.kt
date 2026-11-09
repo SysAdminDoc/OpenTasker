@@ -900,8 +900,8 @@ class ActiveAutomationViewModel(
 
     fun createProject(name: String, onSaved: () -> Unit = {}) = launchCreate(R.string.ui_message_project_created, onSaved = onSaved) {
         val normalized = validateProjectName(name)
-        require(db.projectDao().getAll().none { it.name.equals(normalized, ignoreCase = true) }) {
-            "A project with that name already exists."
+        if (db.projectDao().getAll().any { it.name.equals(normalized, ignoreCase = true) }) {
+            throw UiRejection(R.string.ui_error_project_name_duplicate)
         }
         val nextPosition = (db.projectDao().getAll().maxOfOrNull { it.position } ?: -1) + 1
         db.projectDao().insert(ProjectEntity(name = normalized, position = nextPosition))
@@ -910,8 +910,8 @@ class ActiveAutomationViewModel(
     fun renameProject(project: Project, name: String, onSaved: () -> Unit = {}) = launchWithMessage(R.string.ui_message_project_renamed, onSaved = onSaved) {
         require(project.id != DEFAULT_PROJECT_ID) { "The Default project cannot be renamed." }
         val normalized = validateProjectName(name)
-        require(db.projectDao().getAll().none { it.id != project.id && it.name.equals(normalized, ignoreCase = true) }) {
-            "A project with that name already exists."
+        if (db.projectDao().getAll().any { it.id != project.id && it.name.equals(normalized, ignoreCase = true) }) {
+            throw UiRejection(R.string.ui_error_project_name_duplicate)
         }
         db.projectDao().update(ProjectEntity(project.id, normalized, project.position))
     }
@@ -990,8 +990,8 @@ class ActiveAutomationViewModel(
 
     private fun validateProjectName(name: String): String {
         val normalized = name.trim()
-        require(normalized.isNotEmpty()) { "Project name cannot be empty." }
-        require(normalized.length <= 64) { "Project names must be 64 characters or fewer." }
+        if (normalized.isEmpty()) throw UiRejection(R.string.ui_error_project_name_required)
+        if (normalized.length > 64) throw UiRejection(R.string.ui_error_project_name_too_long)
         return normalized
     }
 
