@@ -1,6 +1,7 @@
 package com.opentasker.core.plugins.locale
 
 import android.content.Context
+import java.security.MessageDigest
 
 /**
  * Issues and validates revocable read grants for the exported Locale condition receiver.
@@ -28,7 +29,10 @@ class LocaleConditionGrantStore(context: Context) {
     /** True only when [token] is currently stored and bound to [bindingKey]. */
     fun isValid(token: String?, bindingKey: String): Boolean {
         val stored = if (token.isNullOrBlank()) null else prefs.getString(KEY_PREFIX + token, null)
-        return isConditionGrantValid(stored, token, bindingKey)
+        if (isConditionGrantValid(stored, token, bindingKey)) return true
+        if (!shouldPinConditionGrant(stored, bindingKey)) return false
+        prefs.edit().putString(KEY_PREFIX + token, bindingKey).apply()
+        return true
     }
 
     fun revoke(token: String) {
@@ -38,7 +42,9 @@ class LocaleConditionGrantStore(context: Context) {
     /** Revoke every grant bound to [bindingKey] (e.g. when its target is deleted). */
     fun revokeAllForBinding(bindingKey: String) {
         val toRemove = prefs.all
-            .filter { (key, value) -> key.startsWith(KEY_PREFIX) && value == bindingKey }
+            .filter { (key, value) ->
+                key.startsWith(KEY_PREFIX) && (value == bindingKey || (value as? String)?.startsWith("$bindingKey:") == true)
+            }
             .keys
         if (toRemove.isEmpty()) return
         prefs.edit().apply { toRemove.forEach { remove(it) } }.apply()
@@ -74,6 +80,23 @@ class LocaleConditionGrantStore(context: Context) {
         /** Stable identity of the variable a grant authorizes reading. */
         fun variableKey(projectId: Long, variableName: String): String = "$projectId:$variableName"
 
+        /**
+         * Stable identity of one comparison on a variable. The bundle lives in the host, which can
+         * rewrite it, so a grant covering the variable alone would let it change the operator and
+         * the expected value and read the contents a comparison at a time.
+         */
+        fun comparisonKey(
+            projectId: Long,
+            variableName: String,
+            operator: LocaleConditionOperator,
+            expectedValue: String,
+        ): String = "${variableKey(projectId, variableName)}:${operator.wireName}:${sha256Hex(expectedValue)}"
+
+        private fun sha256Hex(value: String): String =
+            MessageDigest.getInstance("SHA-256")
+                .digest(value.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
+
         /** Stable binding used by the receiver before it touches the database. */
         fun bindingKey(spec: LocaleConditionSpec): String = when (spec.kind) {
             LocaleConditionKind.PROFILE_ACTIVE -> profileKey(requireNotNull(spec.profileId))
@@ -81,9 +104,11 @@ class LocaleConditionGrantStore(context: Context) {
                 requireNotNull(spec.profileId),
                 requireNotNull(spec.contextIndex),
             )
-            LocaleConditionKind.VARIABLE_COMPARE -> variableKey(
+            LocaleConditionKind.VARIABLE_COMPARE -> comparisonKey(
                 spec.variableProjectId,
                 requireNotNull(spec.variableName),
+                requireNotNull(spec.operator),
+                spec.expectedValue.orEmpty(),
             )
         }
 
@@ -92,6 +117,14 @@ class LocaleConditionGrantStore(context: Context) {
         }
     }
 }
+
+/**
+ * Grants issued before comparisons were bound name only the variable. The condition they were
+ * issued for keeps working: the first comparison asked is the one the host has stored, and the
+ * grant is pinned to it, so none after it can differ.
+ */
+internal fun shouldPinConditionGrant(stored: String?, bindingKey: String): Boolean =
+    stored != null && bindingKey.startsWith("$stored:")
 
 /** A revocable read grant: a high-entropy token bound to one condition binding. */
 data class LocaleConditionGrant(val token: String, val bindingKey: String)

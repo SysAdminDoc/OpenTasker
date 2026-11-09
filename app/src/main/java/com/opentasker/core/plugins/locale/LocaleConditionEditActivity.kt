@@ -244,9 +244,11 @@ private fun LocaleConditionEditor(
                                     // Choosing the variable here is the only place the user
                                     // authorizes the exported receiver to report on it.
                                     onIssueGrant(
-                                        LocaleConditionGrantStore.variableKey(
+                                        LocaleConditionGrantStore.comparisonKey(
                                             variable.projectId,
                                             variable.name,
+                                            selectedOperator,
+                                            expectedValue,
                                         ),
                                     ),
                                 )

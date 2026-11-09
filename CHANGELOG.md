@@ -10,6 +10,7 @@
 
 ### Security
 
+- A Locale condition on a variable now answers only the comparison you set up. The saved settings live in the host app, and one that rewrote them could change the operator or the expected value and work out what the variable holds, one guess at a time.
 - Local database backups and crash logs stay out of device-to-device transfers. A backup is sealed with a key that never leaves the old phone, so the copy could never open, and a crash log is written before redaction.
 - Logs and exports hide more credentials. Only a bare `password=` or `token:` was caught, so `api_key=`, `access_token:`, `client_secret=` and the quoted fields of a JSON reply reached exported run logs in the clear.
 - A value can't change what a condition asks anymore. An If or a loop that compared `%sms_body` had the message pasted in before the condition was read, so a text containing `x | 1 = 1` could turn false into true, and one that named another variable could read it. Conditions are split into their parts first now and each side is filled in after that, and the run preview agrees with the real run on these. Two small changes come with it: `%empty != word` is true when the variable is empty, and a variable on its own works as a ternary's condition.

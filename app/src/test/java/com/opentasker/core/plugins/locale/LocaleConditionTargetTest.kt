@@ -119,6 +119,40 @@ class LocaleConditionTargetTest {
     }
 
     @Test
+    fun aGrantCoversOnlyTheComparisonItWasIssuedFor() {
+        val issued = LocaleConditionGrantStore.comparisonKey(1, "Mode", LocaleConditionOperator.EQUALS, "home")
+
+        assertTrue(isConditionGrantValid(issued, "token", issued))
+        assertFalse(
+            "a host can't change the expected value",
+            isConditionGrantValid(issued, "token", LocaleConditionGrantStore.comparisonKey(1, "Mode", LocaleConditionOperator.EQUALS, "h")),
+        )
+        assertFalse(
+            "a host can't change the operator",
+            isConditionGrantValid(issued, "token", LocaleConditionGrantStore.comparisonKey(1, "Mode", LocaleConditionOperator.STARTS_WITH, "home")),
+        )
+    }
+
+    @Test
+    fun anOlderVariableGrantIsPinnedToTheFirstComparisonAndNoOther() {
+        val legacy = LocaleConditionGrantStore.variableKey(1, "Mode")
+        val first = LocaleConditionGrantStore.comparisonKey(1, "Mode", LocaleConditionOperator.EQUALS, "home")
+        val second = LocaleConditionGrantStore.comparisonKey(1, "Mode", LocaleConditionOperator.EQUALS, "h")
+
+        assertTrue(shouldPinConditionGrant(legacy, first))
+        assertFalse("once pinned it isn't a variable grant anymore", shouldPinConditionGrant(first, second))
+        assertFalse(
+            "a name that only starts the same is another variable",
+            shouldPinConditionGrant(LocaleConditionGrantStore.variableKey(1, "Mo"), first),
+        )
+        assertFalse(shouldPinConditionGrant(null, first))
+        assertFalse(
+            "a profile grant is never rebound",
+            shouldPinConditionGrant(LocaleConditionGrantStore.profileKey(5), LocaleConditionGrantStore.contextKey(5, 0)),
+        )
+    }
+
+    @Test
     fun aGrantAuthorizesOnlyTheVariableItWasIssuedFor() {
         val issued = LocaleConditionGrantStore.variableKey(1, "Mode")
         val other = LocaleConditionGrantStore.variableKey(1, "ApiToken")
