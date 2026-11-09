@@ -1656,6 +1656,7 @@ class ActiveAutomationViewModel(
             runCatching { editHistoryTransitions.transition(entityType, entityId, redo) }
                 .onSuccess { diff ->
                     val changed = diff != null
+                    if (changed && entityType == EditHistoryDao.TYPE_TASK) TaskWidgetProvider.requestRefresh(appContext)
                     if (diff != null && !diff.isEmpty) {
                         _semanticDiffReview.value = SemanticDiffReviewState(diff)
                         _highlightedFlowNodeKeys.value = diff.flowNodeKeys

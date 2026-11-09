@@ -46,6 +46,7 @@ class TaskWidgetProvider : AppWidgetProvider() {
         val editor = prefs.edit()
         for (id in appWidgetIds) {
             editor.remove(keyTaskId(id))
+            editor.remove(keyDeletedTaskId(id))
             editor.remove(keyTaskName(id))
         }
         editor.apply()
@@ -56,6 +57,7 @@ class TaskWidgetProvider : AppWidgetProvider() {
 
         fun keyTaskId(widgetId: Int) = "widget_${widgetId}_task_id"
         fun keyTaskName(widgetId: Int) = "widget_${widgetId}_task_name"
+        fun keyDeletedTaskId(widgetId: Int) = "widget_${widgetId}_deleted_task_id"
 
         /**
          * Asks every task widget to re-read its label. Call after a task rename or delete: nothing
@@ -78,7 +80,10 @@ class TaskWidgetProvider : AppWidgetProvider() {
             val editor = prefs.edit()
             val dao = runCatching { OpenTaskerApp_NoHilt.db.taskDao() }.getOrNull() ?: return
             for (widgetId in appWidgetIds) {
-                val taskId = prefs.getLong(keyTaskId(widgetId), -1L)
+                val taskId = widgetTaskToLookUp(
+                    boundTaskId = prefs.getLong(keyTaskId(widgetId), -1L),
+                    deletedTaskId = prefs.getLong(keyDeletedTaskId(widgetId), -1L),
+                )
                 if (taskId < 0) continue
                 val name = runCatching { dao.getById(taskId) }.getOrNull()
                     ?.toDomainDecodeResult()
@@ -86,10 +91,14 @@ class TaskWidgetProvider : AppWidgetProvider() {
                     ?.name
                 if (name == null) {
                     // The task is gone. Drop the id so the widget stops offering a run that can
-                    // only fail, and label it so the tap target explains itself.
+                    // only fail, and label it so the tap target explains itself. The id is set
+                    // aside because undoing the delete brings the same task back.
                     editor.remove(keyTaskId(widgetId))
+                    editor.putLong(keyDeletedTaskId(widgetId), taskId)
                     editor.putString(keyTaskName(widgetId), context.getString(R.string.widget_task_missing))
                 } else {
+                    editor.putLong(keyTaskId(widgetId), taskId)
+                    editor.remove(keyDeletedTaskId(widgetId))
                     editor.putString(keyTaskName(widgetId), name)
                 }
             }
@@ -130,3 +139,7 @@ class TaskWidgetProvider : AppWidgetProvider() {
         }
     }
 }
+
+/** A widget's current task wins; otherwise the one it lost, in case that task has come back. */
+internal fun widgetTaskToLookUp(boundTaskId: Long, deletedTaskId: Long): Long =
+    if (boundTaskId >= 0) boundTaskId else deletedTaskId
