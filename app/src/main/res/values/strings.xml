@@ -622,6 +622,9 @@
     <!-- Variables screen -->
     <string name="variables_search_label">Search variables</string>
     <string name="variables_search_clear">Clear variable search</string>
+    <string name="workspace_search_profiles_clear">Clear profile search</string>
+    <string name="workspace_search_tasks_clear">Clear task search</string>
+    <string name="scenes_search_clear">Clear scene search</string>
     <string name="variables_delete_body">This removes the saved global variable. Tasks that reference it will use fallback/default values.</string>
     <string name="variables_deleted">Deleted %1$s</string>
     <string name="variables_updated">Updated %1$s</string>
@@ -711,6 +714,7 @@
     <string name="automation_invariant_add">Watch a setting</string>
     <string name="automation_invariant_edit">Edit watched setting</string>
     <string name="automation_invariant_delete">Stop watching this setting</string>
+    <string name="automation_invariant_enabled_label">Warn about %1$s</string>
     <string name="automation_invariant_deleted">Stopped watching %1$s</string>
     <string name="automation_invariant_guard">Only when: %1$s %2$s %3$s</string>
     <string name="automation_invariant_forbidden_write">Warn if this changes: %1$s</string>
@@ -1282,6 +1286,10 @@
     <string name="label_x_dp">X dp</string>
     <string name="label_y_dp">Y dp</string>
     <string name="scenes_overview_summary">%1$d element(s) across %2$d scene(s)</string>
+    <plurals name="scenes_overview_errors">
+        <item quantity="one">%1$d scene error</item>
+        <item quantity="other">%1$d scene errors</item>
+    </plurals>
     <string name="scenes_size_range_helper">From %1$d to %2$d</string>
     <string name="scenes_card_summary">%1$d x %2$d dp · %3$d element(s)</string>
     <string name="scenes_remove_element_body">This removes the %1$s element from &quot;%2$s&quot;.</string>

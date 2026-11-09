@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.Icons
@@ -50,6 +52,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.opentasker.app.R
@@ -479,7 +482,14 @@ private fun VariableEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .toggleable(value = isSecret, role = Role.Switch) {
+                            isSecret = it
+                            revealed = false
+                            nonSecretDraft = if (it) null else value
+                        },
                     horizontalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -491,14 +501,7 @@ private fun VariableEditorDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Switch(
-                        checked = isSecret,
-                        onCheckedChange = {
-                            isSecret = it
-                            revealed = false
-                            nonSecretDraft = if (it) null else value
-                        },
-                    )
+                    Switch(checked = isSecret, onCheckedChange = null)
                 }
             }
         },

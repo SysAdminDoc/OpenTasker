@@ -16,6 +16,7 @@
 - A value can't change what a condition asks anymore. An If or a loop that compared `%sms_body` had the message pasted in before the condition was read, so a text containing `x | 1 = 1` could turn false into true, and one that named another variable could read it. Conditions are split into their parts first now and each side is filled in after that, and the run preview agrees with the real run on these. Two small changes come with it: `%empty != word` is true when the variable is empty, and a variable on its own works as a ternary's condition.
 ### Fixed
 
+- Screen readers now hear the right label on search clear buttons, the watched setting switches and the secret variable switch, and scene errors show a warning icon, so they no longer depend on color alone.
 - Watch a setting turns off at the 64 rule limit and says why. A 65th rule used to vanish as soon as you saved it.
 - Project name errors now say what's wrong (empty, too long or already taken) in place of a generic failure.
 - New scenes show the allowed width and height, and a size outside that range is flagged. It used to be changed silently when you saved.

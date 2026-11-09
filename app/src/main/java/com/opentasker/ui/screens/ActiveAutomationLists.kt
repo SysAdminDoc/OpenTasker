@@ -204,7 +204,7 @@ internal fun ProfilesScreen(
                     placeholder = { Text(stringResource(R.string.workspace_search_profiles)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = if (profileSearchQuery.isNotEmpty()) {
-                        { IconButton(onClick = { profileSearchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.variables_search_clear)) } }
+                        { IconButton(onClick = { profileSearchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.workspace_search_profiles_clear)) } }
                     } else null,
                     singleLine = true,
                     shape = RoundedCornerShape(DesignSystem.Radii.lg),
@@ -530,7 +530,7 @@ internal fun TasksScreen(
                 placeholder = { Text(stringResource(R.string.workspace_search_tasks)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = if (taskSearchQuery.isNotEmpty()) {
-                    { IconButton(onClick = { taskSearchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.variables_search_clear)) } }
+                    { IconButton(onClick = { taskSearchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.workspace_search_tasks_clear)) } }
                 } else null,
                 singleLine = true,
                 shape = RoundedCornerShape(DesignSystem.Radii.lg),

@@ -172,7 +172,7 @@ fun SceneLibraryScreen(
                     trailingIcon = if (searchQuery.isNotEmpty()) {
                         {
                             IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.variables_search_clear))
+                                Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.scenes_search_clear))
                             }
                         }
                     } else null,

@@ -37,6 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.opentasker.app.R
@@ -192,10 +194,13 @@ private fun AutomationInvariantRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                val enabledLabel = stringResource(R.string.automation_invariant_enabled_label, invariant.name)
                 Switch(
                     checked = invariant.enabled,
                     onCheckedChange = onEnabledChange,
-                    modifier = Modifier.padding(horizontal = 2.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 2.dp)
+                        .semantics { contentDescription = enabledLabel },
                     thumbContent = null,
                 )
                 IconButton(onClick = onEdit) {
