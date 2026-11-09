@@ -10,6 +10,19 @@ import com.opentasker.core.model.ContextType
 
 class StateContextSourceImplTest {
     @Test
+    fun snapshotsFromTwoThreadsLeaveInTheOrderTheyWereMerged() {
+        val delivered = mutableListOf<Map<String, String>>()
+        val publisher = StatePatchPublisher { delivered += it }
+
+        (0 until 2)
+            .map { source -> kotlin.concurrent.thread { repeat(1_000) { publisher.publish(mapOf("s$source-$it" to "x")) } } }
+            .forEach { it.join() }
+
+        assertEquals(2_000, delivered.last().size)
+        assertEquals(delivered.map { it.size }.sorted(), delivered.map { it.size })
+    }
+
+    @Test
     fun aDelayedLockIsNoticedWhenTheScreenComesBack() {
         // Lock after 30 seconds: still open as the screen goes off, closed when it comes back.
         assertEquals(mapOf("screen" to "off", "unlocked" to "true"), screenStatePatch(on = false, keyguardLocked = false))

@@ -19,6 +19,23 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 
+/**
+ * Patches arrive from two threads: the BroadcastReceiver (main) and the DeviceStateEvents
+ * collector. The merge and the hand-off share one lock, so a battery broadcast can't drop a Wi-Fi
+ * patch computed against a stale map, and an older snapshot can't land after a newer one.
+ */
+internal class StatePatchPublisher(private val deliver: (Map<String, String>) -> Unit) {
+    private var lastState: Map<String, String> = emptyMap()
+
+    @Synchronized
+    fun publish(statePatch: Map<String, String>) {
+        val merged = mergeStatePatch(lastState, statePatch)
+        if (merged == lastState) return
+        lastState = merged
+        deliver(merged)
+    }
+}
+
 /** The state facts a screen broadcast changes. A missing [keyguardLocked] reads as locked. */
 internal fun screenStatePatch(on: Boolean, keyguardLocked: Boolean?): Map<String, String> = mapOf(
     "screen" to if (on) "on" else "off",
@@ -38,20 +55,10 @@ class StateContextSourceImpl : StateDemandContextSource {
     override val type = "state"
 
     override fun events(app: Context, requestedStateKey: String?): Flow<ContextEvent> = callbackFlow {
-        // Patches arrive from two threads: the BroadcastReceiver (main) and the
-        // DeviceStateEvents collector. Serialize the read-modify-write so a concurrent
-        // battery broadcast cannot drop a Wi-Fi patch computed against a stale map.
-        val stateLock = Any()
-        var lastState: Map<String, String> = emptyMap()
+        val publisher = StatePatchPublisher { merged -> trySend(ContextEvent(type, true, merged)) }
 
         fun publishPatch(statePatch: Map<String, String>) {
-            val mergedState = synchronized(stateLock) {
-                val merged = mergeStatePatch(lastState, statePatch)
-                if (merged == lastState) return
-                lastState = merged
-                merged
-            }
-            trySend(ContextEvent(type, true, mergedState))
+            publisher.publish(statePatch)
         }
 
         publishPatch(seedInitialState(app))
