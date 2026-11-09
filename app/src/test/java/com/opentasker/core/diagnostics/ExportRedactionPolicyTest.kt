@@ -64,6 +64,46 @@ class ExportRedactionPolicyTest {
     }
 
     @Test
+    fun aCredentialUnderACompoundNameIsRedacted() {
+        val result = ExportRedactionPolicy.redactText(
+            "HTTP 401 api_key=AAA111 access_token: BBB222 client_secret=CCC333 apikey=DDD444 " +
+                "authToken=EEE555 X-Api-Key: FFF666 refresh.token=GGG777",
+        )
+
+        listOf("AAA111", "BBB222", "CCC333", "DDD444", "EEE555", "FFF666", "GGG777").forEach { value ->
+            assertFalse("$value survived in: $result", result.contains(value))
+        }
+        assertTrue(result.contains("api_key=[REDACTED]"))
+    }
+
+    @Test
+    fun aCredentialInsideAJsonBodyIsRedacted() {
+        val result = ExportRedactionPolicy.redactText(
+            """reply {"user":"sam","password":"hunter2 with spaces","refresh_token": "r-1"} and \"token\":\"t-9\"""",
+        )
+
+        assertFalse(result, result.contains("hunter2"))
+        assertFalse(result, result.contains("with spaces"))
+        assertFalse(result, result.contains("r-1"))
+        assertFalse(result, result.contains("t-9"))
+        assertTrue(result, result.contains("\"user\":\"sam\""))
+    }
+
+    @Test
+    fun ordinaryWordsThatOnlyContainACredentialWordAreLeftAlone() {
+        val text = "hotkey=F5 monkey=banana max_tokens=100 author: Bob keyboard: shown tokens: 12"
+
+        assertEquals(text, ExportRedactionPolicy.redactText(text))
+    }
+
+    @Test
+    fun aLongRunOfSeparatorsIsReadOnce() {
+        val text = "a_".repeat(20_000) + " b-".repeat(20_000)
+
+        assertEquals(text, ExportRedactionPolicy.redactText(text))
+    }
+
+    @Test
     fun openTaskerBundleEncodingUsesTheSamePolicy() {
         val bundle = OpenTaskerBundle(
             appVersion = "test",

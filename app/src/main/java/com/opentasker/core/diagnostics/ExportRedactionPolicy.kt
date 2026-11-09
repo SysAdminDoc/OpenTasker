@@ -142,8 +142,14 @@ object ExportRedactionPolicy {
     private val URL_PATTERN = Regex("""(?i)\b(?:https?|ftp)://[^\s<>"']+""")
     private val AUTHORIZATION_PATTERN = Regex("""(?i)(\bauthorization\s*:\s*)[^\r\n]+""")
     private val BEARER_PATTERN = Regex("""(?i)(\bbearer\s+)[A-Za-z0-9._~+/=-]+""")
+    // A credential rarely travels under a bare name. This also reads api_key, access_token,
+    // client_secret, authToken and apikey, the quoted names and values of a JSON body, and a
+    // quoted value with spaces in it. Every repeat is bounded: the text is whatever a message or
+    // a server reply put in the log.
     private val KEYED_VALUE_PATTERN = Regex(
-        """(?i)(\b(?:password|secret|token|key|auth))\s*[:=]\s*[^\s,;]+""",
+        """(?i)(?<![A-Za-z0-9])((?:[A-Za-z0-9]{1,32}[_.-]){0,4}""" +
+            """(?:[A-Za-z0-9]{0,32}(?:password|passwd|secret|token)|(?:api|private|access|signing)?key|auth))""" +
+            """\\?["']?\s*[:=]\s*(?:\\?"[^"\r\n]*"|\\?'[^'\r\n]*'|[^\s,;]+)""",
     )
     private val CARD_PATTERN = Regex("""\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b""")
 }
