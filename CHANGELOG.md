@@ -16,6 +16,7 @@
 - A value can't change what a condition asks anymore. An If or a loop that compared `%sms_body` had the message pasted in before the condition was read, so a text containing `x | 1 = 1` could turn false into true, and one that named another variable could read it. Conditions are split into their parts first now and each side is filled in after that, and the run preview agrees with the real run on these. Two small changes come with it: `%empty != word` is true when the variable is empty, and a variable on its own works as a ternary's condition.
 ### Fixed
 
+- A sub-task cut off by the step that started it now reports the limit that really ran out, not the budget of whatever it happened to be doing.
 - A scene showing an image from another app no longer freezes OpenTasker while that image loads.
 - Tasker XML export now tells you what it couldn't carry over, like secret variables it left out or a State comparison the format has no place for. Inverted contexts stay inverted in the file.
 - Tasker imports now read Day and App contexts the way Tasker really writes them and keep each context's Invert switch. A profile that loses a context it needs comes in turned off, with a warning, so it can't run more often than it did in Tasker.

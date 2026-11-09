@@ -14,10 +14,11 @@ import com.opentasker.core.model.VariableNamePolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Resolves a sub-task by id or name for the `task.run` action. */
 typealias SubTaskResolver = suspend (ref: String) -> Task?
@@ -625,13 +626,11 @@ class TaskRunner(
         val timeoutMs = actionTimeoutMs(spec.type)
         val before = ctx.variables.toTemplateScope()
         val rawResult = try {
-            withTimeout(timeoutMs) {
+            runStepWithinLimit(timeoutMs) {
                 ctx.variables.withSensitiveWrites(expansionReport.hasSecretDerivedValues()) {
                     action.run(ctx.forAction(expansionReport.sensitiveArgumentNames()), expansionReport.args)
                 }
             }
-        } catch (e: TimeoutCancellationException) {
-            ActionResult.Failure("timed out after ${timeoutMs / 1000}s")
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -900,6 +899,20 @@ enum class ActionTraceStatus {
     TIMEOUT,
     SKIPPED,
 }
+
+/**
+ * Runs one step under its own limit. A limit set further out, by the `task.run` step above a
+ * sub-task, has to keep unwinding: the step that set it owns the message, and this step's budget
+ * would be the wrong number to report.
+ */
+internal suspend fun runStepWithinLimit(timeoutMs: Long, step: suspend () -> ActionResult): ActionResult =
+    try {
+        withTimeoutOrNull(timeoutMs) { step() } ?: ActionResult.Failure("timed out after ${timeoutMs / 1000}s")
+    } catch (e: TimeoutCancellationException) {
+        // Still active means this came from a limit the action set inside itself.
+        currentCoroutineContext().ensureActive()
+        ActionResult.Failure("timed out: ${e.message}")
+    }
 
 internal fun actionTimeoutMs(actionType: String): Long = when {
     actionType == "flow.wait" -> MAX_WAIT_TIMEOUT_MS

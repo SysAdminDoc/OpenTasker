@@ -4,6 +4,10 @@ import com.opentasker.core.actions.CONTACT_PICKER_TIMEOUT_MS
 import com.opentasker.core.actions.HomeAssistantWebhookConfig
 import com.opentasker.core.actions.HomeAssistantWebhookProtocol
 import com.opentasker.core.scripting.TermuxScriptPolicy
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -13,6 +17,28 @@ import org.junit.Test
  * user configured and the step's own message never reaches the run log.
  */
 class ActionTimeoutBudgetTest {
+
+    @Test
+    fun aSubTaskCutOffFromAboveReportsTheLimitThatFired() = runBlocking {
+        val result = runStepWithinLimit(1_000) {
+            runStepWithinLimit(60_000) {
+                delay(60_000)
+                ActionResult.Success
+            }
+        }
+
+        assertEquals("timed out after 1s", (result as ActionResult.Failure).message)
+    }
+
+    @Test
+    fun aLimitAnActionSetForItselfFailsThatStepAlone() = runBlocking {
+        val result = runStepWithinLimit(60_000) {
+            withTimeout(10) { delay(60_000) }
+            ActionResult.Success
+        }
+
+        assertTrue((result as ActionResult.Failure).message.startsWith("timed out:"))
+    }
 
     @Test
     fun aScriptMayRunForItsWholeConfiguredTimeout() {
