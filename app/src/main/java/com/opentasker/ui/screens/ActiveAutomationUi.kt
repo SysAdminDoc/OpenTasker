@@ -1179,22 +1179,24 @@ fun ActiveAutomationUi(
                 finishOnboarding(OnboardingExit.Dismissed)
             },
             onInstall = { values ->
-                viewModel.installProfileTemplate(template, values)
-                selectedTemplateId = null
-                // A template whose actions need a grant would otherwise land on Profiles and fail
-                // on its first run with nothing explaining why, so send them to Setup scoped to
-                // exactly what this template is waiting on.
-                val needed = SetupRequirementResolver.resolveForTemplate(
-                    actionTypes = (template.actions + template.exitActions).map { it.type },
-                    contexts = template.contexts.map { ContextSpec(it.type, it.config) },
-                )
-                setupFocusRequirements = needed.map(SetupRequirement::name)
-                screenOrdinal = if (needed.isEmpty()) {
-                    OpenTaskerScreen.Profiles.ordinal
-                } else {
-                    OpenTaskerScreen.Setup.ordinal
+                // Waits for the install, so a rejected one leaves the form up with what was entered.
+                viewModel.installProfileTemplate(template, values) {
+                    selectedTemplateId = null
+                    // A template whose actions need a grant would otherwise land on Profiles and fail
+                    // on its first run with nothing explaining why, so send them to Setup scoped to
+                    // exactly what this template is waiting on.
+                    val needed = SetupRequirementResolver.resolveForTemplate(
+                        actionTypes = (template.actions + template.exitActions).map { it.type },
+                        contexts = template.contexts.map { ContextSpec(it.type, it.config) },
+                    )
+                    setupFocusRequirements = needed.map(SetupRequirement::name)
+                    screenOrdinal = if (needed.isEmpty()) {
+                        OpenTaskerScreen.Profiles.ordinal
+                    } else {
+                        OpenTaskerScreen.Setup.ordinal
+                    }
+                    finishOnboarding(OnboardingExit.InstalledTemplate)
                 }
-                finishOnboarding(OnboardingExit.InstalledTemplate)
             },
         )
     }

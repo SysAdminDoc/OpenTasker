@@ -1078,8 +1078,8 @@ class ActiveAutomationViewModel(
         }
     }
 
-    fun installProfileTemplate(template: ProfileTemplate, slotValues: Map<String, String>) =
-        launchWithMessage(R.string.ui_message_template_installed) {
+    fun installProfileTemplate(template: ProfileTemplate, slotValues: Map<String, String>, onSaved: () -> Unit = {}) =
+        launchCreate(R.string.ui_message_template_installed, onSaved = onSaved) {
             val applied = template.instantiate(slotValues)
             val resolvedValues = template.defaults() + slotValues.mapValues { it.value.trim() }
             var taskId = 0L
