@@ -93,7 +93,7 @@ class LocaleConditionEditActivity : ComponentActivity() {
         }.flowOn(Dispatchers.IO)
 
         setContent {
-            val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.System)
+            val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.Amoled)
             val profiles by profilesFlow.collectAsState(initial = emptyList())
             val variables by variablesFlow.collectAsState(initial = emptyList())
             OpenTaskerTheme(themeMode) {

@@ -57,7 +57,7 @@ class LocaleSettingEditActivity : ComponentActivity() {
         setContent {
             // Honor the persisted theme like MainActivity and the widget config activity,
             // instead of defaulting to the system theme.
-            val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.System)
+            val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.Amoled)
             OpenTaskerTheme(themeMode) {
                 val tasks by tasksFlow.collectAsState(initial = emptyList())
                 Scaffold(

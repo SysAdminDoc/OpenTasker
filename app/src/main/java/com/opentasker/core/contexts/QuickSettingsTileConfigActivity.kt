@@ -81,7 +81,7 @@ class QuickSettingsTileConfigActivity : ComponentActivity() {
             }
         }
         setContent {
-            val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.System)
+            val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.Amoled)
             val tasks by tasksFlow.collectAsState(initial = emptyList())
             OpenTaskerTheme(themeMode) {
                 TileConfigScreen(

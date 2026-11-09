@@ -92,7 +92,7 @@ class TaskWidgetConfigActivity : ComponentActivity() {
             }
 
         setContent {
-            val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.System)
+            val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.Amoled)
             OpenTaskerTheme(themeMode) {
                 val taskState by tasksFlow.collectAsState(initial = WidgetTaskState())
                 ConfigScreen(
