@@ -16,6 +16,7 @@
 - A value can't change what a condition asks anymore. An If or a loop that compared `%sms_body` had the message pasted in before the condition was read, so a text containing `x | 1 = 1` could turn false into true, and one that named another variable could read it. Conditions are split into their parts first now and each side is filled in after that, and the run preview agrees with the real run on these. Two small changes come with it: `%empty != word` is true when the variable is empty, and a variable on its own works as a ternary's condition.
 ### Fixed
 
+- The header counts on Variables and Scenes now match the selected project, like the list under them.
 - A stray tap outside the template, scene element, context logic or watched setting forms no longer throws away what you typed, and context logic survives rotating the phone.
 - A template that can't be installed keeps its form open with what you entered, and tapping Install twice no longer adds it twice.
 - Saving a profile that could set off its own trigger now tells you it was left off and why. It used to say the profile was saved and quietly switch it off.
