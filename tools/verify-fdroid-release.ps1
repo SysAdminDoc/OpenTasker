@@ -192,8 +192,9 @@ if ($metadataCommits.Count -ne 1) {
     throw "Expected exactly one metadata commit, found $($metadataCommits.Count)"
 }
 $metadataCommit = $metadataCommits[0]
-if ($metadataCommit -cnotmatch "^[0-9a-f]{40}$") {
-    throw "Metadata commit must be a full 40-character lowercase SHA: $metadataCommit"
+$tagName = "v$versionName"
+if ($metadataCommit -cne $tagName) {
+    throw "Metadata commit must be the release tag $tagName, found $metadataCommit"
 }
 if ($metadataText -notmatch "openTaskerDistribution=fdroid") {
     throw "Metadata must include gradleprops openTaskerDistribution=fdroid"
@@ -202,21 +203,22 @@ if ($metadataText -notmatch [regex]::Escape(":app:verifyFdroidReadiness")) {
     throw "Metadata must run :app:verifyFdroidReadiness"
 }
 
-Invoke-Checked -FilePath "git" -ArgumentList @("cat-file", "-e", "$metadataCommit^{commit}")
-
 if (-not $SkipTagCheck) {
-    $tagName = "v$versionName"
     Invoke-Checked -FilePath "git" -ArgumentList @("rev-parse", "--verify", "$tagName^{commit}")
     $tagCommit = (& git -C $Root rev-list -n 1 $tagName).Trim()
+    # F-Droid builds the tag, but the signed APKs are built at the version-bump commit recorded in
+    # tools/release-truth.json, and the tag lands on the metadata sync commit after it. The two
+    # builds only match if nothing the APK is built from changed in between.
+    $truth = Read-RequiredText -Path (Join-Path $Root "tools\release-truth.json") | ConvertFrom-Json
+    $artifactCommit = [string]$truth.requiredArtifactCommit
+    if ($artifactCommit -cnotmatch "^[0-9a-f]{40}$") {
+        throw "tools/release-truth.json requiredArtifactCommit must be a full SHA: $artifactCommit"
+    }
+    $metadataCommit = $artifactCommit
     if ($tagCommit -ne $metadataCommit) {
-        # The documented release flow points the metadata `commit:` at the build commit and then
-        # adds a "sync release artifact metadata" commit that the tag lands on. Requiring an exact
-        # match therefore threw on every real release, so the tag gate was permanently bypassed
-        # with -SkipTagCheck. Accept a tag that descends from the metadata commit as long as
-        # nothing but the release metadata changed in between.
         & git -C $Root merge-base --is-ancestor $metadataCommit $tagCommit
         if ($LASTEXITCODE -ne 0) {
-            throw "Tag $tagName points to $tagCommit, which does not descend from metadata commit $metadataCommit"
+            throw "Tag $tagName points to $tagCommit, which does not descend from build commit $metadataCommit"
         }
         $allowedSyncPaths = @("tools/release-truth.json")
         $changedPaths = (& git -C $Root diff --name-only $metadataCommit $tagCommit) |

@@ -25,6 +25,9 @@ work/
 *.dex
 *.class
 release/
+# The release baseline profile is a build input. F-Droid rebuilds from source, so an APK built
+# with it can only be reproduced there if it is committed.
+!/app/src/release/
 
 # Keystores (NEVER commit)
 *.jks

@@ -6,24 +6,18 @@ AuthorName: OpenTasker contributors
 SourceCode: https://github.com/SysAdminDoc/OpenTasker
 IssueTracker: https://github.com/SysAdminDoc/OpenTasker/issues
 Changelog: https://github.com/SysAdminDoc/OpenTasker/releases
+Donate: https://ko-fi.com/X8K126YVER
 
 AutoName: OpenTasker
-Summary: Local-first Android automation
-Description: |-
-  OpenTasker is a local-first Android automation app for profiles, contexts,
-  tasks, actions, guided templates, open JSON bundles, sharing manifests,
-  Tasker migration review, FOSS geofence evaluation, runtime template
-  argument and condition expansion, per-expression template diagnostics,
-  explicit regex template policy, approved Termux script execution, and
-  platform-aware setup checks.
 
 RepoType: git
 Repo: https://github.com/SysAdminDoc/OpenTasker.git
+Binaries: https://github.com/SysAdminDoc/OpenTasker/releases/download/v%v/OpenTasker-v%v-fdroid.apk
 
 Builds:
   - versionName: 0.2.95
     versionCode: 97
-    commit: c966c4c94c1985fa8fab542640452fc9720bf38c
+    commit: v0.2.95
     subdir: .
     gradle:
       - yes
@@ -33,7 +27,10 @@ Builds:
       - ":app:verifyFdroidReadiness"
     output: app/build/outputs/apk/release/app-release-unsigned.apk
 
+AllowedAPKSigningKeys: dba1aa88e37b90155fca3135ca3b781de92c225107e47c9806e75bf88055fdd8
+
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
+UpdateCheckData: app/build.gradle.kts|appVersionCode\s*=\s*(\d+)|app/build.gradle.kts|appVersionName\s*=\s*"(.*)"
 CurrentVersion: 0.2.95
 CurrentVersionCode: 97

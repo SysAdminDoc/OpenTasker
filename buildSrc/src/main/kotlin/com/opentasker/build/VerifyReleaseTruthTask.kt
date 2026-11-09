@@ -220,8 +220,10 @@ abstract class VerifyReleaseTruthTask : DefaultTask() {
         check(metadataValue(metadata, "versionCode") == truth.getValue("versionCode")) {
             "F-Droid versionCode is stale."
         }
-        check(metadataValue(metadata, "commit") == artifactCommit) {
-            "F-Droid commit does not match release truth."
+        // F-Droid builds the tag. The tag sits on the sync commit after the artifact commit, which
+        // only changes metadata, and the APK carries no commit hash, so both build the same bytes.
+        check(metadataValue(metadata, "commit") == releaseTag) {
+            "F-Droid commit must be the release tag $releaseTag."
         }
         println(
             "Release truth passed for v$versionName (${truth.getValue("versionCode")}); " +

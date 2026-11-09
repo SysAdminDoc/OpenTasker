@@ -195,7 +195,8 @@ class ReleaseTruthContractTest {
             jsonValue(truth, "contextFamilies"),
         )
         assertTrue("verifyReleaseTruth" in gradle)
-        assertEquals(artifactCommit, metadataValue(fdroid, "commit"))
+        // F-Droid builds the release tag; checkupdates writes every later entry the same way.
+        assertEquals(releaseTag, metadataValue(fdroid, "commit"))
         assertTrue(Regex("[0-9a-f]{40}").matches(artifactCommit))
         assertEquals("v$versionName", releaseTag)
         assertTrue(Regex("[0-9a-f]{40}").matches(releaseTagCommit))

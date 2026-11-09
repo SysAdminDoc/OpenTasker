@@ -168,15 +168,41 @@ require(selectedDistribution in allowedDistributions) {
     "Unsupported OpenTasker distribution '$selectedDistribution'. Expected one of: ${allowedDistributions.joinToString()}."
 }
 /**
- * F-Droid signs the APKs it builds, so that distribution ships unsigned. This also decides the
- * artifact filename AGP produces, which the build recipe and reproducibility harness both name -
- * so the release signing config and the expected output path are derived from this one value.
+ * F-Droid's build server has no signing material, so the F-Droid distribution packages unsigned by
+ * default. The release flow builds the same distribution once more with the release key
+ * (`-PopenTaskerSignFdroid=true`) and publishes it next to the standard APK. F-Droid rebuilds it from
+ * the tag, copies that signature onto its own unsigned build, and ships our signed APK when the two
+ * match byte for byte (`Binaries:` and `AllowedAPKSigningKeys:` in the metadata). That keeps one
+ * signing identity across GitHub, Obtainium and F-Droid installs.
+ *
+ * This also decides the artifact filename AGP produces, which the build recipe and reproducibility
+ * harness both name, so the signing config and the expected output path derive from this one value.
  */
-val releaseBuildIsUnsigned = selectedDistribution == "fdroid"
+val signFdroidBuild = providers.gradleProperty("openTaskerSignFdroid")
+    .orElse("false")
+    .get()
+    .toBoolean()
+require(!signFdroidBuild || selectedDistribution == "fdroid") {
+    "-PopenTaskerSignFdroid=true only applies to -PopenTaskerDistribution=fdroid."
+}
+val releaseBuildIsUnsigned = selectedDistribution == "fdroid" && !signFdroidBuild
+/** What F-Droid's server builds (unsigned); the metadata recipe's `output:` must name this path. */
+val fdroidRecipeApkPath = "app/build/outputs/apk/release/app-release-unsigned.apk"
 val expectedReleaseApkPath = if (releaseBuildIsUnsigned) {
-    "app/build/outputs/apk/release/app-release-unsigned.apk"
+    fdroidRecipeApkPath
 } else {
     "app/build/outputs/apk/release/app-release.apk"
+}
+/** Both published APKs sit on one release page, so the F-Droid build carries a suffix. */
+val releaseAssetFileName = if (selectedDistribution == "fdroid") {
+    "OpenTasker-v$appVersionName-fdroid.apk"
+} else {
+    "OpenTasker-v$appVersionName.apk"
+}
+val releaseAssetDirectoryName = if (selectedDistribution == "fdroid") {
+    "outputs/release-assets-fdroid"
+} else {
+    "outputs/release-assets"
 }
 val smsActionAvailable = selectedDistribution != "play"
 val smsReceiveAvailable = selectedDistribution != "play"
@@ -247,14 +273,20 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // F-Droid builds from source and applies its own signature, so that distribution must
-            // stay unsigned — it is also what makes AGP name the artifact
-            // `app-release-unsigned.apk`, the path the build recipe and the reproducibility
-            // harness both expect. Every other distribution requires external signing.
+            // F-Droid's server builds the fdroid distribution with no key, which is also what
+            // makes AGP name the artifact `app-release-unsigned.apk`, the path the build recipe and
+            // the reproducibility harness both expect. Every other build requires external signing.
             signingConfig = if (releaseBuildIsUnsigned) {
                 null
             } else {
                 signingConfigs.findByName("release")
+            }
+            // AGP writes the build's Git commit into META-INF/version-control-info.textproto. The
+            // release APK is built at the version-bump commit and the tag lands on the metadata
+            // sync commit after it, so F-Droid's rebuild from the tag would differ by that hash
+            // alone and fail its reproducibility check.
+            vcsInfo {
+                include = false
             }
         }
         create("benchmark") {
@@ -262,6 +294,14 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
         }
+    }
+
+    // AGP otherwise puts an encrypted dependency list (DEPENDENCY_INFO_BLOCK) in the APK signing
+    // block. Only Google Play can read it, IzzyOnDroid's scanner flags it, and F-Droid asks for it
+    // to be off because nobody can audit what it contains.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 
     lint {
@@ -289,6 +329,10 @@ android {
 
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        // Every native library here is a prebuilt from a dependency. Stripping them runs the NDK's
+        // llvm-strip, so the APK would differ by NDK version, or with no NDK at all, and F-Droid's
+        // rebuild couldn't match ours. Only DataStore's tiny counter lib carries symbols (~10 KB).
+        jniLibs.keepDebugSymbols += "**/*.so"
     }
 
     sourceSets {
@@ -1063,6 +1107,9 @@ abstract class VerifyReleaseAssetNameTask : org.gradle.api.DefaultTask() {
     @get:org.gradle.api.tasks.Input
     abstract val versionName: org.gradle.api.provider.Property<String>
 
+    @get:org.gradle.api.tasks.Input
+    abstract val assetFileName: org.gradle.api.provider.Property<String>
+
     @org.gradle.api.tasks.TaskAction
     fun verify() {
         val truth = truthFile.get().asFile
@@ -1077,7 +1124,10 @@ abstract class VerifyReleaseAssetNameTask : org.gradle.api.DefaultTask() {
                 "these must agree before anything is published."
         }
 
-        val expectedName = "OpenTasker-v${versionName.get()}.apk"
+        val expectedName = assetFileName.get()
+        check(expectedName.startsWith("OpenTasker-v${versionName.get()}")) {
+            "Release asset name '$expectedName' does not carry version ${versionName.get()}."
+        }
         val staged = stagingDirectory.get().asFile.listFiles().orEmpty()
             .filter { it.isFile }
             .sortedBy { it.name }
@@ -1278,14 +1328,15 @@ abstract class StageReleaseAssetTask : DefaultTask() {
     @get:OutputDirectory
     abstract val stagingDirectory: DirectoryProperty
 
+    /** `OpenTasker-v<versionName>.apk`, or `OpenTasker-v<versionName>-fdroid.apk` for F-Droid. */
     @get:Input
-    abstract val versionName: Property<String>
+    abstract val assetFileName: Property<String>
 
     /**
-     * False for the F-Droid distribution. Staging exists to publish a GitHub release asset, and
-     * F-Droid builds and signs its own APK from source, so there is nothing to stage there. This
-     * refuses the whole task rather than relaxing the signature check, which would otherwise copy
-     * `app-release-unsigned.apk` to the published asset name.
+     * False for F-Droid's own unsigned build. Staging exists to publish a signed GitHub release
+     * asset, so the unsigned lane has nothing to stage; the signed F-Droid lane
+     * (`-PopenTaskerSignFdroid=true`) does. This refuses the whole task rather than relaxing the
+     * signature check, which would otherwise copy `app-release-unsigned.apk` to a published name.
      */
     @get:Input
     abstract val stagingIsSupported: Property<Boolean>
@@ -1305,9 +1356,9 @@ abstract class StageReleaseAssetTask : DefaultTask() {
     @TaskAction
     fun stage() {
         check(stagingIsSupported.get()) {
-            "stageReleaseAsset publishes a GitHub release asset, and the F-Droid distribution is " +
-                "built and signed by F-Droid from source, so it has nothing to stage. Build the " +
-                "standard distribution to produce a publishable asset."
+            "stageReleaseAsset publishes a signed GitHub release asset, and this F-Droid build is " +
+                "unsigned, so it has nothing to stage. Add -PopenTaskerSignFdroid=true to build the " +
+                "signed F-Droid asset, or build the standard distribution."
         }
         val source = sourceApk.get().asFile
         check(source.isFile) { "Release APK is missing: ${source.absolutePath}" }
@@ -1335,7 +1386,7 @@ abstract class StageReleaseAssetTask : DefaultTask() {
         check(destinationDirectory.mkdirs()) {
             "Could not create release asset directory ${destinationDirectory.absolutePath}"
         }
-        source.copyTo(destinationDirectory.resolve("OpenTasker-v${versionName.get()}.apk"), overwrite = true)
+        source.copyTo(destinationDirectory.resolve(assetFileName.get()), overwrite = true)
     }
 
     /**
@@ -1612,19 +1663,34 @@ tasks.register("verifyFdroidMetadata") {
     dependsOn("verifyReleaseTruth")
 
     val metadataFile = rootProject.file("fdroid/metadata/com.opentasker.app.yml")
+    val readmeFile = rootProject.file("README.md")
+    val listing = rootProject.file("fastlane/metadata/android/en-US")
     inputs.file(metadataFile)
+    inputs.file(readmeFile)
+
+    // Copied into locals so the action holds plain values instead of the build script, which the
+    // configuration cache can't serialize.
+    val distribution = selectedDistribution
+    val versionName = appVersionName
+    val versionCode = appVersionCode
+    val recipeApkPath = fdroidRecipeApkPath
+    val assetFileName = releaseAssetFileName
+    val shortDescriptionMaxChars = FDROID_SHORT_DESCRIPTION_MAX_CHARS
+    val changelogMaxChars = FDROID_CHANGELOG_MAX_CHARS
+    val minScreenshots = FDROID_MIN_SCREENSHOTS
 
     doLast {
+        val publishedReleaseCertificate = publishedCertificateSha256(readmeFile.readText())
         check(metadataFile.isFile) {
-            "Missing F-Droid metadata at ${metadataFile.relativeTo(rootProject.projectDir)}"
+            "Missing F-Droid metadata at fdroid/metadata/com.opentasker.app.yml"
         }
 
         // This task describes the artifact the F-Droid distribution produces, so running it against
         // any other distribution previously printed "F-Droid metadata check passed" for a build
         // whose output does not match the recipe at all.
-        check(selectedDistribution == "fdroid") {
+        check(distribution == "fdroid") {
             "verifyFdroidMetadata checks the F-Droid build recipe; run it with " +
-                "-PopenTaskerDistribution=fdroid (current distribution: $selectedDistribution)"
+                "-PopenTaskerDistribution=fdroid (current distribution: $distribution)"
         }
 
         val metadata = metadataFile.readText()
@@ -1641,19 +1707,22 @@ tasks.register("verifyFdroidMetadata") {
             }
         }
 
-        requireValue("versionName", appVersionName)
-        requireValue("versionCode", appVersionCode.toString())
-        requireValue("CurrentVersion", appVersionName)
-        requireValue("CurrentVersionCode", appVersionCode.toString())
+        requireValue("versionName", versionName)
+        requireValue("versionCode", versionCode.toString())
+        requireValue("CurrentVersion", versionName)
+        requireValue("CurrentVersionCode", versionCode.toString())
         requireValue("Changelog", "https://github.com/SysAdminDoc/OpenTasker/releases")
 
         val commits = valuesFor("commit")
         check(commits.size == 1) {
             "F-Droid metadata must contain exactly one release commit, found ${commits.size}"
         }
+        // The tag, not a SHA: checkupdates writes every later build entry as the tag it found, and
+        // the release tag lands on the metadata sync commit, which adds nothing the APK is built
+        // from (version-control info is off, see the release build type).
         val releaseCommit = commits.single()
-        check(Regex("""[0-9a-f]{40}""").matches(releaseCommit)) {
-            "F-Droid metadata commit must be a full 40-character lowercase SHA, found '$releaseCommit'"
+        check(releaseCommit == "v$versionName") {
+            "F-Droid metadata commit must be the release tag v$versionName, found '$releaseCommit'"
         }
         check("openTaskerDistribution=fdroid" in metadata) {
             "F-Droid metadata must build with gradleprops openTaskerDistribution=fdroid"
@@ -1661,18 +1730,32 @@ tasks.register("verifyFdroidMetadata") {
         check(":app:verifyFdroidReadiness" in metadata) {
             "F-Droid metadata must run :app:verifyFdroidReadiness before assembly"
         }
-        // Derived from the release signing decision rather than hard-coded, so re-signing the
-        // F-Droid build fails this check instead of silently renaming the artifact out from under
-        // the recipe. AGP only emits the "-unsigned" name when the build type has no signing
-        // config at all.
-        check(expectedReleaseApkPath in metadata) {
-            "F-Droid metadata must point to $expectedReleaseApkPath, the artifact this build " +
-                "configuration actually produces for distribution=$selectedDistribution"
+        // F-Droid's server builds without a key, so the recipe names the unsigned artifact even
+        // when this check runs inside the signed lane of a release.
+        check(recipeApkPath in metadata) {
+            "F-Droid metadata must point to $recipeApkPath, the artifact F-Droid's unsigned " +
+                "build of distribution=fdroid produces"
+        }
+
+        // Reproducible-build wiring. F-Droid downloads Binaries, copies its signature onto the APK
+        // it built, and publishes ours only if that verifies under one of the allowed keys. A URL
+        // that doesn't match the staged asset name 404s, and a key that isn't the release key
+        // makes F-Droid refuse every build.
+        requireValue(
+            "Binaries",
+            "https://github.com/SysAdminDoc/OpenTasker/releases/download/v%v/OpenTasker-v%v-fdroid.apk",
+        )
+        check(assetFileName == "OpenTasker-v$versionName-fdroid.apk") {
+            "The Binaries URL names OpenTasker-v%v-fdroid.apk but this lane stages $assetFileName"
+        }
+        requireValue("AllowedAPKSigningKeys", publishedReleaseCertificate)
+        // checkupdates can't read versionCode = appVersionCode, so it needs a pointer to the vals.
+        check("UpdateCheckData: app/build.gradle.kts|" in metadata) {
+            "F-Droid metadata needs UpdateCheckData pointing at appVersionCode and appVersionName"
         }
 
         // The store listing is part of the release contract: F-Droid renders whatever is in
         // fastlane/, so a listing that lags the build is what users actually see.
-        val listing = rootProject.file("fastlane/metadata/android/en-US")
         check(listing.isDirectory) {
             "Missing F-Droid store listing at fastlane/metadata/android/en-US"
         }
@@ -1683,18 +1766,18 @@ tasks.register("verifyFdroidMetadata") {
             }
         }
         val shortDescription = listing.resolve("short_description.txt").readText().trim()
-        check(shortDescription.length <= FDROID_SHORT_DESCRIPTION_MAX_CHARS) {
+        check(shortDescription.length <= shortDescriptionMaxChars) {
             "F-Droid short_description.txt is ${shortDescription.length} characters; the limit is " +
-                "$FDROID_SHORT_DESCRIPTION_MAX_CHARS"
+                "$shortDescriptionMaxChars"
         }
 
-        val changelog = listing.resolve("changelogs/$appVersionCode.txt")
+        val changelog = listing.resolve("changelogs/$versionCode.txt")
         check(changelog.isFile && changelog.readText().isNotBlank()) {
-            "Missing F-Droid changelog for version code $appVersionCode. Run " +
+            "Missing F-Droid changelog for version code $versionCode. Run " +
                 ":app:generateFdroidChangelog after bumping the version."
         }
-        check(changelog.readText().trim().length <= FDROID_CHANGELOG_MAX_CHARS) {
-            "F-Droid changelog $appVersionCode.txt exceeds $FDROID_CHANGELOG_MAX_CHARS characters"
+        check(changelog.readText().trim().length <= changelogMaxChars) {
+            "F-Droid changelog $versionCode.txt exceeds $changelogMaxChars characters"
         }
 
         // IzzyOnDroid reads the Fastlane tree directly and will not list an app whose icon or
@@ -1723,31 +1806,21 @@ tasks.register("verifyFdroidMetadata") {
         val screenshots = screenshotDir.listFiles { file -> file.extension.lowercase() == "png" }
             .orEmpty()
             .sortedBy { it.name }
-        check(screenshots.size >= FDROID_MIN_SCREENSHOTS) {
-            "F-Droid listing needs at least $FDROID_MIN_SCREENSHOTS phone screenshots, found ${screenshots.size}"
+        check(screenshots.size >= minScreenshots) {
+            "F-Droid listing needs at least $minScreenshots phone screenshots, found ${screenshots.size}"
         }
         val capturedAt = screenshotDir.resolve("captured-at-version-code.txt")
         check(capturedAt.isFile) {
             "Missing ${capturedAt.name}; re-capture the store screenshots and record the version code"
         }
-        check(capturedAt.readText().trim() == appVersionCode.toString()) {
+        check(capturedAt.readText().trim() == versionCode.toString()) {
             "Store screenshots were captured at version code ${capturedAt.readText().trim()} but this " +
-                "release is $appVersionCode. Re-capture them so the listing matches the build."
+                "release is $versionCode. Re-capture them so the listing matches the build."
         }
 
-        if (rootProject.file(".git").exists()) {
-            val process = ProcessBuilder("git", "cat-file", "-e", "$releaseCommit^{commit}")
-                .directory(rootProject.projectDir)
-                .redirectErrorStream(true)
-                .start()
-            val output = process.inputStream.bufferedReader().readText().trim()
-            val exitCode = process.waitFor()
-            check(exitCode == 0) {
-                "F-Droid metadata commit $releaseCommit is not present in this checkout. $output"
-            }
-        }
-
-        println("F-Droid metadata check passed for v$appVersionName ($appVersionCode)")
+        // The tag itself is created after the gate passes, so its existence and position are
+        // checked by tools/verify-fdroid-release.ps1 once the release is tagged.
+        println("F-Droid metadata check passed for v$versionName ($versionCode)")
     }
 }
 
@@ -1794,19 +1867,21 @@ val verifyPackagedTypeCompleteness = tasks.register<VerifyPackagedTypeCompletene
 }
 
 /**
- * The single directory a GitHub release is uploaded from. Staging is a copy rather than an AGP
- * output rename because the F-Droid recipe, the reproducibility harness, and
- * verifyPackagedTypeCompleteness all name the AGP path directly.
+ * The directory a GitHub release asset is uploaded from: `outputs/release-assets` for the standard
+ * APK, `outputs/release-assets-fdroid` for the signed F-Droid one, so each lane can clear its own
+ * stale files without deleting the other's. Staging is a copy rather than an AGP output rename
+ * because the F-Droid recipe, the reproducibility harness, and verifyPackagedTypeCompleteness all
+ * name the AGP path directly.
  */
-val releaseAssetStagingDirectory = layout.buildDirectory.dir("outputs/release-assets")
+val releaseAssetStagingDirectory = layout.buildDirectory.dir(releaseAssetDirectoryName)
 
 val stageReleaseAsset = tasks.register<StageReleaseAssetTask>("stageReleaseAsset") {
     group = "release"
-    description = "Copies the release APK to outputs/release-assets under the published asset name."
+    description = "Copies the signed release APK to $releaseAssetDirectoryName under the published asset name."
     dependsOn("packageRelease")
     sourceApk.set(rootProject.layout.projectDirectory.file(expectedReleaseApkPath))
     stagingDirectory.set(releaseAssetStagingDirectory)
-    versionName.set(appVersionName)
+    assetFileName.set(releaseAssetFileName)
     stagingIsSupported.set(!releaseBuildIsUnsigned)
     expectedCertificateSha256.set(
         providers.fileContents(rootProject.layout.projectDirectory.file("README.md")).asText
@@ -1854,6 +1929,7 @@ val verifyReleaseAssetName = tasks.register<VerifyReleaseAssetNameTask>("verifyR
     stagingDirectory.set(releaseAssetStagingDirectory)
     truthFile.set(rootProject.layout.projectDirectory.file("tools/release-truth.json"))
     versionName.set(appVersionName)
+    assetFileName.set(releaseAssetFileName)
 }
 
 // Where production Kotlin lives. Source-scanning gates that walk a tree must walk all of these:
