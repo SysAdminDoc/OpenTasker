@@ -19,7 +19,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 private const val MAX_CLIPBOARD_CHARS = 64 * 1024
 private const val MAX_CONTACT_QUERY_CHARS = 128
 private const val MAX_CONTACT_RESULTS = 50
-private const val CONTACT_PICKER_TIMEOUT_MS = 120_000L
+internal const val CONTACT_PICKER_TIMEOUT_MS = 120_000L
 
 class ClipboardGetAction : DeclaredAction(ActionCatalog.require("clipboard.get")) {
 

@@ -901,14 +901,20 @@ enum class ActionTraceStatus {
     SKIPPED,
 }
 
-private fun actionTimeoutMs(actionType: String): Long = when {
+internal fun actionTimeoutMs(actionType: String): Long = when {
     actionType == "flow.wait" -> MAX_WAIT_TIMEOUT_MS
-    // The two other network actions belong in this bucket too. The HA webhook's own contract
-    // allows timeout_sec=30 across four attempts plus backoff (~140 s) and MQTT allows a 30 s
-    // connect plus three 30 s reads, so the 60 s default silently truncated retries the user
-    // configured and reported a timeout instead.
+    // MQTT allows a 30 s connect plus three 30 s reads, so the 60 s default silently truncated
+    // work the user configured and reported a timeout instead.
     actionType.startsWith("http.") || actionType == "download" || actionType == "ping" ||
-        actionType == "mqtt.publish" || actionType == "integration.home_assistant.webhook" -> 120_000L
+        actionType == "mqtt.publish" -> 120_000L
+    // The webhook's own contract allows timeout_sec=30 across four attempts with 5 s, 10 s and
+    // 10 s of backoff between them, which is 145 s.
+    actionType == "integration.home_assistant.webhook" -> LONG_REQUEST_TIMEOUT_MS
+    // A script may run for TermuxScriptPolicy.MAX_TIMEOUT_MS after a hash check of up to
+    // HASH_TIMEOUT_MS, and the contact picker waits two minutes for a choice. Each reports its
+    // own limit, which the engine must outlast for that message to reach the run log.
+    actionType == "script.termux.run" || actionType == "script.shizuku.run" ||
+        actionType == "contacts.lookup" -> LONG_REQUEST_TIMEOUT_MS
     // Playback and speech suspend until completion; a long sound file or near-limit TTS
     // text legitimately outlives the default 60 s budget.
     actionType == "sound.play" || actionType == "tts.speak" -> MEDIA_ACTION_TIMEOUT_MS
@@ -916,6 +922,7 @@ private fun actionTimeoutMs(actionType: String): Long = when {
 }
 
 private const val DEFAULT_ACTION_TIMEOUT_MS = 60_000L
+private const val LONG_REQUEST_TIMEOUT_MS = 180_000L
 private const val MEDIA_ACTION_TIMEOUT_MS = 600_000L // 10 minutes
 
 // The engine budget must exceed WaitAction.MAX_WAIT_MS (30 min): the timeout clock starts
