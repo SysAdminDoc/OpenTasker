@@ -1285,6 +1285,15 @@ class ActiveAutomationViewModel(
                             report.skippedActions.size,
                         ),
                     )
+                    if (report.warnings.isNotEmpty()) {
+                        events.send(
+                            message(
+                                R.string.ui_message_tasker_xml_export_warnings,
+                                report.warnings.size,
+                                report.warnings.take(MAX_EXPORT_WARNINGS_SHOWN).joinToString(" "),
+                            ).copy(longDuration = true),
+                        )
+                    }
                 }
                 .onFailure { events.send(errorMessage(it, R.string.ui_error_tasker_xml_export)) }
         }
@@ -1912,6 +1921,7 @@ class ActiveAutomationViewModel(
     }
 }
 
+private const val MAX_EXPORT_WARNINGS_SHOWN = 3
 internal const val PROFILE_SHARE_MAX_SCREENSHOTS = 6
 
 /** Where a project at [index] lands when moved by [direction], or null when it can't move that way. */

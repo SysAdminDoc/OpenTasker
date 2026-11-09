@@ -70,6 +70,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -503,6 +504,11 @@ fun ActiveAutomationUi(
                 message = message.resolve(context),
                 actionLabel = message.action?.let { context.getString(R.string.action_undo) },
                 withDismissAction = message.action != null,
+                duration = when {
+                    message.action != null -> SnackbarDuration.Indefinite
+                    message.longDuration -> SnackbarDuration.Long
+                    else -> SnackbarDuration.Short
+                },
             )
             if (result == SnackbarResult.ActionPerformed) {
                 when (val action = message.action) {

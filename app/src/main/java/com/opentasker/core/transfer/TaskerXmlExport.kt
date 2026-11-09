@@ -32,6 +32,14 @@ object TaskerXmlExporter {
     // Codes and field layouts come from Tasker's own published action table, which Map-Tasker vendors
     // as maptasker/assets/json/task_all_actions.json. There's no entry for "log": Tasker has no such
     // action, and the code once written for it, 905, is Location Mode.
+    private val EXPORTED_CONTEXT_KEYS = mapOf(
+        ContextType.TIME to setOf("start", "end"),
+        ContextType.DAY to setOf("days"),
+        ContextType.APPLICATION to setOf("package"),
+        ContextType.STATE to setOf("key", "value"),
+        ContextType.EVENT to setOf("event", "value"),
+    )
+
     private val REVERSE_ACTION_MAP: Map<String, String> = mapOf(
         "notify.show" to "523",
         "notify.cancel" to "779",
@@ -98,12 +106,13 @@ object TaskerXmlExporter {
             appendProfile(sb, profile, taskMap, warnings)
         }
 
+        // These two go first because the file is unusable without acting on them.
         val omittedSecretCount = variables.count { it.isSecret }
-        if (omittedSecretCount > 0) {
-            warnings += "$omittedSecretCount secret variable(s) were omitted and must be re-entered after import."
-        }
         if (redactedActionFields.isNotEmpty()) {
-            warnings += ExportRedactionPolicy.SENSITIVE_ACTION_WARNING
+            warnings.add(0, ExportRedactionPolicy.SENSITIVE_ACTION_WARNING)
+        }
+        if (omittedSecretCount > 0) {
+            warnings.add(0, "$omittedSecretCount secret variable(s) were omitted and must be re-entered after import.")
         }
         variables.filterNot { it.isSecret }.forEach { variable ->
             appendVariable(sb, variable)
@@ -172,6 +181,9 @@ object TaskerXmlExporter {
                 if (action.type == "notify.show") {
                     appendStr(sb, 0, args["title"] ?: "Notification")
                     appendStr(sb, 1, args["text"] ?: "")
+                    if (!args["tag"].isNullOrBlank()) {
+                        warnings += "A notification tagged '${args["tag"]}' lost its tag, because Tasker's Notify has no place for one. A later cancel by that tag won't find it."
+                    }
                 } else {
                     appendStr(sb, 0, args["tag"] ?: "")
                     args["id"]?.let { appendStr(sb, 1, it) }
@@ -414,12 +426,30 @@ object TaskerXmlExporter {
             val exported = exportContext(context, index)
             if (exported != null) {
                 sb.appendLine(exported)
+                val lost = contextSettingsLost(context)
+                if (lost.isNotEmpty()) {
+                    warnings += "Profile '${profile.name}' context ${context.type.name} lost settings Tasker XML has no place for: ${lost.joinToString(", ")}."
+                }
             } else {
                 warnings += "Profile '${profile.name}' context ${context.type.name} has no Tasker equivalent."
             }
         }
 
         sb.appendLine("  </Profile>")
+    }
+
+    private fun contextSettingsLost(context: ContextSpec): List<String> {
+        val written = EXPORTED_CONTEXT_KEYS[context.type].orEmpty()
+        return context.config
+            .filter { (key, value) ->
+                key !in written && !key.startsWith("_") && !(key == "operator" && value.trim().ifEmpty { "=" } == "=")
+            }
+            .keys
+            .sorted()
+    }
+
+    private fun StringBuilder.appendInvert(context: ContextSpec) {
+        if (context.invert) appendLine("      <pin>true</pin>")
     }
 
     private fun exportContext(context: ContextSpec, index: Int): String? {
@@ -431,6 +461,7 @@ object TaskerXmlExporter {
                 val (th, tm) = parseClockParts(end) ?: return null
                 buildString {
                     appendLine("""    <Time sr="con$index">""")
+                    appendInvert(context)
                     appendLine("      <fh>$fh</fh>")
                     appendLine("      <fm>$fm</fm>")
                     appendLine("      <th>$th</th>")
@@ -442,6 +473,7 @@ object TaskerXmlExporter {
                 val days = context.config["days"] ?: return null
                 buildString {
                     appendLine("""    <Day sr="con$index">""")
+                    appendInvert(context)
                     appendLine("      <days>${escapeXml(days)}</days>")
                     append("    </Day>")
                 }
@@ -450,6 +482,7 @@ object TaskerXmlExporter {
                 val pkg = context.config["package"] ?: return null
                 buildString {
                     appendLine("""    <Application sr="con$index">""")
+                    appendInvert(context)
                     appendLine("      <package>${escapeXml(pkg)}</package>")
                     append("    </Application>")
                 }
@@ -458,6 +491,7 @@ object TaskerXmlExporter {
                 val key = context.config["key"] ?: return null
                 buildString {
                     appendLine("""    <State sr="con$index">""")
+                    appendInvert(context)
                     appendLine("      <name>${escapeXml(key)}</name>")
                     context.config["value"]?.let { appendLine("      <value>${escapeXml(it)}</value>") }
                     append("    </State>")
@@ -467,6 +501,7 @@ object TaskerXmlExporter {
                 val event = context.config["event"] ?: return null
                 buildString {
                     appendLine("""    <Event sr="con$index">""")
+                    appendInvert(context)
                     appendLine("      <event>${escapeXml(event)}</event>")
                     context.config["value"]?.let { appendLine("      <value>${escapeXml(it)}</value>") }
                     append("    </Event>")

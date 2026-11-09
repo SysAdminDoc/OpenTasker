@@ -18,6 +18,8 @@ data class UiMessage(
     /** Set when [resId] names a plurals resource rather than a string. */
     val quantity: Int? = null,
     val action: UiMessageAction? = null,
+    /** For text someone has to read through, not just notice. */
+    val longDuration: Boolean = false,
 ) {
     @SuppressLint("ResourceType")
     fun resolve(context: Context): String = if (quantity == null) {

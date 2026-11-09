@@ -1632,6 +1632,7 @@
     <string name="ui_message_snapshots_disabled">Automatic snapshots off</string>
     <string name="ui_message_snapshot_destination_saved">Snapshot destination saved</string>
     <string name="ui_message_tasker_xml_exported">Tasker XML exported: %1$d profiles, %2$d tasks, %3$d actions skipped</string>
+    <string name="ui_message_tasker_xml_export_warnings">Check before using this file (%1$d): %2$s</string>
     <string name="ui_message_restore_staged">Restore staged. Restart OpenTasker to apply it.</string>
     <string name="ui_message_restore_cancelled">Staged restore cancelled</string>
     <string name="ui_message_no_staged_restore">There is no staged restore to cancel</string>
