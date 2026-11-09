@@ -19,6 +19,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 
+/** The state facts a screen broadcast changes. A missing [keyguardLocked] reads as locked. */
+internal fun screenStatePatch(on: Boolean, keyguardLocked: Boolean?): Map<String, String> = mapOf(
+    "screen" to if (on) "on" else "off",
+    "unlocked" to (keyguardLocked == false).toString(),
+)
+
 /**
  * Real StateContextSource implementation using BroadcastReceivers.
  *
@@ -70,16 +76,16 @@ class StateContextSourceImpl : StateDemandContextSource {
                         val state = intent.getIntExtra("state", 0)
                         statePatch["headphones"] = (state == 1).toString()
                     }
-                    Intent.ACTION_SCREEN_ON -> statePatch["screen"] = "on"
-                    Intent.ACTION_SCREEN_OFF -> {
-                        statePatch["screen"] = "off"
-                        // USER_PRESENT was the only writer of "unlocked", so once the device had
-                        // been unlocked the state latched true for the rest of the service's life:
-                        // an unlocked=false profile could never activate again, and an
-                        // unlocked=true one never deactivated.
-                        val keyguard = app.getSystemService(KeyguardManager::class.java)
-                        statePatch["unlocked"] = (keyguard?.isKeyguardLocked == false).toString()
-                    }
+                    // USER_PRESENT was the only writer of "unlocked", so once the device had been
+                    // unlocked the state latched true for the rest of the service's life: an
+                    // unlocked=false profile could never activate again, and an unlocked=true one
+                    // never deactivated. Screen-off alone isn't enough either, because with a lock
+                    // delay the keyguard is still open at that moment and no broadcast marks it
+                    // closing later, so both edges read it.
+                    Intent.ACTION_SCREEN_ON -> statePatch +=
+                        screenStatePatch(on = true, app.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked)
+                    Intent.ACTION_SCREEN_OFF -> statePatch +=
+                        screenStatePatch(on = false, app.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked)
                     Intent.ACTION_USER_PRESENT -> statePatch["unlocked"] = "true"
                     PowerManager.ACTION_POWER_SAVE_MODE_CHANGED -> {
                         val pm = app.getSystemService(PowerManager::class.java)

@@ -10,6 +10,18 @@ import com.opentasker.core.model.ContextType
 
 class StateContextSourceImplTest {
     @Test
+    fun aDelayedLockIsNoticedWhenTheScreenComesBack() {
+        // Lock after 30 seconds: still open as the screen goes off, closed when it comes back.
+        assertEquals(mapOf("screen" to "off", "unlocked" to "true"), screenStatePatch(on = false, keyguardLocked = false))
+        assertEquals(mapOf("screen" to "on", "unlocked" to "false"), screenStatePatch(on = true, keyguardLocked = true))
+    }
+
+    @Test
+    fun aKeyguardNobodyCouldReadCountsAsLocked() {
+        assertEquals("false", screenStatePatch(on = true, keyguardLocked = null)["unlocked"])
+    }
+
+    @Test
     fun mergeStatePatchKeepsExistingFactsAcrossPartialBroadcasts() {
         val initial = mapOf("screen" to "on", "headphones" to "true")
 

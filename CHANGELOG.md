@@ -15,6 +15,7 @@
 - A value can't change what a condition asks anymore. An If or a loop that compared `%sms_body` had the message pasted in before the condition was read, so a text containing `x | 1 = 1` could turn false into true, and one that named another variable could read it. Conditions are split into their parts first now and each side is filled in after that, and the run preview agrees with the real run on these. Two small changes come with it: `%empty != word` is true when the variable is empty, and a variable on its own works as a ternary's condition.
 ### Fixed
 
+- Profiles that depend on the phone being locked now notice a delayed lock. With a lock timeout set, the phone kept counting as unlocked after the screen came back on at the lock screen.
 - An all-day calendar event keeps matching until your day ends. West of UTC its stored end passes hours before local midnight, so in New York it dropped out of the calendar query at about 7 or 8 in the evening and a Calendar profile ended early.
 - Scene buttons and Locale plugin fires start their tasks again. Both send a broadcast that only apps holding OpenTasker's automation permission may receive, and OpenTasker declared that permission without asking for it, so Android dropped the app's own broadcast.
 - A run started from outside OpenTasker isn't marked failed when its request arrives twice at the same moment. The second copy got past the duplicate check, was refused further down, and that refusal overwrote the status of the run that was still going.
