@@ -41,6 +41,8 @@
     <string name="locale_condition_expected_label">Expected value</string>
     <string name="locale_condition_save">Use condition</string>
     <string name="locale_condition_clear_selection">Clear variable selection</string>
+    <string name="locale_condition_value_too_long">That value is too long. Shorten it to use this condition.</string>
+    <string name="locale_condition_save_failed">This variable can\'t be used in a condition. Pick another one.</string>
     <string name="locale_condition_operator_equals">equals</string>
     <string name="locale_condition_operator_not_equals">does not equal</string>
     <string name="locale_condition_operator_contains">contains</string>

@@ -16,6 +16,7 @@
 - A value can't change what a condition asks anymore. An If or a loop that compared `%sms_body` had the message pasted in before the condition was read, so a text containing `x | 1 = 1` could turn false into true, and one that named another variable could read it. Conditions are split into their parts first now and each side is filled in after that, and the run preview agrees with the real run on these. Two small changes come with it: `%empty != word` is true when the variable is empty, and a variable on its own works as a ternary's condition.
 ### Fixed
 
+- The Locale condition editor now opens right under the variable you tap, keeps what you typed when you rotate, says why it can't save, and Clear really does clear the selection.
 - The widget, Quick Settings and Locale setup screens show a spinner while they load. They used to claim you had no tasks for a moment, and Setup's script count did the same.
 - The widget, Quick Settings and Locale setup screens no longer flash the wrong theme as they open.
 - Removing device admin from Setup now waits until Android has finished before updating the row, and tells you if it didn't work.

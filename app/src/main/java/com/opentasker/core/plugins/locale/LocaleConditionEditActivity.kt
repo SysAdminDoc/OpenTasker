@@ -8,6 +8,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,10 +33,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -148,9 +153,15 @@ private fun LocaleConditionEditor(
     onIssueGrant: (String) -> String,
     onConfigured: (Map<String, String>, String) -> Unit,
 ) {
-    var selectedVariable by remember { mutableStateOf<LocaleConditionVariableItem?>(null) }
-    var selectedOperator by remember { mutableStateOf(LocaleConditionOperator.EQUALS) }
-    var expectedValue by remember { mutableStateOf("") }
+    var selectedVariableName by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedVariableProjectId by rememberSaveable { mutableLongStateOf(0L) }
+    var selectedOperator by rememberSaveable { mutableStateOf(LocaleConditionOperator.EQUALS) }
+    var expectedValue by rememberSaveable { mutableStateOf("") }
+    var saveFailed by rememberSaveable { mutableStateOf(false) }
+    var revealEditor by remember { mutableStateOf(false) }
+    val selectedVariable = variables.firstOrNull {
+        it.name == selectedVariableName && it.projectId == selectedVariableProjectId
+    }
     val contexts = profiles.flatMap { it.contexts }
 
     Scaffold(
@@ -223,50 +234,70 @@ private fun LocaleConditionEditor(
                 item { EmptyConditionText(stringResource(R.string.locale_condition_no_variables)) }
             } else {
                 items(variables, key = { "variable:${it.projectId}:${it.name}" }) { variable ->
-                    ConditionChoiceCard(
-                        title = variable.name,
-                        detail = stringResource(R.string.locale_condition_variable_choose),
-                        onClick = {
-                            selectedVariable = variable
-                            expectedValue = ""
-                        },
-                    )
-                }
-            }
-            selectedVariable?.let { variable ->
-                item(key = "variable-editor:${variable.projectId}:${variable.name}") {
-                    VariableComparisonEditor(
-                        variable = variable,
-                        operator = selectedOperator,
-                        expectedValue = expectedValue,
-                        onOperatorChanged = { selectedOperator = it },
-                        onExpectedValueChanged = { expectedValue = it },
-                        onSave = {
-                            runCatching {
-                                LocaleConditionTarget.variableCompare(
-                                    variable.name,
-                                    variable.projectId,
-                                    selectedOperator,
-                                    expectedValue,
-                                    // Choosing the variable here is the only place the user
-                                    // authorizes the exported receiver to report on it.
-                                    onIssueGrant(
-                                        LocaleConditionGrantStore.comparisonKey(
-                                            variable.projectId,
+                    Column(verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm)) {
+                        ConditionChoiceCard(
+                            title = variable.name,
+                            detail = stringResource(R.string.locale_condition_variable_choose),
+                            onClick = {
+                                selectedVariableName = variable.name
+                                selectedVariableProjectId = variable.projectId
+                                expectedValue = ""
+                                saveFailed = false
+                                revealEditor = true
+                            },
+                        )
+                        // Right under the card: at the end of a long list the form appeared off
+                        // screen and tapping a variable looked like it had done nothing.
+                        if (variable == selectedVariable) {
+                            VariableComparisonEditor(
+                                variable = variable,
+                                operator = selectedOperator,
+                                expectedValue = expectedValue,
+                                saveFailed = saveFailed,
+                                reveal = revealEditor,
+                                onRevealed = { revealEditor = false },
+                                onOperatorChanged = {
+                                    selectedOperator = it
+                                    saveFailed = false
+                                },
+                                onExpectedValueChanged = {
+                                    expectedValue = it
+                                    saveFailed = false
+                                },
+                                onClear = {
+                                    selectedVariableName = null
+                                    selectedOperator = LocaleConditionOperator.EQUALS
+                                    expectedValue = ""
+                                    saveFailed = false
+                                },
+                                onSave = {
+                                    runCatching {
+                                        LocaleConditionTarget.variableCompare(
                                             variable.name,
+                                            variable.projectId,
                                             selectedOperator,
                                             expectedValue,
-                                        ),
-                                    ),
-                                )
-                            }.onSuccess { values ->
-                                onConfigured(
-                                    values,
-                                    "${variable.name} ${selectedOperator.wireName} configured value",
-                                )
-                            }
-                        },
-                    )
+                                            // Choosing the variable here is the only place the user
+                                            // authorizes the exported receiver to report on it.
+                                            onIssueGrant(
+                                                LocaleConditionGrantStore.comparisonKey(
+                                                    variable.projectId,
+                                                    variable.name,
+                                                    selectedOperator,
+                                                    expectedValue,
+                                                ),
+                                            ),
+                                        )
+                                    }.onSuccess { values ->
+                                        onConfigured(
+                                            values,
+                                            "${variable.name} ${selectedOperator.wireName} configured value",
+                                        )
+                                    }.onFailure { saveFailed = true }
+                                },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -308,13 +339,31 @@ private fun VariableComparisonEditor(
     variable: LocaleConditionVariableItem,
     operator: LocaleConditionOperator,
     expectedValue: String,
+    saveFailed: Boolean,
+    reveal: Boolean,
+    onRevealed: () -> Unit,
     onOperatorChanged: (LocaleConditionOperator) -> Unit,
     onExpectedValueChanged: (String) -> Unit,
+    onClear: () -> Unit,
     onSave: () -> Unit,
 ) {
+    val valueTooLong = expectedValue.toByteArray(Charsets.UTF_8).size > LocaleConditionTarget.MAX_EXPECTED_VALUE_BYTES
+    val errorRes = when {
+        valueTooLong -> R.string.locale_condition_value_too_long
+        saveFailed -> R.string.locale_condition_save_failed
+        else -> null
+    }
+    val revealRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(reveal) {
+        if (reveal) {
+            revealRequester.bringIntoView()
+            onRevealed()
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .bringIntoViewRequester(revealRequester)
             .padding(vertical = DesignSystem.Spacing.sm),
         verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm),
     ) {
@@ -336,12 +385,18 @@ private fun VariableComparisonEditor(
             onValueChange = onExpectedValueChanged,
             modifier = Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.locale_condition_expected_label)) },
+            supportingText = if (errorRes != null) {
+                { Text(stringResource(errorRes)) }
+            } else {
+                null
+            },
+            isError = errorRes != null,
             singleLine = true,
         )
-        Button(onClick = onSave, enabled = expectedValue.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = onSave, enabled = expectedValue.isNotEmpty() && !valueTooLong, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.locale_condition_save))
         }
-        TextButton(onClick = { onOperatorChanged(LocaleConditionOperator.EQUALS); onExpectedValueChanged("") }) {
+        TextButton(onClick = onClear) {
             Text(stringResource(R.string.locale_condition_clear_selection))
         }
     }
