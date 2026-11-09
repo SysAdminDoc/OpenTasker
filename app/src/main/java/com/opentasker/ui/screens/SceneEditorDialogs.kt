@@ -159,6 +159,7 @@ internal fun SceneElementEditorDialog(
         mutableStateOf(initial.config["decorative"].equals("true", ignoreCase = true))
     }
     var imageSourceValid by rememberSaveable(state.scene.id, state.index) { mutableStateOf(false) }
+    var imageSourceChecking by remember(state.scene.id, state.index) { mutableStateOf(true) }
     var tapTaskId by rememberSaveable(state.scene.id, state.index) { mutableStateOf(initial.tapTaskId) }
     var longPressTaskId by rememberSaveable(state.scene.id, state.index) { mutableStateOf(initial.longPressTaskId) }
 
@@ -196,6 +197,7 @@ internal fun SceneElementEditorDialog(
     val defaultButtonLabel = stringResource(R.string.scene_element_type_button)
     val defaultSliderLabel = stringResource(R.string.scene_element_type_slider)
     LaunchedEffect(type, imageSource, parsedWidth, parsedHeight) {
+        imageSourceChecking = true
         imageSourceValid = false
         if (
             type == SceneElementType.IMAGE &&
@@ -211,6 +213,7 @@ internal fun SceneElementEditorDialog(
                 ) != null
             }
         }
+        imageSourceChecking = false
     }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -337,7 +340,7 @@ internal fun SceneElementEditorDialog(
                             Checkbox(checked = imageDecorative, onCheckedChange = { imageDecorative = it })
                             Text(stringResource(R.string.label_image_decorative))
                         }
-                        if (imageSource.isNotBlank() && !imageSourceValid) {
+                        if (imageSource.isNotBlank() && !imageSourceValid && !imageSourceChecking) {
                             Text(
                                 stringResource(R.string.scene_image_repair_required),
                                 color = MaterialTheme.colorScheme.error,
