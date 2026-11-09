@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Releases are set up for F-Droid's reproducible builds (#29). Each one now attaches `OpenTasker-v<version>-fdroid.apk`, the F-Droid build signed with the same key as the regular APK. F-Droid can rebuild it from source, check that its copy matches byte for byte and ship our signed file, so moving between F-Droid, GitHub and Obtainium won't take an uninstall.
+- Release APKs no longer carry the Git commit they were built from or Google's encrypted dependency list. Native libraries go in exactly as their libraries ship them instead of being stripped by whatever NDK the build machine has, and the release baseline profile is now part of the source. Any one of these made a build from source come out different from ours.
+
 ### Fixed
 
 - The local release gate no longer runs its device tests on every phone and emulator adb can see. It uses the one attached device, or the one you name with `-Serial`, and stops before building when there are several and none is named.

@@ -176,7 +176,7 @@ Untrusted imports are preflighted before object/DOM allocation. OpenTasker JSON 
 - Non-F-Droid builds can opt into a daily HTTPS-only GitHub release check from Setup. It sends no identifying data, stores only a newer-release link, and never downloads or installs updates. F-Droid builds omit this check because F-Droid supplies their updates.
 - Play distribution profile with SMS/phone-state manifest policy gate
 - Local release verification scripts for F-Droid metadata, readiness, and APK payload comparison
-- Environment-driven release signing kept outside the repository. The F-Droid distribution builds unsigned because F-Droid signs what it builds
+- Environment-driven release signing kept outside the repository. F-Droid's own source build of the F-Droid distribution is unsigned, and each release also attaches that build signed with the release key, so F-Droid can ship this project's signature once its rebuild matches byte for byte
 - SQLite database backup/restore with WAL-safe validation and atomic staged restore, reviewed before staging (source, schema version, compatibility, entity counts) and cancellable afterwards. Encrypted `.otbackup` v2 exports use bounded-memory, independently authenticated 64 KiB frames while legacy v1 files remain restorable. Secret rows stay ciphertext and the device-bound Keystore key is never copied, so a restore on another device requires secret re-entry
 - APK payload comparison tool for reproducibility checks
 - SQLCipher native libraries are included in both standard and F-Droid source builds. The release gate audits their 16 KB page alignment and keeps the dependency checksum-pinned
@@ -229,7 +229,7 @@ Releases come from this repository.
 
 **With [Obtainium](https://github.com/ImranR98/Obtainium)** (recommended, it tracks new releases for you): tap the Obtainium badge above on the device, or add `https://github.com/SysAdminDoc/OpenTasker` as a GitHub source. Default settings are correct, nothing needs configuring.
 
-**By hand:** download the APK attached to the [latest release](https://github.com/SysAdminDoc/OpenTasker/releases/latest) and install it. Since `v0.2.88` that file is named `OpenTasker-v<version>.apk`. `v0.2.87` and earlier predate the naming gate, and `v0.2.87` ships its APK as `app-release.apk`.
+**By hand:** download the APK attached to the [latest release](https://github.com/SysAdminDoc/OpenTasker/releases/latest) and install it. Since `v0.2.88` that file is named `OpenTasker-v<version>.apk`. `v0.2.87` and earlier predate the naming gate, and `v0.2.87` ships its APK as `app-release.apk`. Releases after `v0.2.95` also attach `OpenTasker-v<version>-fdroid.apk`. That's the F-Droid flavor (no GitHub update check) under the same key, and it's there so F-Droid can confirm its own build matches ours. Take the plain one unless you want that flavor.
 
 **Checking the signature.** Every release since `v0.2.93` is signed with the same certificate. [AppVerifier](https://github.com/soupslurpr/AppVerifier) reads it in this form, package name first:
 
@@ -295,6 +295,16 @@ F-Droid profile:
 ```bash
 ./gradlew -PopenTaskerDistribution=fdroid :app:assembleRelease :app:verifyFdroidReadiness :app:verifyFdroidMetadata
 ```
+
+That build is unsigned, which is what F-Droid's server runs. Each release also attaches the same
+build signed with the release key. F-Droid copies that signature onto its own rebuild of the tag and
+publishes our APK when the two match, so F-Droid, GitHub and Obtainium installs share one key:
+```bash
+./gradlew -PopenTaskerDistribution=fdroid -PopenTaskerSignFdroid=true :app:verifyReleaseAssetName
+```
+It stages `OpenTasker-v<versionName>-fdroid.apk` to `app/build/outputs/release-assets-fdroid/` with
+the same name and certificate checks as the standard asset. Upload it next to the standard APK. The
+`Binaries:` URL in `fdroid/metadata/com.opentasker.app.yml` expects that exact name.
 
 Play manifest policy check:
 ```bash
