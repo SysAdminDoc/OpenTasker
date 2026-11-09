@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.opentasker.app.R
 import com.opentasker.core.capabilities.AutomationLintReport
 import com.opentasker.core.model.AutomationInvariant
@@ -237,6 +238,7 @@ private fun AutomationInvariantEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(dismissOnClickOutside = false),
         title = {
             Text(
                 stringResource(

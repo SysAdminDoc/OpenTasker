@@ -41,6 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.opentasker.app.R
 import com.opentasker.core.model.Scene
 import com.opentasker.core.model.SceneElement
@@ -225,6 +226,7 @@ internal fun SceneElementEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(dismissOnClickOutside = false),
         title = {
             Text(
                 stringResource(

@@ -23,17 +23,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.opentasker.app.R
 import com.opentasker.core.model.ContextBooleanOperator
 import com.opentasker.core.model.ContextExpressionNode
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.isValidForContextCount
+import com.opentasker.core.storage.StorageJson
 import com.opentasker.ui.theme.DesignSystem
+
+private val ContextExpressionStateSaver = Saver<ContextExpressionNode?, String>(
+    save = { node -> node?.let { StorageJson.encodeToString(it) } },
+    restore = { encoded -> runCatching { StorageJson.decodeFromString<ContextExpressionNode>(encoded) }.getOrNull() },
+)
 
 @Composable
 internal fun ContextGroupingDialog(
@@ -43,15 +52,15 @@ internal fun ContextGroupingDialog(
 ) {
     // Keyed on the profile alone. Keying on contextExpression/contexts meant any background write
     // to the row - the engine consuming a ONCE lifetime, an import, another dialog saving - re-ran
-    // this and silently wiped a half-built AND/OR tree mid-edit.
-    val initialExpression = remember(profile.id) {
-        profile.contextExpression ?: ContextExpressionNode.implicitAnd(profile.contexts.size)
+    // this and silently wiped a half-built AND/OR tree mid-edit. Saveable so rotating keeps it too.
+    var expression by rememberSaveable(profile.id, stateSaver = ContextExpressionStateSaver) {
+        mutableStateOf(profile.contextExpression ?: ContextExpressionNode.implicitAnd(profile.contexts.size))
     }
-    var expression by remember(profile.id) { mutableStateOf(initialExpression) }
     val valid = expression?.isValidForContextCount(profile.contexts.size) == true
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(dismissOnClickOutside = false),
         title = { Text(stringResource(R.string.context_logic_title)) },
         text = {
             LazyColumn(

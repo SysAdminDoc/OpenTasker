@@ -184,6 +184,7 @@ internal fun TemplateSlotDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(dismissOnClickOutside = false),
         title = { Text(template.title) },
         text = {
             LazyColumn(
