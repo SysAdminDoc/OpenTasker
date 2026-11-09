@@ -14,6 +14,17 @@ class CallContextEventsTest {
     private val number = "+15551234567"
 
     @Test
+    fun aCallThatRangWhileListeningStoppedDoesNotSwallowTheNextOne() {
+        val gate = IncomingCallGate()
+        assertEquals(Step.Emit(number), gate.onBroadcast(true, number))
+
+        // The last incoming-call profile was switched off mid-ring, so no idle broadcast arrives.
+        gate.reset()
+
+        assertEquals(Step.Emit(number), gate.onBroadcast(true, number))
+    }
+
+    @Test
     fun theNumberFiresOnceWhicheverBroadcastComesFirst() {
         val numberFirst = IncomingCallGate()
         assertEquals(Step.Emit(number), numberFirst.onBroadcast(true, number))

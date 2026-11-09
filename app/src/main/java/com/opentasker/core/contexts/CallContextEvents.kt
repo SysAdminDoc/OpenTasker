@@ -66,6 +66,11 @@ internal class IncomingCallGate {
         return Step.Wait
     }
 
+    /** Listening stopped, so the broadcast that would end this call will never arrive. */
+    fun reset() {
+        phase = Phase.IDLE
+    }
+
     /** True when the wait ended with no number and the event should fire without one. */
     fun onWaitElapsed(): Boolean {
         if (phase != Phase.WAITING) return false
@@ -152,6 +157,7 @@ object CallContextEvents {
         } else {
             registered = false
             wait?.cancel()
+            gate.reset()
             runCatching { context.unregisterReceiver(receiver) }
                 .onFailure { AppLogger.warn(TAG, "Incoming call receiver was already unregistered", it) }
         }
@@ -186,7 +192,7 @@ object CallContextEvents {
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) ==
             PackageManager.PERMISSION_GRANTED
         if (!granted) return null
-        val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
+        val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.ENTERPRISE_CONTENT_FILTER_URI, Uri.encode(number))
         return runCatching {
             context.contentResolver
                 .query(uri, arrayOf(ContactsContract.PhoneLookup._ID), null, null, null)
