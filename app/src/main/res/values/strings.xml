@@ -1607,6 +1607,7 @@
     <string name="ui_message_profile_created">Profile created</string>
     <string name="ui_message_profile_duplicated">Profile duplicated as a disabled copy</string>
     <string name="ui_message_profile_updated">Profile updated</string>
+    <string name="ui_message_profile_left_off_for_review">Saved, but left off. Its task could set off its own trigger, so turn it on to review that first.</string>
     <plurals name="ui_profile_lint_warnings">
         <item quantity="one">Profile saved with %1$d lint warning; review Automation lint in Context Inspector.</item>
         <item quantity="other">Profile saved with %1$d lint warnings; review Automation lint in Context Inspector.</item>

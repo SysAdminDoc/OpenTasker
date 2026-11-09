@@ -780,7 +780,7 @@ class ActiveAutomationViewModel(
         fallbackTaskId: Long? = null,
         onSaved: () -> Unit = {},
     ) =
-        launchCreate(R.string.ui_message_profile_created, onSaved = onSaved) {
+        launchCreateForMessage(R.string.ui_message_profile_created, onSaved) {
             val profile = ProfileLifecyclePolicy.normalize(
                 Profile(
                 name = name.trim(),
@@ -807,6 +807,7 @@ class ActiveAutomationViewModel(
             writeSettingsGuard.requireWriteSettingsIfEnabled(reviewed)
             db.profileDao().upsert(reviewed.toEntity())
             emitLintWarnings(profile, lint)
+            UiMessage(profileSavedMessageRes(profile.enabled, reviewed.enabled, R.string.ui_message_profile_created))
         }
 
     fun duplicateProfile(profile: Profile) {
@@ -837,8 +838,9 @@ class ActiveAutomationViewModel(
         @StringRes successMessageRes: Int = R.string.ui_message_profile_updated,
         successAction: UiMessageAction? = null,
         onSaved: () -> Unit = {},
-    ) = launchWithMessage(successMessageRes, successAction, onSaved) {
-            val reviewedProfile = reviewFeedbackRisk(ProfileLifecyclePolicy.normalize(profile))
+    ) = launchForMessage(onSaved) {
+            val normalized = ProfileLifecyclePolicy.normalize(profile)
+            val reviewedProfile = reviewFeedbackRisk(normalized)
             requireValidProfileFieldLimits(reviewedProfile)
             val lint = requireAutomationLint(reviewedProfile)
             // Atomic read-check-snapshot-update, matching updateScene, so racing writers
@@ -878,6 +880,10 @@ class ActiveAutomationViewModel(
                 db.profileDao().upsert(reviewedProfile.toEntity())
             }
             emitLintWarnings(reviewedProfile, lint)
+            UiMessage(
+                profileSavedMessageRes(normalized.enabled, reviewedProfile.enabled, successMessageRes),
+                action = successAction,
+            )
         }
 
     fun removeProfileContext(profile: Profile, index: Int) {
@@ -1897,12 +1903,17 @@ class ActiveAutomationViewModel(
         successAction: UiMessageAction? = null,
         onSaved: () -> Unit = {},
         block: suspend () -> Unit,
-    ) {
+    ) = launchForMessage(onSaved) {
+        block()
+        UiMessage(successMessageRes, action = successAction)
+    }
+
+    private fun launchForMessage(onSaved: () -> Unit = {}, block: suspend () -> UiMessage) {
         viewModelScope.launch {
             runCatching { block() }
-                .onSuccess {
+                .onSuccess { message ->
                     onSaved()
-                    events.send(UiMessage(successMessageRes, action = successAction))
+                    events.send(message)
                 }
                 .onFailure { events.send(errorMessage(it, R.string.ui_error_generic)) }
         }
@@ -1917,19 +1928,29 @@ class ActiveAutomationViewModel(
         @StringRes successMessageRes: Int,
         onSaved: () -> Unit = {},
         block: suspend () -> Unit,
-    ) {
-        if (!createsInFlight.add(successMessageRes)) return
-        launchWithMessage(successMessageRes, onSaved = onSaved) {
+    ) = launchCreateForMessage(successMessageRes, onSaved) {
+        block()
+        UiMessage(successMessageRes)
+    }
+
+    private fun launchCreateForMessage(slot: Int, onSaved: () -> Unit = {}, block: suspend () -> UiMessage) {
+        if (!createsInFlight.add(slot)) return
+        launchForMessage(onSaved) {
             try {
                 block()
             } finally {
-                createsInFlight.remove(successMessageRes)
+                createsInFlight.remove(slot)
             }
         }
     }
 }
 
 private const val MAX_EXPORT_WARNINGS_SHOWN = 3
+
+/** The feedback-loop review can switch a profile off as it saves, and "updated" alone hid that. */
+@StringRes
+internal fun profileSavedMessageRes(requestedEnabled: Boolean, savedEnabled: Boolean, @StringRes savedRes: Int): Int =
+    if (requestedEnabled && !savedEnabled) R.string.ui_message_profile_left_off_for_review else savedRes
 internal const val PROFILE_SHARE_MAX_SCREENSHOTS = 6
 
 /** Where a project at [index] lands when moved by [direction], or null when it can't move that way. */

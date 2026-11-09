@@ -1,5 +1,6 @@
 package com.opentasker.ui.screens
 
+import com.opentasker.app.R
 import com.opentasker.core.model.ProfileLifetime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -8,6 +9,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EditorValidationTest {
+    @Test
+    fun aProfileTheReviewSwitchedOffDoesNotClaimAPlainSave() {
+        val updated = R.string.ui_message_profile_updated
+        assertEquals(R.string.ui_message_profile_left_off_for_review, profileSavedMessageRes(true, false, updated))
+        assertEquals(updated, profileSavedMessageRes(true, true, updated))
+        assertEquals(updated, profileSavedMessageRes(false, false, updated))
+    }
+
     @Test
     fun cooldownParsesOnlyWhatTheSaveAccepts() {
         assertEquals(0, parseProfileCooldown("0"))
