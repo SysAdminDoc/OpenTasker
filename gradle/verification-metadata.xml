@@ -3,6 +3,7 @@
    <configuration>
       <verify-metadata>true</verify-metadata>
       <verify-signatures>true</verify-signatures>
+      <keyring-format>armored</keyring-format>
       <ignored-keys>
          <ignored-key id="6A65176A0FB1CD0B" reason="Key couldn't be downloaded from any key server; SHA-256 checksums remain pinned" />
          <ignored-key id="E2F38302C8075E3D" reason="Key couldn't be downloaded from any key server" />

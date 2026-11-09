@@ -6,6 +6,7 @@
 
 - Releases are set up for F-Droid's reproducible builds (#29). Each one now attaches `OpenTasker-v<version>-fdroid.apk`, the F-Droid build signed with the same key as the regular APK. F-Droid can rebuild it from source, check that its copy matches byte for byte and ship our signed file, so moving between F-Droid, GitHub and Obtainium won't take an uninstall.
 - Release APKs no longer carry the Git commit they were built from or Google's encrypted dependency list. Native libraries go in exactly as their libraries ship them instead of being stripped by whatever NDK the build machine has, and the release baseline profile is now part of the source. Any one of these made a build from source come out different from ours.
+- The public keys that sign our dependencies now live in `gradle/verification-keyring.keys`. A fresh machine used to download them from public keyservers, which don't reliably have them (Error Prone's never came back), and the build stopped before compiling anything.
 
 ### Fixed
 
