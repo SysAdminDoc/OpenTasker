@@ -1,6 +1,6 @@
 Categories:
-  - System
   - Connectivity
+  - System
 License: MIT
 AuthorName: OpenTasker contributors
 SourceCode: https://github.com/SysAdminDoc/OpenTasker
@@ -12,7 +12,8 @@ AutoName: OpenTasker
 
 RepoType: git
 Repo: https://github.com/SysAdminDoc/OpenTasker.git
-Binaries: https://github.com/SysAdminDoc/OpenTasker/releases/download/v%v/OpenTasker-v%v-fdroid.apk
+Binaries: 
+  https://github.com/SysAdminDoc/OpenTasker/releases/download/v%v/OpenTasker-v%v-fdroid.apk
 
 Builds:
   - versionName: 0.2.95
@@ -21,16 +22,17 @@ Builds:
     subdir: .
     gradle:
       - yes
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
+    preassemble:
+      - :app:verifyFdroidReadiness
     gradleprops:
       - openTaskerDistribution=fdroid
-    preassemble:
-      - ":app:verifyFdroidReadiness"
-    output: app/build/outputs/apk/release/app-release-unsigned.apk
 
 AllowedAPKSigningKeys: dba1aa88e37b90155fca3135ca3b781de92c225107e47c9806e75bf88055fdd8
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-UpdateCheckData: app/build.gradle.kts|appVersionCode\s*=\s*(\d+)|app/build.gradle.kts|appVersionName\s*=\s*"(.*)"
+UpdateCheckData: 
+  app/build.gradle.kts|appVersionCode\s*=\s*(\d+)|app/build.gradle.kts|appVersionName\s*=\s*"(.*)"
 CurrentVersion: 0.2.95
 CurrentVersionCode: 97

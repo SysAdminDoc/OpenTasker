@@ -1665,8 +1665,10 @@ tasks.register("verifyFdroidMetadata") {
     val metadataFile = rootProject.file("fdroid/metadata/com.opentasker.app.yml")
     val readmeFile = rootProject.file("README.md")
     val listing = rootProject.file("fastlane/metadata/android/en-US")
+    val sourceRoot = rootProject.rootDir
     inputs.file(metadataFile)
     inputs.file(readmeFile)
+    inputs.file(project.buildFile)
 
     // Copied into locals so the action holds plain values instead of the build script, which the
     // configuration cache can't serialize.
@@ -1749,9 +1751,29 @@ tasks.register("verifyFdroidMetadata") {
             "The Binaries URL names OpenTasker-v%v-fdroid.apk but this lane stages $assetFileName"
         }
         requireValue("AllowedAPKSigningKeys", publishedReleaseCertificate)
-        // checkupdates can't read versionCode = appVersionCode, so it needs a pointer to the vals.
-        check("UpdateCheckData: app/build.gradle.kts|" in metadata) {
-            "F-Droid metadata needs UpdateCheckData pointing at appVersionCode and appVersionName"
+        // checkupdates can't read versionCode = appVersionCode, so UpdateCheckData points it at the
+        // vals: codeFile|codeRegex|nameFile|nameRegex. Run both regexes here the way checkupdates
+        // does, so renaming or reformatting a val fails this check instead of silently stopping
+        // F-Droid from noticing new releases. The value is read raw because valuesFor trims the
+        // closing quote off "(.*)". rewritemeta wraps a long value onto the next line.
+        val updateCheckData = Regex("""(?m)^UpdateCheckData:[ \t]*(?:\r?\n[ \t]+)?(\S.*?)[ \t]*$""")
+            .find(metadata)
+            ?.groupValues?.get(1)
+            ?: error("F-Droid metadata needs UpdateCheckData pointing at appVersionCode and appVersionName")
+        val updateCheckParts = updateCheckData.split('|')
+        check(updateCheckParts.size == 4) {
+            "UpdateCheckData must be codeFile|codeRegex|nameFile|nameRegex, found '$updateCheckData'"
+        }
+        fun updateCheckCapture(fileIndex: Int): String? {
+            val source = sourceRoot.resolve(updateCheckParts[fileIndex])
+            check(source.isFile) { "UpdateCheckData names ${updateCheckParts[fileIndex]}, which doesn't exist" }
+            return Regex(updateCheckParts[fileIndex + 1]).find(source.readText())?.groupValues?.get(1)
+        }
+        check(updateCheckCapture(0) == versionCode.toString()) {
+            "UpdateCheckData's versionCode regex doesn't find $versionCode in ${updateCheckParts[0]}"
+        }
+        check(updateCheckCapture(2) == versionName) {
+            "UpdateCheckData's versionName regex doesn't find $versionName in ${updateCheckParts[2]}"
         }
 
         // The store listing is part of the release contract: F-Droid renders whatever is in
