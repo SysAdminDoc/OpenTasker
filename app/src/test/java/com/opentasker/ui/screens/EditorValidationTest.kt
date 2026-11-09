@@ -10,6 +10,18 @@ import org.junit.Test
 
 class EditorValidationTest {
     @Test
+    fun sceneCreateSaveMatchesTheSizesASceneIsStoredAt() {
+        assertTrue(sceneCreateCanSave("Scene", 120, 80))
+        assertTrue(sceneCreateCanSave("Scene", 1440, 2560))
+        assertFalse(sceneCreateCanSave("Scene", 119, 240))
+        assertFalse(sceneCreateCanSave("Scene", 1441, 240))
+        assertFalse(sceneCreateCanSave("Scene", 320, 79))
+        assertFalse(sceneCreateCanSave("Scene", 320, 2561))
+        assertFalse(sceneCreateCanSave(" ", 320, 240))
+        assertFalse(sceneCreateCanSave("Scene", null, 240))
+    }
+
+    @Test
     fun aProfileTheReviewSwitchedOffDoesNotClaimAPlainSave() {
         val updated = R.string.ui_message_profile_updated
         assertEquals(R.string.ui_message_profile_left_off_for_review, profileSavedMessageRes(true, false, updated))

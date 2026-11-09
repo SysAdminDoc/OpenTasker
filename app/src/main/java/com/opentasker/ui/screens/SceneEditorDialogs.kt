@@ -502,7 +502,7 @@ internal fun SceneEditorDialog(
     var height by rememberSaveable { mutableStateOf("240") }
     val parsedWidth = width.toIntOrNull()
     val parsedHeight = height.toIntOrNull()
-    val canSave = name.isNotBlank() && parsedWidth != null && parsedHeight != null && parsedWidth > 0 && parsedHeight > 0
+    val canSave = sceneCreateCanSave(name, parsedWidth, parsedHeight)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -523,7 +523,8 @@ internal fun SceneEditorDialog(
                     value = width,
                     onValueChange = { width = it.filter(Char::isDigit).take(4) },
                     label = { Text(stringResource(R.string.label_width_dp)) },
-                    isError = parsedWidth == null || parsedWidth <= 0,
+                    supportingText = { Text(stringResource(R.string.scenes_size_range_helper, SCENE_WIDTH_RANGE_DP.first, SCENE_WIDTH_RANGE_DP.last)) },
+                    isError = parsedWidth == null || parsedWidth !in SCENE_WIDTH_RANGE_DP,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -531,7 +532,8 @@ internal fun SceneEditorDialog(
                     value = height,
                     onValueChange = { height = it.filter(Char::isDigit).take(4) },
                     label = { Text(stringResource(R.string.label_height_dp)) },
-                    isError = parsedHeight == null || parsedHeight <= 0,
+                    supportingText = { Text(stringResource(R.string.scenes_size_range_helper, SCENE_HEIGHT_RANGE_DP.first, SCENE_HEIGHT_RANGE_DP.last)) },
+                    isError = parsedHeight == null || parsedHeight !in SCENE_HEIGHT_RANGE_DP,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -584,3 +586,10 @@ private fun elementConfig(
     )
     else -> emptyMap()
 }
+
+internal val SCENE_WIDTH_RANGE_DP = 120..1440
+internal val SCENE_HEIGHT_RANGE_DP = 80..2560
+
+internal fun sceneCreateCanSave(name: String, widthDp: Int?, heightDp: Int?): Boolean =
+    name.isNotBlank() && widthDp != null && widthDp in SCENE_WIDTH_RANGE_DP &&
+        heightDp != null && heightDp in SCENE_HEIGHT_RANGE_DP

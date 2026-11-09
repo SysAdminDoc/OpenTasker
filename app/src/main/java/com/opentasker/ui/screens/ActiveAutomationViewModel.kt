@@ -674,8 +674,8 @@ class ActiveAutomationViewModel(
         db.sceneDao().insert(
             Scene(
                 name = name.trim(),
-                widthDp = widthDp.coerceIn(120, 1440),
-                heightDp = heightDp.coerceIn(80, 2560),
+                widthDp = widthDp.coerceIn(SCENE_WIDTH_RANGE_DP),
+                heightDp = heightDp.coerceIn(SCENE_HEIGHT_RANGE_DP),
                 projectId = projectId,
             ).toEntity()
         )

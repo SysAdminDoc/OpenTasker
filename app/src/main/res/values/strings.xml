@@ -1281,6 +1281,7 @@
     <string name="label_x_dp">X dp</string>
     <string name="label_y_dp">Y dp</string>
     <string name="scenes_overview_summary">%1$d element(s) across %2$d scene(s)</string>
+    <string name="scenes_size_range_helper">From %1$d to %2$d</string>
     <string name="scenes_card_summary">%1$d x %2$d dp · %3$d element(s)</string>
     <string name="scenes_remove_element_body">This removes the %1$s element from &quot;%2$s&quot;.</string>
     <string name="scenes_element_bounds">Bounds %1$d,%2$d %3$dx%4$d dp</string>
