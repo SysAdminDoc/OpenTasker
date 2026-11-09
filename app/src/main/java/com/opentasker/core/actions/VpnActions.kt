@@ -95,6 +95,18 @@ internal object VpnTunnelPolicy {
     }
 
     /**
+     * The run log line for a request that ended in the wanted state. Android won't say which app
+     * owns a VPN, so a tunnel that was up before the request proves nothing about this client:
+     * another app's VPN, or a different WireGuard tunnel, reads exactly the same.
+     */
+    fun reachedStateMessage(request: VpnTunnelRequest, vpnWasUpBefore: Boolean): String = when {
+        request.up && vpnWasUpBefore ->
+            "A VPN was already connected before ${request.client.label} was asked, so this can't " +
+                "confirm it's ${request.tunnel?.let { "'$it'" } ?: "${request.client.label}'s"}"
+        else -> "VPN ${if (request.up) "up" else "down"} through ${request.client.label}"
+    }
+
+    /**
      * Both clients ignore a request they can't honor without saying so, which is why the action
      * watches the network afterwards and spells out the likely reasons here.
      */
@@ -165,9 +177,10 @@ class VpnTunnelAction : DeclaredAction(ActionCatalog.require(VpnTunnelPolicy.ACT
         broadcast.componentClass?.let { intent.component = ComponentName(broadcast.packageName, it) }
         broadcast.extras.forEach { (key, value) -> intent.putExtra(key, value) }
         return try {
+            val vpnWasUpBefore = isAnyVpnUp(manager)
             app.sendBroadcast(intent)
             if (awaitVpnState(request.up, isVpnUp = { isAnyVpnUp(manager) })) {
-                ctx.logger("VPN ${if (request.up) "up" else "down"} through ${request.client.label}")
+                ctx.logger(VpnTunnelPolicy.reachedStateMessage(request, vpnWasUpBefore))
                 ActionResult.Success
             } else {
                 ActionResult.Failure(VpnTunnelPolicy.noChangeMessage(request))

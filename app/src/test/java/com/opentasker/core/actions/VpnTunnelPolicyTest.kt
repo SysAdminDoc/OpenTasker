@@ -130,6 +130,23 @@ class VpnTunnelPolicyTest {
     }
 
     @Test
+    fun aVpnThatWasAlreadyUpIsNotCreditedToTheClient() {
+        val wireguard = valid("client" to "wireguard", "state" to "up", "tunnel" to "home-1")
+        val tailscale = valid("client" to "tailscale", "state" to "up")
+
+        assertEquals("VPN up through WireGuard", VpnTunnelPolicy.reachedStateMessage(wireguard, vpnWasUpBefore = false))
+        assertTrue("can't confirm it's 'home-1'" in VpnTunnelPolicy.reachedStateMessage(wireguard, vpnWasUpBefore = true))
+        assertTrue("can't confirm it's Tailscale's" in VpnTunnelPolicy.reachedStateMessage(tailscale, vpnWasUpBefore = true))
+    }
+
+    @Test
+    fun aTunnelThatWentDownSaysSoWhateverWasUpBefore() {
+        val down = valid("client" to "tailscale", "state" to "down")
+
+        assertEquals("VPN down through Tailscale", VpnTunnelPolicy.reachedStateMessage(down, vpnWasUpBefore = true))
+    }
+
+    @Test
     fun theActionRefusesABadRequestBeforeTouchingTheDevice() = runBlocking {
         val result = VpnTunnelAction().run(
             com.opentasker.core.engine.ActionContext(
