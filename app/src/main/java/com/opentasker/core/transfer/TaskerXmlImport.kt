@@ -1,5 +1,6 @@
 package com.opentasker.core.transfer
 
+import com.opentasker.core.contexts.DaySchedule
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -142,10 +143,14 @@ object TaskerXmlImporter {
                 return@mapIndexedNotNull null
             }
 
-            val contexts = parseContexts(element, name, lossyWarnings)
+            val parsedContexts = parseContexts(element, name, lossyWarnings)
+            val contexts = parsedContexts.contexts
             if (contexts.isEmpty()) {
                 lossyWarnings += "Profile '$name' was skipped because it has no supported Tasker contexts."
                 return@mapIndexedNotNull null
+            }
+            if (parsedContexts.droppedAny) {
+                lossyWarnings += "Profile '$name' was imported turned off because a context it needs couldn't be read, and without it the profile would run more often than it did in Tasker."
             }
 
             val rawLifetime = element.childText("lifetime").uppercase(Locale.US)
@@ -190,7 +195,7 @@ object TaskerXmlImporter {
                 Profile(
                     id = id,
                     name = name,
-                    enabled = !element.childText("off").equals("true", ignoreCase = true),
+                    enabled = !element.childText("off").equals("true", ignoreCase = true) && !parsedContexts.droppedAny,
                     enterTaskId = enterTaskId,
                     exitTaskId = element.childText("mid1", "exitTaskId").toLongOrNull()?.takeIf { it in taskIds },
                     contexts = contexts,
@@ -224,22 +229,21 @@ object TaskerXmlImporter {
             )
         }
 
+    private data class ParsedProfileContexts(val contexts: List<ContextSpec>, val droppedAny: Boolean)
+
     private fun parseContexts(
         profile: Element,
         profileName: String,
         lossyWarnings: MutableList<String>,
-    ): List<ContextSpec> =
-        profile.directChildElements().mapNotNull { child ->
-            when (child.tagName.lowercase()) {
+    ): ParsedProfileContexts {
+        var droppedAny = false
+        val contexts = profile.directChildElements().mapNotNull { child ->
+            val parsed = when (child.tagName.lowercase()) {
                 "time" -> parseTimeContext(child, profileName, lossyWarnings)
-                "day" -> child.childText("days", "day")
-                    .takeIf { it.isNotBlank() }
-                    ?.let { ContextSpec(ContextType.DAY, mapOf("days" to it)) }
-                "application", "app" -> child.childText("package", "pkg", "app")
-                    .takeIf { it.isNotBlank() }
-                    ?.let { ContextSpec(ContextType.APPLICATION, mapOf("package" to it)) }
-                "state" -> parseKeyValueContext(ContextType.STATE, child)
-                "event" -> parseKeyValueContext(ContextType.EVENT, child)
+                "day" -> parseDayContext(child, profileName, lossyWarnings)
+                "application", "app" -> parseApplicationContext(child, profileName, lossyWarnings)
+                "state" -> parseKeyValueContext(ContextType.STATE, child, profileName, lossyWarnings)
+                "event" -> parseKeyValueContext(ContextType.EVENT, child, profileName, lossyWarnings)
                 else -> {
                     if (child.tagName !in PROFILE_SCALAR_TAGS) {
                         lossyWarnings += "Profile '$profileName' has unsupported Tasker context '${child.tagName}'."
@@ -247,7 +251,61 @@ object TaskerXmlImporter {
                     null
                 }
             }
+            if (parsed == null && child.isTaskerContext()) droppedAny = true
+            // Tasker's own word for a context's Invert switch.
+            parsed?.copy(invert = child.childText("pin").equals("true", ignoreCase = true))
         }
+        return ParsedProfileContexts(contexts, droppedAny)
+    }
+
+    private fun Element.isTaskerContext(): Boolean =
+        getAttribute("sr").startsWith("con") || tagName.lowercase() in TASKER_CONTEXT_TAGS
+
+    /**
+     * A real export lists weekdays as `wday0`, `wday1`... with Sunday as 1. Days of the month and
+     * months have nowhere to go in a Day context here.
+     */
+    private fun parseDayContext(
+        element: Element,
+        profileName: String,
+        lossyWarnings: MutableList<String>,
+    ): ContextSpec? {
+        val named = element.childText("days", "day")
+        if (named.isNotBlank()) return ContextSpec(ContextType.DAY, mapOf("days" to named))
+
+        val fields = element.directChildElements()
+        val weekdays = fields
+            .filter { it.tagName.startsWith("wday") }
+            .mapNotNull { TASKER_WEEKDAYS[it.textContent.trim().toIntOrNull()] }
+            .toSet()
+        val usesCalendarDates = fields.any { it.tagName.startsWith("mday") || it.tagName.startsWith("mnth") }
+        val days = DaySchedule.canonicalize(weekdays)
+        if (days == null || usesCalendarDates) {
+            lossyWarnings += "Profile '$profileName' has a Tasker Day context that uses dates of the month, which can't be imported."
+            return null
+        }
+        return ContextSpec(ContextType.DAY, mapOf("days" to days))
+    }
+
+    /** A real export lists one app per `pkg0`, `pkg1`... */
+    private fun parseApplicationContext(
+        element: Element,
+        profileName: String,
+        lossyWarnings: MutableList<String>,
+    ): ContextSpec? {
+        val packages = element.childText("package", "pkg", "app").ifBlank {
+            element.directChildElements()
+                .filter { it.tagName.startsWith("pkg") }
+                .map { it.textContent.trim() }
+                .filter { it.isNotBlank() }
+                .joinToString(",")
+        }
+        if (packages.isBlank()) {
+            lossyWarnings += "Profile '$profileName' has a Tasker App context that names no app."
+            return null
+        }
+        return ContextSpec(ContextType.APPLICATION, mapOf("package" to packages))
+    }
 
     private fun parseTimeContext(
         element: Element,
@@ -267,7 +325,12 @@ object TaskerXmlImporter {
         return ContextSpec(ContextType.TIME, mapOf("start" to start, "end" to end))
     }
 
-    private fun parseKeyValueContext(type: ContextType, element: Element): ContextSpec? {
+    private fun parseKeyValueContext(
+        type: ContextType,
+        element: Element,
+        profileName: String,
+        lossyWarnings: MutableList<String>,
+    ): ContextSpec? {
         val config = buildMap {
             element.childText("event", "name", "key").takeIf { it.isNotBlank() }?.let { key ->
                 if (type == ContextType.EVENT) put("event", key) else put("key", key)
@@ -275,7 +338,12 @@ object TaskerXmlImporter {
             element.childText("value", "val").takeIf { it.isNotBlank() }?.let { put("value", it) }
             element.childText("filter").takeIf { it.isNotBlank() }?.let { put("filter", it) }
         }
-        return config.takeIf { it.isNotEmpty() }?.let { ContextSpec(type, it) }
+        if (config.isEmpty()) {
+            val code = element.childText("code").ifBlank { "unknown" }
+            lossyWarnings += "Profile '$profileName' has a Tasker ${element.tagName} context (code $code) that can't be imported."
+            return null
+        }
+        return ContextSpec(type, config)
     }
 
     private fun parseAction(taskName: String, element: Element, actionIndex: Int): ParsedTaskerAction {
@@ -1238,7 +1306,20 @@ object TaskerXmlImporter {
 
     private val TASKER_WHOLE_ARRAY = Regex("""%([A-Za-z][A-Za-z0-9_]*)\(\)""")
 
+    private val TASKER_CONTEXT_TAGS = setOf("time", "day", "application", "app", "state", "event")
+    private val TASKER_WEEKDAYS = mapOf(
+        1 to "SUN",
+        2 to "MON",
+        3 to "TUE",
+        4 to "WED",
+        5 to "THU",
+        6 to "FRI",
+        7 to "SAT",
+    )
     private val PROFILE_SCALAR_TAGS = setOf(
+        "clp",
+        "limit",
+        "cldm",
         "cdate",
         "edate",
         "flags",
