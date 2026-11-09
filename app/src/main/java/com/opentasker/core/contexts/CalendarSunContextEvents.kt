@@ -132,12 +132,19 @@ object CalendarSunContextEvents {
         )
     }
 
+    /**
+     * The provider filters on the raw stored bounds, and an all-day row's are midnight UTC, up to
+     * a day away from the local day it means. The window is a day wider on each side so that row
+     * still comes back, and [selectCalendarEvent] decides against the local bounds.
+     */
+    internal fun instanceQueryWindow(nowMs: Long): LongRange =
+        (nowMs - MILLIS_PER_MINUTE - MILLIS_PER_DAY)..(nowMs + DEFAULT_LOOKAHEAD_MILLIS + MILLIS_PER_DAY)
+
     private fun queryCalendarInstances(app: Context, nowMs: Long): List<CalendarInstance> {
-        val begin = nowMs - MILLIS_PER_MINUTE
-        val end = nowMs + DEFAULT_LOOKAHEAD_MILLIS
+        val window = instanceQueryWindow(nowMs)
         val uriBuilder = CalendarContract.Instances.CONTENT_URI.buildUpon()
-        ContentUris.appendId(uriBuilder, begin)
-        ContentUris.appendId(uriBuilder, end)
+        ContentUris.appendId(uriBuilder, window.first)
+        ContentUris.appendId(uriBuilder, window.last)
 
         app.contentResolver.query(
             uriBuilder.build(),
@@ -220,7 +227,8 @@ object CalendarSunContextEvents {
         CalendarContract.Instances.AVAILABILITY,
     )
 
-    private const val DEFAULT_LOOKAHEAD_MILLIS = 24L * 60L * MILLIS_PER_MINUTE
+    private const val MILLIS_PER_DAY = 24L * 60L * MILLIS_PER_MINUTE
+    private const val DEFAULT_LOOKAHEAD_MILLIS = MILLIS_PER_DAY
     private const val DEFAULT_BEFORE_WINDOW_MINUTES = 30
     private const val MAX_CALENDAR_NAME_CHARS = 80
 }

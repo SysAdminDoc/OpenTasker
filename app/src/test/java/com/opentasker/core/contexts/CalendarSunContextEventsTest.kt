@@ -126,6 +126,37 @@ class CalendarSunContextEventsTest {
         assertEquals("during", late.metadata["state"])
     }
 
+    @Test
+    fun anAllDayEventIsStillFetchedLateInTheEveningWestOfUtc() {
+        val zone = java.time.ZoneId.of("America/Los_Angeles") // UTC-7 on this date
+        val today = CalendarInstance(
+            calendarName = "Work",
+            calendarId = 7,
+            beginMs = epochMillis(2026, 5, 5, 0, 0),
+            endMs = epochMillis(2026, 5, 6, 0, 0),
+            allDay = true,
+            availability = "busy",
+        )
+        val yesterday = today.copy(
+            beginMs = epochMillis(2026, 5, 4, 0, 0),
+            endMs = epochMillis(2026, 5, 5, 0, 0),
+        )
+        // 2026-05-05 23:30 local is 06:30 UTC on the 6th, hours after the row's stored end.
+        val now = epochMillis(2026, 5, 6, 6, 30)
+
+        val window = CalendarSunContextEvents.instanceQueryWindow(now)
+        assertTrue("the provider must still return today's row", today.endMs >= window.first)
+
+        val event = CalendarSunContextEvents.selectCalendarEvent(
+            instances = listOf(yesterday, today),
+            nowMs = now,
+            zone = zone,
+        )
+        assertTrue(event.matched)
+        assertEquals("during", event.metadata["state"])
+        assertEquals("7:${today.beginMs + 7 * 60 * MILLIS_PER_MINUTE}:during", event.metadata["eventId"])
+    }
+
     private fun epochMillis(year: Int, month: Int, day: Int, hour: Int, minute: Int): Long =
         LocalDateTime.of(year, month, day, hour, minute).toInstant(ZoneOffset.UTC).toEpochMilli()
 
