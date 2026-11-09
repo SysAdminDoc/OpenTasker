@@ -226,7 +226,6 @@ class AutomationTargetReceiver : BroadcastReceiver() {
             .getStringExtra(AutomationTargetContract.EXTRA_PARENT_EXECUTION_ID)
             ?.trim()
             ?.takeIf(ExecutionEnvelope::isValidExecutionId)
-        val existing = requestedExecutionId?.let { ExternalExecutions.get(appContext, it) }
         val producer = intent.getStringExtra(AutomationTargetContract.EXTRA_EXECUTION_PRODUCER)
             ?.trim()
             ?.takeIf { value -> ExecutionProducer.entries.any { it.wireValue == value } }
@@ -234,7 +233,7 @@ class AutomationTargetReceiver : BroadcastReceiver() {
                 .firstOrNull { it.wireValue == intent.getStringExtra(AutomationTargetContract.EXTRA_RUN_SOURCE) }
                 ?.wireValue
             ?: ExecutionProducer.fromSource(runSource).wireValue
-        val executionId = ExternalExecutions.accept(
+        val acceptance = ExternalExecutions.accept(
             context = appContext,
             taskId = task.id,
             taskName = task.name,
@@ -243,8 +242,12 @@ class AutomationTargetReceiver : BroadcastReceiver() {
             parentExecutionId = requestedParentExecutionId,
         )
 
-        // Re-delivery of a command with the same id is an acknowledgement, not a second run.
-        if (existing != null) return acceptedResponse(existing)
+        // Re-delivery of a command with the same id is an acknowledgement, not a second run. The
+        // ledger answers that in the step that records the id: two copies arriving together used
+        // to both start the service, and the engine then failed the id on the second copy while
+        // the first was still running.
+        if (!acceptance.isNew) return acceptedResponse(acceptance.record)
+        val executionId = acceptance.record.executionId
 
         val serviceIntent = Intent(appContext, AutomationService::class.java).apply {
             action = AutomationService.ACTION_RUN_EXTERNAL_TASK

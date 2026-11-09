@@ -83,6 +83,41 @@ class ExternalExecutionLedgerTest {
     }
 
     @Test
+    fun twoDeliveriesOfOneCommandArrivingTogetherStartOneRun() {
+        repeat(200) {
+            val ledger = ExternalExecutionLedger()
+            val startGate = java.util.concurrent.CountDownLatch(1)
+            val started = java.util.concurrent.atomic.AtomicInteger()
+            val deliveries = List(4) {
+                Thread {
+                    startGate.await()
+                    if (ledger.acceptOnce("same-id", taskId = 7, taskName = "Morning", nowMs = 100).isNew) {
+                        started.incrementAndGet()
+                    }
+                }.apply { start() }
+            }
+            startGate.countDown()
+            deliveries.forEach { it.join() }
+
+            assertEquals(1, started.get())
+        }
+    }
+
+    @Test
+    fun aRepeatedCommandGetsTheFirstDeliverysRecordBack() {
+        val ledger = ExternalExecutionLedger()
+        val first = ledger.acceptOnce("e1", taskId = 7, taskName = "Morning", nowMs = 100)
+        ledger.update("e1", ExternalExecutionState.RUNNING, nowMs = 110)
+
+        val repeat = ledger.acceptOnce("e1", taskId = 9, taskName = "Other", nowMs = 500)
+
+        assertTrue(first.isNew)
+        assertFalse(repeat.isNew)
+        assertEquals(7, repeat.record.taskId)
+        assertEquals(ExternalExecutionState.RUNNING, repeat.record.state)
+    }
+
+    @Test
     fun runTaskNeverExecutesTheTaskInsideTheBroadcastWindow() {
         val source = listOf(
             File("src/main/java/com/opentasker/core/external/AutomationTargetReceiver.kt"),

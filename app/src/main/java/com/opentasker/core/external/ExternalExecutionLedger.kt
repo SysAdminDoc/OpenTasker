@@ -36,6 +36,8 @@ data class ExternalExecutionRecord(
     val parentExecutionId: String? = null,
 )
 
+data class ExternalExecutionAcceptance(val record: ExternalExecutionRecord, val isNew: Boolean)
+
 /**
  * Bounded, ordered execution ledger.
  *
@@ -54,8 +56,23 @@ class ExternalExecutionLedger(private val capacity: Int = DEFAULT_CAPACITY) {
         producer: String = "external",
         parentExecutionId: String? = null,
     ): ExternalExecutionRecord =
+        acceptOnce(executionId, taskId, taskName, nowMs, producer, parentExecutionId).record
+
+    /**
+     * Records the execution unless its id is already known, and says which of the two happened.
+     * A caller that looked the id up first and accepted afterwards let two deliveries of one
+     * command both read "new".
+     */
+    fun acceptOnce(
+        executionId: String,
+        taskId: Long,
+        taskName: String,
+        nowMs: Long,
+        producer: String = "external",
+        parentExecutionId: String? = null,
+    ): ExternalExecutionAcceptance =
         synchronized(records) {
-            records[executionId]?.let { return@synchronized it }
+            records[executionId]?.let { return@synchronized ExternalExecutionAcceptance(it, isNew = false) }
             val record = ExternalExecutionRecord(
                 executionId = executionId,
                 taskId = taskId,
@@ -68,7 +85,7 @@ class ExternalExecutionLedger(private val capacity: Int = DEFAULT_CAPACITY) {
             )
             records[executionId] = record
             evictOverflow()
-            record
+            ExternalExecutionAcceptance(record, isNew = true)
         }
 
     /**

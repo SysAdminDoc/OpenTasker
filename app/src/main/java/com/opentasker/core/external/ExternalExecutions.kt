@@ -32,9 +32,9 @@ object ExternalExecutions {
         executionId: String = UUID.randomUUID().toString(),
         producer: String = "external",
         parentExecutionId: String? = null,
-    ): String {
+    ): ExternalExecutionAcceptance {
         val store = store(context)
-        ledger.accept(
+        val acceptance = ledger.acceptOnce(
             executionId = executionId,
             taskId = taskId,
             taskName = taskName,
@@ -42,8 +42,8 @@ object ExternalExecutions {
             producer = producer,
             parentExecutionId = parentExecutionId,
         )
-        store.save(ledger.snapshot())
-        return executionId
+        if (acceptance.isNew) store.save(ledger.snapshot())
+        return acceptance
     }
 
     fun update(
