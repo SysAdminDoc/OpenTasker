@@ -221,7 +221,7 @@
     <string name="profile_fallback_task">Profile fallback task</string>
     <string name="profile_fallback_task_helper">Optional task to run when the profile task fails without a flow.catch.</string>
     <string name="profile_cooldown_label">Cooldown seconds</string>
-    <string name="profile_cooldown_helper">Minimum seconds between triggers. Default is 0 (no cooldown).</string>
+    <string name="profile_cooldown_helper">Minimum seconds between triggers, up to 3600. Default is 0 (no cooldown).</string>
     <string name="profile_priority_label">Profile priority</string>
     <string name="profile_priority_helper">Higher priority wins when enabled profiles match at the same time. Equal priorities use the lower profile ID.</string>
     <string name="profile_priority_invalid">Enter a whole number from -100 to 100.</string>
@@ -1240,7 +1240,7 @@
     <string name="blueprint_update_changes">What the newer template would change</string>
     <string name="task_priority_invalid">Enter a value from 0 to 10.</string>
     <string name="profile_enable_after_save_helper">Leave off until contexts and actions are reviewed.</string>
-    <string name="profile_cooldown_invalid">Enter seconds as a whole number.</string>
+    <string name="profile_cooldown_invalid">Enter whole seconds, up to 3600.</string>
     <string name="automation_mode_single_body">If the task is still running when the profile fires again, skip the new run and note it in the Run Log.</string>
     <string name="automation_mode_restart_body">Stop the running task and start it over.</string>
     <string name="automation_mode_queued_body">Let the running task finish, then run again. Up to 50 runs can wait their turn.</string>

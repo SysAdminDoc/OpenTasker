@@ -221,7 +221,7 @@
     <string name="profile_fallback_task">配置文件回退任务</string>
     <string name="profile_fallback_task_helper">可选。当配置文件任务在缺少 flow.catch 时失败时运行的任务。</string>
     <string name="profile_cooldown_label">冷却秒数</string>
-    <string name="profile_cooldown_helper">触发之间的最少秒数。默认为0（无冷却）。</string>
+    <string name="profile_cooldown_helper">触发之间的最少秒数，最多 3600。默认为0（无冷却）。</string>
     <string name="profile_priority_label">配置文件优先级</string>
     <string name="profile_priority_helper">当多个已启用的配置文件同时匹配时，优先级更高的获胜。优先级相同则使用更低的配置文件ID。</string>
     <string name="profile_priority_invalid">请输入 -100 到 100 之间的整数。</string>
@@ -1216,7 +1216,7 @@
     <string name="blueprint_update_changes">更新的模板会更改的内容</string>
     <string name="task_priority_invalid">请输入 0 到 10 之间的值。</string>
     <string name="profile_enable_after_save_helper">在审阅上下文和操作前保持关闭。</string>
-    <string name="profile_cooldown_invalid">请以整数形式输入秒数。</string>
+    <string name="profile_cooldown_invalid">请输入整数秒，最多 3600。</string>
     <string name="automation_mode_single_body">如果配置文件再次触发时任务仍在运行，则跳过这次运行，并在运行日志中记录。</string>
     <string name="automation_mode_restart_body">停止正在运行的任务，然后重新开始。</string>
     <string name="automation_mode_queued_body">等正在运行的任务完成后再运行。最多可有 50 次运行排队等待。</string>

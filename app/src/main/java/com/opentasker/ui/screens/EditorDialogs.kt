@@ -415,7 +415,7 @@ internal fun ProfileEditorDialog(
         mutableStateOf((profile?.overflowPolicy ?: ProfileOverflowPolicy.LOG).name)
     }
     var fallbackTaskId by rememberSaveable(profile?.id) { mutableStateOf(profile?.fallbackTaskId) }
-    val parsedCooldown = cooldown.toIntOrNull()
+    val parsedCooldown = parseProfileCooldown(cooldown)
     val parsedPriority = priority.toIntOrNull()
     val parsedGracePeriod = gracePeriod.toIntOrNull()
     // Mirror profileEditorCanSave exactly. These fields accept three and four digits, so a value
@@ -1448,3 +1448,7 @@ private fun formatBytes(bytes: Long): String = when {
     bytes >= 1_024 -> "%.0f KB".format(bytes / 1_024.0)
     else -> "$bytes B"
 }
+
+/** Null unless [text] is a cooldown the save will accept, so the field can flag it while typing. */
+internal fun parseProfileCooldown(text: String): Int? =
+    text.toIntOrNull()?.takeIf { it in 0..InputValidation.MAX_COOLDOWN_SEC }

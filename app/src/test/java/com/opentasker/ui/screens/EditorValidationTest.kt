@@ -1,11 +1,22 @@
 package com.opentasker.ui.screens
 
 import com.opentasker.core.model.ProfileLifetime
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EditorValidationTest {
+    @Test
+    fun cooldownParsesOnlyWhatTheSaveAccepts() {
+        assertEquals(0, parseProfileCooldown("0"))
+        assertEquals(3600, parseProfileCooldown("3600"))
+        assertNull(parseProfileCooldown("3601"))
+        assertNull(parseProfileCooldown("-1"))
+        assertNull(parseProfileCooldown("soon"))
+    }
+
     @Test
     fun taskEditorSaveRequiresNameAndBoundedPriority() {
         assertFalse(taskEditorCanSave("", 5))
