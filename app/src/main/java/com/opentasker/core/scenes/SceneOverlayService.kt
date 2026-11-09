@@ -308,7 +308,15 @@ class SceneOverlayService : Service() {
 
     private fun unsupportedElementView(element: SceneElement): TextView =
         TextView(this).apply {
-            text = getString(R.string.scene_overlay_unsupported_element, element.type.name)
+            val typeLabel = getString(
+                when (element.type) {
+                    SceneElementType.BUTTON -> R.string.scene_element_type_button
+                    SceneElementType.TEXT -> R.string.scene_element_type_text
+                    SceneElementType.SLIDER -> R.string.scene_element_type_slider
+                    SceneElementType.IMAGE -> R.string.scene_element_type_image
+                },
+            )
+            text = getString(R.string.scene_overlay_unsupported_element, typeLabel)
             setTextColor(Color.GRAY)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             val padPx = (2 * resources.displayMetrics.density).toInt()

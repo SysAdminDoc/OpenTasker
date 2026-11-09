@@ -142,7 +142,7 @@
 
     <!-- Scene overlay service and fallback views. -->
     <string name="scene_overlay_default_button" formatted="false">Button</string>
-    <string name="scene_overlay_unsupported_element">[%1$s]</string>
+    <string name="scene_overlay_unsupported_element">%1$s unavailable</string>
     <string name="scene_overlay_notification_title" formatted="false">Scene overlay active</string>
     <string name="scene_overlay_channel_name" formatted="false">Scene overlays</string>
 

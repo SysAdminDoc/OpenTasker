@@ -141,7 +141,7 @@
 
     <!-- Scene overlay service and fallback views. -->
     <string name="scene_overlay_default_button" formatted="false">按钮</string>
-    <string name="scene_overlay_unsupported_element">[%1$s]</string>
+    <string name="scene_overlay_unsupported_element">%1$s 不可用</string>
     <string name="scene_overlay_notification_title" formatted="false">场景叠加层已激活</string>
     <string name="scene_overlay_channel_name" formatted="false">场景叠加层</string>
 
