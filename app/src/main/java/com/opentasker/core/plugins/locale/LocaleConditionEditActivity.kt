@@ -44,6 +44,7 @@ import com.opentasker.app.R
 import com.opentasker.core.model.ContextType
 import com.opentasker.ui.theme.DesignSystem
 import com.opentasker.ui.theme.OpenTaskerTheme
+import com.opentasker.ui.screens.FullScreenContentLoading
 import com.opentasker.ui.theme.ThemeMode
 import com.opentasker.ui.theme.ThemePreference
 import kotlinx.coroutines.Dispatchers
@@ -94,12 +95,18 @@ class LocaleConditionEditActivity : ComponentActivity() {
 
         setContent {
             val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.Amoled)
-            val profiles by profilesFlow.collectAsState(initial = emptyList())
-            val variables by variablesFlow.collectAsState(initial = emptyList())
+            val profiles by profilesFlow.collectAsState(initial = null)
+            val variables by variablesFlow.collectAsState(initial = null)
             OpenTaskerTheme(themeMode) {
+                val loadedProfiles = profiles
+                val loadedVariables = variables
+                if (loadedProfiles == null || loadedVariables == null) {
+                    FullScreenContentLoading()
+                    return@OpenTaskerTheme
+                }
                 LocaleConditionEditor(
-                    profiles = profiles,
-                    variables = variables,
+                    profiles = loadedProfiles,
+                    variables = loadedVariables,
                     onIssueGrant = { variableKey -> LocaleConditionGrantStore(this).issue(variableKey) },
                     onConfigured = { values, blurb ->
                         val resultIntent = Intent().apply {

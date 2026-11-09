@@ -33,6 +33,7 @@ import com.opentasker.app.OpenTaskerApp_NoHilt
 import com.opentasker.app.R
 import com.opentasker.ui.theme.DesignSystem
 import com.opentasker.ui.theme.OpenTaskerTheme
+import com.opentasker.ui.screens.ContentLoadingState
 import com.opentasker.ui.theme.ThemeMode
 import com.opentasker.ui.theme.ThemePreference
 import kotlinx.coroutines.flow.map
@@ -59,14 +60,19 @@ class LocaleSettingEditActivity : ComponentActivity() {
             // instead of defaulting to the system theme.
             val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.Amoled)
             OpenTaskerTheme(themeMode) {
-                val tasks by tasksFlow.collectAsState(initial = emptyList())
+                val tasks by tasksFlow.collectAsState(initial = null)
                 Scaffold(
                     topBar = {
                         TopAppBar(title = { Text(stringResource(R.string.locale_select_task_title)) })
                     },
                 ) { padding ->
+                    val loadedTasks = tasks
+                    if (loadedTasks == null) {
+                        ContentLoadingState(padding)
+                        return@Scaffold
+                    }
                     TaskPickerList(
-                        tasks = tasks,
+                        tasks = loadedTasks,
                         contentPadding = padding,
                         onSelect = { item ->
                             val grant = grantStore.issue(item.id)

@@ -100,9 +100,10 @@ private fun ScriptAllowlistCard(
     var expanded by rememberSaveable { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
     // SharedPreferences first-load is disk work; keep it off the composition thread.
-    val entries by produceState(initialValue = emptyList<ApprovedScript>(), store, revision) {
+    val loadedEntries by produceState<List<ApprovedScript>?>(initialValue = null, store, revision) {
         value = withContext(Dispatchers.IO) { store.entries() }
     }
+    val entries = loadedEntries.orEmpty()
     val pathValid = store.policy.normalizePath(executable) != null
     val hashValid = TermuxScriptPolicy.normalizeHash(sha256) != null
     val savedMessage = stringResource(R.string.setup_termux_script_saved)
@@ -126,7 +127,8 @@ private fun ScriptAllowlistCard(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(stringResource(text.title), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        pluralStringResource(R.plurals.setup_script_allowlist_count, entries.size, entries.size),
+                        // Blank until read, or every open of Setup starts by claiming there are none.
+                        if (loadedEntries == null) "" else pluralStringResource(R.plurals.setup_script_allowlist_count, entries.size, entries.size),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )

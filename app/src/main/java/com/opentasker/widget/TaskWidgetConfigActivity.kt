@@ -52,6 +52,7 @@ import com.opentasker.core.storage.StorageDecodeIssue
 import com.opentasker.ui.screens.StorageDecodeWarningCard
 import com.opentasker.ui.theme.DesignSystem
 import com.opentasker.ui.theme.OpenTaskerTheme
+import com.opentasker.ui.screens.FullScreenContentLoading
 import com.opentasker.ui.theme.ThemeMode
 import com.opentasker.ui.theme.ThemePreference
 import kotlinx.coroutines.flow.map
@@ -94,7 +95,12 @@ class TaskWidgetConfigActivity : ComponentActivity() {
         setContent {
             val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.Amoled)
             OpenTaskerTheme(themeMode) {
-                val taskState by tasksFlow.collectAsState(initial = WidgetTaskState())
+                val loaded by tasksFlow.collectAsState(initial = null)
+                val taskState = loaded
+                if (taskState == null) {
+                    FullScreenContentLoading()
+                    return@OpenTaskerTheme
+                }
                 ConfigScreen(
                     tasks = taskState.tasks,
                     storageDecodeIssues = taskState.storageDecodeIssues,

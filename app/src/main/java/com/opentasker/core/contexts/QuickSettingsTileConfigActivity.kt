@@ -51,6 +51,7 @@ import com.opentasker.app.OpenTaskerApp_NoHilt
 import com.opentasker.app.R
 import com.opentasker.core.model.Task
 import com.opentasker.ui.theme.OpenTaskerTheme
+import com.opentasker.ui.screens.FullScreenContentLoading
 import com.opentasker.ui.theme.ThemeMode
 import com.opentasker.ui.theme.ThemePreference
 import kotlinx.coroutines.flow.map
@@ -82,12 +83,17 @@ class QuickSettingsTileConfigActivity : ComponentActivity() {
         }
         setContent {
             val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.Amoled)
-            val tasks by tasksFlow.collectAsState(initial = emptyList())
+            val tasks by tasksFlow.collectAsState(initial = null)
             OpenTaskerTheme(themeMode) {
+                val loadedTasks = tasks
+                if (loadedTasks == null) {
+                    FullScreenContentLoading()
+                    return@OpenTaskerTheme
+                }
                 TileConfigScreen(
                     slot = slot,
                     initial = initial,
-                    tasks = tasks,
+                    tasks = loadedTasks,
                     onSave = { config ->
                         store.save(config)
                         store.requestRefresh(this, slot)
