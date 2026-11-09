@@ -41,6 +41,7 @@ fun SceneLibraryScreen(
     scenes: List<Scene>,
     tasks: List<Task>,
     focusSceneId: Long? = null,
+    onFocusSceneConsumed: () -> Unit = {},
     onCreateScene: (name: String, widthDp: Int, heightDp: Int, onSaved: () -> Unit) -> Unit,
     onUpdateScene: (Scene, Int, onSaved: () -> Unit) -> Unit,
     onRemoveElement: (Scene, Int) -> Unit,
@@ -66,9 +67,20 @@ fun SceneLibraryScreen(
         sceneElementEditorState(scenes, elementEditorSceneId, elementEditorIndex, allowNew = true)
     }
 
-    LaunchedEffect(focusSceneId, sortedScenes) {
-        val focusedIndex = focusSceneId?.let { id -> sortedScenes.indexOfFirst { it.id == id } } ?: -1
-        if (focusedIndex >= 0) listState.animateScrollToItem(focusedIndex + 2)
+    LaunchedEffect(focusSceneId, filteredScenes) {
+        val id = focusSceneId ?: return@LaunchedEffect
+        val focusedIndex = filteredScenes.indexOfFirst { it.id == id }
+        if (focusedIndex >= 0) {
+            // The list's rows are the filtered scenes after the overview and search rows. Consumed
+            // even when a drag interrupts the scroll, or the next edit would jump back here.
+            try {
+                listState.animateScrollToItem(focusedIndex + 2)
+            } finally {
+                onFocusSceneConsumed()
+            }
+        } else if (sortedScenes.any { it.id == id }) {
+            searchQuery = ""
+        }
     }
 
     LaunchedEffect(elementEditorSceneId, elementEditor) {

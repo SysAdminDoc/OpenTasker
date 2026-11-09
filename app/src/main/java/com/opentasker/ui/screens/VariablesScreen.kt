@@ -66,6 +66,7 @@ fun VariablesScreen(
     projectId: Long = DEFAULT_PROJECT_ID,
     focusVariableName: String? = null,
     focusVariableProjectId: Long = DEFAULT_PROJECT_ID,
+    onFocusVariableConsumed: () -> Unit = {},
     onUpdate: (
         previousName: String?,
         name: String,
@@ -99,6 +100,7 @@ fun VariablesScreen(
         if (target != null) {
             editTargetName = target.name
             editTargetProjectId = target.projectId
+            onFocusVariableConsumed()
         }
     }
 

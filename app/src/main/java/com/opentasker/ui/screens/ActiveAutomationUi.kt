@@ -850,6 +850,7 @@ fun ActiveAutomationUi(
                 projectId = selectedProjectId ?: com.opentasker.core.model.DEFAULT_PROJECT_ID,
                 focusVariableName = focusedVariableName,
                 focusVariableProjectId = focusedVariableProjectId,
+                onFocusVariableConsumed = { focusedVariableName = null },
                 onUpdate = { previousName, name, value, isSecret, successMessage, projectId, onSaved ->
                     viewModel.updateVariable(previousName, name, value, isSecret, successMessage, projectId, onSaved)
                 },
@@ -864,6 +865,7 @@ fun ActiveAutomationUi(
                 scenes = projectScenes,
                 tasks = projectTasks,
                 focusSceneId = focusedSceneId.takeIf { it != NO_DIALOG_ENTITY_ID },
+                onFocusSceneConsumed = { focusedSceneId = NO_DIALOG_ENTITY_ID },
                 onCreateScene = { name, width, height, onSaved ->
                     viewModel.createScene(name, width, height, selectedProjectId ?: com.opentasker.core.model.DEFAULT_PROJECT_ID, onSaved)
                 },
