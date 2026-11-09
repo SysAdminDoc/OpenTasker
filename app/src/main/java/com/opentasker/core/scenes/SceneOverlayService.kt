@@ -33,6 +33,13 @@ import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.model.Scene
 import com.opentasker.core.model.SceneElement
 import com.opentasker.core.model.SceneElementType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
 /**
@@ -42,6 +49,7 @@ import kotlinx.serialization.json.Json
 class SceneOverlayService : Service() {
 
     private var overlayView: View? = null
+    private val imageScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -90,6 +98,7 @@ class SceneOverlayService : Service() {
 
     override fun onDestroy() {
         removeOverlay()
+        imageScope.cancel()
         super.onDestroy()
     }
 
@@ -260,28 +269,38 @@ class SceneOverlayService : Service() {
                 }
             }
 
-            SceneElementType.IMAGE -> {
-                val bitmap = SceneImageLoader.load(
-                    context = this,
-                    source = element.config["source"].orEmpty(),
-                    targetWidthPx = widthPx,
-                    targetHeightPx = heightPx,
-                )
-                if (bitmap != null) {
-                    ImageView(this).apply {
-                        setImageBitmap(bitmap)
-                        scaleType = ImageView.ScaleType.CENTER_CROP
-                        contentDescription = element.config["content_description"]?.trim()?.takeIf { it.isNotEmpty() }
-                        importantForAccessibility = if (
-                            element.config["decorative"].equals("true", ignoreCase = true)
-                        ) {
-                            View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                        } else {
-                            View.IMPORTANT_FOR_ACCESSIBILITY_YES
-                        }
+            // The source is another app's content provider, which can take as long as it likes,
+            // and an overlay that waits for it here freezes this process's main thread.
+            SceneElementType.IMAGE -> FrameLayout(this).also { slot ->
+                imageScope.launch {
+                    val bitmap = withContext(Dispatchers.IO) {
+                        SceneImageLoader.load(
+                            context = this@SceneOverlayService,
+                            source = element.config["source"].orEmpty(),
+                            targetWidthPx = widthPx,
+                            targetHeightPx = heightPx,
+                        )
                     }
-                } else {
-                    unsupportedElementView(element)
+                    val image = if (bitmap != null) {
+                        ImageView(this@SceneOverlayService).apply {
+                            setImageBitmap(bitmap)
+                            scaleType = ImageView.ScaleType.CENTER_CROP
+                            contentDescription = element.config["content_description"]?.trim()?.takeIf { it.isNotEmpty() }
+                            importantForAccessibility = if (
+                                element.config["decorative"].equals("true", ignoreCase = true)
+                            ) {
+                                View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                            } else {
+                                View.IMPORTANT_FOR_ACCESSIBILITY_YES
+                            }
+                        }
+                    } else {
+                        unsupportedElementView(element)
+                    }
+                    slot.addView(
+                        image,
+                        FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+                    )
                 }
             }
         }
@@ -392,6 +411,7 @@ class SceneOverlayService : Service() {
     }
 
     private fun removeOverlay() {
+        imageScope.coroutineContext.cancelChildren()
         overlayView?.let {
             runCatching { windowManager.removeView(it) }
                 .onFailure { e -> AppLogger.warn(TAG, message = "Failed to remove overlay view", throwable = e) }
