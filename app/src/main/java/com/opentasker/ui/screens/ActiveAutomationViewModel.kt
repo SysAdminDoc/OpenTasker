@@ -307,11 +307,11 @@ class ActiveAutomationViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), persistentListOf())
 
-    private val _invariants = MutableStateFlow(invariantStore.load())
-    val invariants: StateFlow<List<AutomationInvariant>> = _invariants.asStateFlow()
+    val invariants: StateFlow<List<AutomationInvariant>> = invariantStore.observe()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, invariantStore.load())
 
     fun updateAutomationInvariants(value: List<AutomationInvariant>) {
-        _invariants.value = invariantStore.save(value)
+        invariantStore.save(value)
     }
 
     val tasks: StateFlow<ImmutableList<Task>> = taskDecodeResults

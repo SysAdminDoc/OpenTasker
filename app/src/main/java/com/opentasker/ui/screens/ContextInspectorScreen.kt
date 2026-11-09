@@ -165,17 +165,17 @@ class ContextInspectorViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private val _invariants = MutableStateFlow(invariantStore.load())
-    val invariants: StateFlow<List<AutomationInvariant>> = _invariants.asStateFlow()
+    val invariants: StateFlow<List<AutomationInvariant>> = invariantStore.observe()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, invariantStore.load())
 
     fun updateInvariants(value: List<AutomationInvariant>) {
-        _invariants.value = invariantStore.save(value)
+        invariantStore.save(value)
     }
 
     /** Undo for a delete, applied to the saved list as it is when Undo is tapped. */
     fun restoreInvariant(deleted: AutomationInvariant, index: Int) {
         val restored = withRestoredInvariant(invariantStore.load(), deleted, index) ?: return
-        _invariants.value = invariantStore.save(restored)
+        invariantStore.save(restored)
     }
 
     val lintReport: StateFlow<AutomationLintReport> = combine(profiles, tasks, invariants) { profiles, tasks, invariants ->

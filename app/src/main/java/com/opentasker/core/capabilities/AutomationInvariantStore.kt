@@ -1,8 +1,12 @@
 package com.opentasker.core.capabilities
 
 import android.content.Context
+import android.content.SharedPreferences
 import com.opentasker.core.model.AutomationInvariant
 import com.opentasker.core.model.AutomationInvariantPolicy
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -27,6 +31,16 @@ class AutomationInvariantStore(context: Context) {
     }
 
     fun merge(invariants: List<AutomationInvariant>): List<AutomationInvariant> = save(load() + invariants)
+
+    /** The saved list now and after every write, so an import reaches screens that are already open. */
+    fun observe(): Flow<List<AutomationInvariant>> = callbackFlow {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == KEY_INVARIANTS) trySend(load())
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        trySend(load())
+        awaitClose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 
     private companion object {
         const val PREFERENCES_NAME = "automation_invariants"
