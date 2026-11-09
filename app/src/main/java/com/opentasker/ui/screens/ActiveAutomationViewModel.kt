@@ -48,7 +48,7 @@ import com.opentasker.core.model.Task
 import com.opentasker.core.model.Variable
 import com.opentasker.core.model.VariableNamePolicy
 import com.opentasker.core.logging.AppLogger
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.serialization.SerializationException
 import com.opentasker.core.plugins.locale.LocaleConditionGrantStore
 import com.opentasker.core.plugins.locale.LocaleGrantStore
@@ -463,7 +463,7 @@ class ActiveAutomationViewModel(
         collisionMode: CollisionMode,
         projectId: Long = DEFAULT_PROJECT_ID,
         onSaved: () -> Unit = {},
-    ) = launchWithMessage(R.string.ui_message_task_created, onSaved = onSaved) {
+    ) = launchCreate(R.string.ui_message_task_created, onSaved = onSaved) {
         db.taskDao().insert(
             Task(
                 name = name.trim(),
@@ -664,33 +664,21 @@ class ActiveAutomationViewModel(
         }
     }
 
-    // The create dialog stays open until the insert lands, so a second tap on Save used to insert
-    // a second scene. One create runs at a time; nothing suspends between the insert and onSaved
-    // closing the dialog, so no tap can slip in after the flag clears.
-    private val sceneCreateInFlight = AtomicBoolean(false)
-
     fun createScene(
         name: String,
         widthDp: Int,
         heightDp: Int,
         projectId: Long = DEFAULT_PROJECT_ID,
         onSaved: () -> Unit = {},
-    ) {
-        if (!sceneCreateInFlight.compareAndSet(false, true)) return
-        launchWithMessage(R.string.ui_message_scene_created, onSaved = onSaved) {
-            try {
-                db.sceneDao().insert(
-                    Scene(
-                        name = name.trim(),
-                        widthDp = widthDp.coerceIn(120, 1440),
-                        heightDp = heightDp.coerceIn(80, 2560),
-                        projectId = projectId,
-                    ).toEntity()
-                )
-            } finally {
-                sceneCreateInFlight.set(false)
-            }
-        }
+    ) = launchCreate(R.string.ui_message_scene_created, onSaved = onSaved) {
+        db.sceneDao().insert(
+            Scene(
+                name = name.trim(),
+                widthDp = widthDp.coerceIn(120, 1440),
+                heightDp = heightDp.coerceIn(80, 2560),
+                projectId = projectId,
+            ).toEntity()
+        )
     }
 
     fun duplicateScene(scene: Scene) {
@@ -792,7 +780,7 @@ class ActiveAutomationViewModel(
         fallbackTaskId: Long? = null,
         onSaved: () -> Unit = {},
     ) =
-        launchWithMessage(R.string.ui_message_profile_created, onSaved = onSaved) {
+        launchCreate(R.string.ui_message_profile_created, onSaved = onSaved) {
             val profile = ProfileLifecyclePolicy.normalize(
                 Profile(
                 name = name.trim(),
@@ -904,7 +892,7 @@ class ActiveAutomationViewModel(
         )
     }
 
-    fun createProject(name: String, onSaved: () -> Unit = {}) = launchWithMessage(R.string.ui_message_project_created, onSaved = onSaved) {
+    fun createProject(name: String, onSaved: () -> Unit = {}) = launchCreate(R.string.ui_message_project_created, onSaved = onSaved) {
         val normalized = validateProjectName(name)
         require(db.projectDao().getAll().none { it.name.equals(normalized, ignoreCase = true) }) {
             "A project with that name already exists."
@@ -1917,6 +1905,26 @@ class ActiveAutomationViewModel(
                     events.send(UiMessage(successMessageRes, action = successAction))
                 }
                 .onFailure { events.send(errorMessage(it, R.string.ui_error_generic)) }
+        }
+    }
+
+    // A create dialog stays open until the insert lands, so a second tap on Save used to insert a
+    // second row. One create of each kind runs at a time; nothing suspends between the insert and
+    // onSaved closing the dialog, so no tap can slip in after the slot clears.
+    private val createsInFlight = ConcurrentHashMap.newKeySet<Int>()
+
+    private fun launchCreate(
+        @StringRes successMessageRes: Int,
+        onSaved: () -> Unit = {},
+        block: suspend () -> Unit,
+    ) {
+        if (!createsInFlight.add(successMessageRes)) return
+        launchWithMessage(successMessageRes, onSaved = onSaved) {
+            try {
+                block()
+            } finally {
+                createsInFlight.remove(successMessageRes)
+            }
         }
     }
 }
