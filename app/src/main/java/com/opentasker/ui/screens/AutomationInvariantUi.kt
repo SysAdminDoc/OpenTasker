@@ -92,10 +92,21 @@ internal fun AutomationInvariantPanel(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                OutlinedButton(onClick = { editingId = NEW_INVARIANT_ID }) {
+                OutlinedButton(
+                    onClick = { editingId = NEW_INVARIANT_ID },
+                    enabled = invariants.size < AutomationInvariantPolicy.MAX_INVARIANTS,
+                ) {
                     Icon(Icons.Filled.Add, contentDescription = null)
                     Text(stringResource(R.string.automation_invariant_add), modifier = Modifier.padding(start = 6.dp))
                 }
+            }
+
+            if (invariants.size >= AutomationInvariantPolicy.MAX_INVARIANTS) {
+                Text(
+                    stringResource(R.string.automation_invariant_limit, AutomationInvariantPolicy.MAX_INVARIANTS),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             if (invariants.isEmpty()) {

@@ -707,6 +707,7 @@
     <string name="automation_invariant_panel_title">Settings to warn about</string>
     <string name="automation_invariant_panel_body">Name the device settings you do not expect your automations to change. Nothing is blocked. OpenTasker checks the rules and warns you when an enabled profile looks like it would change one.</string>
     <string name="automation_invariant_empty">No settings are being watched yet.</string>
+    <string name="automation_invariant_limit">%1$d is the limit. Stop watching a setting to add another.</string>
     <string name="automation_invariant_add">Watch a setting</string>
     <string name="automation_invariant_edit">Edit watched setting</string>
     <string name="automation_invariant_delete">Stop watching this setting</string>
