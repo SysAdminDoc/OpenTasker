@@ -382,6 +382,9 @@ class SayAction : DeclaredAction(ActionCatalog.require("tts.speak")) {
                     override fun onDone(utteranceId: String?) { completeOnce(ActionResult.Success) }
                     @Deprecated("Deprecated in API 21+")
                     override fun onError(utteranceId: String?) { completeOnce(ActionResult.Failure("TTS utterance failed")) }
+                    override fun onStop(utteranceId: String?, interrupted: Boolean) {
+                        completeOnce(ActionResult.Failure("TTS utterance was stopped before it finished"))
+                    }
                 })
                 ctx.logger("TTS: ${text.take(80)}${if (text.length > 80) "..." else ""}")
                 if (stream == AudioOutputStream.ALARM) {
