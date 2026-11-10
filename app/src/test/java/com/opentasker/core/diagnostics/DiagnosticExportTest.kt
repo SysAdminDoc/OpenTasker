@@ -59,6 +59,49 @@ class DiagnosticExportTest {
         assertTrue(result.contains("Bearer [REDACTED]"))
     }
 
+    /** Issue #30's report listed exact alarms as denied while its own log showed exact ticks being scheduled. */
+    @Test
+    fun specialAccessPermissionsReportWhatSettingsAllowsNotTheInstallFlag() {
+        assertEquals(
+            "  SCHEDULE_EXACT_ALARM: granted (special access)",
+            DiagnosticExport.permissionLine("android.permission.SCHEDULE_EXACT_ALARM", grantFlag = false, definedOnDevice = true) { true },
+        )
+        assertEquals(
+            "  ACCESS_NOTIFICATION_POLICY: denied (special access)",
+            DiagnosticExport.permissionLine("android.permission.ACCESS_NOTIFICATION_POLICY", grantFlag = true, definedOnDevice = true) { false },
+        )
+        assertEquals(
+            "  SYSTEM_ALERT_WINDOW: special access, couldn't check",
+            DiagnosticExport.permissionLine("android.permission.SYSTEM_ALERT_WINDOW", grantFlag = false, definedOnDevice = true) {
+                throw SecurityException("blocked")
+            },
+        )
+    }
+
+    @Test
+    fun aPermissionThisDeviceDoesNotDefineIsNotReportedAsDenied() {
+        assertEquals(
+            "  QUERY_ADVANCED_PROTECTION_MODE: not defined on this device",
+            DiagnosticExport.permissionLine("android.permission.QUERY_ADVANCED_PROTECTION_MODE", grantFlag = false, definedOnDevice = false, specialAccess = null),
+        )
+        assertEquals(
+            "  com.termux.permission.RUN_COMMAND: not defined on this device",
+            DiagnosticExport.permissionLine("com.termux.permission.RUN_COMMAND", grantFlag = false, definedOnDevice = false, specialAccess = null),
+        )
+    }
+
+    @Test
+    fun ordinaryPermissionsKeepTheirGrantFlag() {
+        assertEquals(
+            "  READ_CONTACTS: denied",
+            DiagnosticExport.permissionLine("android.permission.READ_CONTACTS", grantFlag = false, definedOnDevice = true, specialAccess = null),
+        )
+        assertEquals(
+            "  moe.shizuku.manager.permission.API_V23: granted",
+            DiagnosticExport.permissionLine("moe.shizuku.manager.permission.API_V23", grantFlag = true, definedOnDevice = true, specialAccess = null),
+        )
+    }
+
     @Test
     fun reportIncludesHealthRingAndCrashSources() {
         val root = listOf(Path.of("src/main/java"), Path.of("app/src/main/java")).first(Files::exists)

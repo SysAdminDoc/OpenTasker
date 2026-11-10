@@ -31,6 +31,7 @@
 - Play Sound opens a file with a # or ? in its name. The path used to stop there, so the sound never played.
 - On Android 17, Setup's Shizuku row explains that the original Shizuku may not start there, names the thedjchi fork that supports it, and says to turn wireless debugging back on after a reboot, since OpenTasker can't. The README says the same.
 - A failed NFC tag write says what to do next, like holding the tag still and trying again, or checking Diagnostics when the tag keeps refusing. It used to show the tag's raw exception, such as IOException. The widget's run messages, the Locale plugin's task and condition pickers, and the names OpenTasker gives share drafts and workspace exports can now be translated too, and they come in Chinese.
+- A diagnostics report lists special access (exact alarms, display over other apps, modify system settings, usage access, installing apps and Do Not Disturb) the way Settings has it. It used to read the install-time flag, so exact alarms showed as denied while they worked and Do Not Disturb always showed as granted. A permission the phone doesn't know, from a newer Android or an app that isn't installed, now says it isn't defined instead of denied, and other apps' permissions keep their full names.
 - The Locale condition picker no longer freezes for up to 30 seconds when it's opened right after a backup restore. If the database still isn't back by then, the condition and task pickers close instead of crashing.
 
 ## v0.2.96 - 2026-11-09 (unreleased)
