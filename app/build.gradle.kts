@@ -1042,7 +1042,7 @@ abstract class GenerateRegexCorpusTask : org.gradle.api.DefaultTask() {
         val triple = "\"\"\""
         if (text.startsWith(triple, start)) {
             val end = text.indexOf(triple, start + triple.length)
-            if (end < 0) return null
+            if (end < 0 || continuesAsConcatenation(text, end + triple.length)) return null
             val body = text.substring(start + triple.length, end)
             return if (body.indices.any { isTemplateStart(body, it) }) null else body
         }
@@ -1052,7 +1052,7 @@ abstract class GenerateRegexCorpusTask : org.gradle.api.DefaultTask() {
         var index = start + 1
         while (index < text.length) {
             when (val character = text[index]) {
-                '"' -> return builder.toString()
+                '"' -> return if (continuesAsConcatenation(text, index + 1)) null else builder.toString()
                 '\n' -> return null
                 // A bare '$' is a regex end-anchor. Only '${'$'}name' and '${'$'}{...}' are templates,
                 // and treating every '$' as one silently dropped every anchored pattern.
@@ -1085,6 +1085,13 @@ abstract class GenerateRegexCorpusTask : org.gradle.api.DefaultTask() {
         if (text[index] != '$') return false
         val next = text.getOrNull(index + 1) ?: return false
         return next == '{' || next.isLetter() || next == '_'
+    }
+
+    /** True when the literal ending before [index] is only the first piece of a `+` concatenation. */
+    private fun continuesAsConcatenation(text: String, index: Int): Boolean {
+        var cursor = index
+        while (cursor < text.length && text[cursor].isWhitespace()) cursor++
+        return text.getOrNull(cursor) == '+'
     }
 }
 

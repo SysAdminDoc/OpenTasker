@@ -55,6 +55,7 @@
 - The local release gate finishes again. Since the release certificate check went in on September 30, the release staging step couldn't be saved to Gradle's configuration cache, so every gate run failed after all its checks had passed.
 - The local release gate sets its own Gradle memory. It compiles Kotlin, runs lint and drives the device tests in one Gradle process, and a smaller class-metadata limit in a user-level `gradle.properties` (which beats the project's) made it run out three tests in.
 - The device test for Lock Device turns the screen back on when it's done. Locking also puts the screen to sleep, and on a device without a PIN every screen test that ran after it started on a dark screen and failed.
+- The device test that compiles the app's regexes on Android's engine passes again, and the credential redaction patterns now have device tests of their own. The test's pattern list took the first line of a pattern split across several lines for the whole thing, so it failed on a fragment, and the redaction patterns, which are built from shared pieces, never reached it at all.
 
 ## v0.2.95 - 2026-11-07
 
