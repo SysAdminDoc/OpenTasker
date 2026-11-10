@@ -53,7 +53,6 @@ import com.opentasker.ui.screens.StorageDecodeWarningCard
 import com.opentasker.ui.theme.DesignSystem
 import com.opentasker.ui.theme.OpenTaskerTheme
 import com.opentasker.ui.screens.FullScreenContentLoading
-import com.opentasker.ui.theme.ThemeMode
 import com.opentasker.ui.theme.ThemePreference
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flow
@@ -93,8 +92,9 @@ class TaskWidgetConfigActivity : ComponentActivity() {
             }
 
         setContent {
-            val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.Amoled)
-            OpenTaskerTheme(themeMode) {
+            val themeMode by ThemePreference.observe(this).collectAsState(initial = null)
+            val resolvedTheme = themeMode ?: return@setContent
+            OpenTaskerTheme(resolvedTheme) {
                 val loaded by tasksFlow.collectAsState(initial = null)
                 val taskState = loaded
                 if (taskState == null) {

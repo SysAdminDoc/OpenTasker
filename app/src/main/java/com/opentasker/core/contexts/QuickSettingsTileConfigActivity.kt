@@ -52,7 +52,6 @@ import com.opentasker.app.R
 import com.opentasker.core.model.Task
 import com.opentasker.ui.theme.OpenTaskerTheme
 import com.opentasker.ui.screens.FullScreenContentLoading
-import com.opentasker.ui.theme.ThemeMode
 import com.opentasker.ui.theme.ThemePreference
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flow
@@ -82,9 +81,10 @@ class QuickSettingsTileConfigActivity : ComponentActivity() {
             }
         }
         setContent {
-            val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.Amoled)
+            val themeMode by ThemePreference.observe(this).collectAsState(initial = null)
+            val resolvedTheme = themeMode ?: return@setContent
             val tasks by tasksFlow.collectAsState(initial = null)
-            OpenTaskerTheme(themeMode) {
+            OpenTaskerTheme(resolvedTheme) {
                 val loadedTasks = tasks
                 if (loadedTasks == null) {
                     FullScreenContentLoading()
