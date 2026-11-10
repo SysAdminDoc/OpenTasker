@@ -147,6 +147,16 @@ class VpnTunnelPolicyTest {
     }
 
     @Test
+    fun disconnectingWithNothingUpDoesNotClaimATunnelWentDown() {
+        val down = valid("client" to "tailscale", "state" to "down")
+
+        assertEquals(
+            "No VPN was connected, so Tailscale had nothing to bring down",
+            VpnTunnelPolicy.reachedStateMessage(down, vpnWasUpBefore = false),
+        )
+    }
+
+    @Test
     fun theActionRefusesABadRequestBeforeTouchingTheDevice() = runBlocking {
         val result = VpnTunnelAction().run(
             com.opentasker.core.engine.ActionContext(

@@ -103,6 +103,7 @@ internal object VpnTunnelPolicy {
         request.up && vpnWasUpBefore ->
             "A VPN was already connected before ${request.client.label} was asked, so this can't " +
                 "confirm it's ${request.tunnel?.let { "'$it'" } ?: "${request.client.label}'s"}"
+        !request.up && !vpnWasUpBefore -> "No VPN was connected, so ${request.client.label} had nothing to bring down"
         else -> "VPN ${if (request.up) "up" else "down"} through ${request.client.label}"
     }
 
