@@ -1,0 +1,7 @@
+Releases are set up for F-Droid's reproducible builds (#29).
+Release APKs no longer carry the Git commit they were built from or Google's encrypted dependency list.
+The public keys that sign our dependencies now live in gradle/verification-keyring.keys.
+A Locale condition on a variable now answers only the comparison you set up.
+Local database backups and crash logs stay out of device-to-device transfers.
+Logs and exports hide more credentials.
+A value can't change what a condition asks anymore.

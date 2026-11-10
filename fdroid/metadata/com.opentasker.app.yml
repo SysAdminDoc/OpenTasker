@@ -16,9 +16,9 @@ Binaries:
   https://github.com/SysAdminDoc/OpenTasker/releases/download/v%v/OpenTasker-v%v-fdroid.apk
 
 Builds:
-  - versionName: 0.2.95
-    versionCode: 97
-    commit: v0.2.95
+  - versionName: 0.2.96
+    versionCode: 98
+    commit: v0.2.96
     subdir: .
     gradle:
       - yes
@@ -34,5 +34,5 @@ AutoUpdateMode: Version
 UpdateCheckMode: Tags
 UpdateCheckData: 
   app/build.gradle.kts|appVersionCode\s*=\s*(\d+)|app/build.gradle.kts|appVersionName\s*=\s*"(.*)"
-CurrentVersion: 0.2.95
-CurrentVersionCode: 97
+CurrentVersion: 0.2.96
+CurrentVersionCode: 98
