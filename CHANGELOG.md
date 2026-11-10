@@ -11,6 +11,7 @@
 - Setup explains why a Bluetooth device nearby context asks for Bluetooth connect: a paired device that's already connected, like a car or headphones, often doesn't show up in a scan.
 - The Inspector and profile cards show a state check the way it reads, like "Bluetooth device nearby = Car", where they used to show "key=bt_near, operator==, value=Car".
 - An import that's over the size limit says it would add too many tasks, profiles, variables and scenes. It used to say "entities".
+- Import JSON opens the bundle's import review. It used to open "Review community share" first, with share fields like the slug and screenshots that mean nothing to someone importing a file. Anything the share check would block (an action that can't run here) still blocks the import.
 
 ## v0.2.96 - 2026-11-09 (unreleased)
 

@@ -250,6 +250,17 @@ internal fun ProfileShareReviewDialog(
     )
 }
 
+/**
+ * The review for a bundle opened from a file or pasted in. It skips the share form, since nobody
+ * importing a file is writing a share, but a bundle from anywhere is still an unverified share:
+ * whatever the share check blocks on blocks the import too.
+ */
+internal fun ProfileShareReviewState.asImportReview(): OpenTaskerBundleReviewState {
+    val blockers = manifest.findings.filter { it.severity == ShareFindingSeverity.Blocker }.map(ShareSafetyFinding::message)
+    val gated = if (blockers.isEmpty()) plan else plan.copy(canImport = false, warnings = (plan.warnings + blockers).distinct())
+    return OpenTaskerBundleReviewState(bundle = draft.bundle, plan = gated)
+}
+
 private fun androidx.compose.foundation.lazy.LazyListScope.findingsSection(
     findings: List<ShareSafetyFinding>,
     title: String,

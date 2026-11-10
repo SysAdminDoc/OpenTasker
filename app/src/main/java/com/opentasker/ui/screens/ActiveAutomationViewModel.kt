@@ -1340,11 +1340,11 @@ class ActiveAutomationViewModel(
             runTransferCatching {
                 withContext(Dispatchers.IO) {
                     reportStage(TransferStage.Decode)
-                    buildProfileShareReview(load())
+                    buildProfileShareReview(load()).asImportReview()
                 }
             }
                 .onSuccess {
-                    _profileShareReview.value = it
+                    _openTaskerBundleReview.value = it
                     events.send(message(R.string.ui_message_bundle_ready))
                 }
                 .onFailure { error ->
@@ -1442,7 +1442,7 @@ class ActiveAutomationViewModel(
 
     fun confirmOpenTaskerBundleImport() {
         val review = _openTaskerBundleReview.value ?: return
-        if (review.plan.variableConflicts.any { it.name !in review.variableResolutions }) return
+        if (!review.plan.canImport || review.plan.variableConflicts.any { it.name !in review.variableResolutions }) return
         bundleTransfer.launch { reportStage ->
             runTransferCatching {
                 withContext(Dispatchers.IO) {
