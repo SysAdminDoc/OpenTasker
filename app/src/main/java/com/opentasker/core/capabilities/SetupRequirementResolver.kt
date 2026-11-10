@@ -3,10 +3,12 @@ package com.opentasker.core.capabilities
 import com.opentasker.core.contexts.BT_NEAR_STATE_KEY
 import com.opentasker.core.contexts.stateContextKey
 import com.opentasker.core.contexts.stateSpecReadsWifiSsid
+import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
+import com.opentasker.core.platform.AndroidAudioHardening
 
 /**
  * The smallest set of platform capabilities required by enabled automations.
@@ -35,6 +37,9 @@ enum class SetupRequirement {
     PHYSICAL_ACTIVITY,
     PHONE_STATE,
     CALL_LOG,
+    SMS_RECEIVE,
+    POST_NOTIFICATIONS,
+    SECURE_SETTINGS,
 }
 
 object SetupRequirementResolver {
@@ -57,7 +62,7 @@ object SetupRequirementResolver {
             val task = queue.removeFirst()
             if (!visited.add(task.id)) continue
             task.actions.forEach { action ->
-                requirements += actionRequirements(action.type)
+                requirements += actionRequirements(action.type, action.args)
                 if (action.type != "task.run") return@forEach
                 val reference = listOf("task", "name", "id")
                     .firstNotNullOfOrNull { key -> action.args[key]?.trim()?.takeIf(String::isNotBlank) }
@@ -87,6 +92,22 @@ object SetupRequirementResolver {
         contexts.forEach { context -> requirements += contextRequirements(context) }
         actionTypes.forEach { type -> requirements += actionRequirements(type) }
         return requirements
+    }
+
+    /**
+     * What one action needs from Setup, so a row can say whether it's still waiting on a grant.
+     * Empty means no Setup row can settle it, and the caller keeps its pill.
+     */
+    fun forAction(action: ActionSpec, sdkInt: Int): Set<SetupRequirement> = when {
+        // Android 17 caps what an app can do to audio, and no grant lifts that.
+        action.type in RESTRICTED_AUDIO_ACTIONS && AndroidAudioHardening.isRestricted(sdkInt) -> emptySet()
+        // Only the pill reads this. Adding it to the profile requirements would send every
+        // notification template to Setup, for a grant the engine row already asks for.
+        action.type in NOTIFICATION_ACTIONS -> setOf(SetupRequirement.POST_NOTIFICATIONS)
+        // Android 12 needs Bluetooth connect for this; from 13 on the action is unsupported and keeps
+        // its pill whatever this says. Pill only, so the row isn't listed as needed on 13+.
+        action.type == "bluetooth.toggle" -> setOf(SetupRequirement.BLUETOOTH)
+        else -> actionRequirements(action.type, action.args)
     }
 
     private fun contextRequirements(context: ContextSpec): Set<SetupRequirement> {
@@ -135,7 +156,7 @@ object SetupRequirementResolver {
                         add(SetupRequirement.CONTACTS)
                     }
                     tokens.contains("screen_recording") -> add(SetupRequirement.SCREEN_RECORDING)
-                    tokens.contains("sms_received") -> add(SetupRequirement.SMS)
+                    tokens.contains("sms_received") -> add(SetupRequirement.SMS_RECEIVE)
                     tokens.containsAny("notification", "notify") -> add(SetupRequirement.NOTIFICATION_ACCESS)
                     tokens.contains("calendar") -> add(SetupRequirement.CALENDAR)
                 }
@@ -147,9 +168,23 @@ object SetupRequirementResolver {
         }
     }
 
-    private fun actionRequirements(type: String): Set<SetupRequirement> = buildSet {
+    private fun actionRequirements(
+        type: String,
+        args: Map<String, String> = emptyMap(),
+    ): Set<SetupRequirement> = buildSet {
         when (type) {
             "brightness.set", "screen.timeout" -> add(SetupRequirement.WRITE_SETTINGS)
+            "settings.write" -> when (args["table"]?.trim()?.lowercase()) {
+                "system" -> add(SetupRequirement.WRITE_SETTINGS)
+                "global", "secure" -> add(SetupRequirement.SECURE_SETTINGS)
+            }
+            // A profile scans from the background, where Android denies the scan results without
+            // "allow all the time", the same as an SSID context (#17).
+            "wifi.scan" -> {
+                add(SetupRequirement.FOREGROUND_LOCATION)
+                add(SetupRequirement.BACKGROUND_LOCATION)
+                add(SetupRequirement.NEARBY_WIFI)
+            }
             "lock" -> add(SetupRequirement.DEVICE_ADMIN)
             // A profile runs in the background, where Android silently drops an activity start
             // unless the app can draw over others.
@@ -165,4 +200,7 @@ object SetupRequirementResolver {
     }
 
     private fun String.containsAny(vararg values: String): Boolean = values.any(::contains)
+
+    private val RESTRICTED_AUDIO_ACTIONS = setOf("volume.set", "ringer.set", "media.mute")
+    private val NOTIFICATION_ACTIONS = setOf("notify.show", "notify.cancel", "notify.progress")
 }

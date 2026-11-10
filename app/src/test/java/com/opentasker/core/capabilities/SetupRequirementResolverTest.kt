@@ -213,6 +213,76 @@ class SetupRequirementResolverTest {
     }
 
     @Test
+    fun aWriteSettingNeedsTheGrantItsTableUses() {
+        fun profileWriting(table: String): Set<SetupRequirement> {
+            val task = Task(
+                id = 1,
+                name = "Write",
+                actions = listOf(ActionSpec(type = "settings.write", args = mapOf("table" to table, "key" to "k", "value" to "1"))),
+            )
+            return SetupRequirementResolver.resolve(listOf(Profile(id = 1, name = "W", enterTaskId = task.id)), listOf(task))
+        }
+
+        assertEquals(setOf(SetupRequirement.WRITE_SETTINGS), profileWriting("system"))
+        assertEquals(setOf(SetupRequirement.SECURE_SETTINGS), profileWriting(" Secure "))
+        assertEquals(setOf(SetupRequirement.SECURE_SETTINGS), profileWriting("global"))
+    }
+
+    @Test
+    fun aWifiScanWaitsOnBackgroundLocationAndNearbyWifi() {
+        assertEquals(
+            setOf(SetupRequirement.FOREGROUND_LOCATION, SetupRequirement.BACKGROUND_LOCATION, SetupRequirement.NEARBY_WIFI),
+            SetupRequirementResolver.forAction(ActionSpec(type = "wifi.scan"), sdkInt = 36),
+        )
+    }
+
+    @Test
+    fun anSmsTriggerNeedsReceiveSmsAndNotSendSms() {
+        assertEquals(
+            setOf(SetupRequirement.SMS_RECEIVE),
+            SetupRequirementResolver.resolveForTemplate(
+                actionTypes = emptyList(),
+                contexts = listOf(ContextSpec(ContextType.EVENT, mapOf("event" to "sms_received"))),
+            ),
+        )
+        assertEquals(setOf(SetupRequirement.SMS), SetupRequirementResolver.forAction(ActionSpec(type = "sms.send"), sdkInt = 36))
+    }
+
+    @Test
+    fun aNotificationActionsPillWaitsOnPostingNotificationsWithoutSendingItsTemplateToSetup() {
+        listOf("notify.show", "notify.cancel", "notify.progress").forEach { type ->
+            assertEquals(
+                type,
+                setOf(SetupRequirement.POST_NOTIFICATIONS),
+                SetupRequirementResolver.forAction(ActionSpec(type = type), sdkInt = 36),
+            )
+            assertTrue(type, SetupRequirementResolver.resolveForTemplate(listOf(type), emptyList()).isEmpty())
+        }
+    }
+
+    @Test
+    fun onAndroid17NoGrantSettlesAnAudioAction() {
+        listOf("volume.set", "ringer.set", "media.mute").forEach { type ->
+            assertEquals(type, setOf(SetupRequirement.DND), SetupRequirementResolver.forAction(ActionSpec(type = type), sdkInt = 36))
+            assertTrue(type, SetupRequirementResolver.forAction(ActionSpec(type = type), sdkInt = 37).isEmpty())
+        }
+    }
+
+    @Test
+    fun anActionNoSetupRowCanSettleResolvesEmpty() {
+        listOf("script.termux.run", "script.shizuku.run", "vpn.tunnel").forEach { type ->
+            assertTrue(type, SetupRequirementResolver.forAction(ActionSpec(type = type), sdkInt = 36).isEmpty())
+        }
+    }
+
+    @Test
+    fun aBluetoothTogglesPillWaitsOnBluetoothConnectWithoutListingItForProfiles() {
+        val toggle = ActionSpec(type = "bluetooth.toggle", args = mapOf("state" to "on"))
+        assertEquals(setOf(SetupRequirement.BLUETOOTH), SetupRequirementResolver.forAction(toggle, sdkInt = 32))
+        assertTrue(SetupRequirementResolver.resolveForTemplate(listOf(toggle.type), emptyList()).isEmpty())
+    }
+
+    @Test
     fun aTemplateThatNeedsNothingSpecialResolvesEmpty() {
         assertEquals(
             emptySet<SetupRequirement>(),

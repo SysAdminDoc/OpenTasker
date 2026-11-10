@@ -122,6 +122,7 @@ internal fun buildPermissionItems(
                 PermissionAction.None
             },
             requiredFor = context.getString(R.string.setup_notifications_required_for),
+            requirements = setOf(SetupRequirement.POST_NOTIFICATIONS),
         ),
         if (promotedSupported) PermissionSetupItem(
             title = context.getString(R.string.setup_promoted_notifications_title),
@@ -398,7 +399,7 @@ internal fun buildPermissionItems(
             action = PermissionAction.RuntimePermission(Manifest.permission.RECEIVE_SMS),
             requiredFor = context.getString(R.string.setup_sms_receive_required_for),
             section = SetupSection.NEEDED,
-            requirements = setOf(SetupRequirement.SMS),
+            requirements = setOf(SetupRequirement.SMS_RECEIVE),
         ) else null,
         if (BuildConfig.SMS_ACTION_AVAILABLE) PermissionSetupItem(
             title = context.getString(R.string.setup_phone_state_title),
@@ -452,6 +453,7 @@ internal fun buildPermissionItems(
             // settings", which is wrong here, and a command to grant something already granted is
             // not worth offering.
             section = SetupSection.OPTIONAL,
+            requirements = setOf(SetupRequirement.SECURE_SETTINGS),
         ),
         PermissionSetupItem(
             title = context.getString(R.string.setup_shizuku_title),
@@ -507,6 +509,12 @@ internal fun buildPermissionItems(
         ),
     ).map { item -> item.withRuntimePermissionRecovery(context, permissionHistory) }
 }
+
+/** What Setup still lists as missing, a row that couldn't be checked included. */
+internal fun pendingSetupRequirements(context: Context): Set<SetupRequirement> =
+    buildPermissionItems(context, RuntimePermissionRequestHistory(context))
+        .filter { !it.granted || it.unavailable }
+        .flatMapTo(mutableSetOf()) { it.requirements }
 
 private fun PermissionSetupItem.withRuntimePermissionRecovery(
     context: Context,

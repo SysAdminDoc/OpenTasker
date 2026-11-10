@@ -5,6 +5,7 @@
 ### Fixed
 
 - Tasker exports now write contexts the way Tasker itself does, so Tasker can open them. Day and App contexts use Tasker's own fields, and so do Power, Headset Plugged, Display State, Battery Level, Wifi Connected, Device Boot and Notification. Anything Tasker can't hold exactly is left out, and the export names it along with its settings. Tasker's Day has no Invert switch, so "not Monday" goes out as the other six days, and an inverted time window stays out. A profile that fires on either of two contexts gets a warning too, because a Tasker profile needs all of them. Tasker files that use those states and events now import too.
+- The Needs setup pill on a task's action goes away once the permission it waits on is granted, and it's checked again each time you come back to the app. It used to stay on every action of that kind, granted or not. Notification actions wait on the Notifications permission, Wi-Fi scan on location (all the time, since profiles scan in the background) and Nearby Wi-Fi, Bluetooth toggle on Android 12 on Bluetooth connect, and Write Setting on Write Settings or the secure settings grant depending on its table. An SMS trigger now asks Setup for Receive SMS rather than Send SMS. Volume actions on Android 17 and actions no grant can settle (scripts, a VPN app) keep their pill.
 
 ## v0.2.96 - 2026-11-09 (unreleased)
 

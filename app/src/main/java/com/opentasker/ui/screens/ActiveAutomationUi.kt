@@ -539,6 +539,11 @@ fun ActiveAutomationUi(
             }
         }
     }
+    // Read here and not in Tasks, which leaves composition on every tab switch and would show every
+    // pill again until the read came back. Entering Tasks reads again, since Setup is a tab too.
+    val pendingSetup = rememberPendingSetup(refreshKey = screen == OpenTaskerScreen.Tasks) {
+        pendingSetupRequirements(context)
+    }
 
     var showMoreDestinations by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = shouldNavigateBackToProfiles(screen)) {
@@ -814,7 +819,7 @@ fun ActiveAutomationUi(
                     viewModel.moveTaskAction(task.id, fromIndex, toIndex)
                 },
                 onRunAction = { task, index -> viewModel.runActionNow(task, index) },
-                runBusy = runBusy,
+                runBusy = runBusy, pendingSetup = pendingSetup,
                 contentPadding = innerPadding, contentLoaded = contentLoaded, historyAvailability = historyAvailability,
             )
 

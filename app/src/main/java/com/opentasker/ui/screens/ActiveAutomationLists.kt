@@ -1,5 +1,6 @@
 package com.opentasker.ui.screens
 
+import android.os.Build
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -53,8 +54,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -68,11 +72,16 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.opentasker.app.R
 import com.opentasker.core.actions.ActionMetadataRegistry
 import com.opentasker.core.actions.ActionSummaryFormatter
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.capabilities.CapabilityLevel
+import com.opentasker.core.capabilities.SetupRequirement
+import com.opentasker.core.capabilities.SetupRequirementResolver
 import com.opentasker.core.contexts.contextConfigSummary
 import com.opentasker.core.engine.SingleActionRun
 import com.opentasker.core.model.ActionSpec
@@ -83,6 +92,8 @@ import com.opentasker.core.model.Task
 import com.opentasker.core.storage.StorageDecodeIssue
 import com.opentasker.ui.theme.DesignSystem
 import com.opentasker.ui.utils.expandCollapseToggle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 @Composable
 internal fun ProfilesScreen(
     profiles: List<Profile>,
@@ -467,6 +478,26 @@ private fun ProfileCard(
     }
 }
 
+/**
+ * What Setup still lists as missing, so an action's Needs setup pill can follow the live grant.
+ * It's read again on every resume, so coming back from a settings page clears a pill it fixed,
+ * and whenever [refreshKey] changes. Null until the first read comes back.
+ */
+@Composable
+internal fun rememberPendingSetup(refreshKey: Any?, read: () -> Set<SetupRequirement>): Set<SetupRequirement>? {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var resumes by remember { mutableIntStateOf(0) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) resumes++ }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val pending by produceState<Set<SetupRequirement>?>(null, resumes, refreshKey) {
+        value = withContext(Dispatchers.IO) { read() }
+    }
+    return pending
+}
+
 @Composable
 internal fun TasksScreen(
     tasks: List<Task>,
@@ -489,6 +520,8 @@ internal fun TasksScreen(
     runBusy: Boolean = false,
     contentLoaded: Boolean = true,
     historyAvailability: EditHistoryAvailabilityState = EditHistoryAvailabilityState(),
+    // What Setup still lists as missing; null until the first read comes back.
+    pendingSetup: Set<SetupRequirement>? = null,
 ) {
     if (!contentLoaded) {
         ContentLoadingState(contentPadding)
@@ -565,6 +598,7 @@ internal fun TasksScreen(
                 onMoveAction = { fromIndex, toIndex -> onMoveAction(task, fromIndex, toIndex) },
                 onRunAction = { index -> onRunAction(task, index) },
                 runBusy = runBusy,
+                pendingSetup = pendingSetup,
             )
         }
     }
@@ -590,6 +624,7 @@ private fun TaskCard(
     onMoveAction: (Int, Int) -> Unit,
     onRunAction: (Int) -> Unit,
     runBusy: Boolean,
+    pendingSetup: Set<SetupRequirement>?,
 ) {
     var expanded by rememberSaveable(task.id) { mutableStateOf(initiallyExpanded) }
     val runDescription = stringResource(R.string.a11y_run_task, task.name)
@@ -689,6 +724,7 @@ private fun TaskCard(
                         onDelete = { onDeleteAction(index) },
                         onRun = { onRunAction(index) },
                         runBusy = runBusy,
+                        pendingSetup = pendingSetup,
                     )
                 }
             }
@@ -833,8 +869,9 @@ internal fun DuplicateMenu(
     }
 }
 
+/** [pendingSetup] is what Setup still lists as missing, or null before its first read. */
 @Composable
-private fun ActionRow(
+internal fun ActionRow(
     index: Int,
     action: ActionSpec,
     canMoveUp: Boolean,
@@ -845,11 +882,18 @@ private fun ActionRow(
     onDelete: () -> Unit,
     onRun: () -> Unit,
     runBusy: Boolean,
+    pendingSetup: Set<SetupRequirement>?,
 ) {
     var menuExpanded by rememberSaveable { mutableStateOf(false) }
     val resources = LocalContext.current.resources
     val metadata = ActionMetadataRegistry.get(action.type)
     val capability = ActionCapabilityRegistry.get(action.type)
+    // The tier says an action can need setup, the live grants say whether it still does. An action
+    // no Setup row can settle (an approved script, a VPN app) keeps its pill.
+    val needsSetup = capability.level == CapabilityLevel.RequiresSetup &&
+        SetupRequirementResolver.forAction(action, Build.VERSION.SDK_INT).let { required ->
+            pendingSetup == null || required.isEmpty() || required.any { it in pendingSetup }
+        }
     val metadataName = metadata?.let { stringResource(it.nameRes) }
     val metadataDescription = metadata?.let { stringResource(it.descriptionRes) }
     val actionLabel = action.label ?: metadataName ?: stringResource(R.string.action_unknown_name)
@@ -887,7 +931,7 @@ private fun ActionRow(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (capability.level != CapabilityLevel.Supported) {
+                if (capability.level == CapabilityLevel.Unsupported || needsSetup) {
                     Spacer(Modifier.height(6.dp))
                     StatusPill(
                         if (capability.level == CapabilityLevel.Unsupported) stringResource(R.string.label_unsupported) else stringResource(R.string.status_needs_setup),
