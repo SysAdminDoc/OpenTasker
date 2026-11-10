@@ -341,7 +341,7 @@ Treat a wrapper upgrade as one atomic change: run `gradlew wrapper --gradle-vers
 |----------|-------|
 | Kotlin | 2.4.20 |
 | Gradle | 9.7.1 |
-| AGP | 9.3.2 |
+| AGP | 9.5.1 |
 | KSP | 2.3.12 |
 | Build Tools | 36.0.0 |
 | Macrobenchmark | 1.5.0 |

@@ -5795,6 +5795,19 @@
             <sha256 value="4345debfc767b1aeac68abdd72fc67d18b521d4b390372a11b63ff0c586b2320" origin="OpenTasker: Maven Central published .asc + artifact SHA-256" />
          </artifact>
       </component>
+      <component group="org.apache.groovy" name="groovy" version="4.0.29">
+         <artifact name="groovy-4.0.29.jar">
+            <sha256 value="16b1259f5404bc43bf066556e043769b1f7570b2ca23fdaf169f12499677e936" origin="OpenTasker: Maven Central published .sha256" />
+         </artifact>
+         <artifact name="groovy-4.0.29.module">
+            <sha256 value="e7af04464263212199236dd8f136a2ef56662654ff9125fe3573f1968b147738" origin="OpenTasker: Maven Central published .sha256" />
+         </artifact>
+      </component>
+      <component group="org.apache.groovy" name="groovy-bom" version="4.0.29">
+         <artifact name="groovy-bom-4.0.29.module">
+            <sha256 value="2392853c20ff3b7474791d66f831909f25396cb397cf63bf15e1998a5c0b82fc" origin="OpenTasker: Maven Central published .sha256" />
+         </artifact>
+      </component>
       <component group="org.apache.httpcomponents" name="httpclient" version="4.5.14">
          <artifact name="httpclient-4.5.14.jar">
             <sha256 value="c8bc7e1c51a6d4ce72f40d2ebbabf1c4b68bfe76e732104b04381b493478e9d6" origin="OpenTasker: Maven Central published .asc + artifact SHA-256" />
@@ -5858,6 +5871,11 @@
          </artifact>
          <artifact name="jose4j-0.9.5.pom">
             <sha256 value="bad024180a1b469cbd94e5f2db12841bcac5443d9545607f673cfde677c1d872" origin="OpenTasker: Maven Central published .asc + artifact SHA-256" />
+         </artifact>
+      </component>
+      <component group="org.bouncycastle" name="bc-jdk18on-bom" version="1.80.2">
+         <artifact name="bc-jdk18on-bom-1.80.2.pom">
+            <sha256 value="5f59cc51b21d92ddc08cc93b488983ea43dd211fe8d950335ef31bcdd7b15b47" origin="OpenTasker: Maven Central published .sha256" />
          </artifact>
       </component>
       <component group="org.bouncycastle" name="bcpkix-jdk18on" version="1.85">
