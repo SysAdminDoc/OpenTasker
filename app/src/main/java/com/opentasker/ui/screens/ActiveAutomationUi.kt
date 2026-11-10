@@ -1028,6 +1028,7 @@ fun ActiveAutomationUi(
             onVariableConflictResolution = viewModel::resolveOpenTaskerVariableConflict,
             progress = openTaskerBundleProgress,
             onCancel = viewModel::cancelTransfers,
+            pendingSetup = pendingSetup,
             onConfirm = viewModel::confirmOpenTaskerBundleImport,
         )
     }

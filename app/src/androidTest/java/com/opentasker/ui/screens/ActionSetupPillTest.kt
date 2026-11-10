@@ -6,15 +6,23 @@ import android.os.ParcelFileDescriptor
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollToNode
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.test.platform.app.InstrumentationRegistry
+import com.opentasker.core.capabilities.CapabilityLevel
 import com.opentasker.core.capabilities.SetupRequirement
 import com.opentasker.core.model.ActionSpec
+import com.opentasker.core.transfer.BundleImportPlan
+import com.opentasker.core.transfer.CapabilityRequirement
+import com.opentasker.core.transfer.OpenTaskerBundle
 import com.opentasker.ui.theme.OpenTaskerTheme
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -170,6 +178,48 @@ class ActionSetupPillTest {
         composeTestRule.waitUntil(5_000) {
             composeTestRule.onAllNodesWithText("Needs setup").fetchSemanticsNodes().isEmpty()
         }
+    }
+
+    @Test
+    fun theImportReviewSaysReadyForANotificationActionOnceItsGrantIsIn() {
+        showImportReview(pendingSetup = emptySet())
+
+        composeTestRule.onNodeWithText("· Ready:", substring = true).assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("· Needs setup:", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun theImportReviewSaysNeedsSetupWhileTheGrantIsMissing() {
+        showImportReview(pendingSetup = setOf(SetupRequirement.POST_NOTIFICATIONS))
+
+        composeTestRule.onNodeWithText("· Needs setup:", substring = true).assertIsDisplayed()
+    }
+
+    private fun showImportReview(pendingSetup: Set<SetupRequirement>?) {
+        composeTestRule.setContent {
+            OpenTaskerTheme {
+                OpenTaskerBundleReviewDialog(
+                    state = OpenTaskerBundleReviewState(
+                        bundle = OpenTaskerBundle(appVersion = "0.2.96", exportedAtEpochMs = 0),
+                        plan = BundleImportPlan(
+                            canImport = true,
+                            capabilityRequirements = listOf(
+                                CapabilityRequirement(
+                                    actionId = "notify.show",
+                                    level = CapabilityLevel.RequiresSetup,
+                                    reason = "Requires notification permission on Android 13+.",
+                                ),
+                            ),
+                        ),
+                    ),
+                    busy = false,
+                    onDismiss = {},
+                    pendingSetup = pendingSetup,
+                    onConfirm = {},
+                )
+            }
+        }
+        composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Capability review"))
     }
 
     private class ManualLifecycleOwner : LifecycleOwner {

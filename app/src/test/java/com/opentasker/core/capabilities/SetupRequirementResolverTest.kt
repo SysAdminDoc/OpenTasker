@@ -6,6 +6,7 @@ import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -273,6 +274,18 @@ class SetupRequirementResolverTest {
         listOf("script.termux.run", "script.shizuku.run", "vpn.tunnel").forEach { type ->
             assertTrue(type, SetupRequirementResolver.forAction(ActionSpec(type = type), sdkInt = 36).isEmpty())
         }
+    }
+
+    @Test
+    fun anActionStillNeedsSetupOnlyWhileItsGrantIsMissing() {
+        val notify = ActionSpec(type = "notify.show")
+        val missing = setOf(SetupRequirement.POST_NOTIFICATIONS)
+        assertFalse(SetupRequirementResolver.stillNeedsSetup(notify, sdkInt = 36, pending = emptySet()))
+        assertTrue(SetupRequirementResolver.stillNeedsSetup(notify, sdkInt = 36, pending = missing))
+        // Not read yet: keep asking rather than claim it's ready.
+        assertTrue(SetupRequirementResolver.stillNeedsSetup(notify, sdkInt = 36, pending = null))
+        // No Setup row can settle a script, so nothing being missing doesn't clear it.
+        assertTrue(SetupRequirementResolver.stillNeedsSetup(ActionSpec(type = "script.termux.run"), sdkInt = 36, pending = emptySet()))
     }
 
     @Test

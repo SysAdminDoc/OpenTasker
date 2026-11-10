@@ -110,6 +110,15 @@ object SetupRequirementResolver {
         else -> actionRequirements(action.type, action.args)
     }
 
+    /**
+     * Whether an action that can need setup still does, given what Setup lists as missing. Null
+     * means the grants haven't been read yet, so it still does.
+     */
+    fun stillNeedsSetup(action: ActionSpec, sdkInt: Int, pending: Set<SetupRequirement>?): Boolean =
+        forAction(action, sdkInt).let { required ->
+            pending == null || required.isEmpty() || required.any { it in pending }
+        }
+
     private fun contextRequirements(context: ContextSpec): Set<SetupRequirement> {
         val tokens = context.config.entries
             .flatMap { (key, value) -> listOf(key, value) }

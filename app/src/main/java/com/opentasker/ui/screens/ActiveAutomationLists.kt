@@ -891,9 +891,7 @@ internal fun ActionRow(
     // The tier says an action can need setup, the live grants say whether it still does. An action
     // no Setup row can settle (an approved script, a VPN app) keeps its pill.
     val needsSetup = capability.level == CapabilityLevel.RequiresSetup &&
-        SetupRequirementResolver.forAction(action, Build.VERSION.SDK_INT).let { required ->
-            pendingSetup == null || required.isEmpty() || required.any { it in pendingSetup }
-        }
+        SetupRequirementResolver.stillNeedsSetup(action, Build.VERSION.SDK_INT, pendingSetup)
     val metadataName = metadata?.let { stringResource(it.nameRes) }
     val metadataDescription = metadata?.let { stringResource(it.descriptionRes) }
     val actionLabel = action.label ?: metadataName ?: stringResource(R.string.action_unknown_name)

@@ -2,6 +2,7 @@ package com.opentasker.ui.screens
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +38,10 @@ import androidx.compose.ui.unit.dp
 import com.opentasker.app.R
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.capabilities.AutomationPower
+import com.opentasker.core.capabilities.CapabilityLevel
+import com.opentasker.core.capabilities.SetupRequirement
+import com.opentasker.core.capabilities.SetupRequirementResolver
+import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.transfer.RecipePowerRequest
 import com.opentasker.core.transfer.VariableConflictAction
 import com.opentasker.core.transfer.VariableConflictResolution
@@ -126,6 +131,8 @@ internal fun OpenTaskerBundleReviewDialog(
     onVariableConflictResolution: (String, VariableConflictResolution) -> Unit = { _, _ -> },
     progress: TransferProgress? = null,
     onCancel: () -> Unit = {},
+    // What Setup still lists as missing; null until the first read comes back.
+    pendingSetup: Set<SetupRequirement>? = null,
     onConfirm: () -> Unit,
 ) {
     val bundle = state.bundle
@@ -260,10 +267,18 @@ internal fun OpenTaskerBundleReviewDialog(
                             title = stringResource(R.string.import_capability_review),
                             values = capabilityRequirements.map { requirement ->
                                 val capability = ActionCapabilityRegistry.get(requirement.actionId)
+                                // Same rule as a task's action row, so the review doesn't ask for
+                                // a grant that's already in place.
+                                val ready = requirement.level == CapabilityLevel.RequiresSetup &&
+                                    !SetupRequirementResolver.stillNeedsSetup(
+                                        ActionSpec(type = requirement.actionId),
+                                        Build.VERSION.SDK_INT,
+                                        pendingSetup,
+                                    )
                                 stringResource(
                                     R.string.import_capability_item,
                                     actionDisplayName(requirement.actionId),
-                                    stringResource(capabilityLevelLabelRes(requirement.level)),
+                                    stringResource(if (ready) R.string.status_ready else capabilityLevelLabelRes(requirement.level)),
                                     stringResource(capability.reasonRes),
                                 )
                             },
