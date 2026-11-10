@@ -168,6 +168,10 @@ object AutomationTargetContract {
 
 class AutomationTargetReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        // Read before goAsync(), which detaches the pending result and makes this read false.
+        // Scene buttons, widgets and the tile send plain broadcasts, and setting a result on one
+        // logs an error per fire; only ordered senders like the Locale plugin host get the result.
+        val ordered = isOrderedBroadcast
         val pending = goAsync()
         requestScope.launch {
             val response = runCatching {
@@ -180,8 +184,10 @@ class AutomationTargetReceiver : BroadcastReceiver() {
                 }
             }.getOrElse { failure(it.message ?: "Automation target request failed") }
             try {
-                pending.setResultCode(response.resultCode)
-                pending.setResultExtras(response.extras)
+                if (ordered) {
+                    pending.setResultCode(response.resultCode)
+                    pending.setResultExtras(response.extras)
+                }
             } catch (e: Exception) {
                 AppLogger.error(TAG, "Failed to publish automation target result", e)
             } finally {
