@@ -26,6 +26,7 @@
          <trusted-key id="0E225917414670F4442C250DFD533C07C264648F">
             <trusting group="androidx.activity" />
             <trusting group="androidx.benchmark" />
+            <trusting group="androidx.collection" />
             <trusting group="androidx.core" />
             <trusting group="androidx.databinding" />
             <trusting group="androidx.datastore" />
@@ -37,6 +38,7 @@
             <trusting group="androidx.sqlite" name="sqlite-framework-android" version="2.7.0" />
             <trusting group="androidx.sqlite" name="sqlite-jvm" version="2.7.0" />
             <trusting group="androidx.test.uiautomator" />
+            <trusting group="androidx.tracing" />
             <trusting group="androidx.transition" />
             <trusting group="androidx.work" />
             <trusting group="^androidx[.]compose($|([.].*))" regex="true" />
