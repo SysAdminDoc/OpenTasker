@@ -11,7 +11,8 @@ import org.junit.Test
 class TaskerRealProfileContextsTest {
     private val time = """<Time sr="con0"><fh>22</fh><fm>0</fm><th>23</th><tm>30</tm></Time>"""
 
-    private fun import(vararg contexts: String) = TaskerXmlImporter.parse(
+    // Tasker writes `<limit>` only for a profile whose switch is off, so the shared layout leaves it to [switch].
+    private fun import(vararg contexts: String, switch: String = "") = TaskerXmlImporter.parse(
         rawXml = """
             <TaskerData sr="" dvi="1" tv="6.3.13">
                 <Profile sr="prof1" ve="2">
@@ -20,7 +21,7 @@ class TaskerRealProfileContextsTest {
                     <edate>1</edate>
                     <flags>8</flags>
                     <id>1</id>
-                    <limit>true</limit>
+                    $switch
                     <mid0>2</mid0>
                     <nme>Evening</nme>
                     ${contexts.joinToString("")}
@@ -156,6 +157,22 @@ class TaskerRealProfileContextsTest {
 
         assertFalse(report.bundle.profiles.single().enabled)
         assertTrue(report.lossyWarnings.toString(), report.lossyWarnings.any { it.contains("dates of the month") })
+    }
+
+    @Test
+    fun aProfileSwitchedOffInTaskerComesInSwitchedOff() {
+        // What Tasker 6.7.8 wrote for the same profile with its switch off, then on.
+        assertFalse(import(time, switch = "<limit>true</limit>").bundle.profiles.single().enabled)
+        assertTrue(profile(time).enabled)
+    }
+
+    @Test
+    fun aProfileWithRunsLeftIsStillOn() {
+        val report = import(time, switch = "<limit>true</limit><repeats>2</repeats>")
+
+        assertTrue(report.bundle.profiles.single().enabled)
+        assertTrue(report.lossyWarnings.toString(), report.lossyWarnings.any { it.contains("2 more runs") })
+        assertFalse(report.lossyWarnings.toString(), report.lossyWarnings.any { it.contains("unsupported Tasker context") })
     }
 
     @Test

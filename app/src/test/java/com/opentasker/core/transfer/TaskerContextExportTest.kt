@@ -121,6 +121,32 @@ class TaskerContextExportTest {
     }
 
     @Test
+    fun aProfileThatLostAContextGoesOutSwitchedOff() {
+        val report = export(
+            ContextSpec(ContextType.TIME, mapOf("start" to "22:00", "end" to "23:30"), invert = true),
+            ContextSpec(ContextType.DAY, mapOf("days" to "MON")),
+        )
+        val imported = TaskerXmlImporter.parse(report.xml, appVersion = "test", importedAtEpochMs = 0L).bundle.profiles.single()
+
+        assertTrue(report.xml, report.xml.contains("<limit>true</limit>"))
+        assertTrue(report.warnings.toString(), report.warnings.any { it.contains("switched off") })
+        assertFalse(imported.enabled)
+    }
+
+    @Test
+    fun aProfileSwitchedOffHereGoesOutSwitchedOff() {
+        val day = ContextSpec(ContextType.DAY, mapOf("days" to "MON"))
+        val off = TaskerXmlExporter.export(
+            listOf(Profile(id = 1, name = "P", enabled = false, enterTaskId = 1, contexts = listOf(day))),
+            listOf(task),
+        )
+
+        assertTrue(off.xml, off.xml.contains("<limit>true</limit>"))
+        assertTrue(off.warnings.toString(), off.warnings.isEmpty())
+        assertFalse(export(day).xml.contains("<limit>"))
+    }
+
+    @Test
     fun anEitherOrGroupIsNamed() {
         val either = export(
             ContextSpec(ContextType.DAY, mapOf("days" to "MON"), orGroup = "g"),

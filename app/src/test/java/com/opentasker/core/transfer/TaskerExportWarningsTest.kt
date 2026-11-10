@@ -79,7 +79,8 @@ class TaskerExportWarningsTest {
             listOf(Variable(name = "API_TOKEN", value = "x", isGlobal = true, isSecret = true)),
         )
 
-        assertEquals(2, report.warnings.size)
+        // The secret, the location left out, and the profile going out switched off because of it.
+        assertEquals(3, report.warnings.size)
         assertTrue(report.warnings.toString(), report.warnings.first().contains("secret"))
     }
 }

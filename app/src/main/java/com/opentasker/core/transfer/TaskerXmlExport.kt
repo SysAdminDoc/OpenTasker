@@ -416,9 +416,44 @@ object TaskerXmlExporter {
         taskMap: Map<Long, Task>,
         warnings: MutableList<String>,
     ) {
+        if (profile.contextExpression != null) {
+            warnings += "Profile '${profile.name}' uses nested context grouping; Tasker XML cannot represent the grouping, so only leaf contexts were exported."
+        }
+        // Tasker needs every context of a profile, so "Monday or Saturday" would read as both at once.
+        if (profile.contexts.mapNotNull(ContextSpec::orGroup).groupingBy { it }.eachCount().values.any { it > 1 }) {
+            warnings += "Profile '${profile.name}' fires when any one context of a group matches; Tasker profiles need all of them, so the copy fires only when every one does."
+        }
+
+        // Tasker numbers contexts densely, so one left out doesn't leave a hole.
+        val contextXml = StringBuilder()
+        var written = 0
+        var droppedAny = false
+        profile.contexts.forEach { context ->
+            val exported = exportContext(context, written)
+            if (exported != null) {
+                written++
+                contextXml.appendLine(exported)
+                val lost = contextSettingsLost(context)
+                if (lost.isNotEmpty()) {
+                    warnings += "Profile '${profile.name}' context ${context.type.name} lost settings Tasker XML has no place for: ${lost.joinToString(", ")}."
+                }
+            } else {
+                droppedAny = true
+                val settings = context.config.keys.filterNot { it.startsWith("_") }.sorted()
+                val inverted = if (context.invert) " (inverted)" else ""
+                warnings += "Profile '${profile.name}' context ${context.type.name}$inverted has no Tasker equivalent" +
+                    if (settings.isEmpty()) "." else ", so it was left out with its settings: ${settings.joinToString(", ")}."
+            }
+        }
+        if (droppedAny && profile.enabled) {
+            warnings += "Profile '${profile.name}' went out switched off, since on its other contexts alone it would run more often in Tasker than it does here."
+        }
+
         sb.appendLine("""  <Profile sr="prof${profile.id}" ve="2">""")
         sb.appendLine("    <cdate>${System.currentTimeMillis()}</cdate>")
         sb.appendLine("    <id>${profile.id}</id>")
+        // Tasker's own mark for a profile that's switched off, read as present or not.
+        if (!profile.enabled || droppedAny) sb.appendLine("    <limit>true</limit>")
         sb.appendLine("    <mid0>${profile.enterTaskId}</mid0>")
         profile.exitTaskId?.let {
             sb.appendLine("    <mid1>$it</mid1>")
@@ -435,34 +470,7 @@ object TaskerXmlExporter {
         if (profile.overflowPolicy != ProfileOverflowPolicy.LOG) {
             sb.appendLine("    <overflowPolicy>${profile.overflowPolicy.name}</overflowPolicy>")
         }
-
-        if (profile.contextExpression != null) {
-            warnings += "Profile '${profile.name}' uses nested context grouping; Tasker XML cannot represent the grouping, so only leaf contexts were exported."
-        }
-        // Tasker needs every context of a profile, so "Monday or Saturday" would read as both at once.
-        if (profile.contexts.mapNotNull(ContextSpec::orGroup).groupingBy { it }.eachCount().values.any { it > 1 }) {
-            warnings += "Profile '${profile.name}' fires when any one context of a group matches; Tasker profiles need all of them, so the copy fires only when every one does."
-        }
-
-        // Tasker numbers contexts densely, so one left out doesn't leave a hole.
-        var written = 0
-        profile.contexts.forEach { context ->
-            val exported = exportContext(context, written)
-            if (exported != null) {
-                written++
-                sb.appendLine(exported)
-                val lost = contextSettingsLost(context)
-                if (lost.isNotEmpty()) {
-                    warnings += "Profile '${profile.name}' context ${context.type.name} lost settings Tasker XML has no place for: ${lost.joinToString(", ")}."
-                }
-            } else {
-                val settings = context.config.keys.filterNot { it.startsWith("_") }.sorted()
-                val inverted = if (context.invert) " (inverted)" else ""
-                warnings += "Profile '${profile.name}' context ${context.type.name}$inverted has no Tasker equivalent" +
-                    if (settings.isEmpty()) "." else ", so it was left out with its settings: ${settings.joinToString(", ")}."
-            }
-        }
-
+        sb.append(contextXml)
         sb.appendLine("  </Profile>")
     }
 

@@ -155,6 +155,11 @@ object TaskerXmlImporter {
             if (parsedContexts.droppedAny) {
                 lossyWarnings += "Profile '$name' was imported turned off because a context it needs couldn't be read, and without it the profile would run more often than it did in Tasker."
             }
+            if (element.directChildren("limit").isNotEmpty()) {
+                element.repeatsLeft()?.let { runs ->
+                    lossyWarnings += "Profile '$name' was set to switch itself off in Tasker after $runs more ${if (runs == 1) "run" else "runs"}; that limit has no place here, so it was imported without one."
+                }
+            }
 
             val rawLifetime = element.childText("lifetime").uppercase(Locale.US)
             val importedExpiry = element.childText("expiresAtMs", "expiresAt").toLongOrNull()?.takeIf { it > 0L }
@@ -198,7 +203,7 @@ object TaskerXmlImporter {
                 Profile(
                     id = id,
                     name = name,
-                    enabled = !element.childText("off").equals("true", ignoreCase = true) && !parsedContexts.droppedAny,
+                    enabled = element.isSwitchedOnInTasker() && !parsedContexts.droppedAny,
                     enterTaskId = enterTaskId,
                     exitTaskId = element.childText("mid1", "exitTaskId").toLongOrNull()?.takeIf { it in taskIds },
                     contexts = contexts,
@@ -260,6 +265,18 @@ object TaskerXmlImporter {
         }
         return ParsedProfileContexts(contexts, droppedAny)
     }
+
+    /**
+     * Tasker switches a profile off by setting its limit with no repeats left, and writes that as
+     * `<limit>true</limit>` with no `<repeats>`. Its importer only asks whether `<limit>` is there,
+     * and a `<repeats>` above 0 keeps the profile on until those runs are used up.
+     */
+    private fun Element.isSwitchedOnInTasker(): Boolean {
+        if (childText("off").equals("true", ignoreCase = true)) return false
+        return directChildren("limit").isEmpty() || repeatsLeft() != null
+    }
+
+    private fun Element.repeatsLeft(): Int? = childText("repeats").toIntOrNull()?.takeIf { it > 0 }
 
     private fun Element.isTaskerContext(): Boolean =
         getAttribute("sr").startsWith("con") || tagName.lowercase() in TASKER_CONTEXT_TAGS
@@ -1382,6 +1399,7 @@ object TaskerXmlImporter {
     private val PROFILE_SCALAR_TAGS = setOf(
         "clp",
         "limit",
+        "repeats",
         "cldm",
         "cdate",
         "edate",
