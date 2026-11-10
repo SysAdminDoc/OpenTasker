@@ -120,8 +120,9 @@ object TaskerXmlExporter {
             appendTask(sb, task, skipped, redactionContext, redactedActionFields, warnings)
         }
 
+        var exportedProfileCount = 0
         profiles.forEach { profile ->
-            appendProfile(sb, profile, taskMap, warnings)
+            if (appendProfile(sb, profile, taskMap, warnings)) exportedProfileCount++
         }
 
         // These two go first because the file is unusable without acting on them.
@@ -141,7 +142,7 @@ object TaskerXmlExporter {
         return TaskerXmlExportReport(
             xml = sb.toString(),
             exportedTaskCount = tasks.size,
-            exportedProfileCount = profiles.size,
+            exportedProfileCount = exportedProfileCount,
             exportedVariableCount = variables.count { !it.isSecret },
             skippedActions = skipped,
             warnings = warnings,
@@ -410,22 +411,16 @@ object TaskerXmlExporter {
         " not_set" to "13",
     )
 
+    /** Writes [profile] and returns true, or returns false when it has no context Tasker would take. */
     private fun appendProfile(
         sb: StringBuilder,
         profile: Profile,
         taskMap: Map<Long, Task>,
         warnings: MutableList<String>,
-    ) {
-        if (profile.contextExpression != null) {
-            warnings += "Profile '${profile.name}' uses nested context grouping; Tasker XML cannot represent the grouping, so only leaf contexts were exported."
-        }
-        // Tasker needs every context of a profile, so "Monday or Saturday" would read as both at once.
-        if (profile.contexts.mapNotNull(ContextSpec::orGroup).groupingBy { it }.eachCount().values.any { it > 1 }) {
-            warnings += "Profile '${profile.name}' fires when any one context of a group matches; Tasker profiles need all of them, so the copy fires only when every one does."
-        }
-
+    ): Boolean {
         // Tasker numbers contexts densely, so one left out doesn't leave a hole.
         val contextXml = StringBuilder()
+        val contextWarnings = mutableListOf<String>()
         var written = 0
         var droppedAny = false
         profile.contexts.forEach { context ->
@@ -435,16 +430,32 @@ object TaskerXmlExporter {
                 contextXml.appendLine(exported)
                 val lost = contextSettingsLost(context)
                 if (lost.isNotEmpty()) {
-                    warnings += "Profile '${profile.name}' context ${context.type.name} lost settings Tasker XML has no place for: ${lost.joinToString(", ")}."
+                    contextWarnings += "Profile '${profile.name}' context ${context.type.name} lost settings Tasker XML has no place for: ${lost.joinToString(", ")}."
                 }
             } else {
                 droppedAny = true
                 val settings = context.config.keys.filterNot { it.startsWith("_") }.sorted()
                 val inverted = if (context.invert) " (inverted)" else ""
-                warnings += "Profile '${profile.name}' context ${context.type.name}$inverted has no Tasker equivalent" +
+                contextWarnings += "Profile '${profile.name}' context ${context.type.name}$inverted has no Tasker equivalent" +
                     if (settings.isEmpty()) "." else ", so it was left out with its settings: ${settings.joinToString(", ")}."
             }
         }
+        // Tasker 6.7.8 fails the whole import ("no Profile found") on a profile with no context.
+        if (written == 0) {
+            warnings += contextWarnings
+            warnings += "Profile '${profile.name}' was left out, since Tasker won't import a profile without a context" +
+                if (droppedAny) " and none of this one's has a Tasker equivalent." else "."
+            return false
+        }
+
+        if (profile.contextExpression != null) {
+            warnings += "Profile '${profile.name}' uses nested context grouping; Tasker XML cannot represent the grouping, so only leaf contexts were exported."
+        }
+        // Tasker needs every context of a profile, so "Monday or Saturday" would read as both at once.
+        if (profile.contexts.mapNotNull(ContextSpec::orGroup).groupingBy { it }.eachCount().values.any { it > 1 }) {
+            warnings += "Profile '${profile.name}' fires when any one context of a group matches; Tasker profiles need all of them, so the copy fires only when every one does."
+        }
+        warnings += contextWarnings
         if (droppedAny && profile.enabled) {
             warnings += "Profile '${profile.name}' went out switched off, since on its other contexts alone it would run more often in Tasker than it does here."
         }
@@ -472,6 +483,7 @@ object TaskerXmlExporter {
         }
         sb.append(contextXml)
         sb.appendLine("  </Profile>")
+        return true
     }
 
     private fun contextSettingsLost(context: ContextSpec): List<String> {

@@ -147,6 +147,26 @@ class TaskerContextExportTest {
     }
 
     @Test
+    fun aProfileLeftWithNoContextIsLeftOut() {
+        // Tasker 6.7.8 refused the whole file ("no Profile found") for a profile like this, on or off.
+        val report = export(ContextSpec(ContextType.TIME, mapOf("start" to "22:00", "end" to "23:30"), invert = true))
+
+        assertFalse(report.xml, report.xml.contains("<Profile"))
+        assertTrue(report.xml, report.xml.contains("""<Task sr="task1">"""))
+        assertEquals(0, report.exportedProfileCount)
+        assertTrue(report.warnings.toString(), report.warnings.any { it.contains("'P' was left out") })
+        assertFalse(report.warnings.toString(), report.warnings.any { it.contains("switched off") })
+    }
+
+    @Test
+    fun aProfileWithNoContextsAtAllIsLeftOut() {
+        val report = export()
+
+        assertFalse(report.xml, report.xml.contains("<Profile"))
+        assertEquals(listOf("Profile 'P' was left out, since Tasker won't import a profile without a context."), report.warnings)
+    }
+
+    @Test
     fun anEitherOrGroupIsNamed() {
         val either = export(
             ContextSpec(ContextType.DAY, mapOf("days" to "MON"), orGroup = "g"),
