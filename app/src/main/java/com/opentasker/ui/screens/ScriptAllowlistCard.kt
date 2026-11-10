@@ -39,13 +39,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.opentasker.ui.theme.DesignSystem
 import com.opentasker.app.R
+import com.opentasker.core.apps.TargetSignerGuard
 import com.opentasker.core.scripting.ApprovedScript
 import com.opentasker.core.scripting.ScriptAllowlistSaveResult
 import com.opentasker.core.scripting.ScriptAllowlistStore
+import com.opentasker.core.scripting.TermuxScriptBackend
 import com.opentasker.core.scripting.TermuxScriptPolicy
 import com.opentasker.ui.utils.expandCollapseToggle
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** The wording that differs between the script allowlists. The rest of the card reads the same. */
@@ -69,6 +73,8 @@ internal fun TermuxScriptAllowlistCard(onMessage: (String) -> Unit) {
         ),
         openStore = { ScriptAllowlistStore.termux(it) },
         onMessage = onMessage,
+        // Approving a script is approving the Termux that runs it, so its signer is pinned here.
+        onApproved = { TargetSignerGuard.forContext(it).recordApproval(TermuxScriptBackend.TERMUX_PACKAGE) },
     )
 }
 
@@ -92,8 +98,10 @@ private fun ScriptAllowlistCard(
     text: ScriptAllowlistText,
     openStore: (Context) -> ScriptAllowlistStore,
     onMessage: (String) -> Unit,
+    onApproved: (Context) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val store = remember(context) { openStore(context) }
     var executable by rememberSaveable { mutableStateOf("") }
     var sha256 by rememberSaveable { mutableStateOf("") }
@@ -181,6 +189,11 @@ private fun ScriptAllowlistCard(
                             executable = ""
                             sha256 = ""
                             revision++
+                            val appContext = context.applicationContext
+                            scope.launch(Dispatchers.IO) {
+                                runCatching { onApproved(appContext) }
+                                    .onFailure { logFailedCheck("the Termux signing certificate", it) }
+                            }
                             savedMessage
                         }
                         ScriptAllowlistSaveResult.INVALID_PATH -> invalidPathMessage

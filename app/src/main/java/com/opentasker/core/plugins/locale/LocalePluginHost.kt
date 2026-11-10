@@ -8,6 +8,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import com.opentasker.core.apps.PackageNamePolicy
+import com.opentasker.core.apps.TargetSignerCheck
+import com.opentasker.core.apps.TargetSignerGuard
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -366,6 +368,7 @@ class LocalePluginHost private constructor(
     private val conditionStateCache: LocalePluginConditionStateCache,
     private val componentResolver: LocalePluginComponentResolver,
     private val transport: LocalePluginTransport,
+    private val signerGuard: TargetSignerGuard?,
 ) {
     constructor(
         appContext: Context,
@@ -375,16 +378,24 @@ class LocalePluginHost private constructor(
         conditionStateCache,
         AndroidLocalePluginComponentResolver(appContext.packageManager),
         AndroidLocalePluginTransport(appContext, dispatcher),
+        TargetSignerGuard.forContext(appContext),
     )
 
+    /**
+     * For fixtures that bring their own resolver and transport. [signerGuard] defaults to null,
+     * which skips the signer check, because a fixture package has nothing installed to pin.
+     * Production always goes through the Context constructor, which always checks.
+     */
     constructor(
         componentResolver: LocalePluginComponentResolver,
         transport: LocalePluginTransport,
         conditionStateCache: LocalePluginConditionStateCache = LocalePluginConditionStateCache(),
+        signerGuard: TargetSignerGuard? = null,
     ) : this(
         conditionStateCache,
         componentResolver,
         transport,
+        signerGuard,
     )
 
     fun buildEditSettingIntent(packageName: String): LocalePluginEditIntentResult =
@@ -398,6 +409,7 @@ class LocalePluginHost private constructor(
         require(request.timeoutMs in 1_000..30_000) { "Plugin timeout must be between 1000 and 30000 ms." }
 
         val bundleValues = LocalePluginBundleCodec.decodeStringBundle(request.bundleJson)
+        signerRefusal(request.packageName)?.let { refusal -> return LocalePluginResult(false, refusal) }
         val pluginBundle = LocalePluginBundleCodec.toBundle(bundleValues)
         val target = resolveBroadcastTarget(request.packageName, LocalePluginContract.ACTION_FIRE_SETTING)
         val component = target.component ?: return LocalePluginResult(false, target.message)
@@ -423,6 +435,10 @@ class LocalePluginHost private constructor(
         require(request.timeoutMs in 1_000..30_000) { "Plugin timeout must be between 1000 and 30000 ms." }
 
         val bundleValues = LocalePluginBundleCodec.decodeStringBundle(request.bundleJson)
+        // Straight back as Unknown, not through the cache: a last known answer would hide the refusal.
+        signerRefusal(request.packageName)?.let { refusal ->
+            return LocalePluginConditionResult(state = LocalePluginConditionState.Unknown, message = refusal)
+        }
         val pluginBundle = LocalePluginBundleCodec.toBundle(bundleValues)
         val cacheKey = LocalePluginConditionCacheKey(
             packageName = request.packageName,
@@ -453,6 +469,14 @@ class LocalePluginHost private constructor(
             )
         }
     }
+
+    /**
+     * The pinned-signer check, run before any bundle, intent or broadcast exists so a refused
+     * plugin is sent nothing. A package that isn't installed passes through to the usual
+     * "no receiver" result; one with no pin yet is pinned here (trust on first use).
+     */
+    private fun signerRefusal(packageName: String): String? =
+        (signerGuard?.check(packageName) as? TargetSignerCheck.Mismatch)?.message
 
     private fun pluginBroadcastIntent(
         action: String,

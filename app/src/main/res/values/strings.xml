@@ -1859,6 +1859,12 @@
     <string name="setup_locale_grant_task_id">Task ID %1$d</string>
     <string name="setup_locale_grant_revoke">Revoke</string>
     <string name="setup_locale_grant_revoked">Revoked the grant for %1$s</string>
+    <string name="setup_target_signer_title">%1$s has a new signing key</string>
+    <string name="setup_target_signer_body">OpenTasker stopped sending commands to %1$s because it is now signed with a different certificate than the one OpenTasker trusted. Re-approve it only if you installed this version from a source you trust.</string>
+    <string name="setup_target_signer_required_for">Plugin and Termux actions</string>
+    <string name="setup_target_signer_reapprove">Re-approve</string>
+    <string name="setup_target_signer_reapproved">Re-approved %1$s</string>
+    <string name="setup_target_signer_not_installed">%1$s is no longer installed</string>
     <string name="action_preflight">Preflight</string>
     <string name="dialog_preflight_review">Preflight review</string>
     <string name="preflight_notice">Preview only: no network, file, setting, shell, notification, scene, or durable variable action will run.</string>

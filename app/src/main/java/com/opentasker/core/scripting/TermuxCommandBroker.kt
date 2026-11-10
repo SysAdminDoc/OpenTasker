@@ -8,6 +8,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import com.opentasker.core.apps.TargetSignerGuard
+import com.opentasker.core.apps.TargetSignerMismatchException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
@@ -19,7 +21,25 @@ internal object TermuxCommandBroker {
     private const val MAX_PENDING_COMMANDS = 32
     private val pending = ConcurrentHashMap<String, CompletableDeferred<TermuxCommandResult>>()
 
-    suspend fun execute(context: Context, request: TermuxCommandRequest): TermuxCommandResult {
+    suspend fun execute(context: Context, request: TermuxCommandRequest): TermuxCommandResult =
+        execute(TargetSignerGuard.forContext(context), request) { dispatch(context, it) }
+
+    /**
+     * The pinned-signer check runs before any callback is registered or intent built, so a Termux
+     * whose signing certificate changed is sent nothing. It throws [TargetSignerMismatchException]
+     * (never a SecurityException, which the action reports as a permission problem). A Termux
+     * that isn't installed passes through and fails the way it always has.
+     */
+    internal suspend fun execute(
+        signerGuard: TargetSignerGuard,
+        request: TermuxCommandRequest,
+        dispatch: suspend (TermuxCommandRequest) -> TermuxCommandResult,
+    ): TermuxCommandResult {
+        signerGuard.requireTrusted(TermuxScriptBackend.TERMUX_PACKAGE)
+        return dispatch(request)
+    }
+
+    private suspend fun dispatch(context: Context, request: TermuxCommandRequest): TermuxCommandResult {
         val requestId = UUID.randomUUID().toString()
         val deferred = CompletableDeferred<TermuxCommandResult>()
         synchronized(pending) {

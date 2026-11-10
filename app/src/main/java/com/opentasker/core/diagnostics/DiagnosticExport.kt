@@ -7,6 +7,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import com.opentasker.app.BuildConfig
+import com.opentasker.core.apps.TargetSignerGuard
+import com.opentasker.core.apps.TargetSignerPinSource
+import com.opentasker.core.apps.TargetSignerStatus
 import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.engine.ExecutionAdmissionRegistry
 import com.opentasker.core.permissions.UsageAccess
@@ -171,6 +174,16 @@ object DiagnosticExport {
         }
         sb.appendLine()
 
+        sb.appendLine("--- Pinned Targets ---")
+        try {
+            val pinned = TargetSignerGuard.forContext(context).statuses()
+            if (pinned.isEmpty()) sb.appendLine("  none")
+            pinned.forEach { status -> sb.appendLine(pinnedTargetLine(status)) }
+        } catch (e: Exception) {
+            sb.appendLine("  (failed to read pinned targets: ${redactSensitive(e.message.orEmpty())})")
+        }
+        sb.appendLine()
+
         sb.appendLine("=== End Report ===")
         return sb.toString()
     }
@@ -200,6 +213,21 @@ object DiagnosticExport {
         return "  ${name.removePrefix("android.permission.")}: $state"
     }
 
+    /**
+     * One Pinned Targets row: the package, a short prefix of each pinned SHA-256, how it was pinned
+     * and how it compares with what is installed now. A pin holds no bundle or variable value, so
+     * there is nothing here to redact.
+     */
+    internal fun pinnedTargetLine(status: TargetSignerStatus): String {
+        val pin = status.pin
+        val digest = pin.digests.joinToString("+") { it.take(PINNED_DIGEST_PREFIX_CHARS) }
+        val source = when (pin.source) {
+            TargetSignerPinSource.APPROVED -> "pinned at approval"
+            TargetSignerPinSource.FIRST_USE -> "pinned on first use"
+        }
+        return "  ${pin.packageName}: sha256 $digest, $source, ${status.state.label}"
+    }
+
     private val SPECIAL_ACCESS_CHECKS: Map<String, (Context) -> Boolean> = mapOf(
         "android.permission.SCHEDULE_EXACT_ALARM" to { ExactAlarmSupport.canScheduleExactAlarms(it) },
         "android.permission.SYSTEM_ALERT_WINDOW" to { Settings.canDrawOverlays(it) },
@@ -219,4 +247,5 @@ object DiagnosticExport {
         if (timestampMillis <= 0L) "never" else dateFormat.format(Date(timestampMillis))
 
     private const val MAX_EXPORTED_CRASH_CHARS = 32 * 1024
+    private const val PINNED_DIGEST_PREFIX_CHARS = 12
 }

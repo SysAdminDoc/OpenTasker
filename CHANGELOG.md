@@ -18,6 +18,7 @@
 ### Security
 
 - Other apps can't fake an NFC tap anymore. Tags now come in through an entry only Android's NFC service is allowed to open, and OpenTasker ignores a tag handed to it any other way. Before this, any installed app could fire your NFC profiles or finish an armed tag write without a tag. Turning the phone or reopening OpenTasker from Recents also no longer runs the last tag's profile a second time.
+- OpenTasker remembers the signing key of Termux and of each Locale plugin the first time it sends them anything, and stops sending to one that's been reinstalled under the same name with a different key. Before this, an app swapped in under Termux's package name would have received your approved script commands. Setup lists an app whose key changed with a Re-approve button for when you meant to switch builds, and Diagnostics lists every pinned app. Apps you already use get pinned on their next run, so nothing changes for one that stays the same, and a key rotated the official Android way keeps working.
 
 ### Fixed
 

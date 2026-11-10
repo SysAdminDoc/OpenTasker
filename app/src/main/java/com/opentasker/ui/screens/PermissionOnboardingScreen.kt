@@ -122,6 +122,7 @@ import com.opentasker.ui.theme.DesignSystem
 import java.util.Date
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import com.opentasker.core.permissions.UsageAccess
 import com.opentasker.core.power.ShizukuPowerBackend
@@ -146,6 +147,8 @@ import com.opentasker.core.contexts.CompanionAssociation
 import com.opentasker.core.contexts.CompanionAssociationResult
 import com.opentasker.core.contexts.CompanionDeviceAssociation
 import com.opentasker.core.logging.AppLogger
+import com.opentasker.core.apps.TargetSignerApproval
+import com.opentasker.core.apps.TargetSignerGuard
 import com.opentasker.core.plugins.locale.LocaleGrant
 import com.opentasker.core.plugins.locale.LocaleGrantStore
 import com.opentasker.core.model.Profile
@@ -253,6 +256,9 @@ internal sealed interface PermissionAction {
      */
     data class CopyText(val label: String, val text: String) : PermissionAction
     data class ShizukuKillSwitch(val enabled: Boolean) : PermissionAction
+
+    /** Trust the signing certificate [packageName] is installed with now, so dispatch to it resumes. */
+    data class ReapproveTargetSigner(val packageName: String) : PermissionAction
     /** Try each OEM settings component in order, falling back to a web guide URL. */
     data class OemSettings(
         val targets: List<OemBatteryGuidance.SettingsTarget>,
@@ -367,6 +373,23 @@ private class PermissionOnboardingViewModel(appContext: Context) : ViewModel() {
         }
     }
 
+    /** Re-pins [packageName] to its installed signer. [onDone] gets null when it is no longer installed. */
+    fun reapproveTargetSigner(packageName: String, onDone: (TargetSignerApproval?) -> Unit) {
+        viewModelScope.launch {
+            val approval = withContext(Dispatchers.IO) { TargetSignerGuard.forContext(context).approve(packageName) }
+            refresh()
+            onDone(approval)
+        }
+    }
+
+    /** Undo for a Re-approve: the pin it replaced comes back, so dispatch is refused again. */
+    fun undoTargetSignerApproval(approval: TargetSignerApproval) {
+        viewModelScope.launch(Dispatchers.IO) {
+            TargetSignerGuard.forContext(context).restore(approval.pin.packageName, approval.previous)
+            refresh()
+        }
+    }
+
     fun chooseUnifiedPushDistributor(activityContext: Context, onResult: (Boolean) -> Unit) {
         UnifiedPushConnector.chooseDistributor(activityContext) { selected ->
             refreshExternalState()
@@ -476,6 +499,7 @@ fun PermissionOnboardingScreen(
     val grantCommandCopiedMessage = stringResource(R.string.setup_secure_settings_copied)
     val deviceAdminRemoveFailedMessage = stringResource(R.string.setup_device_admin_remove_failed)
     val scope = rememberCoroutineScope()
+    val resources = LocalResources.current
     val shizukuModeEnabledMessage = stringResource(R.string.setup_shizuku_mode_enabled)
     val pushDistributorSelectedMessage = stringResource(R.string.setup_push_distributor_selected)
     val pushDistributorUnavailableMessage = stringResource(R.string.setup_push_distributor_unavailable)
@@ -749,6 +773,17 @@ fun PermissionOnboardingScreen(
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                             clipboard?.setPrimaryClip(ClipData.newPlainText(action.label, action.text))
                             onMessage(grantCommandCopiedMessage)
+                        }
+                        is PermissionAction.ReapproveTargetSigner -> {
+                            setupViewModel.reapproveTargetSigner(action.packageName) { approval ->
+                                if (approval == null) {
+                                    onMessage(resources.getString(R.string.setup_target_signer_not_installed, action.packageName))
+                                } else {
+                                    onUndoableMessage(resources.getString(R.string.setup_target_signer_reapproved, action.packageName)) {
+                                        setupViewModel.undoTargetSignerApproval(approval)
+                                    }
+                                }
+                            }
                         }
                         PermissionAction.RemoveDeviceAdmin -> {
                             // Android has no "open my admin's page" intent, so removal has to

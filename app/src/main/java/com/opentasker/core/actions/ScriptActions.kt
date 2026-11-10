@@ -1,5 +1,6 @@
 package com.opentasker.core.actions
 
+import com.opentasker.core.apps.TargetSignerMismatchException
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
 import com.opentasker.core.logging.AppLogger
@@ -64,6 +65,10 @@ class TermuxScriptAction : DeclaredAction(ActionCatalog.require(TermuxScriptBack
         } catch (_: TimeoutCancellationException) {
             ctx.logger("Termux script timed out; stdout=<redacted> stderr=<redacted>")
             ActionResult.Failure("Termux command timed out")
+        } catch (refused: TargetSignerMismatchException) {
+            val message = refused.message.orEmpty()
+            ctx.logger("Termux script rejected (SIGNER_MISMATCH): $message")
+            ActionResult.Failure(message)
         } catch (_: SecurityException) {
             ActionResult.Failure("Termux RUN_COMMAND permission was denied")
         } catch (cancelled: CancellationException) {

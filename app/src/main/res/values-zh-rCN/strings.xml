@@ -1813,6 +1813,12 @@
     <string name="setup_locale_grant_task_id">任务ID %1$d</string>
     <string name="setup_locale_grant_revoke">撤销</string>
     <string name="setup_locale_grant_revoked">已撤销 %1$s 的授权</string>
+    <string name="setup_target_signer_title">%1$s 的签名密钥已更改</string>
+    <string name="setup_target_signer_body">%1$s 现在使用的签名证书与 OpenTasker 之前信任的不同，因此 OpenTasker 已停止向它发送命令。只有当你从信任的来源安装了此版本时，才重新批准它。</string>
+    <string name="setup_target_signer_required_for">插件和 Termux 操作</string>
+    <string name="setup_target_signer_reapprove">重新批准</string>
+    <string name="setup_target_signer_reapproved">已重新批准 %1$s</string>
+    <string name="setup_target_signer_not_installed">%1$s 已不再安装</string>
     <string name="action_preflight">预检</string>
     <string name="dialog_preflight_review">预检审阅</string>
     <string name="preflight_notice">仅预览：不会运行任何网络、文件、设置、shell、通知、场景或持久变量操作。</string>

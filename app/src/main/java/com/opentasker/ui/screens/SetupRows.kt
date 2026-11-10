@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.core.content.ContextCompat
 import com.opentasker.app.BuildConfig
 import com.opentasker.app.R
+import com.opentasker.core.apps.TargetSignerGuard
+import com.opentasker.core.apps.TargetSignerState
 import com.opentasker.core.contexts.bluetoothScanPermission
 import com.opentasker.core.actions.VpnClient
 import com.opentasker.core.actions.VpnTunnelPolicy
@@ -510,8 +512,32 @@ internal fun buildPermissionItems(
             requiredFor = context.getString(R.string.setup_app_visibility_required_for),
             allowActionWhenGranted = true,
         ),
-    ).map { item -> item.withRuntimePermissionRecovery(context, permissionHistory) }
+    ).plus(targetSignerRows(context, probes))
+        .map { item -> item.withRuntimePermissionRecovery(context, permissionHistory) }
 }
+
+/**
+ * One row per plugin or Termux whose signing certificate no longer matches its pin. OpenTasker
+ * sends it nothing until the user re-approves, and this row is the way back. The title carries
+ * the package name because rows are keyed by title.
+ */
+private fun targetSignerRows(context: Context, probes: SetupProbes): List<PermissionSetupItem> =
+    probes.read("pinned app signing certificates", emptyList()) {
+        TargetSignerGuard.forContext(context).statuses().filter { it.state == TargetSignerState.MISMATCH }
+    }.map { status ->
+        val packageName = status.pin.packageName
+        val explanation = context.getString(R.string.setup_target_signer_body, packageName)
+        PermissionSetupItem(
+            title = context.getString(R.string.setup_target_signer_title, packageName),
+            body = explanation,
+            granted = false,
+            actionLabel = context.getString(R.string.setup_target_signer_reapprove),
+            action = PermissionAction.ReapproveTargetSigner(packageName),
+            requiredFor = context.getString(R.string.setup_target_signer_required_for),
+            section = SetupSection.OPTIONAL,
+            note = explanation,
+        )
+    }
 
 /** What Setup still lists as missing, a row that couldn't be checked included. */
 internal fun pendingSetupRequirements(context: Context): Set<SetupRequirement> =
