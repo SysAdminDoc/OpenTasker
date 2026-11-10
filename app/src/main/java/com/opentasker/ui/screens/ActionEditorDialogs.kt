@@ -570,6 +570,7 @@ internal fun ActionFieldInput(
     suggestedPackage: String? = null,
     issue: ActionFieldPolicy.Issue? = null,
     variableOptions: List<VariableChipOption> = emptyList(),
+    allowMultiplePackages: Boolean = false,
 ) {
     val label = stringResource(field.labelRes) + if (field.required) " *" else ""
     val hint = field.hintRes?.let { stringResource(it) }
@@ -646,6 +647,7 @@ internal fun ActionFieldInput(
             value = value,
             required = field.required,
             suggestedPackage = suggestedPackage,
+            allowMultiple = allowMultiplePackages,
             onChange = onChange,
         )
 

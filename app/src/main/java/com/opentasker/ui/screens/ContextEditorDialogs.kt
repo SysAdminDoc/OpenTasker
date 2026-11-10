@@ -273,6 +273,7 @@ internal fun ContextConfigDialog(
                             } else {
                                 null
                             },
+                            allowMultiplePackages = state.type == ContextType.APPLICATION && field.key == "package",
                         )
                     }
                     if (state.type == ContextType.STATE) {
@@ -439,9 +440,14 @@ internal fun contextInvalidFields(type: ContextType, config: Map<String, String>
         }
     }
     val packageName = config["package"]?.trim().orEmpty()
+    val packageNameIsValid = if (type == ContextType.APPLICATION) {
+        PackageNamePolicy.isValidList(packageName)
+    } else {
+        PackageNamePolicy.isValid(packageName)
+    }
     if (packageName.isNotBlank() &&
         type in setOf(ContextType.APPLICATION, ContextType.EVENT, ContextType.PLUGIN) &&
-        !PackageNamePolicy.isValid(packageName)
+        !packageNameIsValid
     ) {
         issues["package"] = ActionFieldPolicy.Issue(ActionFieldPolicy.Error.INVALID_APP)
     }

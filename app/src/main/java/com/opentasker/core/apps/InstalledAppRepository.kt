@@ -17,6 +17,12 @@ object PackageNamePolicy {
     private val packagePattern = Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$")
 
     fun isValid(packageName: String): Boolean = packagePattern.matches(packageName.trim())
+
+    /** An App context can watch several apps, comma-separated, which is how a Tasker import stores them. */
+    fun isValidList(packageNames: String): Boolean {
+        val entries = packageNames.split(',').map(String::trim).filter(String::isNotEmpty)
+        return entries.isNotEmpty() && entries.all(::isValid)
+    }
 }
 
 /** Pure search/sort contract shared by the picker and its host-side tests. */

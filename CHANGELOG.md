@@ -17,6 +17,7 @@
 
 ### Fixed
 
+- An App context that watches several apps, which a Tasker import can bring in, can be opened and saved. The editor used to reject the comma-separated list as an invalid app.
 - A scene element that can't be drawn now says something like "Image unavailable" on the overlay. It used to show a raw [IMAGE] tag.
 - The scene image field no longer shows a repair error while it's still checking the picture.
 - The Locale condition editor now opens right under the variable you tap, keeps what you typed when you rotate, says why it can't save, and Clear really does clear the selection.

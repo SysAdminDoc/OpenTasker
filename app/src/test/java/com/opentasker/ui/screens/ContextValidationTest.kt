@@ -9,6 +9,14 @@ import org.junit.Test
 
 class ContextValidationTest {
     @Test
+    fun anAppContextCanNameSeveralApps() {
+        assertFalse(contextHasInvalidValues(ContextType.APPLICATION, mapOf("package" to "com.example.a, com.example.b")))
+        assertTrue(contextHasInvalidValues(ContextType.APPLICATION, mapOf("package" to ",")))
+        assertTrue(contextHasInvalidValues(ContextType.APPLICATION, mapOf("package" to "com.example.a,not a package")))
+        assertTrue(contextHasInvalidValues(ContextType.EVENT, mapOf("package" to "com.example.a,com.example.b")))
+    }
+
+    @Test
     fun validTimeWindowIsAccepted() {
         assertFalse(
             contextHasInvalidValues(ContextType.TIME, mapOf("start" to "08:30", "end" to "17:00")),

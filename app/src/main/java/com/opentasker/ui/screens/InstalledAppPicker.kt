@@ -70,10 +70,12 @@ internal fun InstalledAppFieldInput(
     value: String,
     required: Boolean,
     suggestedPackage: String? = null,
+    allowMultiple: Boolean = false,
     onChange: (String) -> Unit,
 ) {
     var pickerVisible by rememberSaveable(label) { mutableStateOf(false) }
-    val invalid = value.isNotBlank() && !PackageNamePolicy.isValid(value)
+    val invalid = value.isNotBlank() &&
+        !(if (allowMultiple) PackageNamePolicy.isValidList(value) else PackageNamePolicy.isValid(value))
     Column(verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.xs)) {
         OutlinedTextField(
             value = value,
