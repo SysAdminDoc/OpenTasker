@@ -470,6 +470,9 @@
     <string name="setup_contacts_access_title">Contacts access</string>
     <string name="setup_contacts_access_body">Needed for unattended contact lookup actions. Contact values are written as sensitive variables and never copied into run-log messages. On Android 17+, picker mode can grant only the selected fields instead.</string>
     <string name="setup_contacts_access_required_for">Unattended contact lookup and telling a stranger\'s call from a contact\'s</string>
+    <string name="setup_nfc_tags_title">Read NFC tags</string>
+    <string name="setup_nfc_tags_body">Android 16 and later only hand a scanned tag to apps you\'ve allowed. Until OpenTasker is allowed, scanning a tag does nothing and NFC profiles never run.</string>
+    <string name="setup_nfc_tags_required_for">NFC tag contexts</string>
     <string name="setup_overlay_access_title">Overlay access</string>
     <string name="setup_overlay_access_body">Needed for scene overlays and controls displayed over other apps, and for a trigger to open an app, a link or the home screen while OpenTasker is in the background. Android calls this Display over other apps.</string>
     <string name="setup_overlay_access_required_for">Scenes, overlay UI, opening apps and links from a trigger</string>
@@ -1804,6 +1807,7 @@
     <string name="inspector_setup_calendar_missing">Calendar triggers need Calendar access in Setup; sunrise/sunset matching uses configured coordinates.</string>
     <string name="inspector_setup_event_ready">Boot, system, notification, NFC, calendar, and sun events are registered. Notification text is kept in-memory for matching and is not written to run logs. %1$s</string>
     <string name="inspector_setup_event_notification_missing">Boot, system, NFC, calendar, and sun events are registered. Notification events need Notification Access in Setup before Android will bind the listener. %1$s</string>
+    <string name="inspector_setup_nfc_blocked">Android isn\'t handing NFC tags to OpenTasker yet, so NFC events won\'t fire. Allow it in Setup under Read NFC tags.</string>
     <string name="inspector_setup_source_generic">Source setup status is not specialized yet.</string>
     <string name="diagnostics_health_state_ready">Ready</string>
     <string name="diagnostics_health_state_loading">Loading</string>

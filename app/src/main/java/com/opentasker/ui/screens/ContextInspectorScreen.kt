@@ -68,6 +68,7 @@ import com.opentasker.core.contexts.ContextObservationStatus
 import com.opentasker.core.contexts.ContextSourceRegistry
 import com.opentasker.core.contexts.ContextSourceSnapshot
 import com.opentasker.core.contexts.ContextSourceStatus
+import com.opentasker.core.contexts.NfcTagIntentGate
 import com.opentasker.core.contexts.ProfileInspection
 import com.opentasker.core.contexts.inspectProfiles
 import com.opentasker.core.contexts.observationStatus
@@ -1096,14 +1097,21 @@ private fun contextSourceSetup(context: Context, key: String): ContextSourceSetu
                 listening.sorted().joinToString(", "),
             )
         }
+        // Android 16+ drops tag scans for an app the user hasn't allowed, so NFC events never arrive.
+        val nfcDetail = if (NfcTagIntentGate.current(context) == NfcTagIntentGate.State.BLOCKED) {
+            context.getString(R.string.inspector_setup_nfc_blocked)
+        } else {
+            null
+        }
         ContextSourceSetup(
             ready = true,
-            detail = listOf(
+            detail = listOfNotNull(
                 if (notificationReady) {
                     context.getString(R.string.inspector_setup_event_ready, calendarDetail)
                 } else {
                     context.getString(R.string.inspector_setup_event_notification_missing, calendarDetail)
                 },
+                nfcDetail,
                 broadcastDetail,
             ).joinToString(" "),
         )

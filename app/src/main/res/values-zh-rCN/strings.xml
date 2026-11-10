@@ -465,6 +465,9 @@
     <string name="setup_contacts_access_title">联系人访问</string>
     <string name="setup_contacts_access_body">无人值守的联系人查找操作所需。联系人值会写入敏感变量，且绝不会复制到运行日志消息中。在Android 17及以上，选择器模式可以只授予所选字段。</string>
     <string name="setup_contacts_access_required_for">无人值守联系人查找</string>
+    <string name="setup_nfc_tags_title">读取 NFC 标签</string>
+    <string name="setup_nfc_tags_body">Android 16 及更高版本只会把扫描到的标签交给你允许的应用。在允许 OpenTasker 之前，扫描标签不会有任何反应，NFC 配置文件也不会运行。</string>
+    <string name="setup_nfc_tags_required_for">NFC 标签上下文</string>
     <string name="setup_overlay_access_title">叠加层访问</string>
     <string name="setup_overlay_access_body">在其他应用之上显示场景叠加层和控件所需；OpenTasker在后台时，触发器打开应用、链接或主屏幕也需要此权限。Android中称为“显示在其他应用的上层”。</string>
     <string name="setup_overlay_access_required_for">场景、叠加层UI、由触发器打开应用和链接</string>
@@ -1758,6 +1761,7 @@
     <string name="inspector_setup_calendar_missing">日历触发需要设置中的日历访问；日出/日落匹配使用配置的坐标。</string>
     <string name="inspector_setup_event_ready">开机、系统、通知、NFC、日历和太阳事件已注册。通知文本仅保存在内存中用于匹配，不会写入运行日志。%1$s</string>
     <string name="inspector_setup_event_notification_missing">开机、系统、NFC、日历和太阳事件已注册。通知事件需要Android绑定监听器前的设置中的通知访问。%1$s</string>
+    <string name="inspector_setup_nfc_blocked">Android 尚未把 NFC 标签交给 OpenTasker，因此 NFC 事件不会触发。请在“设置”的“读取 NFC 标签”中允许。</string>
     <string name="inspector_setup_source_generic">来源设置状态尚未专门化。</string>
     <string name="diagnostics_health_state_ready">就绪</string>
     <string name="diagnostics_health_state_loading">加载中</string>

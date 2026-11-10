@@ -129,6 +129,26 @@ class SetupRequirementResolverTest {
     }
 
     @Test
+    fun onlyAnEnabledNfcEventProfileAsksAndroidToHandItTags() {
+        fun profile(config: Map<String, String>, enabled: Boolean = true) = Profile(
+            id = 1,
+            name = "Tag",
+            enabled = enabled,
+            contexts = listOf(ContextSpec(ContextType.EVENT, config)),
+            enterTaskId = 1,
+        )
+        fun required(vararg profiles: Profile) = SetupRequirementResolver.resolve(profiles.toList(), emptyList())
+
+        assertEquals(setOf(SetupRequirement.NFC_TAGS), required(profile(mapOf("event" to "nfc", "tagId" to "04A1B2C3"))))
+        assertEquals(setOf(SetupRequirement.NFC_TAGS), required(profile(mapOf("event" to "NFC"))))
+        assertTrue(required(profile(mapOf("event" to "nfc"), enabled = false)).isEmpty())
+        assertFalse(SetupRequirement.NFC_TAGS in required(profile(mapOf("event" to "calendar"))))
+        assertFalse(
+            SetupRequirement.NFC_TAGS in required(profile(mapOf("event" to "notification", "text" to "nfc"))),
+        )
+    }
+
+    @Test
     fun physicalStateContextsAddMatchingSensorSetupRequirements() {
         val profile = Profile(
             id = 8,

@@ -564,11 +564,7 @@ fun PermissionOnboardingScreen(
     // be listed at all. Filtering instead of adding meant the row the user was sent here for could
     // be the only one on screen, and the engine's own notification and alarm rows disappeared.
     val visibleItems = remember(items, automationRequirements, focusRequirements) {
-        items.filter { item ->
-            item.section != SetupSection.NEEDED ||
-                item.requirements.any(automationRequirements::contains) ||
-                item.requirements.any(focusRequirements::contains)
-        }
+        visibleSetupItems(items, automationRequirements, focusRequirements)
     }
     val sectionItems = remember(visibleItems) {
         SetupSection.entries.associateWith { section ->

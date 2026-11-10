@@ -70,6 +70,7 @@ internal fun setupRequirementLabelRes(requirement: SetupRequirement): Int = when
     SetupRequirement.SMS_RECEIVE -> R.string.setup_sms_receive_title
     SetupRequirement.POST_NOTIFICATIONS -> R.string.setup_notifications_card_title
     SetupRequirement.SECURE_SETTINGS -> R.string.setup_secure_settings_title
+    SetupRequirement.NFC_TAGS -> R.string.setup_nfc_tags_title
 }
 
 @StringRes

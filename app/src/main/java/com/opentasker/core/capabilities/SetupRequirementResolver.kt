@@ -40,6 +40,7 @@ enum class SetupRequirement {
     SMS_RECEIVE,
     POST_NOTIFICATIONS,
     SECURE_SETTINGS,
+    NFC_TAGS,
 }
 
 object SetupRequirementResolver {
@@ -157,6 +158,8 @@ object SetupRequirementResolver {
                     }
                 }
                 ContextType.EVENT -> when {
+                    // Read from the event key alone: a tag ID or another event's text could spell "nfc".
+                    context.config["event"].equals("nfc", ignoreCase = true) -> add(SetupRequirement.NFC_TAGS)
                     // Android withholds a ringing call's number without the Call log permission, and
                     // only Contacts can say the caller is a stranger.
                     tokens.contains("incoming_call") -> {

@@ -10,6 +10,7 @@ import com.opentasker.app.BuildConfig
 import com.opentasker.core.apps.TargetSignerGuard
 import com.opentasker.core.apps.TargetSignerPinSource
 import com.opentasker.core.apps.TargetSignerStatus
+import com.opentasker.core.contexts.NfcTagIntentGate
 import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.engine.ExecutionAdmissionRegistry
 import com.opentasker.core.permissions.UsageAccess
@@ -42,6 +43,11 @@ object DiagnosticExport {
         sb.appendLine("Model: ${Build.MANUFACTURER} ${Build.MODEL}")
         sb.appendLine("Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
         sb.appendLine("ABI: ${Build.SUPPORTED_ABIS.joinToString()}")
+        try {
+            sb.appendLine("NFC tag intents: ${NfcTagIntentGate.current(context).label}")
+        } catch (e: Exception) {
+            sb.appendLine("NFC tag intents: unavailable (${redactSensitive(e.message.orEmpty())})")
+        }
         sb.appendLine()
 
         sb.appendLine("--- Engine Health ---")

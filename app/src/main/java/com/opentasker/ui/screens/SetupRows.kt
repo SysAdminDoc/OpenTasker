@@ -20,6 +20,7 @@ import com.opentasker.app.BuildConfig
 import com.opentasker.app.R
 import com.opentasker.core.apps.TargetSignerGuard
 import com.opentasker.core.apps.TargetSignerState
+import com.opentasker.core.contexts.NfcTagIntentGate
 import com.opentasker.core.contexts.bluetoothScanPermission
 import com.opentasker.core.actions.VpnClient
 import com.opentasker.core.actions.VpnTunnelPolicy
@@ -106,6 +107,8 @@ internal fun buildPermissionItems(
     val deviceAdmin = probes.granted("device admin") { LockDeviceAdminReceiver.isActive(context) }
     val dndAccess = probes.granted("Do Not Disturb access") { hasNotificationPolicyAccess(context) }
     val secureSettings = probes.granted("secure settings") { hasWriteSecureSettings(context) }
+    // Null is a check that threw. NOT_APPLICABLE means there's no switch on this phone, so no row.
+    val nfcTags = probes.read<NfcTagIntentGate.State?>("NFC tag reading", null) { NfcTagIntentGate.current(context) }
     val request = context.getString(R.string.setup_action_request)
     val openSettings = context.getString(R.string.setup_action_open_settings)
     val promotedSupported = PromotedOngoingNotificationSupport.isPlatformSupported()
@@ -221,6 +224,17 @@ internal fun buildPermissionItems(
             section = SetupSection.NEEDED,
             requirements = setOf(SetupRequirement.CONTACTS),
         ),
+        if (Build.VERSION.SDK_INT >= 36 && nfcTags != NfcTagIntentGate.State.NOT_APPLICABLE) PermissionSetupItem(
+            title = context.getString(R.string.setup_nfc_tags_title),
+            body = context.getString(R.string.setup_nfc_tags_body),
+            granted = nfcTags == NfcTagIntentGate.State.ALLOWED,
+            unavailable = nfcTags == null,
+            actionLabel = openSettings,
+            action = PermissionAction.SettingsIntent(NfcTagIntentGate.settingsIntent()),
+            requiredFor = context.getString(R.string.setup_nfc_tags_required_for),
+            section = SetupSection.NEEDED,
+            requirements = setOf(SetupRequirement.NFC_TAGS),
+        ) else null,
         PermissionSetupItem(
             title = context.getString(R.string.setup_overlay_access_title),
             body = context.getString(R.string.setup_overlay_access_body),
@@ -538,6 +552,20 @@ private fun targetSignerRows(context: Context, probes: SetupProbes): List<Permis
             note = explanation,
         )
     }
+
+/**
+ * The rows Setup shows. A NEEDED row appears only when an enabled profile, or the template the
+ * user was sent here for, needs one of its requirements; the other sections always show.
+ */
+internal fun visibleSetupItems(
+    items: List<PermissionSetupItem>,
+    automationRequirements: Set<SetupRequirement>,
+    focusRequirements: Set<SetupRequirement>,
+): List<PermissionSetupItem> = items.filter { item ->
+    item.section != SetupSection.NEEDED ||
+        item.requirements.any(automationRequirements::contains) ||
+        item.requirements.any(focusRequirements::contains)
+}
 
 /** What Setup still lists as missing, a row that couldn't be checked included. */
 internal fun pendingSetupRequirements(context: Context): Set<SetupRequirement> =
