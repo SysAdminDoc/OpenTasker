@@ -48,7 +48,7 @@ dependencies {
     // without the runtime on the class path, even though nothing here is a composable.
     testCompileOnly(platform(libs.androidx.compose.bom))
     testCompileOnly(libs.androidx.compose.runtime)
-    implementation(libs.work.runtime.ktx)
+    implementation(libs.work.runtime)
     implementation(libs.androidx.profileinstaller)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)

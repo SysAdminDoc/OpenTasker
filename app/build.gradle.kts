@@ -363,7 +363,7 @@ dependencies {
         // Compose UI 1.11.4 depended on androidx.transition and pulled the instrumentation graph
         // up to 1.6.0. Compose 1.12.0 dropped that dependency, so the only remaining requester is
         // an old accessibility-test-framework chain asking for 1.2.0 - a 2019 artifact published
-        // before Google Maven signed or checksummed anything. Hold the graph where it already was.
+        // before Google Maven signed or checksummed anything. Hold the graph on a current release.
         androidTestImplementation(libs.androidx.transition) {
             version { require(libs.versions.androidxTransition.get()) }
             because("Instrumentation must not silently fall back to an unsigned 2019 transition build.")
@@ -394,7 +394,7 @@ dependencies {
     implementation(libs.sqlcipher.android)
     ksp(libs.androidx.room.compiler)
 
-    implementation(libs.work.runtime.ktx)
+    implementation(libs.work.runtime)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.profileinstaller)
 

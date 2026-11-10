@@ -30,12 +30,14 @@
             <trusting group="androidx.databinding" />
             <trusting group="androidx.datastore" />
             <trusting group="androidx.lifecycle" />
+            <trusting group="androidx.room" />
             <trusting group="androidx.sqlite" name="sqlite" version="2.7.0" />
             <trusting group="androidx.sqlite" name="sqlite-android" version="2.7.0" />
             <trusting group="androidx.sqlite" name="sqlite-framework" version="2.7.0" />
             <trusting group="androidx.sqlite" name="sqlite-framework-android" version="2.7.0" />
             <trusting group="androidx.sqlite" name="sqlite-jvm" version="2.7.0" />
             <trusting group="androidx.test.uiautomator" />
+            <trusting group="androidx.transition" />
             <trusting group="androidx.work" />
             <trusting group="^androidx[.]compose($|([.].*))" regex="true" />
             <trusting group="^com[.]android($|([.].*))" regex="true" />
@@ -45,6 +47,7 @@
             <trusting group="androidx.collection" />
             <trusting group="androidx.core" />
             <trusting group="androidx.databinding" />
+            <trusting group="androidx.dynamicanimation" name="dynamicanimation" version="1.1.0" />
             <trusting group="androidx.lifecycle" />
             <trusting group="androidx.navigationevent" />
             <trusting group="androidx.room" />
@@ -312,6 +315,12 @@
          </artifact>
          <artifact name="autofill-1.0.0.pom">
             <sha256 value="3677abead5d4e06cf76cbacb954151e051779c2274494451fb424e375aa9e450" origin="OpenTasker: Google Maven direct artifact SHA-256 (no upstream .sha256/.asc)" reason="Artifact is not signed" />
+         </artifact>
+      </component>
+      <component group="androidx.baselineprofile" name="androidx.baselineprofile.gradle.plugin" version="1.5.0">
+         <artifact name="androidx.baselineprofile.gradle.plugin-1.5.0.pom">
+            <pgp value="0E225917414670F4442C250DFD533C07C264648F" />
+            <sha256 value="e07ba8da09e3aff020680f6b70700db8ad43390408f5ab0ae95f22957a7e3b26" origin="OpenTasker: Google Maven published .sha256" />
          </artifact>
       </component>
       <component group="androidx.baselineprofile" name="androidx.baselineprofile.gradle.plugin" version="1.5.0-rc02">
@@ -1749,6 +1758,11 @@
          </artifact>
          <artifact name="core-1.19.0.module">
             <sha256 value="54a4e456f3f7110e91a3d30196cadd98a7478691679f5d63f2c4023a48d2ec61" origin="OpenTasker: Google Maven published .sha256" />
+         </artifact>
+      </component>
+      <component group="androidx.core" name="core" version="1.19.1">
+         <artifact name="core-1.19.1.aar">
+            <sha256 value="08108ea780205bd54603088a62a6dd5378f63bd25542674be24cd4cdb8191a09" origin="OpenTasker: Google Maven published .sha256" />
          </artifact>
       </component>
       <component group="androidx.core" name="core" version="1.9.0">

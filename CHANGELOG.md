@@ -7,6 +7,10 @@
 - A Set Wallpaper action changes the home screen, the lock screen or both to an image you pick with Browse. Two new templates put it on the At sunrise and At sunset presets, so the wallpaper can switch between a day image and a night image. They work from the latitude and longitude you type in and don't need location access.
 - Sun contexts can wait for twilight. The presets add civil, nautical and astronomical dawn and dusk, and the new Sun elevation setting takes any angle in degrees, like -4 for the blue hour. The Inspector and profile cards name the twilight. Far enough north in summer the sun never gets that low, and the context just doesn't fire that day.
 
+### Changed
+
+- Room moves to 2.8.5, WorkManager to 2.12.0, the Compose BOM to 2026.09.00, core-ktx to 1.19.1 and androidx.transition to 1.7.2. Macrobenchmark and the baseline-profile plugin drop the last pre-release in the graph for 1.5.0, JaCoCo moves to 0.8.16, and Bouncy Castle, which only the tests use, goes to 1.86. The APK no longer packages `work-runtime-ktx`, an empty artifact since WorkManager 2.9.0 moved its Kotlin extensions into `work-runtime`.
+
 ### Fixed
 
 - Tasker exports now write contexts the way Tasker itself does, so Tasker can open them. Day and App contexts use Tasker's own fields, and so do Power, Headset Plugged, Display State, Battery Level, Wifi Connected, Device Boot and Notification. Anything Tasker can't hold exactly is left out, and the export names it along with its settings. Tasker's Day has no Invert switch, so "not Monday" goes out as the other six days, and an inverted time window stays out. A profile that fires on either of two contexts gets a warning too, because a Tasker profile needs all of them. Tasker files that use those states and events now import too.

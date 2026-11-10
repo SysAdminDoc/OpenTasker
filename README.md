@@ -344,14 +344,14 @@ Treat a wrapper upgrade as one atomic change: run `gradlew wrapper --gradle-vers
 | AGP | 9.3.2 |
 | KSP | 2.3.12 |
 | Build Tools | 36.0.0 |
-| Macrobenchmark | 1.5.0-rc02 |
+| Macrobenchmark | 1.5.0 |
 | JDK | 17 or 21 |
 | Min SDK | 26 (Android 8.0) |
 | Compile SDK | 37 |
 | Target SDK | 37 |
-| Room | 2.8.4 |
-| Compose BOM | 2026.08.00 |
-| WorkManager | 2.11.2 |
+| Room | 2.8.5 |
+| Compose BOM | 2026.09.00 |
+| WorkManager | 2.12.0 |
 
 All dependency versions are centralized in `gradle/libs.versions.toml`.
 
