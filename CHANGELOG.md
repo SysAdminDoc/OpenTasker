@@ -11,6 +11,7 @@
 
 - Room moves to 2.8.5, WorkManager to 2.12.0, the Compose BOM to 2026.09.00, core-ktx to 1.19.1 and androidx.transition to 1.7.2. Macrobenchmark and the baseline-profile plugin drop the last pre-release in the graph for 1.5.0, JaCoCo moves to 0.8.16, and Bouncy Castle, which only the tests use, goes to 1.86. The APK no longer packages `work-runtime-ktx`, an empty artifact since WorkManager 2.9.0 moved its Kotlin extensions into `work-runtime`.
 - androidx.tracing moves from 1.3.0 to 2.0.5. Nothing here calls it directly, but WorkManager, Activity and core do, and every 1.3.0 call they make is still there in 2.0.5. It brings androidx.collection 1.6.0 along with it.
+- SQLCipher moves from 4.18.0 to 4.20.0, which puts the encrypted database on SQLite 3.54.1 and reports a failed rekey as an error.
 
 ### Fixed
 

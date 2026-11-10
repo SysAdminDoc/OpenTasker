@@ -99,6 +99,7 @@
          <trusted-key id="600EA202B1EC682F4A788E5AAC7A514BC9F9BB70" group="io.opencensus" name="opencensus-api" version="0.31.0" />
          <trusted-key id="61DEBD732F3F07771269972E2F87304808D40CEC" group="net.zetetic" name="sqlcipher-android" version="4.17.0" />
          <trusted-key id="61DEBD732F3F07771269972E2F87304808D40CEC" group="net.zetetic" name="sqlcipher-android" version="4.18.0" />
+         <trusted-key id="61DEBD732F3F07771269972E2F87304808D40CEC" group="net.zetetic" name="sqlcipher-android" version="4.20.0" />
          <trusted-key id="694621A7227D8D5289699830ABE9F3126BB741C1" group="^com[.]google($|([.].*))" regex="true" />
          <trusted-key id="696B6199A2A9D8C29CE78CC0D041CAD2E452550F" group="com.google.protobuf" />
          <trusted-key id="6DD3B8C64EF75253BEB2C53AD908A43FB7EC07AC" group="jakarta.activation" />
@@ -5688,6 +5689,14 @@
          </artifact>
          <artifact name="kxml2-2.3.0.pom">
             <sha256 value="31ce606f4e9518936299bb0d27c978fa61e185fd1de7c9874fe959a53e34a685" origin="OpenTasker: Maven Central direct artifact SHA-256 (no upstream .sha256/.asc)" reason="Artifact is not signed" />
+         </artifact>
+      </component>
+      <component group="net.zetetic" name="sqlcipher-android" version="4.20.0">
+         <artifact name="sqlcipher-android-4.20.0.aar">
+            <sha256 value="1e57857adfd29e2f5ddb4686e1e5ec6659920220d4bf182fdb5ef085b5577100" origin="OpenTasker: Maven Central published .sha256" />
+         </artifact>
+         <artifact name="sqlcipher-android-4.20.0.module">
+            <sha256 value="92a4483933d8406e4de4698e28091c58845579895f897fc522d3ff05df6b37f8" origin="OpenTasker: Maven Central published .sha256" />
          </artifact>
       </component>
       <component group="net.zetetic" name="sqlcipher-android" version="4.18.0">
