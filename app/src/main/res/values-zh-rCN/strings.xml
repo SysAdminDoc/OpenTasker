@@ -131,6 +131,7 @@
     <string name="status_detected">已检测</string>
     <string name="status_optional">可选</string>
     <string name="status_needs_setup">需要设置</string>
+    <string name="action_open_setup">打开设置向导</string>
     <string name="status_unavailable">无法检查</string>
     <string name="status_granted">已授予</string>
     <string name="status_required">必需</string>
@@ -156,8 +157,8 @@
     <string name="settings_title">设置</string>
     <string name="settings_body">管理外观、恢复、后台行为、集成以及其他应用级偏好。</string>
     <string name="settings_section_general">通用</string>
-    <string name="setup_focus_title">完成新自动化的设置</string>
-    <string name="setup_focus_body">你刚安装的模板在运行前需要下方列出的访问权限。</string>
+    <string name="setup_focus_title">完成自动化的设置</string>
+    <string name="setup_focus_body">它在运行前需要下方列出的访问权限。</string>
     <string name="settings_run_onboarding_title">再次运行引导</string>
     <string name="settings_run_onboarding_body">重新打开首次启动时提供的入门模板。</string>
     <string name="settings_run_onboarding_action">显示模板</string>

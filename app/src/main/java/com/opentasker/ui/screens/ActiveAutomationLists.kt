@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +54,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -66,6 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -522,6 +525,7 @@ internal fun TasksScreen(
     historyAvailability: EditHistoryAvailabilityState = EditHistoryAvailabilityState(),
     // What Setup still lists as missing; null until the first read comes back.
     pendingSetup: Set<SetupRequirement>? = null,
+    onOpenSetup: (Set<SetupRequirement>) -> Unit = {},
 ) {
     if (!contentLoaded) {
         ContentLoadingState(contentPadding)
@@ -599,6 +603,7 @@ internal fun TasksScreen(
                 onRunAction = { index -> onRunAction(task, index) },
                 runBusy = runBusy,
                 pendingSetup = pendingSetup,
+                onOpenSetup = onOpenSetup,
             )
         }
     }
@@ -625,6 +630,7 @@ private fun TaskCard(
     onRunAction: (Int) -> Unit,
     runBusy: Boolean,
     pendingSetup: Set<SetupRequirement>?,
+    onOpenSetup: (Set<SetupRequirement>) -> Unit,
 ) {
     var expanded by rememberSaveable(task.id) { mutableStateOf(initiallyExpanded) }
     val runDescription = stringResource(R.string.a11y_run_task, task.name)
@@ -725,6 +731,7 @@ private fun TaskCard(
                         onRun = { onRunAction(index) },
                         runBusy = runBusy,
                         pendingSetup = pendingSetup,
+                        onOpenSetup = onOpenSetup,
                     )
                 }
             }
@@ -883,6 +890,7 @@ internal fun ActionRow(
     onRun: () -> Unit,
     runBusy: Boolean,
     pendingSetup: Set<SetupRequirement>?,
+    onOpenSetup: (Set<SetupRequirement>) -> Unit = {},
 ) {
     var menuExpanded by rememberSaveable { mutableStateOf(false) }
     val resources = LocalContext.current.resources
@@ -892,6 +900,12 @@ internal fun ActionRow(
     // no Setup row can settle (an approved script, a VPN app) keeps its pill.
     val needsSetup = capability.level == CapabilityLevel.RequiresSetup &&
         SetupRequirementResolver.stillNeedsSetup(action, Build.VERSION.SDK_INT, pendingSetup)
+    // Setup lists a row only for enabled profiles, so the pill opens Setup on the rows it means.
+    val setupRows = if (needsSetup && pendingSetup != null) {
+        SetupRequirementResolver.forAction(action, Build.VERSION.SDK_INT) intersect pendingSetup
+    } else {
+        emptySet()
+    }
     val metadataName = metadata?.let { stringResource(it.nameRes) }
     val metadataDescription = metadata?.let { stringResource(it.descriptionRes) }
     val actionLabel = action.label ?: metadataName ?: stringResource(R.string.action_unknown_name)
@@ -931,9 +945,17 @@ internal fun ActionRow(
                 )
                 if (capability.level == CapabilityLevel.Unsupported || needsSetup) {
                     Spacer(Modifier.height(6.dp))
+                    val openSetupLabel = stringResource(R.string.action_open_setup)
                     StatusPill(
                         if (capability.level == CapabilityLevel.Unsupported) stringResource(R.string.label_unsupported) else stringResource(R.string.status_needs_setup),
                         if (capability.level == CapabilityLevel.Unsupported) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        modifier = if (setupRows.isEmpty()) {
+                            Modifier
+                        } else {
+                            Modifier
+                                .minimumInteractiveComponentSize()
+                                .clickable(onClickLabel = openSetupLabel, role = Role.Button) { onOpenSetup(setupRows) }
+                        },
                     )
                 }
                 action.condition?.takeIf(String::isNotBlank)?.let { condition ->

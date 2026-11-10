@@ -5,12 +5,14 @@ import android.content.pm.PackageManager
 import android.os.ParcelFileDescriptor
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -27,6 +29,7 @@ import com.opentasker.ui.theme.OpenTaskerTheme
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -63,7 +66,11 @@ class ActionSetupPillTest {
         shell("pm ${if (hadSecureSettings) "grant" else "revoke"} ${context.packageName} $SECURE_SETTINGS")
     }
 
-    private fun showAction(action: ActionSpec, pendingSetup: Set<SetupRequirement>?) {
+    private fun showAction(
+        action: ActionSpec,
+        pendingSetup: Set<SetupRequirement>?,
+        onOpenSetup: (Set<SetupRequirement>) -> Unit = {},
+    ) {
         composeTestRule.setContent {
             OpenTaskerTheme {
                 ActionRow(
@@ -78,9 +85,35 @@ class ActionSetupPillTest {
                     onRun = {},
                     runBusy = false,
                     pendingSetup = pendingSetup,
+                    onOpenSetup = onOpenSetup,
                 )
             }
         }
+    }
+
+    /**
+     * A-402: Setup lists a row only for enabled profiles, so with none enabled the pill is the way
+     * in. Setup focused on Write Settings showing its row is CriticalFlowComposeTest's half.
+     */
+    @Test
+    fun tappingThePillOpensSetupOnTheRowTheActionNeeds() {
+        val opened = AtomicReference<Set<SetupRequirement>?>(null)
+        showAction(
+            BRIGHTNESS,
+            pendingSetup = setOf(SetupRequirement.WRITE_SETTINGS, SetupRequirement.DEVICE_ADMIN),
+            onOpenSetup = opened::set,
+        )
+
+        composeTestRule.onNodeWithText("Needs setup").performClick()
+
+        assertEquals(setOf(SetupRequirement.WRITE_SETTINGS), opened.get())
+    }
+
+    @Test
+    fun beforeTheFirstReadThePillIsNotATap() {
+        showAction(BRIGHTNESS, pendingSetup = null)
+
+        composeTestRule.onNodeWithText("Needs setup").assertHasNoClickAction()
     }
 
     @Test

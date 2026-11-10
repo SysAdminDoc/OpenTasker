@@ -1,6 +1,7 @@
 package com.opentasker.ui.screens
 
 import com.opentasker.core.capabilities.SetupRequirement
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -52,6 +53,16 @@ class SetupFocusBannerTest {
     fun neverShownWithoutAFocus() {
         assertFalse(setupFocusBannerVisible(emptySet(), listOf(row(granted = false, SetupRequirement.CALENDAR))))
         assertFalse(setupFocusBannerVisible(emptySet(), loadedItems = null))
+    }
+
+    @Test
+    fun aPillKeepsTheRowsATemplateIsStillWaitingOn() {
+        val afterTemplate = listOf(SetupRequirement.CALENDAR.name)
+
+        val afterPill = withSetupFocus(afterTemplate, setOf(SetupRequirement.WRITE_SETTINGS))
+
+        assertEquals(listOf("CALENDAR", "WRITE_SETTINGS"), afterPill)
+        assertEquals(afterPill, withSetupFocus(afterPill, setOf(SetupRequirement.WRITE_SETTINGS)))
     }
 
     private fun row(granted: Boolean, vararg requirements: SetupRequirement) = PermissionSetupItem(

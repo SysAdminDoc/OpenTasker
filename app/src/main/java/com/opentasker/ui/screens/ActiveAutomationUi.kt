@@ -820,6 +820,10 @@ fun ActiveAutomationUi(
                 },
                 onRunAction = { task, index -> viewModel.runActionNow(task, index) },
                 runBusy = runBusy, pendingSetup = pendingSetup,
+                onOpenSetup = { needed ->
+                    setupFocusRequirements = withSetupFocus(setupFocusRequirements, needed)
+                    screenOrdinal = OpenTaskerScreen.Setup.ordinal
+                },
                 contentPadding = innerPadding, contentLoaded = contentLoaded, historyAvailability = historyAvailability,
             )
 

@@ -516,6 +516,13 @@ internal fun pendingSetupRequirements(context: Context): Set<SetupRequirement> =
         .filter { !it.granted || it.unavailable }
         .flatMapTo(mutableSetOf()) { it.requirements }
 
+/**
+ * A Needs setup pill adds its rows to Setup's focus. Replacing it would drop a template's
+ * context rows, such as Calendar, and no pill could bring those back.
+ */
+internal fun withSetupFocus(focus: List<String>, needed: Set<SetupRequirement>): List<String> =
+    (focus + needed.map(SetupRequirement::name)).distinct()
+
 private fun PermissionSetupItem.withRuntimePermissionRecovery(
     context: Context,
     history: RuntimePermissionRequestHistory,

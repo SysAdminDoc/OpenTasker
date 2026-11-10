@@ -168,10 +168,11 @@ import kotlinx.coroutines.flow.update
 
 internal const val SETUP_FOCUS_BANNER_TAG = "setup_focus_banner"
 internal const val SETUP_PLATFORM_BLOCKED_TAG = "setup_platform_blocked"
+internal const val SETUP_LIST_TAG = "setup_list"
 
 /**
- * The template banner tells the user the rows below still need access, so it shows only while a
- * row the template waits on is pending. The focus outlives the grants (it is kept for the whole
+ * The focus banner (from a template install or a task's Needs setup pill) tells the user the rows
+ * below still need access, so it shows only while a row it names is pending. The focus outlives the grants (it is kept for the whole
  * session), and showing the banner unconditionally put "needs the access listed below" over a
  * screen reading 9 of 9 ready. Until the rows load it stays, since it is why the user is here.
  */
@@ -549,7 +550,8 @@ fun PermissionOnboardingScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(contentPadding),
+            .padding(contentPadding)
+            .testTag(SETUP_LIST_TAG),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
