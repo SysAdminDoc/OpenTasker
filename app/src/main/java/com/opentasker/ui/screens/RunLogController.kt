@@ -7,6 +7,7 @@ import com.opentasker.core.diagnostics.RunLogExportFormat
 import com.opentasker.core.diagnostics.RunLogExporter
 import com.opentasker.core.model.RunLogEntry
 import com.opentasker.core.storage.AppDatabase
+import com.opentasker.core.storage.DEFAULT_RUN_LOG_PAGE_SIZE
 import com.opentasker.core.storage.RunLogQuery
 import com.opentasker.core.storage.RunLogRetentionPolicy
 import com.opentasker.core.storage.RunLogRetentionSettings
@@ -29,6 +30,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -76,6 +80,21 @@ internal class RunLogController(
         refreshRunLogPage()
         scope.launch {
             runCatching { pruneRunLogs(_runLogRetentionPolicy.value) }
+        }
+        // A run that lands while only the first page is loaded joins it without a Refresh. Once more
+        // pages are loaded the list stays put, since reloading would drop them under the reader.
+        scope.launch {
+            db.runLogDao().maximumIdFlow().distinctUntilChanged().collectLatest { newestId ->
+                delay(RUN_LOG_LIVE_DEBOUNCE_MS)
+                // A load already running may have taken its snapshot before this run landed.
+                val page = _runLogPage.first { !it.loading }
+                val snapshot = page.snapshot ?: return@collectLatest
+                if (newestId != null && newestId > snapshot.snapshotMaxId &&
+                    page.entries.size <= DEFAULT_RUN_LOG_PAGE_SIZE
+                ) {
+                    refreshRunLogPage()
+                }
+            }
         }
     }
 
@@ -258,3 +277,4 @@ internal class RunLogController(
 }
 
 private const val RUN_LOG_QUERY_DEBOUNCE_MS = 300L
+private const val RUN_LOG_LIVE_DEBOUNCE_MS = 300L

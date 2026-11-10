@@ -336,4 +336,7 @@ interface RunLogDao {
 
     @Query("SELECT MAX(id) FROM run_logs")
     suspend fun maximumId(): Long?
+
+    @Query("SELECT MAX(id) FROM run_logs")
+    fun maximumIdFlow(): Flow<Long?>
 }
