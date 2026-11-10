@@ -14,6 +14,7 @@ import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.storage.CorruptStoredRecordException
 import com.opentasker.core.storage.StorageDecodeIssue
 import com.opentasker.core.transfer.ImportBudgetExceededException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
@@ -79,11 +80,13 @@ internal suspend fun SnackbarHostState.showUiMessages(
     var stickyMinimum: Job? = null
     // Set while a reason waits behind another snackbar.
     var unshownReason: ReasonVisuals? = null
+    var stickyReason: ReasonVisuals? = null
 
     fun holdReason(reason: ReasonVisuals) {
         // A reason held again after an Undo can still carry the flag from its last hold.
         reason.displacedUnseen = false
         unshownReason = reason
+        stickyReason = reason
         // Counted from when the reason shows: it can wait behind a long snackbar first.
         val minimum = launch {
             snapshotFlow { currentSnackbarData?.visuals === reason }.first { it }
@@ -114,7 +117,12 @@ internal suspend fun SnackbarHostState.showUiMessages(
                 waited?.join()
             } while (stickyMinimum !== waited)
         }
-        val jumpedReason = if (message.action != null) unshownReason else null
+        // A reason displaced unseen whose own re-hold hasn't run yet is cancelled below, so it's jumped too.
+        val jumpedReason = if (message.action != null) {
+            unshownReason ?: stickyReason?.takeIf { it.displacedUnseen }
+        } else {
+            null
+        }
         // Cancelling the shown snackbar's call takes it off screen and frees the host for this one.
         sticky?.cancelAndJoin()
         // An Undo keeps its button, so a message carrying one takes the path below.
@@ -152,7 +160,8 @@ internal suspend fun SnackbarHostState.showSnackbarOverReason(
     withDismissAction: Boolean = false,
 ): SnackbarResult = coroutineScope {
     val visuals = DirectVisuals(message, actionLabel, withDismissAction)
-    val clearing = launch {
+    // Started on the spot, so "already up" means up when this was asked for, not a dispatch later.
+    val clearing = launch(start = CoroutineStart.UNDISPATCHED) {
         var alreadyUp = true
         snapshotFlow { currentSnackbarData }.first { data ->
             val reason = data?.visuals as? ReasonVisuals

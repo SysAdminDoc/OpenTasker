@@ -137,10 +137,12 @@ class LocalizationSourceTest {
     @Test
     fun copyOutsideComposeTextStaysInResources() {
         // Toasts, Locale blurbs and NFC write results never pass through Text(), so the Compose
-        // patterns can't see them. Prose is a quoted phrase that opens with a capitalized or hyphenated
-        // word and a space or punctuation, with a number and then a word, or with a template and then a
-        // lowercase word. Not read: all-lowercase copy, a single word on its own, and copy assembled in
-        // a local val or from fragments.
+        // patterns can't see them. Prose is a quoted phrase that opens with an ASCII capitalized word
+        // (hyphens and apostrophes allowed) and then a space or one of ,:;!?, with a number, a space and a
+        // lowercase word of two or more letters, or with a template that a lowercase word follows. Not
+        // read: all-lowercase copy, a single word on its own or before a period, a number before a capital
+        // or a symbol, a non-ASCII capital, "$it", multi-line strings, and copy assembled in a local val
+        // or from fragments.
         val files = listOf(
             "com/opentasker/core/contexts/NfcTagWriteSession.kt",
             "com/opentasker/core/plugins/locale/LocaleConditionEditActivity.kt",

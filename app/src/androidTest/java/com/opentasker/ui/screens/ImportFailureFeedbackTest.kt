@@ -227,6 +227,10 @@ class ImportFailureFeedbackTest {
         composeTestRule.runOnIdle { assertTrue(undone) }
         composeTestRule.onNodeWithText(reason).assertIsDisplayed()
         composeTestRule.onNodeWithText(next).assertDoesNotExist()
+        // Still the reason's turn just short of its minimum, not merely the moment the Undo ends.
+        composeTestRule.mainClock.advanceTimeBy(STICKY_MESSAGE_MINIMUM_MS - 500)
+        composeTestRule.onNodeWithText(reason).assertIsDisplayed()
+        composeTestRule.onNodeWithText(next).assertDoesNotExist()
 
         composeTestRule.mainClock.advanceTimeBy(STICKY_MESSAGE_MINIMUM_MS + 1_000)
         composeTestRule.onNodeWithText(next).assertIsDisplayed()
