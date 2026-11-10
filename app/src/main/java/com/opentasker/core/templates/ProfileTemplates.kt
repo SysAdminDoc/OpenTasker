@@ -1,5 +1,6 @@
 package com.opentasker.core.templates
 
+import com.opentasker.core.contexts.CalendarSunEventPresets
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -517,6 +518,47 @@ object ProfileTemplateCatalog {
             actions = listOf(TemplateAction("vpn.tunnel", "Turn the VPN off", mapOf("client" to "tailscale", "state" to "down"))),
             exitActions = listOf(TemplateAction("vpn.tunnel", "Turn the VPN on", mapOf("client" to "tailscale", "state" to "up"))),
         ),
+        // Day and night are two templates because a blueprint installs exactly one profile.
+        ProfileTemplate(
+            id = "wallpaper-at-sunrise",
+            title = "Day wallpaper at sunrise",
+            summary = "Switch to your daytime wallpaper when the sun comes up.",
+            category = "Display",
+            availability = TemplateAvailability.Ready,
+            safetyNote = SUN_WALLPAPER_NOTE,
+            inputs = sunLocationInputs() + TemplateSlot("image", "Day image", "/storage/emulated/0/Pictures/day.jpg", hint = WALLPAPER_IMAGE_HINT),
+            contexts = listOf(atSun("sunrise")),
+            actions = listOf(TemplateAction("wallpaper.set", "Set the day wallpaper", mapOf("path" to "{image}", "target" to "both"))),
+        ),
+        ProfileTemplate(
+            id = "wallpaper-at-sunset",
+            title = "Night wallpaper at sunset",
+            summary = "Switch to your nighttime wallpaper when the sun goes down.",
+            category = "Display",
+            availability = TemplateAvailability.Ready,
+            safetyNote = SUN_WALLPAPER_NOTE,
+            inputs = sunLocationInputs() + TemplateSlot("image", "Night image", "/storage/emulated/0/Pictures/night.jpg", hint = WALLPAPER_IMAGE_HINT),
+            contexts = listOf(atSun("sunset")),
+            actions = listOf(TemplateAction("wallpaper.set", "Set the night wallpaper", mapOf("path" to "{image}", "target" to "both"))),
+        ),
+    )
+
+    private const val SUN_WALLPAPER_NOTE = "Creates a disabled profile. Before turning it on, open its action and pick the image with Browse, " +
+        "since OpenTasker can't read a typed photo path by itself. Sun times come from the latitude and longitude you enter, so no location access is needed."
+
+    private const val WALLPAPER_IMAGE_HINT = "Pick it with Browse in the action after installing"
+
+    private fun sunLocationInputs() = listOf(
+        TemplateSlot("latitude", "Latitude", "40.7580", hint = "Decimal degrees; your town is close enough", selector = BlueprintSelectorKind.DECIMAL, minimum = -90.0, maximum = 90.0),
+        TemplateSlot("longitude", "Longitude", "-73.9855", hint = "Decimal degrees", selector = BlueprintSelectorKind.DECIMAL, minimum = -180.0, maximum = 180.0),
+    )
+
+    /** The At sunrise / At sunset preset, placed at the coordinates entered. */
+    private fun atSun(event: String) = TemplateContext(
+        ContextType.EVENT,
+        // The at-preset's blank elevation is only there to undo a twilight preset in the editor.
+        CalendarSunEventPresets.presetsFor(event).first().config.filterValues(String::isNotBlank) +
+            mapOf("latitude" to "{latitude}", "longitude" to "{longitude}"),
     )
 
     private fun homeWifiInput() =

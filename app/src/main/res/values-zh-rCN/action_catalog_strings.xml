@@ -376,6 +376,15 @@
     <string name="action_option_tile_icon_star" formatted="false">星标</string>
     <string name="action_option_tile_icon_settings" formatted="false">设置</string>
     <string name="action_option_tile_icon_bolt" formatted="false">闪电</string>
+    <string name="catalog_action_wallpaper_set_name" formatted="false">设置壁纸</string>
+    <string name="catalog_action_wallpaper_set_description" formatted="false">将主屏幕或锁屏壁纸换成一张图片</string>
+    <string name="catalog_action_wallpaper_set_field_path_label" formatted="false">图片</string>
+    <string name="catalog_action_wallpaper_set_field_path_hint" formatted="false">点按“浏览”选择图片，重启后仍可读取</string>
+    <string name="catalog_action_wallpaper_set_field_target_label" formatted="false">屏幕</string>
+    <string name="catalog_action_wallpaper_set_field_target_hint" formatted="false">默认两者都设置</string>
+    <string name="action_option_wallpaper_both" formatted="false">主屏幕和锁屏</string>
+    <string name="action_option_wallpaper_home" formatted="false">主屏幕</string>
+    <string name="action_option_wallpaper_lock" formatted="false">锁屏</string>
     <string name="catalog_action_app_launch_name" formatted="false">启动应用</string>
     <string name="catalog_action_app_launch_description" formatted="false">启动一个已安装的应用</string>
     <string name="catalog_action_app_launch_field_package_label" formatted="false">包名</string>

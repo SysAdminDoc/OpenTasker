@@ -925,7 +925,7 @@ private fun ActionFileFieldInput(
             TextButton(
                 onClick = {
                     if (field.fileRule?.scope == ActionFileScope.OPENTASKER) expanded = true
-                    else openDocument.launch(arrayOf("*/*"))
+                    else openDocument.launch((field.fileRule?.pickerMimeTypes ?: listOf("*/*")).toTypedArray())
                 },
             ) { Text(stringResource(R.string.action_browse)) }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

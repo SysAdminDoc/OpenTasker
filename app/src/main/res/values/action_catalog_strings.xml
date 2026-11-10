@@ -410,6 +410,15 @@
     <string name="action_option_tile_icon_star" formatted="false">Star</string>
     <string name="action_option_tile_icon_settings" formatted="false">Settings</string>
     <string name="action_option_tile_icon_bolt" formatted="false">Bolt</string>
+    <string name="catalog_action_wallpaper_set_name" formatted="false">Set Wallpaper</string>
+    <string name="catalog_action_wallpaper_set_description" formatted="false">Change the home or lock screen wallpaper to an image</string>
+    <string name="catalog_action_wallpaper_set_field_path_label" formatted="false">Image</string>
+    <string name="catalog_action_wallpaper_set_field_path_hint" formatted="false">Tap Browse to pick it, so it can still be read after a restart</string>
+    <string name="catalog_action_wallpaper_set_field_target_label" formatted="false">Screen</string>
+    <string name="catalog_action_wallpaper_set_field_target_hint" formatted="false">Both by default</string>
+    <string name="action_option_wallpaper_both" formatted="false">Home and lock screen</string>
+    <string name="action_option_wallpaper_home" formatted="false">Home screen</string>
+    <string name="action_option_wallpaper_lock" formatted="false">Lock screen</string>
     <string name="catalog_action_app_launch_name" formatted="false">Launch App</string>
     <string name="catalog_action_app_launch_description" formatted="false">Launch an installed application</string>
     <string name="catalog_action_app_launch_field_package_label" formatted="false">Package name</string>

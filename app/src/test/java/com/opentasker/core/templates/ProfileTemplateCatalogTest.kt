@@ -29,6 +29,8 @@ class ProfileTemplateCatalogTest {
                 "search-incoming-numbers-automatic",
                 "vpn-off-at-home-tailscale",
                 "vpn-off-at-home-wireguard",
+                "wallpaper-at-sunrise",
+                "wallpaper-at-sunset",
             ),
             ids,
         )

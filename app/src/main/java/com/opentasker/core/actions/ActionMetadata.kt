@@ -41,6 +41,8 @@ enum class ActionNumberKind { INTEGER, DECIMAL }
 
 data class ActionFileRule(
     val scope: ActionFileScope = ActionFileScope.OPENTASKER,
+    /** What Browse offers for a device file; the typed path is never checked against it. */
+    val pickerMimeTypes: List<String> = listOf("*/*"),
 )
 
 enum class ActionFileScope { OPENTASKER, DEVICE_OR_URI }
@@ -139,6 +141,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "ringer.set",
     "torch.set",
     "tile.set",
+    "wallpaper.set",
     "app.launch",
     "app.kill",
     "home.go",
@@ -238,6 +241,13 @@ private fun decimalRule(minimum: Double? = null, maximum: Double? = null) =
 
 private val openTaskerFileRule = ActionFileRule(ActionFileScope.OPENTASKER)
 private val deviceFileRule = ActionFileRule(ActionFileScope.DEVICE_OR_URI)
+private val deviceImageRule = ActionFileRule(ActionFileScope.DEVICE_OR_URI, pickerMimeTypes = listOf("image/*"))
+
+private val wallpaperTargetOptions = listOf(
+    option("both", R.string.action_option_wallpaper_both),
+    option("home", R.string.action_option_wallpaper_home),
+    option("lock", R.string.action_option_wallpaper_lock),
+)
 
 // ============ Built-in Action Metadata ============
 
@@ -916,6 +926,19 @@ fun registerActionMetadata() {
                 ActionField("label", R.string.catalog_action_tile_set_field_label_label, required = false, hintRes = R.string.catalog_action_tile_set_field_label_hint),
                 ActionField("subtitle", R.string.catalog_action_tile_set_field_subtitle_label, required = false, hintRes = R.string.catalog_action_tile_set_field_subtitle_hint),
                 ActionField("icon", R.string.catalog_action_tile_set_field_icon_label, required = false, hintRes = R.string.catalog_action_tile_set_field_icon_hint, options = listOf(option("play", R.string.action_option_tile_icon_play), option("star", R.string.action_option_tile_icon_star), option("settings", R.string.action_option_tile_icon_settings), option("bolt", R.string.action_option_tile_icon_bolt))),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "wallpaper.set",
+            nameRes = R.string.catalog_action_wallpaper_set_name,
+            descriptionRes = R.string.catalog_action_wallpaper_set_description,
+            categoryRes = R.string.catalog_category_settings,
+            fields = listOf(
+                ActionField("path", R.string.catalog_action_wallpaper_set_field_path_label, FieldType.FILE, required = true, hintRes = R.string.catalog_action_wallpaper_set_field_path_hint, fileRule = deviceImageRule),
+                ActionField("target", R.string.catalog_action_wallpaper_set_field_target_label, FieldType.DROPDOWN, hintRes = R.string.catalog_action_wallpaper_set_field_target_hint, options = wallpaperTargetOptions),
             )
         )
     )

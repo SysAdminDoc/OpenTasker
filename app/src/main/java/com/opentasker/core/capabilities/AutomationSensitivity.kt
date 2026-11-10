@@ -124,6 +124,7 @@ object AutomationSensitivityRegistry {
         "ringer.set",
         "torch.set",
         "tile.set",
+        "wallpaper.set",
         "state.temporary",
         "ime.info",
         "ime.set",

@@ -94,6 +94,8 @@ object ActionCapabilityRegistry {
         // Device feedback covered by normal manifest permissions.
         "vibrate",
         "log",
+        // SET_WALLPAPER is a normal permission, so there is nothing for Setup to grant.
+        "wallpaper.set",
     )
 
     private val capabilities = mapOf(

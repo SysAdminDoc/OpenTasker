@@ -83,6 +83,7 @@ object ActionCatalog {
         define("ringer.set", ActionCategory.SETTINGS, ActionRetrySafety.IDEMPOTENT, ::RingerModeAction),
         define("torch.set", ActionCategory.SETTINGS, ActionRetrySafety.NEVER, ::TorchAction),
         define("tile.set", ActionCategory.SETTINGS, ActionRetrySafety.IDEMPOTENT, ::TileStateAction),
+        define("wallpaper.set", ActionCategory.SETTINGS, ActionRetrySafety.IDEMPOTENT, ::SetWallpaperAction),
         define("state.temporary", ActionCategory.SETTINGS, ActionRetrySafety.NEVER, ::TemporaryStateAction),
         define("app.launch", ActionCategory.APP, ActionRetrySafety.NEVER, ::LaunchAppAction),
         define("app.archive", ActionCategory.APP, ActionRetrySafety.IDEMPOTENT, ::AppArchiveAction),
