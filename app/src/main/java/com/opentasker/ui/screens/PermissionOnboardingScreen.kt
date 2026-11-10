@@ -212,6 +212,8 @@ internal data class PermissionSetupItem(
     val requirements: Set<SetupRequirement> = emptySet(),
     /** The check behind [granted] threw on this device, so [granted] is a fallback, not an answer. */
     val unavailable: Boolean = false,
+    /** Shown under the row. [body] isn't rendered in the list, so a row that must explain itself uses this. */
+    val note: String? = null,
 )
 
 data class BackupSetupState(
@@ -1704,6 +1706,15 @@ private fun PermissionSetupCard(
                     )
                 }
             }
+        }
+        item.note?.let { note ->
+            Text(
+                note,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                // Lines up with the title: 8dp row padding, 44dp icon tile, 12dp gap.
+                modifier = Modifier.padding(start = 64.dp, end = 8.dp, bottom = 12.dp),
+            )
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
     }

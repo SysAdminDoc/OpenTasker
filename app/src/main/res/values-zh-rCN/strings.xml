@@ -511,6 +511,7 @@
     <string name="setup_shizuku_status_permission_needed">Shizuku正在运行，但OpenTasker需要权限。</string>
     <string name="setup_shizuku_status_transport_unavailable">Shizuku已授予权限，但OpenTasker无法访问其辅助服务。需要提权的操作会拒绝运行，直到该连接恢复。</string>
     <string name="setup_shizuku_status_ready">Shizuku正在运行，已授予权限，且OpenTasker可以访问其辅助服务。</string>
+    <string name="setup_shizuku_android17_note">在 Android 17 上，原版 Shizuku 可能无法启动。GitHub 上 thedjchi 维护的 Shizuku 分支支持 Android 17，其主页显示版本 13.6 属于正常情况。部分手机重启后会关闭无线调试，而 OpenTasker 无法自行重新开启，因此重启后请在开发者选项中开启无线调试，再重新启动 Shizuku。</string>
     <string name="setup_termux_title">Termux脚本桥接</string>
     <string name="setup_termux_status_missing">未安装Termux。</string>
     <string name="setup_termux_status_version_unsupported">有界的命令结果需要Termux 0.109或更高版本。</string>

@@ -28,6 +28,7 @@ import com.opentasker.core.permissions.RuntimePermissionRequestHistory
 import com.opentasker.core.permissions.UsageAccess
 import com.opentasker.core.power.ShizukuPowerBackend
 import com.opentasker.core.power.ShizukuPowerState
+import com.opentasker.core.power.ShizukuPowerStatus
 import com.opentasker.core.scheduling.ExactAlarmSupport
 import com.opentasker.core.scripting.TermuxScriptBackend
 import com.opentasker.core.scripting.TermuxScriptState
@@ -465,6 +466,8 @@ internal fun buildPermissionItems(
             optional = true,
             allowActionWhenGranted = true,
             section = SetupSection.OPTIONAL,
+            note = context.getString(R.string.setup_shizuku_android17_note)
+                .takeIf { shizukuNeedsAndroid17Note(shizukuStatus, Build.VERSION.SDK_INT) },
         ),
         if (VpnClient.WIREGUARD.isInstalled(context)) PermissionSetupItem(
             title = context.getString(R.string.setup_wireguard_title),
@@ -522,6 +525,14 @@ internal fun pendingSetupRequirements(context: Context): Set<SetupRequirement> =
  */
 internal fun withSetupFocus(focus: List<String>, needed: Set<SetupRequirement>): List<String> =
     (focus + needed.map(SetupRequirement::name)).distinct()
+
+/**
+ * Upstream Shizuku hasn't changed since 2025-06 and doesn't start reliably on Android 17, so a
+ * row still waiting on its service names the fork and the reboot limit. A running service needs neither.
+ * Power mode starts off, so a stopped service usually reads as Disabled and the state alone misses it.
+ */
+internal fun shizukuNeedsAndroid17Note(status: ShizukuPowerStatus, sdkInt: Int): Boolean =
+    sdkInt >= ANDROID_17_API && !status.serviceRunning
 
 private fun PermissionSetupItem.withRuntimePermissionRecovery(
     context: Context,

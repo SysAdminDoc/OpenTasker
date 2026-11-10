@@ -521,6 +521,7 @@
     <string name="setup_shizuku_status_permission_needed">Shizuku is running but OpenTasker needs permission.</string>
     <string name="setup_shizuku_status_transport_unavailable">Shizuku has given permission, but OpenTasker cannot reach its helper service. Actions that need elevated access refuse to run until that connection comes back.</string>
     <string name="setup_shizuku_status_ready">Shizuku is running, it has given permission, and OpenTasker can reach its helper service.</string>
+    <string name="setup_shizuku_android17_note">On Android 17 the original Shizuku may not start. The thedjchi fork of Shizuku on GitHub supports it, and its home screen showing version 13.6 is expected. Some phones turn wireless debugging off when they restart, and OpenTasker can\'t turn it back on, so after a reboot turn it on in Developer options and start Shizuku again.</string>
     <string name="setup_wireguard_title">WireGuard tunnel control</string>
     <string name="setup_wireguard_body">Lets a profile turn your WireGuard tunnels on and off. Also turn on Allow remote control apps in the WireGuard settings, or it ignores the request.</string>
     <string name="setup_wireguard_required_for">Connect or Disconnect VPN with WireGuard</string>

@@ -137,7 +137,7 @@ object ShizukuPowerBackend {
             state = ShizukuPowerState.Ready,
             summary = "Shizuku is active, permission is granted, and a privileged transport is available.",
         )
-    }
+    }.copy(serviceRunning = serviceRunning)
 
     /** What each elevated action can do to the person holding the phone, shown before it's used. */
     internal val riskByAction: Map<String, String> = mapOf(
@@ -189,6 +189,8 @@ object ShizukuPowerBackend {
 data class ShizukuPowerStatus(
     val state: ShizukuPowerState,
     val summary: String,
+    /** Apart from [state], which reads Disabled whenever power mode is off, running or not. */
+    val serviceRunning: Boolean = false,
 ) {
     val managerInstalled: Boolean
         get() = state != ShizukuPowerState.NotInstalled

@@ -191,6 +191,8 @@ To run a Termux script, place it below `~/.termux/tasker/`, enable Termux's exte
 
 To run a script through Shizuku, put it where the shell user can read it (`/data/local/tmp` or shared storage), add its path and SHA-256 under **Approved Shizuku scripts** in More > Settings, and point a **Run Shizuku Script** action at it. It runs with `/system/bin/sh` as the shell user, so it doesn't need `rish` inside it and a `#!` line is ignored. Scripts can be up to 64 KB, and an edited script refuses to run until you approve its new hash. The capture prefix works the same way as above.
 
+On Android 17 the original Shizuku app may not start, and it hasn't been updated since June 2025. The [thedjchi fork](https://github.com/thedjchi/Shizuku/releases/tag/v13.7.0-thedjchi) adds Android 17 support and keeps the same package name, so Setup finds it like the original. Its author calls v13.7.0 the last release for now, and its home screen shows server version 13.6 while About says 13.7.0. That's expected. Some phones turn wireless debugging off when they restart (people report it on Samsung's One UI 8.5), and Shizuku can't start until it's back on. OpenTasker can't turn wireless debugging on by itself, so after a reboot switch it on in Developer options and start Shizuku again. Setup says the same thing on Android 17 while Shizuku isn't running.
+
 ### Bluetooth devices nearby
 
 Add a state context with the **Bluetooth device nearby** preset and type the device's name or address. OpenTasker looks for it about once a minute, and it can take a few minutes after a device leaves for the context to turn off. Open the Inspector to see what's around and how each device names itself.
