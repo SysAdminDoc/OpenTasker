@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Tasker exports now write contexts the way Tasker itself does, so Tasker can open them. Day and App contexts use Tasker's own fields, and so do Power, Headset Plugged, Display State, Battery Level, Wifi Connected, Device Boot and Notification. Anything Tasker can't hold exactly is left out, and the export names it along with its settings. Tasker's Day has no Invert switch, so "not Monday" goes out as the other six days, and an inverted time window stays out. A profile that fires on either of two contexts gets a warning too, because a Tasker profile needs all of them. Tasker files that use those states and events now import too.
+
 ## v0.2.96 - 2026-11-09 (unreleased)
 
 ### Changed

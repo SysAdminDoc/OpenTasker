@@ -29,7 +29,7 @@ class TaskerExportWarningsTest {
 
     @Test
     fun anInvertedContextReadsBackInverted() {
-        val xml = export(ContextSpec(ContextType.DAY, mapOf("days" to "MON"), invert = true)).xml
+        val xml = export(ContextSpec(ContextType.APPLICATION, mapOf("package" to "com.a"), invert = true)).xml
 
         val imported = TaskerXmlImporter.parse(xml, appVersion = "test", importedAtEpochMs = 0L).bundle.profiles.single()
 
@@ -43,7 +43,7 @@ class TaskerExportWarningsTest {
 
     @Test
     fun aStateComparisonThatCantBeWrittenIsNamed() {
-        val report = export(ContextSpec(ContextType.STATE, mapOf("key" to "battery", "operator" to "<", "value" to "20")))
+        val report = export(ContextSpec(ContextType.STATE, mapOf("key" to "speed", "operator" to ">", "value" to "10")))
 
         assertTrue(report.warnings.toString(), report.warnings.any { it.contains("operator") })
     }
@@ -57,9 +57,9 @@ class TaskerExportWarningsTest {
 
     @Test
     fun eventFiltersThatCantBeWrittenAreNamed() {
-        val report = export(ContextSpec(ContextType.EVENT, mapOf("event" to "notification", "package" to "com.a")))
+        val report = export(ContextSpec(ContextType.EVENT, mapOf("event" to "notification", "title" to "Door")))
 
-        assertTrue(report.warnings.toString(), report.warnings.any { it.contains("package") })
+        assertTrue(report.warnings.toString(), report.warnings.any { it.contains("title") })
     }
 
     @Test

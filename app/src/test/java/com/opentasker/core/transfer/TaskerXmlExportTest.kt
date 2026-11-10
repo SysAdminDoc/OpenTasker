@@ -197,7 +197,7 @@ class TaskerXmlExportTest {
         )
         val report = TaskerXmlExporter.export(listOf(profile), emptyList())
 
-        assertTrue(report.xml.contains("<package>com.example.app</package>"))
+        assertTrue(report.xml.contains("<pkg0>com.example.app</pkg0>"))
     }
 
     @Test

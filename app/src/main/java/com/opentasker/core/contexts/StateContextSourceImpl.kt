@@ -271,7 +271,7 @@ internal fun normalizeStateKey(key: String): String = when (key.trim().lowercase
     else -> key.trim().lowercase()
 }
 
-private fun normalizeStateExpectedValue(key: String, value: String): String? {
+internal fun normalizeStateExpectedValue(key: String, value: String): String? {
     val normalized = value.trim().lowercase()
     return when (key) {
         "headphones" -> when (normalized) {
@@ -340,7 +340,7 @@ private fun orientationMatches(actual: String, expected: String): Boolean = when
     else -> actual == expected
 }
 
-private fun parseStatePredicate(predicate: String): Triple<String, String, String>? =
+internal fun parseStatePredicate(predicate: String): Triple<String, String, String>? =
     STATE_PREDICATE_PATTERN.matchEntire(predicate.trim())?.let { match ->
         Triple(match.groupValues[1], match.groupValues[2], match.groupValues[3])
     }
@@ -364,8 +364,8 @@ private fun wifiMatches(
     }
 }
 
-private val WIFI_CONNECTED_WORDS = setOf("connected", "on", "true", "yes")
-private val WIFI_DISCONNECTED_WORDS = setOf("disconnected", "off", "false", "no")
+internal val WIFI_CONNECTED_WORDS = setOf("connected", "on", "true", "yes")
+internal val WIFI_DISCONNECTED_WORDS = setOf("disconnected", "off", "false", "no")
 
 /**
  * Whether a STATE spec compares the Wi-Fi *name*. Android reveals the name only to an app with

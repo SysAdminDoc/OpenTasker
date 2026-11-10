@@ -1,5 +1,12 @@
 package com.opentasker.core.transfer
 
+import com.opentasker.core.contexts.BootContextEvents
+import com.opentasker.core.contexts.DaySchedule
+import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
+import com.opentasker.core.contexts.WIFI_DISCONNECTED_WORDS
+import com.opentasker.core.contexts.normalizeStateExpectedValue
+import com.opentasker.core.contexts.normalizeStateKey
+import com.opentasker.core.contexts.parseStatePredicate
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -36,8 +43,19 @@ object TaskerXmlExporter {
         ContextType.TIME to setOf("start", "end"),
         ContextType.DAY to setOf("days"),
         ContextType.APPLICATION to setOf("package"),
-        ContextType.STATE to setOf("key", "value"),
-        ContextType.EVENT to setOf("event", "value"),
+        ContextType.STATE to setOf("key", "operator", "value", "predicate"),
+        // regex only changes how title, body and filter compare, and those keep an event out of the file.
+        ContextType.EVENT to setOf("event", "package", "regex"),
+    )
+
+    private val TASKER_WEEKDAY_NUMBERS = mapOf(
+        "SUN" to 1,
+        "MON" to 2,
+        "TUE" to 3,
+        "WED" to 4,
+        "THU" to 5,
+        "FRI" to 6,
+        "SAT" to 7,
     )
 
     private val REVERSE_ACTION_MAP: Map<String, String> = mapOf(
@@ -421,17 +439,27 @@ object TaskerXmlExporter {
         if (profile.contextExpression != null) {
             warnings += "Profile '${profile.name}' uses nested context grouping; Tasker XML cannot represent the grouping, so only leaf contexts were exported."
         }
+        // Tasker needs every context of a profile, so "Monday or Saturday" would read as both at once.
+        if (profile.contexts.mapNotNull(ContextSpec::orGroup).groupingBy { it }.eachCount().values.any { it > 1 }) {
+            warnings += "Profile '${profile.name}' fires when any one context of a group matches; Tasker profiles need all of them, so the copy fires only when every one does."
+        }
 
-        profile.contexts.forEachIndexed { index, context ->
-            val exported = exportContext(context, index)
+        // Tasker numbers contexts densely, so one left out doesn't leave a hole.
+        var written = 0
+        profile.contexts.forEach { context ->
+            val exported = exportContext(context, written)
             if (exported != null) {
+                written++
                 sb.appendLine(exported)
                 val lost = contextSettingsLost(context)
                 if (lost.isNotEmpty()) {
                     warnings += "Profile '${profile.name}' context ${context.type.name} lost settings Tasker XML has no place for: ${lost.joinToString(", ")}."
                 }
             } else {
-                warnings += "Profile '${profile.name}' context ${context.type.name} has no Tasker equivalent."
+                val settings = context.config.keys.filterNot { it.startsWith("_") }.sorted()
+                val inverted = if (context.invert) " (inverted)" else ""
+                warnings += "Profile '${profile.name}' context ${context.type.name}$inverted has no Tasker equivalent" +
+                    if (settings.isEmpty()) "." else ", so it was left out with its settings: ${settings.joinToString(", ")}."
             }
         }
 
@@ -440,9 +468,10 @@ object TaskerXmlExporter {
 
     private fun contextSettingsLost(context: ContextSpec): List<String> {
         val written = EXPORTED_CONTEXT_KEYS[context.type].orEmpty()
+        // The matcher reads a blank setting as no filter at all, so it loses nothing.
         return context.config
             .filter { (key, value) ->
-                key !in written && !key.startsWith("_") && !(key == "operator" && value.trim().ifEmpty { "=" } == "=")
+                key !in written && !key.startsWith("_") && value.isNotBlank() && !(key == "operator" && value.trim() == "=")
             }
             .keys
             .sorted()
@@ -454,14 +483,15 @@ object TaskerXmlExporter {
 
     private fun exportContext(context: ContextSpec, index: Int): String? {
         return when (context.type) {
+            // Tasker's Time has no invert, so an inverted window stays out.
             ContextType.TIME -> {
+                if (context.invert) return null
                 val start = context.config["start"] ?: return null
                 val end = context.config["end"] ?: return null
                 val (fh, fm) = parseClockParts(start) ?: return null
                 val (th, tm) = parseClockParts(end) ?: return null
                 buildString {
                     appendLine("""    <Time sr="con$index">""")
-                    appendInvert(context)
                     appendLine("      <fh>$fh</fh>")
                     appendLine("      <fm>$fm</fm>")
                     appendLine("      <th>$th</th>")
@@ -469,43 +499,130 @@ object TaskerXmlExporter {
                     append("    </Time>")
                 }
             }
+            // Tasker numbers weekdays from Sunday as 1, one wdayN field per day.
+            // Tasker's Day has no invert either, so "not Monday" goes out as the other six days.
             ContextType.DAY -> {
-                val days = context.config["days"] ?: return null
+                val chosen = DaySchedule.parse(context.config["days"].orEmpty()).mapNotNull(TASKER_WEEKDAY_NUMBERS::get).toSet()
+                if (chosen.isEmpty()) return null
+                val days = (if (context.invert) TASKER_WEEKDAY_NUMBERS.values.toSet() - chosen else chosen).sorted()
+                if (days.isEmpty()) return null
                 buildString {
-                    appendLine("""    <Day sr="con$index">""")
-                    appendInvert(context)
-                    appendLine("      <days>${escapeXml(days)}</days>")
+                    appendLine("""    <Day sr="con$index" ve="2">""")
+                    days.forEachIndexed { i, day -> appendLine("      <wday$i>$day</wday$i>") }
                     append("    </Day>")
                 }
             }
+            // Tasker keeps a label beside each package; the package is all this context has, so it's both.
+            // An activity filter would widen to the whole app, so that context stays out.
             ContextType.APPLICATION -> {
-                val pkg = context.config["package"] ?: return null
+                if (contextSettingsLost(context).isNotEmpty()) return null
+                val packages = packageList(context)
+                if (packages.isEmpty()) return null
                 buildString {
-                    appendLine("""    <Application sr="con$index">""")
+                    appendLine("""    <App sr="con$index" ve="2">""")
                     appendInvert(context)
-                    appendLine("      <package>${escapeXml(pkg)}</package>")
-                    append("    </Application>")
+                    appendLine("      <flags>2</flags>")
+                    packages.forEachIndexed { i, pkg -> appendLine("      <label$i>${escapeXml(pkg)}</label$i>") }
+                    packages.forEachIndexed { i, pkg -> appendLine("      <pkg$i>${escapeXml(pkg)}</pkg$i>") }
+                    append("    </App>")
                 }
             }
-            ContextType.STATE -> {
-                val key = context.config["key"] ?: return null
-                buildString {
-                    appendLine("""    <State sr="con$index">""")
-                    appendInvert(context)
-                    appendLine("      <name>${escapeXml(key)}</name>")
-                    context.config["value"]?.let { appendLine("      <value>${escapeXml(it)}</value>") }
-                    append("    </State>")
-                }
+            ContextType.STATE -> taskerState(context)?.let { codedContext("State", index, context, it) }
+            ContextType.EVENT -> taskerEvent(context)?.let { codedContext("Event", index, context, it) }
+            else -> null
+        }
+    }
+
+    /** Split the way the matcher splits a package list. */
+    private fun packageList(context: ContextSpec): List<String> =
+        context.config["package"].orEmpty().split(',', ';').map(String::trim).filter(String::isNotEmpty)
+
+    /** A Tasker state or event: its code, its argument fields, and whether Invert says "not". */
+    private data class TaskerContextCode(val code: Int, val args: List<String> = emptyList(), val negated: Boolean = false)
+
+    private fun codedContext(tag: String, index: Int, context: ContextSpec, coded: TaskerContextCode): String = buildString {
+        appendLine("""    <$tag sr="con$index" ve="2">""")
+        appendLine("      <code>${coded.code}</code>")
+        if (context.invert != coded.negated) appendLine("      <pin>true</pin>")
+        coded.args.forEach { appendLine("      $it") }
+        append("    </$tag>")
+    }
+
+    /**
+     * The states Tasker has a field for, read the way the matcher reads them. Anything Tasker would
+     * hold differently (another comparison, a Wi-Fi name it would take for a pattern) stays out.
+     */
+    private fun taskerState(context: ContextSpec): TaskerContextCode? {
+        if (contextSettingsLost(context).isNotEmpty()) return null
+        // A predicate the matcher can't parse never matches, so the key and value beside it don't count.
+        val predicate = context.config["predicate"]?.takeIf(String::isNotBlank)
+        val (rawKey, rawOperator, rawValue) = if (predicate != null) {
+            parseStatePredicate(predicate) ?: return null
+        } else {
+            Triple(context.config["key"].orEmpty(), context.config["operator"].orEmpty(), context.config["value"].orEmpty())
+        }
+        val key = normalizeStateKey(rawKey)
+        val operator = rawOperator.trim().ifEmpty { "=" }
+        val value = rawValue.trim()
+        if (value.isEmpty()) return null
+        if (key == "battery_level") {
+            val level = value.toIntOrNull() ?: return null
+            val (from, to) = when (operator) {
+                ">=" -> level to 100
+                ">" -> level + 1 to 100
+                "<=" -> 0 to level
+                "<" -> 0 to level - 1
+                // The matcher compares "=" as text, so "050" never equals a level of 50.
+                "=" -> if (value == level.toString()) level to level else return null
+                else -> return null
             }
-            ContextType.EVENT -> {
-                val event = context.config["event"] ?: return null
-                buildString {
-                    appendLine("""    <Event sr="con$index">""")
-                    appendInvert(context)
-                    appendLine("      <event>${escapeXml(event)}</event>")
-                    context.config["value"]?.let { appendLine("      <value>${escapeXml(it)}</value>") }
-                    append("    </Event>")
-                }
+            if (from !in 0..100 || to !in 0..100 || from > to) return null
+            return TaskerContextCode(140, listOf("""<Int sr="arg0" val="$from"/>""", """<Int sr="arg1" val="$to"/>"""))
+        }
+        if (operator != "=") return null
+        return when (key) {
+            // Power and Headset Plugged with their source left at Any. Power also counts a phone
+            // that's plugged in but holding its charge, which "charging" doesn't (A-398).
+            "charging", "headphones" -> {
+                val expected = normalizeStateExpectedValue(key, value) ?: return null
+                TaskerContextCode(if (key == "charging") 10 else 30, listOf("""<Int sr="arg0" val="0"/>"""), negated = expected == "false")
+            }
+            "screen" -> {
+                val expected = normalizeStateExpectedValue(key, value) ?: return null
+                TaskerContextCode(123, listOf("""<Int sr="arg0" val="${if (expected == "on") 1 else 0}"/>"""))
+            }
+            // Wifi Connected with no SSID means any network; Active 2 is Any.
+            "wifi" -> {
+                val word = value.lowercase()
+                val ssid = if (word in WIFI_CONNECTED_WORDS || word in WIFI_DISCONNECTED_WORDS) "" else value
+                if (ssid.startsWith("!") || ssid.any { it in "*+/%" }) return null
+                TaskerContextCode(
+                    160,
+                    listOf(
+                        """<Str sr="arg0" ve="3">${escapeXml(ssid)}</Str>""",
+                        """<Str sr="arg1" ve="3"/>""",
+                        """<Str sr="arg2" ve="3"/>""",
+                        """<Int sr="arg3" val="2"/>""",
+                    ),
+                    negated = word in WIFI_DISCONNECTED_WORDS,
+                )
+            }
+            else -> null
+        }
+    }
+
+    /** Device Boot, and Notification from one app or any app. A filter Tasker can't hold keeps the event out. */
+    private fun taskerEvent(context: ContextSpec): TaskerContextCode? {
+        if (contextSettingsLost(context).isNotEmpty()) return null
+        val packages = packageList(context)
+        return when (context.config["event"]?.trim()?.lowercase()) {
+            BootContextEvents.EVENT_BOOT_COMPLETED -> TaskerContextCode(411).takeIf { packages.isEmpty() }
+            "notification" -> {
+                if (packages.size > 1) return null
+                val owner = packages.singleOrNull()?.let {
+                    """<App sr="arg0"><appPkg>${escapeXml(it)}</appPkg><label>${escapeXml(it)}</label></App>"""
+                } ?: """<App sr="arg0"/>"""
+                TaskerContextCode(461, listOf(owner) + (1..6).map { """<Str sr="arg$it" ve="3"/>""" } + """<Int sr="arg7" val="0"/>""")
             }
             else -> null
         }

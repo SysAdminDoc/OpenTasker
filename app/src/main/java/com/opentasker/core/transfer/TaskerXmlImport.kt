@@ -1,6 +1,9 @@
 package com.opentasker.core.transfer
 
+import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.DaySchedule
+import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
+import com.opentasker.core.contexts.WIFI_DISCONNECTED_WORDS
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -331,6 +334,7 @@ object TaskerXmlImporter {
         profileName: String,
         lossyWarnings: MutableList<String>,
     ): ContextSpec? {
+        taskerCodedContext(type, element)?.let { return it }
         val config = buildMap {
             element.childText("event", "name", "key").takeIf { it.isNotBlank() }?.let { key ->
                 if (type == ContextType.EVENT) put("event", key) else put("key", key)
@@ -344,6 +348,65 @@ object TaskerXmlImporter {
             return null
         }
         return ContextSpec(type, config)
+    }
+
+    /**
+     * The Tasker states and events with an exact match here, read from Tasker's own fields. A field
+     * set to something this app can't hold (a power source, a battery range closed at both ends, a
+     * variable) leaves the context to the can't-be-imported warning.
+     */
+    private fun taskerCodedContext(type: ContextType, element: Element): ContextSpec? {
+        if (element.actionIntVariablesByIndex().isNotEmpty()) return null
+        val ints = element.actionIntsByIndex()
+        val strings = element.actionStringsByIndex()
+        fun state(key: String, value: String, operator: String = "=") = ContextSpec(
+            ContextType.STATE,
+            if (operator == "=") mapOf("key" to key, "value" to value) else mapOf("key" to key, "operator" to operator, "value" to value),
+        )
+        return when (type) {
+            ContextType.STATE -> when (element.childText("code")) {
+                "10" -> state("charging", "true").takeIf { ints[0] == 0 }
+                "30" -> state("headphones", "true").takeIf { ints[0] == 0 }
+                "123" -> when (ints[0]) {
+                    1 -> state("screen", "on")
+                    0 -> state("screen", "off")
+                    else -> null
+                }
+                "140" -> {
+                    val from = ints[0] ?: return null
+                    val to = ints[1] ?: return null
+                    when {
+                        from > to -> null
+                        from == to -> state("battery_level", from.toString())
+                        to == 100 -> state("battery_level", from.toString(), ">=")
+                        from == 0 -> state("battery_level", to.toString(), "<=")
+                        else -> null
+                    }
+                }
+                "160" -> {
+                    val ssid = strings[0].orEmpty()
+                    val anyNetwork = strings[1].isNullOrBlank() && strings[2].isNullOrBlank() && ints[3] == 2
+                    // A network named "Off" or "connected" would read here as Wi-Fi's on/off state.
+                    val reservedWord = ssid.lowercase().let { it in WIFI_CONNECTED_WORDS || it in WIFI_DISCONNECTED_WORDS }
+                    when {
+                        !anyNetwork || reservedWord || ssid.startsWith("!") || ssid.any { it in "*+/%" } -> null
+                        ssid.isEmpty() -> state("wifi", "connected")
+                        else -> state("wifi", ssid)
+                    }
+                }
+                else -> null
+            }
+            ContextType.EVENT -> when (element.childText("code")) {
+                "411" -> ContextSpec(ContextType.EVENT, mapOf("event" to BootContextEvents.EVENT_BOOT_COMPLETED))
+                "461" -> {
+                    if ((1..6).any { !strings[it].isNullOrBlank() } || (ints[7] ?: 0) != 0) return null
+                    val owner = element.actionAppPackage(0)
+                    ContextSpec(ContextType.EVENT, listOfNotNull("event" to "notification", owner?.let { "package" to it }).toMap())
+                }
+                else -> null
+            }
+            else -> null
+        }
     }
 
     private fun parseAction(taskName: String, element: Element, actionIndex: Int): ParsedTaskerAction {
