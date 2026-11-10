@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -146,7 +147,10 @@ private fun TileConfigScreen(
     var iconKey by rememberSaveable(slot) { mutableStateOf(initial.iconKey) }
     val selectedTask = tasks.firstOrNull { it.id == taskId }
 
+    // Edge to edge, the window no longer resizes for the keyboard, so with enough tasks above them
+    // the Label and Subtitle fields would sit under it. Same fix as the main shell's Scaffold.
     Scaffold(
+        modifier = Modifier.imePadding(),
         topBar = {
             TopAppBar(
                 title = {

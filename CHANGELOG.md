@@ -23,6 +23,7 @@
 - The Locale condition editor now opens right under the variable you tap, keeps what you typed when you rotate, says why it can't save, and Clear really does clear the selection.
 - The widget, Quick Settings and Locale setup screens show a spinner while they load. They used to claim you had no tasks for a moment, and Setup's script count did the same.
 - The widget, Quick Settings and Locale setup screens wait for your saved theme before they draw, so they no longer flash the wrong one.
+- The Quick Settings tile setup screen makes room for the keyboard. The list used to carry on underneath it, so Save tile was hidden while you typed and you couldn't scroll to it.
 - Removing device admin from Setup now waits until Android has finished before updating the row, and tells you if it didn't work.
 - Screen readers now hear the right label on search clear buttons, the watched setting switches and the secret variable switch, and scene errors show a warning icon, so they no longer depend on color alone.
 - Watch a setting turns off at the 64 rule limit and says why. A 65th rule used to vanish as soon as you saved it.
