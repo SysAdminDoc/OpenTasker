@@ -14,6 +14,10 @@
 - SQLCipher moves from 4.18.0 to 4.20.0, which puts the encrypted database on SQLite 3.54.1.
 - The Android Gradle Plugin moves from 9.3.2 to 9.5.1.
 
+### Security
+
+- Other apps can't fake an NFC tap anymore. Tags now come in through an entry only Android's NFC service is allowed to open, and OpenTasker ignores a tag handed to it any other way. Before this, any installed app could fire your NFC profiles or finish an armed tag write without a tag. Turning the phone or reopening OpenTasker from Recents also no longer runs the last tag's profile a second time.
+
 ### Fixed
 
 - Tasker exports now write contexts the way Tasker itself does, so Tasker can open them. Day and App contexts use Tasker's own fields, and so do Power, Headset Plugged, Display State, Battery Level, Wifi Connected, Device Boot and Notification. Anything Tasker can't hold exactly is left out, and the export names it along with its settings. Tasker's Day has no Invert switch, so "not Monday" goes out as the other six days, and an inverted time window stays out. A profile that fires on either of two contexts gets a warning too, because a Tasker profile needs all of them. Tasker files that use those states and events now import too.

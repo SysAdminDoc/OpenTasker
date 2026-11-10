@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.core.content.ContextCompat
 import com.opentasker.core.contexts.NfcContextEvents
+import com.opentasker.core.contexts.NfcDeliveryGate
 import com.opentasker.core.contexts.NfcTagWriteSession
 import com.opentasker.core.engine.AutomationService
 import com.opentasker.ui.screens.ActiveAutomationUi
@@ -105,7 +106,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         startAutomationService()
-        handleNfcIntent(intent)
+        handleNfcIntent(intent, restored = savedInstanceState != null)
     }
 
     override fun onDestroy() {
@@ -116,11 +117,12 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleNfcIntent(intent)
+        handleNfcIntent(intent, restored = false)
     }
 
-    private fun handleNfcIntent(intent: Intent?) {
+    private fun handleNfcIntent(intent: Intent?, restored: Boolean) {
         if (intent == null) return
+        if (!NfcDeliveryGate.isFreshSystemDelivery(intent.component?.className, intent.flags, restored)) return
         if (NfcTagWriteSession.isArmed()) {
             // Tag connect/write/format is blocking I/O; running it on the UI thread during
             // onCreate/onNewIntent risks jank or an ANR. Hop to a background thread and let

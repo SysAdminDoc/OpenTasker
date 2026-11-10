@@ -165,7 +165,7 @@
             tools:targetApi="29" />
 
         <!--
-            singleTop is required for the NFC filter below, not a preference. Manifest NFC dispatch
+            singleTop is required for the NFC alias below, not a preference. Manifest NFC dispatch
             delivers a tag to a standard-launchMode activity by starting a *new* instance, so
             onNewIntent never ran and every tap stacked another copy of the app: the armed tag-write
             editor stayed buried in the back stack while its result was delivered to the instance
@@ -180,11 +180,23 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+
+        <!--
+            Tags come in here, never on MainActivity directly. Only the NFC service holds
+            DISPATCH_NFC_MESSAGE, so another app's forged TAG_DISCOVERED start is refused, and
+            NfcDeliveryGate ignores tag intents that didn't arrive through this alias.
+        -->
+        <activity-alias
+            android:name=".NfcTagDispatch"
+            android:exported="true"
+            android:permission="android.permission.DISPATCH_NFC_MESSAGE"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.nfc.action.TAG_DISCOVERED" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-        </activity>
+        </activity-alias>
 
         <activity
             android:name="com.opentasker.core.contexts.ShareReceiverActivity"
