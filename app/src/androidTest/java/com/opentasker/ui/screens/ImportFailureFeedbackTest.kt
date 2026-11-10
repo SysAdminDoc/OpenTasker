@@ -232,7 +232,8 @@ class ImportFailureFeedbackTest {
         composeTestRule.onNodeWithText(reason).assertIsDisplayed()
         composeTestRule.onNodeWithText(next).assertDoesNotExist()
 
-        composeTestRule.mainClock.advanceTimeBy(STICKY_MESSAGE_MINIMUM_MS + 1_000)
+        // A second past the minimum, so inside the next message's own short time.
+        composeTestRule.mainClock.advanceTimeBy(1_500)
         composeTestRule.onNodeWithText(next).assertIsDisplayed()
         composeTestRule.onNodeWithText(reason).assertDoesNotExist()
     }
