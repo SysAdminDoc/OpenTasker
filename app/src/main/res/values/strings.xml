@@ -1865,6 +1865,7 @@
     <string name="setup_target_signer_reapprove">Re-approve</string>
     <string name="setup_target_signer_reapproved">Re-approved %1$s</string>
     <string name="setup_target_signer_not_installed">%1$s is no longer installed</string>
+    <string name="setup_target_signer_unreadable">Couldn\'t read the signing certificate of %1$s, so it wasn\'t re-approved</string>
     <string name="action_preflight">Preflight</string>
     <string name="dialog_preflight_review">Preflight review</string>
     <string name="preflight_notice">Preview only: no network, file, setting, shell, notification, scene, or durable variable action will run.</string>

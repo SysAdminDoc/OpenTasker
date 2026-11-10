@@ -149,6 +149,7 @@ import com.opentasker.core.contexts.CompanionDeviceAssociation
 import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.apps.TargetSignerApproval
 import com.opentasker.core.apps.TargetSignerGuard
+import com.opentasker.core.apps.TargetSignerUnreadableException
 import com.opentasker.core.plugins.locale.LocaleGrant
 import com.opentasker.core.plugins.locale.LocaleGrantStore
 import com.opentasker.core.model.Profile
@@ -373,12 +374,22 @@ private class PermissionOnboardingViewModel(appContext: Context) : ViewModel() {
         }
     }
 
-    /** Re-pins [packageName] to its installed signer. [onDone] gets null when it is no longer installed. */
-    fun reapproveTargetSigner(packageName: String, onDone: (TargetSignerApproval?) -> Unit) {
+    /**
+     * Re-pins [packageName] to its installed signer. [onDone] gets the approval, null when it is
+     * no longer installed, or a failure when its signer can't be read (the pin is left as it was).
+     */
+    fun reapproveTargetSigner(packageName: String, onDone: (Result<TargetSignerApproval?>) -> Unit) {
         viewModelScope.launch {
-            val approval = withContext(Dispatchers.IO) { TargetSignerGuard.forContext(context).approve(packageName) }
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    Result.success(TargetSignerGuard.forContext(context).approve(packageName))
+                } catch (unreadable: TargetSignerUnreadableException) {
+                    AppLogger.warn("Setup", unreadable.message.orEmpty())
+                    Result.failure(unreadable)
+                }
+            }
             refresh()
-            onDone(approval)
+            onDone(result)
         }
     }
 
@@ -775,8 +786,11 @@ fun PermissionOnboardingScreen(
                             onMessage(grantCommandCopiedMessage)
                         }
                         is PermissionAction.ReapproveTargetSigner -> {
-                            setupViewModel.reapproveTargetSigner(action.packageName) { approval ->
-                                if (approval == null) {
+                            setupViewModel.reapproveTargetSigner(action.packageName) { result ->
+                                val approval = result.getOrNull()
+                                if (result.isFailure) {
+                                    onMessage(resources.getString(R.string.setup_target_signer_unreadable, action.packageName))
+                                } else if (approval == null) {
                                     onMessage(resources.getString(R.string.setup_target_signer_not_installed, action.packageName))
                                 } else {
                                     onUndoableMessage(resources.getString(R.string.setup_target_signer_reapproved, action.packageName)) {

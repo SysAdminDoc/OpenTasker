@@ -91,6 +91,10 @@ data class TargetSignerApproval(val pin: TargetSignerPin, val previous: TargetSi
  */
 class TargetSignerMismatchException(val packageName: String, message: String) : Exception(message)
 
+/** The package manager listed no signer for an installed package, so there is nothing to pin or compare. */
+class TargetSignerUnreadableException(val packageName: String) :
+    IllegalStateException("Couldn't read the signing certificate of $packageName.")
+
 class TargetSignerGuard(
     private val signatures: PackageSignatureSource,
     private val pins: TargetSignerPins,
@@ -127,7 +131,10 @@ class TargetSignerGuard(
         }
     }
 
-    /** Setup's Re-approve: trust whatever is installed now. Null when the package is gone. */
+    /**
+     * Setup's Re-approve: trust whatever is installed now. Null when the package is gone; throws
+     * [TargetSignerUnreadableException], leaving the pin as it was, when no signer can be read.
+     */
     fun approve(packageName: String): TargetSignerApproval? {
         synchronized(LOCK) {
             val installed = signatures.signers(packageName) ?: return null
@@ -213,7 +220,7 @@ internal fun signerMismatchMessage(packageName: String): String =
         "Re-approve $packageName in Setup if you trust the installed version."
 
 private fun InstalledSigners.requireCurrent(packageName: String): List<String> {
-    check(current.isNotEmpty()) { "Couldn't read the signing certificate of $packageName." }
+    if (current.isEmpty()) throw TargetSignerUnreadableException(packageName)
     return current.distinct().sorted()
 }
 

@@ -190,6 +190,18 @@ class TargetSignerGuardTest {
     }
 
     @Test
+    fun reapproveOfAnUnreadableSignerThrowsItsOwnTypeAndKeepsThePin() {
+        val old = TargetSignerPin(pkg, listOf(A), TargetSignerPinSource.APPROVED, 10L)
+        pins.put(old)
+        signatures.installed[pkg] = InstalledSigners(current = emptyList())
+
+        val error = assertThrows(TargetSignerUnreadableException::class.java) { guard.approve(pkg) }
+
+        assertEquals(pkg, error.packageName)
+        assertEquals(old, pins.get(pkg))
+    }
+
+    @Test
     fun codecRoundTripsAndRejectsMalformedPins() {
         val pin = TargetSignerPin(pkg, listOf(A, B), TargetSignerPinSource.FIRST_USE, 123L)
 
