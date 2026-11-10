@@ -50,17 +50,39 @@ object CalendarSunEventPresets {
         EventContextPreset(
             id = "$event-at",
             labelRes = if (event == "sunrise") R.string.context_preset_at_sunrise else R.string.context_preset_at_sunset,
-            config = mapOf("event" to event, "offsetMinutes" to "0", "windowMinutes" to "5"),
+            // A blank elevation is the ordinary sunrise or sunset, so this undoes a twilight preset.
+            config = mapOf("event" to event, "elevation" to "", "offsetMinutes" to "0", "windowMinutes" to "5"),
         ),
+        // Thirty minutes from sunrise or sunset, so these clear a twilight preset's elevation too.
         EventContextPreset(
             id = "$event-before",
             labelRes = R.string.context_preset_30_before,
-            config = mapOf("event" to event, "offsetMinutes" to "-30", "windowMinutes" to "10"),
+            config = mapOf("event" to event, "elevation" to "", "offsetMinutes" to "-30", "windowMinutes" to "10"),
         ),
         EventContextPreset(
             id = "$event-after",
             labelRes = R.string.context_preset_30_after,
-            config = mapOf("event" to event, "offsetMinutes" to "30", "windowMinutes" to "10"),
+            config = mapOf("event" to event, "elevation" to "", "offsetMinutes" to "30", "windowMinutes" to "10"),
         ),
-    )
+    ) + twilightLabels(event).map { (twilight, labelRes) ->
+        EventContextPreset(
+            id = "$event-$twilight",
+            labelRes = labelRes,
+            config = mapOf("event" to event, "elevation" to twilight, "offsetMinutes" to "0", "windowMinutes" to "5"),
+        )
+    }
+
+    private fun twilightLabels(event: String): List<Pair<String, Int>> = if (event == "sunrise") {
+        listOf(
+            "civil" to R.string.context_preset_civil_dawn,
+            "nautical" to R.string.context_preset_nautical_dawn,
+            "astronomical" to R.string.context_preset_astronomical_dawn,
+        )
+    } else {
+        listOf(
+            "civil" to R.string.context_preset_civil_dusk,
+            "nautical" to R.string.context_preset_nautical_dusk,
+            "astronomical" to R.string.context_preset_astronomical_dusk,
+        )
+    }
 }

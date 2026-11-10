@@ -24,6 +24,21 @@ class CalendarSunEventPresetsTest {
     }
 
     @Test
+    fun anOffsetPresetAfterCivilDuskGoesBackToSunset() {
+        val presets = CalendarSunEventPresets.presetsFor("sunset")
+        val civilDusk = CalendarSunEventPresets.applyPreset(
+            mapOf("event" to "sunset"),
+            presets.first { it.id == "sunset-civil" },
+        )
+        assertEquals("civil", civilDusk["elevation"])
+
+        for (id in listOf("sunset-before", "sunset-after", "sunset-at")) {
+            val config = CalendarSunEventPresets.applyPreset(civilDusk, presets.first { it.id == id })
+            assertEquals("$id keeps civil dusk's elevation", "", config["elevation"])
+        }
+    }
+
+    @Test
     fun applyPresetPreservesUnrelatedFilters() {
         val preset = CalendarSunEventPresets.presetsFor("calendar").first { it.id == "calendar-15-before" }
         val config = CalendarSunEventPresets.applyPreset(

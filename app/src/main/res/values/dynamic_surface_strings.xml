@@ -70,6 +70,8 @@
     <string name="context_field_event_offset_hint" formatted="false">-30</string>
     <string name="context_field_event_window_label" formatted="false">Sun window minutes</string>
     <string name="context_field_event_window_hint" formatted="false">5</string>
+    <string name="context_field_event_elevation_label" formatted="false">Sun elevation</string>
+    <string name="context_field_event_elevation_hint" formatted="false">Blank for sunrise or sunset, civil, nautical, astronomical, or degrees like -4</string>
     <string name="context_field_event_topic_label" formatted="false">Push topic</string>
     <string name="context_field_event_topic_hint" formatted="false">topic-name</string>
     <string name="context_field_event_id_label" formatted="false">Push event ID</string>
@@ -105,6 +107,12 @@
     <string name="context_preset_at_sunrise" formatted="false">At sunrise</string>
     <string name="context_preset_at_sunset" formatted="false">At sunset</string>
     <string name="context_preset_30_after" formatted="false">30 min after</string>
+    <string name="context_preset_civil_dawn" formatted="false">Civil dawn</string>
+    <string name="context_preset_nautical_dawn" formatted="false">Nautical dawn</string>
+    <string name="context_preset_astronomical_dawn" formatted="false">Astronomical dawn</string>
+    <string name="context_preset_civil_dusk" formatted="false">Civil dusk</string>
+    <string name="context_preset_nautical_dusk" formatted="false">Nautical dusk</string>
+    <string name="context_preset_astronomical_dusk" formatted="false">Astronomical dusk</string>
     <string name="context_preset_all_bluetooth_disconnected" formatted="false">All Bluetooth devices disconnected</string>
     <string name="context_preset_bluetooth_key_missing" formatted="false">Bluetooth key missing</string>
     <string name="context_preset_bluetooth_encrypted" formatted="false">Bluetooth link encrypted</string>

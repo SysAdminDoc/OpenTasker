@@ -4,6 +4,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.util.Locale
 import kotlin.math.acos
 import kotlin.math.asin
 import kotlin.math.atan
@@ -13,12 +14,35 @@ import kotlin.math.sin
 import kotlin.math.tan
 
 object SunEventCalculator {
+    /** Where the sun's centre sits at an ordinary sunrise or sunset, allowing for refraction and its radius. */
+    const val OFFICIAL_ELEVATION_DEGREES = -0.833
+
+    /** Twilight ends when the sun's centre is 6, 12 or 18 degrees below the horizon. */
+    val NAMED_ELEVATIONS = mapOf("civil" to -6.0, "nautical" to -12.0, "astronomical" to -18.0)
+
+    /**
+     * The sun elevation a sun context's `elevation` setting names, in degrees above the horizon.
+     * Blank is the ordinary sunrise or sunset; otherwise a twilight name or a number in -90..90.
+     * Null means the setting can't be read, so the context never fires.
+     */
+    fun elevationDegrees(raw: String?): Double? {
+        val value = raw?.trim().orEmpty()
+        if (value.isEmpty()) return OFFICIAL_ELEVATION_DEGREES
+        return NAMED_ELEVATIONS[value.lowercase(Locale.US)]
+            ?: value.toDoubleOrNull()?.takeIf { it in -90.0..90.0 }
+    }
+
+    /**
+     * The local minute the sun rises past, or sets below, [elevationDegrees] on [date]. Null when
+     * it never crosses that elevation there that day, as with civil dusk in a polar summer.
+     */
     fun eventMinuteOfDay(
         date: LocalDate,
         latitude: Double,
         longitude: Double,
         event: String,
         zone: ZoneId = ZoneId.systemDefault(),
+        elevationDegrees: Double = OFFICIAL_ELEVATION_DEGREES,
     ): Int? {
         if (latitude !in -90.0..90.0 || longitude !in -180.0..180.0) return null
         val sunrise = event.equals("sunrise", ignoreCase = true)
@@ -42,7 +66,8 @@ object SunEventCalculator {
 
         val sinDec = 0.39782 * sinDeg(trueLongitude)
         val cosDec = cos(asin(sinDec))
-        val cosHour = (cosDeg(OFFICIAL_ZENITH_DEGREES) - sinDec * sinDeg(latitude)) / (cosDec * cosDeg(latitude))
+        // The almanac writes this with the zenith, 90 degrees minus the elevation, so cos(zenith) is sin(elevation).
+        val cosHour = (sinDeg(elevationDegrees) - sinDec * sinDeg(latitude)) / (cosDec * cosDeg(latitude))
         if (cosHour > 1.0 || cosHour < -1.0) return null
 
         val hourAngle = if (sunrise) {
@@ -66,7 +91,6 @@ object SunEventCalculator {
     private fun tanDeg(value: Double): Double = tan(Math.toRadians(value))
     private fun radToDeg(value: Double): Double = Math.toDegrees(value)
 
-    private const val OFFICIAL_ZENITH_DEGREES = 90.833
     private const val MINUTES_PER_HOUR = 60
     private const val MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR
 }

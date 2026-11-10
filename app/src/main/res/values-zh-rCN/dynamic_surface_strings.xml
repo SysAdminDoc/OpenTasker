@@ -69,6 +69,8 @@
     <string name="context_field_event_offset_hint" formatted="false">-30</string>
     <string name="context_field_event_window_label" formatted="false">太阳窗口分钟数</string>
     <string name="context_field_event_window_hint" formatted="false">5</string>
+    <string name="context_field_event_elevation_label" formatted="false">太阳高度角</string>
+    <string name="context_field_event_elevation_hint" formatted="false">留空为日出或日落，也可填 civil、nautical、astronomical 或度数，如 -4</string>
     <string name="context_field_event_topic_label" formatted="false">推送主题</string>
     <string name="context_field_event_topic_hint" formatted="false">topic-name</string>
     <string name="context_field_event_id_label" formatted="false">推送事件ID</string>
@@ -104,6 +106,12 @@
     <string name="context_preset_at_sunrise" formatted="false">日出时</string>
     <string name="context_preset_at_sunset" formatted="false">日落时</string>
     <string name="context_preset_30_after" formatted="false">延后30分钟</string>
+    <string name="context_preset_civil_dawn" formatted="false">民用晨光始</string>
+    <string name="context_preset_nautical_dawn" formatted="false">航海晨光始</string>
+    <string name="context_preset_astronomical_dawn" formatted="false">天文晨光始</string>
+    <string name="context_preset_civil_dusk" formatted="false">民用昏影终</string>
+    <string name="context_preset_nautical_dusk" formatted="false">航海昏影终</string>
+    <string name="context_preset_astronomical_dusk" formatted="false">天文昏影终</string>
     <string name="context_preset_all_bluetooth_disconnected" formatted="false">所有蓝牙设备已断开</string>
     <string name="context_preset_bluetooth_key_missing" formatted="false">蓝牙密钥缺失</string>
     <string name="context_preset_bluetooth_encrypted" formatted="false">蓝牙链路已加密</string>

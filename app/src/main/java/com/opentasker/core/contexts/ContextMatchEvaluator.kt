@@ -313,7 +313,8 @@ object ContextMatchEvaluator {
         val zone = event.metadata["zone"]?.let { runCatching { ZoneId.of(it) }.getOrNull() }
             ?: ZoneId.systemDefault()
         val currentMinute = event.metadata["time"]?.let(::parseClockMinutes) ?: currentMinuteOfDay()
-        val baseMinute = SunEventCalculator.eventMinuteOfDay(date, latitude, longitude, expectedEvent, zone) ?: return null
+        val elevation = SunEventCalculator.elevationDegrees(firstConfig(spec, "elevation")) ?: return null
+        val baseMinute = SunEventCalculator.eventMinuteOfDay(date, latitude, longitude, expectedEvent, zone, elevation) ?: return null
         val offset = firstConfig(spec, "offsetMinutes", "offset").toIntOrNull() ?: 0
         val windowMinutes = (firstConfig(spec, "windowMinutes", "window").toIntOrNull() ?: 1).coerceIn(1, 180)
         val start = Math.floorMod(baseMinute + offset, MINUTES_PER_DAY)

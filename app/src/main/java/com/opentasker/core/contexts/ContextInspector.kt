@@ -266,10 +266,43 @@ fun contextConfigSummary(spec: ContextSpec): String {
             if (blurb != null) "$pkg ($blurb)" else pkg
         }
         ContextType.STATE -> stateConditionSummary(spec) ?: configEntriesSummary(spec.config)
+        ContextType.EVENT -> sunEventSummary(spec) ?: configEntriesSummary(spec.config)
         else -> configEntriesSummary(spec.config)
     }
     return if (spec.invert) "$summary; inverted" else summary
 }
+
+/** Names the moment a sun context waits for, "Civil dusk" rather than "elevation=civil, event=sunset". */
+private fun sunEventSummary(spec: ContextSpec): String? {
+    val event = spec.config["event"]?.trim()?.lowercase()
+    if (event != "sunrise" && event != "sunset") return null
+    val raw = spec.config["elevation"]?.trim().orEmpty()
+    // An unreadable elevation never matches, so it shows as written.
+    val degrees = SunEventCalculator.elevationDegrees(raw) ?: return null
+    val rising = event == "sunrise"
+    val moment = when {
+        raw.isEmpty() -> if (rising) "Sunrise" else "Sunset"
+        raw.lowercase() in SunEventCalculator.NAMED_ELEVATIONS -> {
+            val name = raw.lowercase().replaceFirstChar { it.uppercase() }
+            "$name ${if (rising) "dawn" else "dusk"} (sun ${degreesText(-degrees)} degrees below the horizon)"
+        }
+        else -> {
+            val motion = if (rising) "rising" else "setting"
+            when {
+                degrees > 0 -> "Sun $motion past ${degreesText(degrees)} degrees above the horizon"
+                degrees < 0 -> "Sun $motion past ${degreesText(-degrees)} degrees below the horizon"
+                else -> "Sun $motion past the horizon"
+            }
+        }
+    }
+    val extras = spec.config.filterKeys { it !in SUN_EVENT_KEYS }
+    return if (extras.isEmpty()) moment else "$moment, ${configEntriesSummary(extras)}"
+}
+
+private val SUN_EVENT_KEYS = setOf("event", "elevation")
+
+private fun degreesText(value: Double): String =
+    if (value == Math.rint(value)) value.toLong().toString() else value.toString()
 
 private fun configEntriesSummary(config: Map<String, String>): String =
     config.entries

@@ -71,6 +71,7 @@ import com.opentasker.core.contexts.DaySchedule
 import com.opentasker.core.contexts.EventContextPreset
 import com.opentasker.core.contexts.NfcTagWriteSession
 import com.opentasker.core.contexts.ScreenRecordingEventPresets
+import com.opentasker.core.contexts.SunEventCalculator
 import com.opentasker.core.contexts.BT_NEAR_STATE_KEY
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -468,6 +469,15 @@ internal fun contextInvalidFields(type: ContextType, config: Map<String, String>
         ContextType.EVENT -> {
             checkRange("latitude", -90.0, 90.0)
             checkRange("longitude", -180.0, 180.0)
+            val elevation = config["elevation"]?.trim().orEmpty()
+            if (elevation.lowercase() !in SunEventCalculator.NAMED_ELEVATIONS) {
+                // NaN and Infinity read as numbers but never reach a sun position.
+                if (elevation.toDoubleOrNull()?.isFinite() == false) {
+                    issues["elevation"] = ActionFieldPolicy.Issue(ActionFieldPolicy.Error.INVALID_NUMBER)
+                } else {
+                    checkRange("elevation", -90.0, 90.0)
+                }
+            }
         }
         else -> Unit
     }
@@ -514,6 +524,7 @@ private fun contextFields(type: ContextType): List<ActionField> = when (type) {
         ActionField("longitude", R.string.context_field_event_longitude_label, FieldType.NUMBER, hintRes = R.string.context_field_event_longitude_hint),
         ActionField("offsetMinutes", R.string.context_field_event_offset_label, FieldType.NUMBER, hintRes = R.string.context_field_event_offset_hint),
         ActionField("windowMinutes", R.string.context_field_event_window_label, FieldType.NUMBER, hintRes = R.string.context_field_event_window_hint),
+        ActionField("elevation", R.string.context_field_event_elevation_label, hintRes = R.string.context_field_event_elevation_hint),
         ActionField("topic", R.string.context_field_event_topic_label, hintRes = R.string.context_field_event_topic_hint),
         ActionField("eventId", R.string.context_field_event_id_label, hintRes = R.string.context_field_event_id_hint),
         ActionField("title", R.string.context_field_event_title_label, hintRes = R.string.context_field_event_title_hint),

@@ -337,8 +337,10 @@ object SyntheticTriggerSimulator {
         val longitude = longitudeRaw.toDoubleOrNull()
         val zone = ZoneId.systemDefault()
         val date = Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
-        val baseMinute = if (latitude != null && longitude != null) {
-            SunEventCalculator.eventMinuteOfDay(date, latitude, longitude, expectedEvent, zone)
+        val elevationRaw = first(spec.config, "elevation")
+        val elevation = SunEventCalculator.elevationDegrees(elevationRaw)
+        val baseMinute = if (latitude != null && longitude != null && elevation != null) {
+            SunEventCalculator.eventMinuteOfDay(date, latitude, longitude, expectedEvent, zone, elevation)
         } else {
             null
         }
@@ -356,6 +358,7 @@ object SyntheticTriggerSimulator {
         val issue = when {
             latitude == null || longitude == null -> "Sun event needs valid latitude and longitude."
             latitude !in -90.0..90.0 || longitude !in -180.0..180.0 -> "Sun event coordinates are out of range."
+            elevation == null -> "Sun elevation must be civil, nautical, astronomical, or degrees from -90 to 90, not '$elevationRaw'."
             baseMinute == null -> "The configured sun event is unavailable at these coordinates."
             offsetRaw.isNotBlank() && offsetRaw.toIntOrNull() == null -> "Sun event offset must be numeric."
             windowRaw.isNotBlank() && windowRaw.toIntOrNull() == null -> "Sun event window must be numeric."

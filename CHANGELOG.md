@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Sun contexts can wait for twilight. The presets add civil, nautical and astronomical dawn and dusk, and the new Sun elevation setting takes any angle in degrees, like -4 for the blue hour. The Inspector and profile cards name the twilight. Far enough north in summer the sun never gets that low, and the context just doesn't fire that day.
+
 ### Fixed
 
 - Tasker exports now write contexts the way Tasker itself does, so Tasker can open them. Day and App contexts use Tasker's own fields, and so do Power, Headset Plugged, Display State, Battery Level, Wifi Connected, Device Boot and Notification. Anything Tasker can't hold exactly is left out, and the export names it along with its settings. Tasker's Day has no Invert switch, so "not Monday" goes out as the other six days, and an inverted time window stays out. A profile that fires on either of two contexts gets a warning too, because a Tasker profile needs all of them. Tasker files that use those states and events now import too.
