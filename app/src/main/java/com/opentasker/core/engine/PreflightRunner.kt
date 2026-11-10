@@ -602,7 +602,8 @@ object PreflightRunner {
     private fun setupRequirements(task: Task, tasks: List<Task>): Set<SetupRequirement> =
         SetupRequirementResolver.resolve(
             profiles = listOf(Profile(id = -1, name = "Preflight", enabled = true, enterTaskId = task.id)),
-            tasks = tasks,
+            // The task that was simulated, even when the list has an older copy of it or none yet.
+            tasks = tasks.filterNot { it.id == task.id } + task,
         )
 
     private fun setupRequirements(profile: Profile, tasks: List<Task>): Set<SetupRequirement> =

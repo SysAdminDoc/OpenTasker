@@ -1612,10 +1612,11 @@ class ActiveAutomationViewModel(
     private fun startPreflight(target: PreflightTarget, requested: PreflightInputs) {
         preflightTransfer.launch { reportStage ->
             runTransferCatching {
-                // Read the live connection here rather than in the runner: the preview is pure
-                // and stays that way, and an HTTP Request limited to Wi-Fi should say so while
-                // the user is looking at it.
-                val inputs = requested.copy(activeTransport = readActiveTransport(appContext))
+                // Read the live connection and grants here rather than in the runner, so the
+                // preview stays pure. An HTTP Request limited to Wi-Fi should say so, and the
+                // missing grants should match what Setup shows.
+                val pending = withContext(Dispatchers.IO) { pendingSetupRequirements(appContext) }
+                val inputs = requested.copy(activeTransport = readActiveTransport(appContext), grantedSetupRequirements = grantedSetupRequirements(pending))
                 withContext(Dispatchers.Default) {
                     reportStage(TransferStage.Plan)
                     val availableTasks = tasks.value.toList()

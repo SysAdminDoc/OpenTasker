@@ -10,6 +10,7 @@ import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
+import com.opentasker.ui.screens.grantedSetupRequirements
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -59,6 +60,42 @@ class PreflightRunnerTest {
         val unknown = PreflightRunner.preflightTask(task = task, inputs = PreflightInputs())
         assertEquals(PreflightStepStatus.SIMULATED, unknown.tasks.single().steps.single().status)
     }
+
+    @Test
+    fun aGrantSetupShowsAsDoneIsNotListedAsMissing() {
+        val report = PreflightRunner.preflightTask(
+            task = dimTask,
+            inputs = PreflightInputs(grantedSetupRequirements = grantedSetupRequirements(pending = emptySet())),
+        )
+
+        assertEquals(setOf(SetupRequirement.WRITE_SETTINGS), report.setupRequirements)
+        assertTrue(report.missingSetupRequirements.toString(), report.missingSetupRequirements.isEmpty())
+    }
+
+    @Test
+    fun aGrantSetupStillListsIsNamedAsMissing() {
+        val report = PreflightRunner.preflightTask(
+            task = dimTask,
+            inputs = PreflightInputs(
+                grantedSetupRequirements = grantedSetupRequirements(pending = setOf(SetupRequirement.WRITE_SETTINGS)),
+            ),
+        )
+
+        assertEquals(setOf(SetupRequirement.WRITE_SETTINGS), report.missingSetupRequirements)
+    }
+
+    @Test
+    fun aTaskTheListLacksOrHasAnOlderCopyOfStillListsItsOwnSetup() {
+        val olderCopy = dimTask.copy(actions = listOf(ActionSpec(type = "var.set", args = mapOf("name" to "x", "value" to "1"))))
+
+        listOf(emptyList(), listOf(olderCopy)).forEach { stored ->
+            val report = PreflightRunner.preflightTask(task = dimTask, tasks = stored)
+
+            assertEquals(stored.toString(), setOf(SetupRequirement.WRITE_SETTINGS), report.setupRequirements)
+        }
+    }
+
+    private val dimTask = Task(id = 4, name = "Dim", actions = listOf(ActionSpec(type = "brightness.set", args = mapOf("level" to "40"))))
 
     @Test
     fun preflightExpandsSyntheticEventsAndReportsSelectedBranchWithoutRunningActions() {

@@ -519,6 +519,10 @@ internal fun pendingSetupRequirements(context: Context): Set<SetupRequirement> =
         .filter { !it.granted || it.unavailable }
         .flatMapTo(mutableSetOf()) { it.requirements }
 
+/** Everything Setup doesn't list as missing, the same split a task's Needs setup pill reads. */
+internal fun grantedSetupRequirements(pending: Set<SetupRequirement>): Set<SetupRequirement> =
+    SetupRequirement.entries.toSet() - pending
+
 /**
  * A Needs setup pill adds its rows to Setup's focus. Replacing it would drop a template's
  * context rows, such as Calendar, and no pill could bring those back.
