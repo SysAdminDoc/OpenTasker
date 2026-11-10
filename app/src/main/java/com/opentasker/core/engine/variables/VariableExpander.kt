@@ -309,17 +309,19 @@ class VariableExpander {
             // A variable on its own, such as `%enabled`, is a boolean once it has its value.
             return expandOperand(normalized).trim().toBoolean()
         }
-        val left = expandOperand(comparison.left)
-        val right = expandOperand(comparison.right)
+        // Trimmed after expansion: command output and file reads end with a newline, and a value
+        // that came back empty matches nothing, so two unset sides aren't "equal".
+        val left = expandOperand(comparison.left).trim()
+        val right = expandOperand(comparison.right).trim()
 
         return when (comparison.operator) {
-            ComparisonOperator.EQ -> left == right
+            ComparisonOperator.EQ -> left.isNotEmpty() && left == right
             ComparisonOperator.NE -> left != right
             ComparisonOperator.LE -> compareNumbers(left, right) { l, r -> l <= r }
             ComparisonOperator.GE -> compareNumbers(left, right) { l, r -> l >= r }
             ComparisonOperator.LT -> compareNumbers(left, right) { l, r -> l < r }
             ComparisonOperator.GT -> compareNumbers(left, right) { l, r -> l > r }
-            ComparisonOperator.MATCHES -> matchesGlob(left, right)
+            ComparisonOperator.MATCHES -> left.isNotEmpty() && matchesGlob(left, right)
             ComparisonOperator.NOT_MATCHES -> !matchesGlob(left, right)
         }
     }
@@ -417,7 +419,7 @@ class VariableExpander {
                 return !wantsNonEmpty
             }
             if (normalized.endsWith(suffix, ignoreCase = true)) {
-                val operand = expandOperand(normalized.removeSuffix(suffix).trim())
+                val operand = expandOperand(normalized.dropLast(suffix.length).trim()).trim()
                 return if (wantsNonEmpty) operand.isNotEmpty() else operand.isEmpty()
             }
         }

@@ -109,6 +109,31 @@ class ConditionValueInjectionTest {
     }
 
     @Test
+    fun aValueEndingInANewlineStillEqualsItsWord() {
+        assertTrue(ran("%sms_body == done", body = "done\n"))
+    }
+
+    @Test
+    fun twoEmptySidesAreNotEqual() {
+        assertFalse(ran("%sms_body == %other", body = "", extra = mapOf("other" to "")))
+    }
+
+    @Test
+    fun anEmptyValueMatchesNoPattern() {
+        assertFalse(ran("%sms_body ~ *", body = ""))
+    }
+
+    @Test
+    fun aValueThatIsOnlyWhitespaceIsNotSet() {
+        assertFalse(ran("%sms_body is_set", body = "\n"))
+    }
+
+    @Test
+    fun anExistenceCheckReadsTheSameInCapitals() {
+        assertFalse(ran("%sms_body IS_SET", body = ""))
+    }
+
+    @Test
     fun aVariableOnItsOwnStillReadsAsABoolean() {
         assertTrue(ran("%flag", body = "anything", extra = mapOf("flag" to "true")))
     }
