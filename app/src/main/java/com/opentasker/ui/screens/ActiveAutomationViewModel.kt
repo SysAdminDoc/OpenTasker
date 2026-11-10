@@ -1112,8 +1112,8 @@ class ActiveAutomationViewModel(
                     reportStage(TransferStage.Plan)
                     val bundle = bundleRepository.exportBundle(
                         appVersion = appVersion,
-                        name = "OpenTasker Community Share",
-                        description = "A local OpenTasker profile share draft.",
+                        name = appContext.getString(R.string.share_draft_default_name),
+                        description = appContext.getString(R.string.share_draft_default_description),
                     )
                     buildProfileShareReview(bundle)
                 }
@@ -1223,8 +1223,8 @@ class ActiveAutomationViewModel(
                     report(TransferStage.Write)
                     val bundle = bundleRepository.exportBundle(
                         appVersion = appVersion,
-                        name = "OpenTasker Workspace Export",
-                        description = "Profiles, tasks, variables, and scenes exported from OpenTasker.",
+                        name = appContext.getString(R.string.workspace_export_name),
+                        description = appContext.getString(R.string.workspace_export_description),
                     )
                     val encoded = OpenTaskerBundleCodec.encode(bundle)
                     val stream = appContext.contentResolver.openOutputStream(uri)
@@ -1412,9 +1412,9 @@ class ActiveAutomationViewModel(
     private suspend fun buildProfileShareReview(bundle: OpenTaskerBundle): ProfileShareReviewState {
         val draft = ProfileShareDraft(
             slug = defaultProfileShareSlug(bundle.metadata.name),
-            title = bundle.metadata.name.ifBlank { "OpenTasker Share" },
+            title = bundle.metadata.name.ifBlank { appContext.getString(R.string.share_draft_default_title) },
             summary = bundle.metadata.description.ifBlank {
-                "A local OpenTasker profile share draft."
+                appContext.getString(R.string.share_draft_default_description)
             },
             bundle = bundle,
         )

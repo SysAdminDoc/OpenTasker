@@ -196,10 +196,11 @@ internal fun ContextConfigDialog(
     val hasInvalidValues = invalidFields.isNotEmpty()
     val onLabel = stringResource(R.string.label_on)
     val offLabel = stringResource(R.string.label_off)
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         NfcTagWriteSession.results.collect { result ->
-            nfcWriteMessage = result.message
+            nfcWriteMessage = result.message(context)
         }
     }
     // Cancel any armed one-time NFC write when this editor leaves composition (dismiss or
@@ -291,7 +292,7 @@ internal fun ContextConfigDialog(
                                 tagId = config["tagId"].orEmpty(),
                                 message = nfcWriteMessage,
                                 onArm = { label ->
-                                    nfcWriteMessage = NfcTagWriteSession.armTextRecord(label).message
+                                    nfcWriteMessage = NfcTagWriteSession.armTextRecord(label).message(context)
                                 },
                             )
                         }

@@ -31,10 +31,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.opentasker.app.OpenTaskerApp_NoHilt
 import com.opentasker.app.R
+import com.opentasker.core.logging.AppLogger
 import com.opentasker.ui.theme.DesignSystem
 import com.opentasker.ui.theme.OpenTaskerTheme
 import com.opentasker.ui.screens.ContentLoadingState
 import com.opentasker.ui.theme.ThemePreference
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.emitAll
@@ -52,6 +54,11 @@ class LocaleSettingEditActivity : ComponentActivity() {
         // Awaited on first collection rather than in onCreate; see MainActivity.
         val tasksFlow = flow { emitAll(OpenTaskerApp_NoHilt.awaitDb().taskDao().getAllAsFlow()) }.map { tasks ->
             tasks.map { TaskPickerItem(it.id, it.name) }
+        }.catch { error ->
+            // awaitDb throws once its 30 seconds run out, which would otherwise crash the picker.
+            AppLogger.warn("LocaleSettingEdit", "Closed the task picker without a database", error)
+            setResult(RESULT_CANCELED)
+            finish()
         }
 
         setContent {
@@ -81,7 +88,7 @@ class LocaleSettingEditActivity : ComponentActivity() {
                                 putExtra(LocalePluginContract.EXTRA_BUNDLE, resultBundle)
                                 putExtra(
                                     LocalePluginContract.EXTRA_STRING_BLURB,
-                                    LocalePluginTarget.buildBlurb(item.name),
+                                    getString(R.string.locale_setting_blurb, item.name),
                                 )
                             }
                             setResult(RESULT_OK, resultIntent)
@@ -111,7 +118,7 @@ private fun TaskPickerList(
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
-                "No tasks available. Create a task in OpenTasker first.",
+                stringResource(R.string.locale_setting_no_tasks),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -139,7 +146,7 @@ private fun TaskPickerList(
                 Column(Modifier.padding(DesignSystem.Screen.horizontalPadding)) {
                     Text(task.name, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Task #${task.id}",
+                        stringResource(R.string.locale_setting_task_id, task.id),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

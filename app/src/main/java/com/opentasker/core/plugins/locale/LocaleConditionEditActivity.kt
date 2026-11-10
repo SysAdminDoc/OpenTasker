@@ -46,12 +46,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.opentasker.app.OpenTaskerApp_NoHilt
 import com.opentasker.app.R
-import com.opentasker.core.model.ContextType
+import com.opentasker.core.logging.AppLogger
 import com.opentasker.ui.theme.DesignSystem
 import com.opentasker.ui.theme.OpenTaskerTheme
 import com.opentasker.ui.screens.FullScreenContentLoading
+import com.opentasker.ui.screens.contextTitleRes
 import com.opentasker.ui.theme.ThemePreference
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -63,14 +66,9 @@ class LocaleConditionEditActivity : ComponentActivity() {
         // shared theme sets light status-bar icons, so a Light-theme user sees dark icons
         // on black - invisible - on Android 8 through 14. MainActivity already does this.
         enableEdgeToEdge()
-        val db = runCatching { OpenTaskerApp_NoHilt.db }.getOrNull()
-        if (db == null) {
-            setResult(RESULT_CANCELED)
-            finish()
-            return
-        }
-
-        val profilesFlow = db.profileDao().getAllAsFlow().map { entities ->
+        // Awaited on first collection rather than in onCreate, where the blocking getter could hold
+        // the main thread for up to 30 seconds after a staged restore; see MainActivity.
+        val profilesFlow = flow { emitAll(OpenTaskerApp_NoHilt.awaitDb().profileDao().getAllAsFlow()) }.map { entities ->
             entities.mapNotNull { entity ->
                 val decoded = entity.toDomainDecodeResult()
                 decoded.issue?.let { return@mapNotNull null }
@@ -82,20 +80,20 @@ class LocaleConditionEditActivity : ComponentActivity() {
                             profileId = decoded.value.id,
                             profileName = decoded.value.name,
                             index = index,
-                            label = contextLabel(context.type),
+                            label = getString(contextTitleRes(context.type)),
                         )
                     },
                 )
             }.sortedBy { it.name.lowercase() }
-        }
+        }.catch { closeWithoutDatabase(it) }
         val variablesFlow = flow {
             emit(
-                db.variableDao().getAll()
+                OpenTaskerApp_NoHilt.awaitDb().variableDao().getAll()
                     .filterNot { it.isSecret }
                     .map { LocaleConditionVariableItem(it.name, it.projectId) }
                     .sortedWith(compareBy<LocaleConditionVariableItem> { it.name.lowercase() }.thenBy { it.projectId }),
             )
-        }.flowOn(Dispatchers.IO)
+        }.flowOn(Dispatchers.IO).catch { closeWithoutDatabase(it) }
 
         setContent {
             val themeMode by ThemePreference.observe(this).collectAsState(initial = null)
@@ -124,6 +122,12 @@ class LocaleConditionEditActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    private fun closeWithoutDatabase(error: Throwable) {
+        AppLogger.warn("LocaleConditionEdit", "Closed the condition picker without a database", error)
+        setResult(RESULT_CANCELED)
+        finish()
     }
 }
 
@@ -179,6 +183,7 @@ private fun LocaleConditionEditor(
                 item { EmptyConditionText(stringResource(R.string.locale_condition_no_profiles)) }
             } else {
                 items(profiles, key = { "profile:${it.id}" }) { profile ->
+                    val blurb = stringResource(R.string.locale_condition_blurb_profile, profile.name)
                     ConditionChoiceCard(
                         title = profile.name,
                         detail = stringResource(R.string.locale_condition_profile_active),
@@ -189,7 +194,7 @@ private fun LocaleConditionEditor(
                                     profile.name,
                                     onIssueGrant(LocaleConditionGrantStore.profileKey(profile.id)),
                                 ),
-                                "Profile active: ${profile.name}",
+                                blurb,
                             )
                         },
                     )
@@ -201,6 +206,7 @@ private fun LocaleConditionEditor(
                 item { EmptyConditionText(stringResource(R.string.locale_condition_no_contexts)) }
             } else {
                 items(contexts, key = { "context:${it.profileId}:${it.index}" }) { context ->
+                    val blurb = stringResource(R.string.locale_condition_blurb_context, context.profileName, context.index + 1)
                     ConditionChoiceCard(
                         title = "${context.profileName} · ${context.label}",
                         detail = stringResource(R.string.locale_condition_context_satisfied),
@@ -215,7 +221,7 @@ private fun LocaleConditionEditor(
                                         LocaleConditionGrantStore.contextKey(context.profileId, context.index),
                                     ),
                                 ),
-                                "Context satisfied: ${context.profileName} #${context.index + 1}",
+                                blurb,
                             )
                         },
                     )
@@ -249,6 +255,11 @@ private fun LocaleConditionEditor(
                         // Right under the card: at the end of a long list the form appeared off
                         // screen and tapping a variable looked like it had done nothing.
                         if (variable == selectedVariable) {
+                            val blurb = stringResource(
+                                R.string.locale_condition_blurb_variable,
+                                variable.name,
+                                operatorLabel(selectedOperator),
+                            )
                             VariableComparisonEditor(
                                 variable = variable,
                                 operator = selectedOperator,
@@ -289,10 +300,7 @@ private fun LocaleConditionEditor(
                                             ),
                                         )
                                     }.onSuccess { values ->
-                                        onConfigured(
-                                            values,
-                                            "${variable.name} ${selectedOperator.wireName} configured value",
-                                        )
+                                        onConfigured(values, blurb)
                                     }.onFailure { saveFailed = true }
                                 },
                             )
@@ -412,13 +420,3 @@ private fun operatorLabel(operator: LocaleConditionOperator): String = stringRes
         LocaleConditionOperator.ENDS_WITH -> R.string.locale_condition_operator_ends_with
     },
 )
-
-private fun contextLabel(type: ContextType): String = when (type) {
-    ContextType.APPLICATION -> "Application"
-    ContextType.TIME -> "Time"
-    ContextType.DAY -> "Day"
-    ContextType.LOCATION -> "Location"
-    ContextType.STATE -> "Device state"
-    ContextType.EVENT -> "Event"
-    ContextType.PLUGIN -> "Plugin condition"
-}

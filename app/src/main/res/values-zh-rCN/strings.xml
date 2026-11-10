@@ -23,6 +23,28 @@
     <string name="widget_task_description">一键运行一个OpenTasker任务</string>
     <string name="widget_task_already_running">该任务已在运行</string>
     <string name="widget_task_missing">任务已删除。点击选择另一个。</string>
+    <string name="widget_task_invalid">此小部件或快捷方式没有指向任务。</string>
+    <string name="widget_task_not_found">该任务已不存在。</string>
+    <string name="widget_task_corrupt">无法读取%1$s。请恢复数据库备份后再运行。</string>
+    <string name="widget_task_result_succeeded">%1$s 成功（%2$d 毫秒）</string>
+    <string name="widget_task_result_failed">%1$s 失败（%2$d 毫秒）</string>
+    <string name="widget_task_result_skipped">%1$s 已跳过（%2$d 毫秒）</string>
+    <string name="widget_task_result_held">%1$s 已暂缓（%2$d 毫秒）</string>
+    <string name="widget_task_run_failed">任务无法运行。详情见诊断页面。</string>
+    <string name="nfc_write_armed">已准备写入%1$d字节的文本记录。请在60秒内扫描标签。</string>
+    <string name="nfc_write_no_tag">此次扫描没有包含标签，未写入任何内容。请重新扫描。</string>
+    <string name="nfc_write_io_failed">无法完成标签写入。请将标签贴紧手机并保持不动，然后重试。如果一直失败，标签可能有写保护，详情见诊断页面。</string>
+    <string name="nfc_write_failed">无法写入标签。详情见诊断页面。</string>
+    <string name="nfc_write_read_only">此NFC标签为只读。</string>
+    <string name="nfc_write_too_small">此NFC标签容量不足，无法写入%1$d字节的记录。</string>
+    <string name="nfc_write_no_ndef">此NFC标签不支持NDEF写入。</string>
+    <string name="nfc_write_written">已向NFC标签写入OpenTasker辅助文本。</string>
+    <string name="nfc_write_formatted">已格式化NFC标签并写入OpenTasker辅助文本。</string>
+    <string name="share_draft_default_name">OpenTasker社区分享</string>
+    <string name="share_draft_default_title">OpenTasker分享</string>
+    <string name="share_draft_default_description">本地OpenTasker配置文件分享草稿。</string>
+    <string name="workspace_export_name">OpenTasker工作区导出</string>
+    <string name="workspace_export_description">从OpenTasker导出的配置文件、任务、变量和场景。</string>
 
     <!-- Navigation -->
     <string name="locale_select_task_title">为Locale插件选择任务</string>
@@ -46,6 +68,12 @@
     <string name="locale_condition_operator_contains">包含</string>
     <string name="locale_condition_operator_starts_with">以…开头</string>
     <string name="locale_condition_operator_ends_with">以…结尾</string>
+    <string name="locale_condition_blurb_profile">配置文件活动：%1$s</string>
+    <string name="locale_condition_blurb_context">上下文已满足：%1$s #%2$d</string>
+    <string name="locale_condition_blurb_variable">%1$s %2$s 设定值</string>
+    <string name="locale_setting_blurb">运行任务：%1$s</string>
+    <string name="locale_setting_no_tasks">没有可用的任务。请先在OpenTasker中创建任务。</string>
+    <string name="locale_setting_task_id">任务 #%1$d</string>
     <string name="nav_profiles">配置文件</string>
     <string name="nav_tasks">任务</string>
     <string name="nav_run_log">运行日志</string>

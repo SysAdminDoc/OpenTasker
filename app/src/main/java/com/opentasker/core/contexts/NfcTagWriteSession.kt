@@ -1,5 +1,6 @@
 package com.opentasker.core.contexts
 
+import android.content.Context
 import android.content.Intent
 import android.nfc.NdefMessage
 import android.nfc.NdefRecord
@@ -8,6 +9,10 @@ import android.nfc.Tag
 import android.nfc.tech.Ndef
 import android.nfc.tech.NdefFormatable
 import android.os.Build
+import androidx.annotation.StringRes
+import com.opentasker.app.R
+import com.opentasker.core.logging.AppLogger
+import java.io.IOException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -19,8 +24,19 @@ data class NfcTagWritePlan(
 
 data class NfcTagWriteResult(
     val success: Boolean,
-    val message: String,
-)
+    @get:StringRes val messageRes: Int,
+    val messageArgs: List<Any> = emptyList(),
+) {
+    fun message(context: Context): String = context.getString(messageRes, *messageArgs.toTypedArray())
+}
+
+/**
+ * Connect, write and format raise a bare IOException both for a tag that left mid-write and for one
+ * that refused the write (only reads raise TagLostException), so the copy covers both.
+ */
+@StringRes
+internal fun nfcWriteFailureRes(error: Throwable): Int =
+    if (error is IOException) R.string.nfc_write_io_failed else R.string.nfc_write_failed
 
 object NfcTagWritePlanner {
     private const val MAX_TEXT_CHARS = 120
@@ -65,12 +81,7 @@ object NfcTagWriteSession {
         val plan = NfcTagWritePlanner.planTextRecord(label)
         pendingPlan = plan
         armedAtElapsedMs = android.os.SystemClock.elapsedRealtime()
-        return publish(
-            NfcTagWriteResult(
-                success = true,
-                message = "NFC write armed for a ${plan.estimatedBytes}-byte text record. Scan a tag within 60 seconds.",
-            )
-        )
+        return publish(NfcTagWriteResult(true, R.string.nfc_write_armed, listOf(plan.estimatedBytes)))
     }
 
     /** Cancels any pending write; safe to call when the editor dialog is dismissed. */
@@ -88,11 +99,13 @@ object NfcTagWriteSession {
             return null
         }
         val tag = intent.nfcTag()
-            ?: return publish(NfcTagWriteResult(false, "NFC write failed: no tag was attached to the scan intent."))
+            ?: return publish(NfcTagWriteResult(false, R.string.nfc_write_no_tag))
         val result = runCatching {
             writeTextRecord(tag, plan)
         }.getOrElse { error ->
-            NfcTagWriteResult(false, "NFC write failed: ${error.message ?: error::class.java.simpleName}")
+            // The tag's own exception text goes to the log; the dialog says what to do next.
+            AppLogger.warn("NfcTagWriteSession", "NFC write failed", error)
+            NfcTagWriteResult(false, nfcWriteFailureRes(error))
         }
         pendingPlan = null
         return publish(result)
@@ -106,24 +119,24 @@ object NfcTagWriteSession {
             ndef.connect()
             try {
                 if (!ndef.isWritable) {
-                    return NfcTagWriteResult(false, "NFC tag is read-only.")
+                    return NfcTagWriteResult(false, R.string.nfc_write_read_only)
                 }
                 if (ndef.maxSize < payloadSize) {
-                    return NfcTagWriteResult(false, "NFC tag is too small for a $payloadSize-byte record.")
+                    return NfcTagWriteResult(false, R.string.nfc_write_too_small, listOf(payloadSize))
                 }
                 ndef.writeNdefMessage(message)
-                return NfcTagWriteResult(true, "NFC tag written with OpenTasker helper text.")
+                return NfcTagWriteResult(true, R.string.nfc_write_written)
             } finally {
                 runCatching { ndef.close() }
             }
         }
 
         val formatable = NdefFormatable.get(tag)
-            ?: return NfcTagWriteResult(false, "NFC tag does not support NDEF writes.")
+            ?: return NfcTagWriteResult(false, R.string.nfc_write_no_ndef)
         formatable.connect()
         try {
             formatable.format(message)
-            return NfcTagWriteResult(true, "NFC tag formatted and written with OpenTasker helper text.")
+            return NfcTagWriteResult(true, R.string.nfc_write_formatted)
         } finally {
             runCatching { formatable.close() }
         }

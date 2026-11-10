@@ -26,7 +26,7 @@ class TaskRunActivity : Activity() {
         val taskId = intent.getLongExtra(EXTRA_TASK_ID, -1L)
         val source = intent.getStringExtra(EXTRA_SOURCE) ?: SOURCE_SHORTCUT
         if (taskId < 0) {
-            finishWithMessage("Invalid task")
+            finishWithMessage(getString(R.string.widget_task_invalid))
             return
         }
 
@@ -48,7 +48,7 @@ class TaskRunActivity : Activity() {
                 val db = OpenTaskerApp_NoHilt.db
                 val entity = db.taskDao().getById(taskId)
                 if (entity == null) {
-                    "Task not found"
+                    appContext.getString(R.string.widget_task_not_found)
                 } else {
                     val decoded = entity.toDomainDecodeResult()
                     val issue = decoded.issue
@@ -56,7 +56,7 @@ class TaskRunActivity : Activity() {
                         val reason = issue.recoveryMessage()
                         AppLogger.error(TAG, reason)
                         logSkippedRun(db, decoded.value, source, reason)
-                        "${decoded.value.name} is corrupt; restore a database backup"
+                        appContext.getString(R.string.widget_task_corrupt, decoded.value.name)
                     } else {
                         val task = decoded.value
                         val result = executeAndLogTask(
@@ -73,17 +73,17 @@ class TaskRunActivity : Activity() {
                             admissionController = ExecutionAdmissionRegistry.current(applicationContext),
                         )
                         val status = when {
-                            result.held -> "held"
-                            result.skippedReason != null -> "skipped"
-                            result.report.success -> "succeeded"
-                            else -> "failed"
+                            result.held -> R.string.widget_task_result_held
+                            result.skippedReason != null -> R.string.widget_task_result_skipped
+                            result.report.success -> R.string.widget_task_result_succeeded
+                            else -> R.string.widget_task_result_failed
                         }
-                        "${task.name} $status (${result.report.durationMs}ms)"
+                        appContext.getString(status, task.name, result.report.durationMs)
                     }
                 }
             } catch (e: Exception) {
                 AppLogger.error(TAG, "Task run failed", e)
-                "Task run failed"
+                appContext.getString(R.string.widget_task_run_failed)
             }
             finally {
                 RunningWidgetTasks.finish(taskId)

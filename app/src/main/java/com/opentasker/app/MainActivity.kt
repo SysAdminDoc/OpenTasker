@@ -128,7 +128,7 @@ class MainActivity : ComponentActivity() {
             lifecycleScope.launch(Dispatchers.IO) {
                 val writeResult = NfcTagWriteSession.writeFromIntent(intent)
                 if (writeResult != null) {
-                    AppLogger.debug("MainActivity", writeResult.message)
+                    AppLogger.debug("MainActivity", writeResult.message(this@MainActivity))
                 }
             }
             return

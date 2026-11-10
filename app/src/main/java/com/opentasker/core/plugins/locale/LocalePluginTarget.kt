@@ -32,9 +32,6 @@ object LocalePluginTarget {
             putString(BUNDLE_KEY_GRANT, grant)
         }
 
-    fun buildBlurb(taskName: String): String =
-        "Run task: $taskName"
-
     fun parseTaskId(bundle: Bundle?): Long? {
         if (bundle == null) return null
         val id = bundle.getLong(BUNDLE_KEY_TASK_ID, -1L)

@@ -1,5 +1,7 @@
 package com.opentasker.core.contexts
 
+import com.opentasker.app.R
+import java.io.IOException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -42,5 +44,13 @@ class NfcContextEventsTest {
         val plan = NfcTagWritePlanner.planTextRecord("   ")
 
         assertEquals("OpenTasker NFC trigger", plan.text)
+    }
+
+    @Test
+    fun aWriteTheTagDidntTakeSaysToHoldItStillAndPointsAtDiagnostics() {
+        // What Ndef.writeNdefMessage, connect() and NdefFormatable.format() throw when the tag leaves
+        // or refuses the write.
+        assertEquals(R.string.nfc_write_io_failed, nfcWriteFailureRes(IOException()))
+        assertEquals(R.string.nfc_write_failed, nfcWriteFailureRes(IllegalStateException("Call connect() first!")))
     }
 }

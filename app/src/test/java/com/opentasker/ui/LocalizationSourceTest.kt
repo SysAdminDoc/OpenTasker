@@ -43,6 +43,8 @@ class LocalizationSourceTest {
             "com/opentasker/ui/screens/DiagnosticsScreen.kt",
             "com/opentasker/ui/screens/RunLogFilters.kt",
             "com/opentasker/core/flow/AutomationFlowGraph.kt",
+            "com/opentasker/core/plugins/locale/LocaleConditionEditActivity.kt",
+            "com/opentasker/core/plugins/locale/LocaleSettingEditActivity.kt",
         )
         val forbiddenPatterns = mapOf(
             "Text literal" to Regex("""\bText\s*\(\s*""" + "\""),
@@ -129,6 +131,58 @@ class LocalizationSourceTest {
         assertTrue(
             "Known corrupt records must map to a generic resource",
             "R.string.ui_error_corrupt_record" in screenSources,
+        )
+    }
+
+    @Test
+    fun copyOutsideComposeTextStaysInResources() {
+        // Toasts, Locale blurbs and NFC write results never pass through Text(), so the Compose
+        // patterns can't see them. Prose is a quoted phrase that opens with a capitalized or hyphenated
+        // word and a space or punctuation, with a number and then a word, or with a template and then a
+        // lowercase word. Not read: all-lowercase copy, a single word on its own, and copy assembled in
+        // a local val or from fragments.
+        val files = listOf(
+            "com/opentasker/core/contexts/NfcTagWriteSession.kt",
+            "com/opentasker/core/plugins/locale/LocaleConditionEditActivity.kt",
+            "com/opentasker/core/plugins/locale/LocaleSettingEditActivity.kt",
+            "com/opentasker/core/plugins/locale/LocalePluginTarget.kt",
+            "com/opentasker/widget/TaskRunActivity.kt",
+        )
+        val logCall = Regex("""AppLogger\.\w+\((?:[^()]|\([^()]*\))*\)""")
+        val prose = Regex(
+            """"(?:[A-Z][A-Za-z'\x{2019}-]*[ ,:;!?][^"\n]*|\d[\d.,]* [a-z]{2,}[^"\n]*""" +
+                """|(?:\$\{[^}\n]*\}|\$\w+)[^"\n]* \(?[a-z]{2,}[^"\n]*)"""",
+        )
+        // An exception's own text, however it gets there: its message, its class name, or the whole thing.
+        val throwableText = Regex(
+            """\.(?:message|localizedMessage)\b(?!\s*\()""" +
+                """|(?:::class(?:\.java)?|\.javaClass)\.(?:simpleName|name|qualifiedName)""" +
+                """|\b(?:error|err|e|ex|t|cause|exception|throwable|failure|it)\??\.(?:toString|stackTraceToString)\(\)""" +
+                """|\b(?:String\.valueOf|getStackTraceString)\(""" +
+                """|\$\{?(?:error|err|e|ex|t|cause|exception|throwable|failure)\b""",
+        )
+        // KDoc and comment lines, but not a line that starts with a spread operator.
+        val comment = Regex("""^(?://|/\*|\*(?:\s|/|$))""")
+        // The text written onto a tag is data for whatever reads it, not copy on screen.
+        val tagPayload = Regex("""val DEFAULT_TEXT\s*=""")
+        val offenders = files.flatMap { relativePath ->
+            sourceRoot.resolve(relativePath).readText()
+                .replace(logCall, "")
+                .lineSequence()
+                .map(String::trim)
+                .filterNot { comment.containsMatchIn(it) || tagPayload.containsMatchIn(it) }
+                .flatMap { line -> (prose.findAll(line) + throwableText.findAll(line)).map { "$relativePath: ${it.value}" } }
+                .toList()
+        }
+        assertTrue("Move this copy to strings.xml: $offenders", offenders.isEmpty())
+
+        // Export and share-draft metadata is read by whoever opens the file. Not read: a literal
+        // routed through a local val first, and a lowercase one after ?:, which is how file slugs read.
+        val viewModel = sourceRoot.resolve("com/opentasker/ui/screens/ActiveAutomationViewModel.kt").readText()
+        val metadataLiteral = Regex("""\b(?:name|title|description|summary)\s*=\s*"|(?:ifBlank|ifEmpty)\s*\{\s*"|(?:\?:|->)\s*"[A-Z]""")
+        assertFalse(
+            "Export and share defaults must come from strings.xml: ${metadataLiteral.findAll(viewModel).map { it.value }.toList()}",
+            metadataLiteral.containsMatchIn(viewModel),
         )
     }
 

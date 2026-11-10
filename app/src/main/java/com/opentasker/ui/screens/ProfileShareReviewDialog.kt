@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.opentasker.app.R
@@ -285,7 +286,11 @@ private fun TaskerImportListSectionForShare(
 ) {
     InlineNotice(
         title = title,
-        body = values.take(6).joinToString("\n") + if (values.size > 6) "\n${values.size - 6} more" else "",
+        body = values.take(6).joinToString("\n") + if (values.size > 6) {
+            "\n" + pluralStringResource(R.plurals.import_review_more, values.size - 6, values.size - 6)
+        } else {
+            ""
+        },
         color = color,
     )
 }

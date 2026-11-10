@@ -23,6 +23,28 @@
     <string name="widget_task_description">Run an OpenTasker task with one tap</string>
     <string name="widget_task_already_running">That task is already running</string>
     <string name="widget_task_missing">Task deleted. Tap to choose another.</string>
+    <string name="widget_task_invalid">This widget or shortcut doesn\'t point to a task.</string>
+    <string name="widget_task_not_found">That task no longer exists.</string>
+    <string name="widget_task_corrupt">%1$s can\'t be read. Restore a database backup to run it.</string>
+    <string name="widget_task_result_succeeded">%1$s succeeded (%2$d ms)</string>
+    <string name="widget_task_result_failed">%1$s failed (%2$d ms)</string>
+    <string name="widget_task_result_skipped">%1$s skipped (%2$d ms)</string>
+    <string name="widget_task_result_held">%1$s held (%2$d ms)</string>
+    <string name="widget_task_run_failed">The task couldn\'t run. Diagnostics has the details.</string>
+    <string name="nfc_write_armed">NFC write armed for a %1$d-byte text record. Scan a tag within 60 seconds.</string>
+    <string name="nfc_write_no_tag">The scan didn\'t include a tag, so nothing was written. Scan it again.</string>
+    <string name="nfc_write_io_failed">Couldn\'t finish writing the tag. Hold it still against the phone and try again. If it keeps failing, the tag may be write-protected, and Diagnostics has the details.</string>
+    <string name="nfc_write_failed">Couldn\'t write the tag. Diagnostics has the details.</string>
+    <string name="nfc_write_read_only">This NFC tag is read-only.</string>
+    <string name="nfc_write_too_small">This NFC tag is too small for a %1$d-byte record.</string>
+    <string name="nfc_write_no_ndef">This NFC tag doesn\'t support NDEF writes.</string>
+    <string name="nfc_write_written">NFC tag written with OpenTasker helper text.</string>
+    <string name="nfc_write_formatted">NFC tag formatted and written with OpenTasker helper text.</string>
+    <string name="share_draft_default_name">OpenTasker Community Share</string>
+    <string name="share_draft_default_title">OpenTasker Share</string>
+    <string name="share_draft_default_description">A local OpenTasker profile share draft.</string>
+    <string name="workspace_export_name">OpenTasker Workspace Export</string>
+    <string name="workspace_export_description">Profiles, tasks, variables, and scenes exported from OpenTasker.</string>
 
     <!-- Navigation -->
     <string name="locale_select_task_title">Select task for Locale plugin</string>
@@ -48,6 +70,13 @@
     <string name="locale_condition_operator_contains">contains</string>
     <string name="locale_condition_operator_starts_with">starts with</string>
     <string name="locale_condition_operator_ends_with">ends with</string>
+    <!-- Blurbs: the summary a Locale host such as Tasker shows for the configured condition or setting. -->
+    <string name="locale_condition_blurb_profile">Profile active: %1$s</string>
+    <string name="locale_condition_blurb_context">Context satisfied: %1$s #%2$d</string>
+    <string name="locale_condition_blurb_variable">%1$s %2$s the configured value</string>
+    <string name="locale_setting_blurb">Run task: %1$s</string>
+    <string name="locale_setting_no_tasks">No tasks available. Create a task in OpenTasker first.</string>
+    <string name="locale_setting_task_id">Task #%1$d</string>
     <string name="nav_profiles">Profiles</string>
     <string name="nav_tasks">Tasks</string>
     <string name="nav_run_log">Run Log</string>

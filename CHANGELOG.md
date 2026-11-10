@@ -23,6 +23,8 @@
 - Tapping an action's Needs setup pill opens Setup on the access it's missing. Setup only lists access for enabled profiles, so a task you run by hand used to point at a row you couldn't find.
 - Play Sound opens a file with a # or ? in its name. The path used to stop there, so the sound never played.
 - On Android 17, Setup's Shizuku row explains that the original Shizuku may not start there, names the thedjchi fork that supports it, and says to turn wireless debugging back on after a reboot, since OpenTasker can't. The README says the same.
+- A failed NFC tag write says what to do next, like holding the tag still and trying again, or checking Diagnostics when the tag keeps refusing. It used to show the tag's raw exception, such as TagLostException. The widget's run messages, the Locale plugin's task and condition pickers, and the names OpenTasker gives share drafts and workspace exports can now be translated too, and they come in Chinese.
+- The Locale condition picker no longer freezes for up to 30 seconds when it's opened right after a backup restore. If the database still isn't back by then, the condition and task pickers close instead of crashing.
 
 ## v0.2.96 - 2026-11-09 (unreleased)
 
