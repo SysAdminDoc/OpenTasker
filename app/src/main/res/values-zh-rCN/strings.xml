@@ -1507,6 +1507,7 @@
     </plurals>
     <string name="synthetic_trigger_admission_rejected">一个运行上限本会阻止这一次。</string>
     <string name="ui_error_bundle_not_recognized">这看起来不像OpenTasker包。请粘贴从OpenTasker导出的JSON，或扫描其QR码。</string>
+    <string name="ui_error_import_budget_items">此文件过大，无法导入。其中的任务、配置文件、变量和场景合计不能超过%1$d个。</string>
     <string name="ui_error_run_action">该操作无法运行</string>
     <string name="ui_error_run_task">任务无法运行</string>
     <string name="ui_error_run_log_replay">无法重放已保留的运行</string>

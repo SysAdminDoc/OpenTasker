@@ -10,6 +10,7 @@
 - The Run Log picks up a new run on its own while you're on the first page. It used to keep showing old entries until you tapped Refresh. Once you've scrolled further back the list stays put, so nothing moves under you.
 - Setup explains why a Bluetooth device nearby context asks for Bluetooth connect: a paired device that's already connected, like a car or headphones, often doesn't show up in a scan.
 - The Inspector and profile cards show a state check the way it reads, like "Bluetooth device nearby = Car", where they used to show "key=bt_near, operator==, value=Car".
+- An import that's over the size limit says it would add too many tasks, profiles, variables and scenes. It used to say "entities".
 
 ## v0.2.96 - 2026-11-09 (unreleased)
 
