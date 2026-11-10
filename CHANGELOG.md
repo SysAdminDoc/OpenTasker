@@ -13,6 +13,7 @@
 - An import that's over the size limit says it would add too many tasks, profiles, variables and scenes. It used to say "entities".
 - Import JSON opens the bundle's import review. It used to open "Review community share" first, with share fields like the slug and screenshots that mean nothing to someone importing a file. Anything the share check would block (an action that can't run here) still blocks the import.
 - Tapping an action's Needs setup pill opens Setup on the access it's missing. Setup only lists access for enabled profiles, so a task you run by hand used to point at a row you couldn't find.
+- Play Sound opens a file with a # or ? in its name. The path used to stop there, so the sound never played.
 
 ## v0.2.96 - 2026-11-09 (unreleased)
 

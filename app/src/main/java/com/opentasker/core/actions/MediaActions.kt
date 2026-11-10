@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
 import android.view.KeyEvent
+import java.io.File
 import kotlinx.coroutines.suspendCancellableCoroutine
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
@@ -39,7 +40,8 @@ class PlaySoundAction : DeclaredAction(ActionCatalog.require("sound.play")) {
         )?.let { return it }
         val volume = args["volume"]?.toFloatOrNull()?.let { (it / 100f).coerceIn(0f, 1f) }
 
-        val uri = if (path.contains("://")) Uri.parse(path) else Uri.parse("file://$path")
+        // fromFile encodes a '#' or '?' in a file name, and MediaPlayer only knows lowercase schemes.
+        val uri = if (path.contains("://")) Uri.parse(path).normalizeScheme() else Uri.fromFile(File(path))
         // Local sources only. MediaPlayer will happily stream a remote URL, and that traffic
         // never passes the HTTP action's policy checks - which is the sole justification for
         // the manifest's cleartext allowance - so a public http:// sound would have punched

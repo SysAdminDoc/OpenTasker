@@ -59,6 +59,20 @@ class AlarmSoundAudioFocusInstrumentedTest {
         }
     }
 
+    @Test
+    fun aSoundWithAHashInItsFileNameStillPlays() = runBlocking {
+        // A path pasted after "file://" ended at the '#', which starts a URI fragment.
+        val sound = File(app.cacheDir, "chime#1 100%.wav").apply { writeBytes(shortSilentWav()) }
+        ActivityScenario.launch(ComponentActivity::class.java).use {
+            try {
+                val result = PlaySoundAction().run(ActionContext(app, VariableStore()), mapOf("path" to sound.absolutePath))
+                assertEquals(ActionResult.Success, result)
+            } finally {
+                sound.delete()
+            }
+        }
+    }
+
     private fun shortSilentWav(): ByteArray {
         val sampleRate = 8_000
         val dataBytes = sampleRate / 2 * 2
