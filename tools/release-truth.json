@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "kotlin": "2.4.20",
-    "gradle": "9.7.1",
+    "gradle": "9.9.1",
     "agp": "9.5.1",
     "ksp": "2.3.12",
     "room": "2.8.5",

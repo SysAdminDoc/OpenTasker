@@ -20,9 +20,9 @@ $SbomPath = Join-Path $ReportDirectory "sbom.cdx.json"
 $OsvReportPath = Join-Path $ReportDirectory "osv-advisories.json"
 $SummaryPath = Join-Path $ReportDirectory "local-release-gate.json"
 $JvmTestReportPath = Join-Path $ReportDirectory "jvm-test-count.json"
-$ExpectedGradleVersion = "9.7.1"
-$ExpectedGradleDistributionSha256 = "acd53f1edaf02f1a8ff99879f8a34b302661a057d9b063ae9e35b552f804d20a"
-$ExpectedGradleWrapperJarSha256 = "7a9ce74cff467ca1bf60a4fcd9f05185acceda4d0f382434d393e17864262c5d"
+$ExpectedGradleVersion = "9.9.1"
+$ExpectedGradleDistributionSha256 = "d8a18a7a841dd5df825d35a685fad6f2d7f12ac0c280e57b67c27b4a520ba228"
+$ExpectedGradleWrapperJarSha256 = "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8"
 
 function Resolve-GitSafeDirectory {
     $rootPath = [IO.Path]::GetFullPath($Root)

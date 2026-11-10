@@ -13,6 +13,7 @@
 - androidx.tracing moves from 1.3.0 to 2.0.5. Nothing here calls it directly, but WorkManager, Activity, core and Startup do, and every 1.3.0 call they make is still there in 2.0.5. It brings androidx.collection 1.6.0 along with it.
 - SQLCipher moves from 4.18.0 to 4.20.0, which puts the encrypted database on SQLite 3.54.1.
 - The Android Gradle Plugin moves from 9.3.2 to 9.5.1.
+- The Gradle wrapper moves from 9.7.1 to 9.9.1. That picks up Gradle's fixes for three high-severity advisories on the build machine, two where the daemon could deserialize untrusted data (GHSA-xwqc-3h47-hg64, GHSA-mvvg-497x-hmj8) and one where Gradle kept using a repository after its TLS handshake failed (GHSA-j5m7-59rp-24f5).
 
 ### Security
 

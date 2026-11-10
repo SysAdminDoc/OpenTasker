@@ -94,8 +94,8 @@ class ReleaseTruthContractTest {
             """\${'$'}ExpectedGradleWrapperJarSha256 = "([0-9a-f]{64})""",
         )
 
-        assertEquals(OFFICIAL_GRADLE_9_7_1_BIN_SHA256, distributionHash)
-        assertEquals(OFFICIAL_GRADLE_9_7_1_WRAPPER_JAR_SHA256, pinnedJarHash)
+        assertEquals(OFFICIAL_GRADLE_9_9_1_BIN_SHA256, distributionHash)
+        assertEquals(OFFICIAL_GRADLE_9_9_1_WRAPPER_JAR_SHA256, pinnedJarHash)
         assertEquals(pinnedJarHash, wrapperJarHash)
         assertTrue(gate.contains("\$ExpectedGradleDistributionSha256 = \"$distributionHash\""))
     }
@@ -446,10 +446,10 @@ class ReleaseTruthContractTest {
     }
 
     private companion object {
-        const val OFFICIAL_GRADLE_9_7_1_BIN_SHA256 =
-            "acd53f1edaf02f1a8ff99879f8a34b302661a057d9b063ae9e35b552f804d20a"
-        const val OFFICIAL_GRADLE_9_7_1_WRAPPER_JAR_SHA256 =
-            "7a9ce74cff467ca1bf60a4fcd9f05185acceda4d0f382434d393e17864262c5d"
+        const val OFFICIAL_GRADLE_9_9_1_BIN_SHA256 =
+            "d8a18a7a841dd5df825d35a685fad6f2d7f12ac0c280e57b67c27b4a520ba228"
+        const val OFFICIAL_GRADLE_9_9_1_WRAPPER_JAR_SHA256 =
+            "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8"
 
         /** `apksigner verify --print-certs` on the v0.2.93 and v0.2.94 release assets. */
         const val RELEASE_CERTIFICATE_SHA256 =
