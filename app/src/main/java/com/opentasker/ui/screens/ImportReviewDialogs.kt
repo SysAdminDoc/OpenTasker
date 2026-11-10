@@ -77,6 +77,8 @@ internal fun OpenTaskerBundleTextImportDialog(
     onCancel: () -> Unit = {},
     onConfirm: () -> Unit,
 ) {
+    // Text at the cap was cut there, and a cut export would only come back as damaged.
+    val cutOff = text.length >= MAX_PASTED_BUNDLE_CHARS
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.import_paste_json_title)) },
@@ -97,6 +99,12 @@ internal fun OpenTaskerBundleTextImportDialog(
                         .fillMaxWidth()
                         .heightIn(min = 180.dp, max = 360.dp),
                     placeholder = { Text(stringResource(R.string.import_paste_json_hint)) },
+                    isError = cutOff,
+                    supportingText = if (cutOff) {
+                        { Text(stringResource(R.string.import_paste_too_long)) }
+                    } else {
+                        null
+                    },
                     minLines = 8,
                     maxLines = 16,
                 )
@@ -104,7 +112,7 @@ internal fun OpenTaskerBundleTextImportDialog(
         },
         confirmButton = {
             Button(
-                enabled = text.isNotBlank() && !busy,
+                enabled = text.isNotBlank() && !busy && !cutOff,
                 onClick = onConfirm,
             ) {
                 Text(

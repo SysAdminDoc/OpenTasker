@@ -70,10 +70,8 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -494,34 +492,19 @@ fun ActiveAutomationUi(
             }
         }
         if (!opened) {
-            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.ui_flow_target_missing)) }
+            scope.launch { snackbarHostState.showSnackbarOverReason(context.getString(R.string.ui_flow_target_missing)) }
         }
     }
 
     LaunchedEffect(Unit) {
-        viewModel.messages.collect { message ->
-            val result = snackbarHostState.showSnackbar(
-                message = message.resolve(context),
-                actionLabel = message.action?.let { context.getString(R.string.action_undo) },
-                withDismissAction = message.action != null,
-                duration = when {
-                    message.action != null -> SnackbarDuration.Indefinite
-                    message.longDuration -> SnackbarDuration.Long
-                    else -> SnackbarDuration.Short
-                },
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                when (val action = message.action) {
-                    is UiMessageAction.Undo -> when (action.entityType) {
-                        EditHistoryDao.TYPE_PROFILE -> viewModel.undoLastProfileEdit(action.entityId)
-                        EditHistoryDao.TYPE_TASK -> viewModel.undoLastTaskEdit(action.entityId)
-                        EditHistoryDao.TYPE_SCENE -> viewModel.undoLastSceneEdit(action.entityId)
-                        EditHistoryDao.TYPE_VARIABLE -> viewModel.undoLastVariableDelete(action.entityId)
-                        EditHistoryDao.TYPE_PROJECT -> viewModel.undoLastProjectDelete(action.entityId)
-                        else -> Unit
-                    }
-                    null -> Unit
-                }
+        snackbarHostState.showUiMessages(viewModel.messages, context) { action ->
+            when (action.entityType) {
+                EditHistoryDao.TYPE_PROFILE -> viewModel.undoLastProfileEdit(action.entityId)
+                EditHistoryDao.TYPE_TASK -> viewModel.undoLastTaskEdit(action.entityId)
+                EditHistoryDao.TYPE_SCENE -> viewModel.undoLastSceneEdit(action.entityId)
+                EditHistoryDao.TYPE_VARIABLE -> viewModel.undoLastVariableDelete(action.entityId)
+                EditHistoryDao.TYPE_PROJECT -> viewModel.undoLastProjectDelete(action.entityId)
+                else -> Unit
             }
         }
     }
@@ -690,7 +673,7 @@ fun ActiveAutomationUi(
         val permissionScreen: @Composable (Boolean) -> Unit = { settingsOnly ->
             PermissionOnboardingScreen(
                 contentPadding = innerPadding,
-                onMessage = { message -> scope.launch { snackbarHostState.showSnackbar(message) } },
+                onMessage = { message -> scope.launch { snackbarHostState.showSnackbarOverReason(message) } },
                 onUndoableMessage = showUndoableMessage,
                 backupState = backupSetupState,
                 onCreateBackup = viewModel.backup::createDatabaseBackup,
@@ -808,7 +791,7 @@ fun ActiveAutomationUi(
                         // Unknown/unsupported action types (e.g. from an import on a build that
                         // lacks the action) have no editor; tell the user instead of dead-tapping.
                         scope.launch {
-                            snackbarHostState.showSnackbar(unsupportedActionTypeMessage)
+                            snackbarHostState.showSnackbarOverReason(unsupportedActionTypeMessage)
                         }
                     }
                 },
@@ -839,7 +822,7 @@ fun ActiveAutomationUi(
                         screenOrdinal = OpenTaskerScreen.Profiles.ordinal
                         openContextPicker(profile)
                     } else {
-                        scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.ui_flow_target_missing)) }
+                        scope.launch { snackbarHostState.showSnackbarOverReason(context.getString(R.string.ui_flow_target_missing)) }
                     }
                 },
                 onAddAction = { taskId ->
@@ -848,7 +831,7 @@ fun ActiveAutomationUi(
                         screenOrdinal = OpenTaskerScreen.Tasks.ordinal
                         openActionPicker(task)
                     } else {
-                        scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.ui_flow_target_missing)) }
+                        scope.launch { snackbarHostState.showSnackbarOverReason(context.getString(R.string.ui_flow_target_missing)) }
                     }
                 },
             )
@@ -866,7 +849,7 @@ fun ActiveAutomationUi(
                 onDelete = { name, successMessage, projectId ->
                     viewModel.deleteVariable(name, successMessage, projectId)
                 },
-                onMessage = { message -> scope.launch { snackbarHostState.showSnackbar(message) } },
+                onMessage = { message -> scope.launch { snackbarHostState.showSnackbarOverReason(message) } },
                 contentLoaded = contentLoaded,
             )
 

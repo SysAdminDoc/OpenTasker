@@ -16,7 +16,7 @@ typealias UndoableMessage = (message: String, onUndo: () -> Unit) -> Unit
 internal fun undoableMessages(scope: CoroutineScope, host: SnackbarHostState, undoLabel: String): UndoableMessage =
     { message, onUndo ->
         scope.launch {
-            val result = host.showSnackbar(message, actionLabel = undoLabel, withDismissAction = true)
+            val result = host.showSnackbarOverReason(message, actionLabel = undoLabel, withDismissAction = true)
             if (result == SnackbarResult.ActionPerformed) onUndo()
         }
     }

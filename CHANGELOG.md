@@ -17,6 +17,8 @@
 - The Inspector and profile cards show a state check the way it reads, like "Bluetooth device nearby = Car", where they used to show "key=bt_near, operator==, value=Car".
 - An import that's over the size limit says it would add too many tasks, profiles, variables and scenes. It used to say "entities".
 - Import JSON opens the bundle's import review. It used to open "Review community share" first, with share fields like the slug and screenshots that mean nothing to someone importing a file. Anything the share check would block (an action that can't run here) still blocks the import.
+- When an imported file can't be opened, the reason stays on screen until you dismiss it or something else needs the spot, like the next message or a deleted task's Undo. If the Undo comes up before the reason ever showed, the reason follows it. A damaged or cut-off Tasker or MacroDroid file says so, and the catch-all message points to Diagnostics, where the details are logged.
+- Pasting something too long for the paste box now says the end was cut off and points to the file import, instead of sending the cut text on to fail as damaged.
 - Preflight's missing setup line now reads the live grants, so it stops listing what Setup already shows as done.
 - Tapping an action's Needs setup pill opens Setup on the access it's missing. Setup only lists access for enabled profiles, so a task you run by hand used to point at a row you couldn't find.
 - Play Sound opens a file with a # or ? in its name. The path used to stop there, so the sound never played.

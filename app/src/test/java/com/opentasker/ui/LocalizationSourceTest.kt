@@ -144,8 +144,11 @@ class LocalizationSourceTest {
             assertTrue("$file must send on the snackbar channel", "events.send(" in source)
             assertFalse("$file must not emit raw snackbar literals", Regex("events\\.send\\(\\s*\"").containsMatchIn(source))
         }
-        assertTrue("Compose collector must resolve the message in the current locale", "message.resolve(context)" in ui)
-        assertTrue("Undo-capable messages must expose a snackbar action", "message.action?.let" in ui)
+        // The collector lives in UiMessages.kt so a device test can drive it; the screen hands it the channel.
+        val collector = sourceRoot.resolve("com/opentasker/ui/screens/UiMessages.kt").readText()
+        assertTrue("The screen must collect the view model's messages", "showUiMessages(viewModel.messages" in ui)
+        assertTrue("Compose collector must resolve the message in the current locale", "message.resolve(context)" in collector)
+        assertTrue("Undo-capable messages must expose a snackbar action", "message.action?.let" in collector)
     }
 
     @Test

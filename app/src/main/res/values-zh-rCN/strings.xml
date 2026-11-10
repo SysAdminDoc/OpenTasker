@@ -772,6 +772,7 @@
     <string name="import_paste_json_title">粘贴或扫描导入</string>
     <string name="import_paste_json_body">在此粘贴一个OpenTasker包或Tasker XML任务/配置文件，或使用一个输入已解码文本的QR扫描器。无论哪种都会打开相同的审阅，且在你确认之前不会写入任何内容。</string>
     <string name="import_paste_json_hint">OpenTasker JSON 或 Tasker XML</string>
+    <string name="import_paste_too_long">内容过长，粘贴时末尾已被截断。请将其保存为文件，然后改用“导入JSON”或“导入Tasker或MacroDroid”。</string>
     <string name="import_paste_json_review">审阅导入</string>
     <string name="import_opentasker_bundle">OpenTasker包</string>
     <string name="import_count_tasks">任务</string>
@@ -1491,12 +1492,12 @@
     <string name="ui_error_corrupt_record">无法读取已保存的数据。请恢复备份或删除受影响的项目。</string>
     <string name="ui_error_diagnostics_refresh">无法刷新诊断</string>
     <string name="ui_error_task_delete">任务删除失败</string>
-    <string name="ui_error_tasker_xml_preview">Tasker XML导入预览失败</string>
+    <string name="ui_error_tasker_xml_preview">Tasker XML导入预览失败。详情见“诊断”。</string>
     <string name="ui_error_tasker_xml_import">Tasker XML导入失败</string>
-    <string name="ui_error_automation_import_preview">Tasker或MacroDroid导入预览失败</string>
+    <string name="ui_error_automation_import_preview">Tasker或MacroDroid导入预览失败。详情见“诊断”。</string>
     <string name="ui_error_automation_import">Tasker或MacroDroid导入失败</string>
     <string name="ui_error_bundle_export">OpenTasker包导出失败</string>
-    <string name="ui_error_bundle_preview">OpenTasker包预览失败</string>
+    <string name="ui_error_bundle_preview">OpenTasker包预览失败。详情见“诊断”。</string>
     <string name="ui_error_share_preview">无法准备分享预览</string>
     <string name="ui_error_bundle_import">OpenTasker包导入失败</string>
     <string name="ui_error_run_logs_load">无法加载运行日志</string>
@@ -1509,6 +1510,7 @@
     </plurals>
     <string name="synthetic_trigger_admission_rejected">一个运行上限本会阻止这一次。</string>
     <string name="ui_error_bundle_not_recognized">这看起来不像OpenTasker包。请粘贴从OpenTasker导出的JSON，或扫描其QR码。</string>
+    <string name="ui_error_import_damaged">此导出内容已损坏或不完整，无法读取。请重新导出后导入新副本。</string>
     <string name="ui_error_import_budget_items">此文件过大，无法导入。其中的任务、配置文件、变量和场景合计不能超过%1$d个。</string>
     <string name="ui_error_run_action">该操作无法运行</string>
     <string name="ui_error_run_task">任务无法运行</string>

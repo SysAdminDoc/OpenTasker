@@ -1152,7 +1152,7 @@ class ActiveAutomationViewModel(
                         events.send(message(R.string.ui_message_automation_import_ready))
                     }
                 }
-                .onFailure { events.send(errorMessage(it, R.string.ui_error_automation_import_preview)) }
+                .onFailure { events.send(importPreviewFailureMessage(it, R.string.ui_error_automation_import_preview)) }
         }
     }
 
@@ -1179,7 +1179,7 @@ class ActiveAutomationViewModel(
                 }
                 .onFailure {
                     _macroDroidPasswordPrompt.value = null
-                    events.send(errorMessage(it, R.string.ui_error_automation_import_preview))
+                    events.send(importPreviewFailureMessage(it, R.string.ui_error_automation_import_preview))
                 }
         }
     }
@@ -1331,7 +1331,7 @@ class ActiveAutomationViewModel(
                     _taskerImportReview.value = it
                     events.send(message(R.string.ui_message_tasker_xml_ready))
                 }
-                .onFailure { events.send(errorMessage(it, R.string.ui_error_tasker_xml_preview)) }
+                .onFailure { events.send(importPreviewFailureMessage(it, R.string.ui_error_tasker_xml_preview)) }
         }
     }
 
@@ -1353,9 +1353,9 @@ class ActiveAutomationViewModel(
                     // of the object '{'" in front of the user, along with their raw input.
                     if (error is SerializationException) {
                         AppLogger.warn("OpenTasker", "Rejected an OpenTasker bundle that failed to decode", error)
-                        events.send(message(R.string.ui_error_bundle_not_recognized))
+                        events.send(message(R.string.ui_error_bundle_not_recognized).copy(stayUntilDismissed = true))
                     } else {
-                        events.send(errorMessage(error, R.string.ui_error_bundle_preview))
+                        events.send(importPreviewFailureMessage(error, R.string.ui_error_bundle_preview))
                     }
                 }
         }

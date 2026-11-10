@@ -795,6 +795,7 @@
     <string name="import_paste_json_title">Paste or scan an import</string>
     <string name="import_paste_json_body">Paste an OpenTasker bundle or a Tasker XML task or profile here, or use a QR scanner that types the decoded text. Whichever it is opens the same review, and nothing is written until you confirm it.</string>
     <string name="import_paste_json_hint">OpenTasker JSON or Tasker XML</string>
+    <string name="import_paste_too_long">Too long to paste, so the end was cut off. Save it as a file and use Import JSON or Import Tasker or MacroDroid instead.</string>
     <string name="import_paste_json_review">Review import</string>
     <string name="import_opentasker_bundle">OpenTasker bundle</string>
     <string name="import_count_tasks">Tasks</string>
@@ -1527,12 +1528,12 @@
     <string name="ui_error_corrupt_record">Saved data could not be read. Restore a backup or delete the affected item.</string>
     <string name="ui_error_diagnostics_refresh">Diagnostics could not be refreshed</string>
     <string name="ui_error_task_delete">Task delete failed</string>
-    <string name="ui_error_tasker_xml_preview">Tasker XML import preview failed</string>
+    <string name="ui_error_tasker_xml_preview">Tasker XML import preview failed. Diagnostics has the details.</string>
     <string name="ui_error_tasker_xml_import">Tasker XML import failed</string>
-    <string name="ui_error_automation_import_preview">Tasker or MacroDroid import preview failed</string>
+    <string name="ui_error_automation_import_preview">Tasker or MacroDroid import preview failed. Diagnostics has the details.</string>
     <string name="ui_error_automation_import">Tasker or MacroDroid import failed</string>
     <string name="ui_error_bundle_export">OpenTasker bundle export failed</string>
-    <string name="ui_error_bundle_preview">OpenTasker bundle preview failed</string>
+    <string name="ui_error_bundle_preview">OpenTasker bundle preview failed. Diagnostics has the details.</string>
     <string name="ui_error_share_preview">Unable to prepare share preview</string>
     <string name="ui_error_bundle_import">OpenTasker bundle import failed</string>
     <string name="ui_error_run_logs_load">Run logs could not be loaded</string>
@@ -1563,6 +1564,7 @@
     <string name="ui_error_import_budget">This file is too large to import. It goes over the limit for %1$s, which is %2$d.</string>
     <string name="ui_error_import_budget_items">This file is too large to import. Its tasks, profiles, variables and scenes together can\'t come to more than %1$d.</string>
     <string name="ui_error_import_not_recognized">This isn\'t a Tasker XML file or a MacroDroid export.</string>
+    <string name="ui_error_import_damaged">This export is damaged or cut off, so it can\'t be read. Export it again and import the new copy.</string>
     <string name="dialog_macrodroid_password_title">Password-protected MacroDroid export</string>
     <string name="dialog_macrodroid_password_body">MacroDroid encrypted this file when it was exported. Enter the password you chose then. OpenTasker doesn\'t save it.</string>
     <string name="dialog_macrodroid_password_label">Export password</string>
