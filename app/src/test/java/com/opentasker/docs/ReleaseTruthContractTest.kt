@@ -137,7 +137,8 @@ class ReleaseTruthContractTest {
         val artifactCommit = jsonValue(truth, "requiredArtifactCommit")
         val versionName = jsonValue(truth, "versionName")
         val releaseTag = jsonValue(truth, "releaseTag")
-        val releaseTagCommit = jsonValue(truth, "releaseTagCommit")
+        val releaseTagCommit = Regex("\"releaseTagCommit\"\\s*:\\s*\"([^\"]*)\"").find(truth)?.groupValues?.get(1)
+            ?: error("Missing release truth value for releaseTagCommit")
 
         assertEquals("1", jsonValue(truth, "schemaVersion"))
         assertEquals(gradleValue(gradle, """val\s+appVersionName\s*=\s*"([^"]+)"""), jsonValue(truth, "versionName"))
@@ -199,7 +200,9 @@ class ReleaseTruthContractTest {
         assertEquals(releaseTag, metadataValue(fdroid, "commit"))
         assertTrue(Regex("[0-9a-f]{40}").matches(artifactCommit))
         assertEquals("v$versionName", releaseTag)
-        assertTrue(Regex("[0-9a-f]{40}").matches(releaseTagCommit))
+        // Empty from a version bump until the tag is cut. The generator's -RequireReleaseTag is
+        // what insists on it when the release is recorded.
+        assertTrue(releaseTagCommit.isEmpty() || Regex("[0-9a-f]{40}").matches(releaseTagCommit))
         assertTrue(Files.exists(repoRoot.resolve("tools/generate-release-truth.ps1")))
         assertTrue("\$flowControlIds.Count" in generator)
         assertTrue("SUB_TASK_ACTION_ID" in generator)
