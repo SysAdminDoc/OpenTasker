@@ -424,6 +424,31 @@ class ContextInspectorTest {
     }
 
     @Test
+    fun aStateContextsSummaryReadsAsTheCheckItMakes() {
+        fun summary(vararg config: Pair<String, String>, invert: Boolean = false) =
+            contextConfigSummary(ContextSpec(ContextType.STATE, mapOf(*config), invert = invert))
+
+        assertEquals(
+            "Bluetooth device nearby = Car",
+            summary("key" to "bt_near", "operator" to "=", "value" to "Car"),
+        )
+        assertEquals("call state = ringing", summary("predicate" to "call_state = ringing"))
+        assertEquals("battery level >= 80; inverted", summary("key" to "battery", "operator" to ">=", "value" to "80", invert = true))
+        // Anything the condition doesn't cover still shows, so nothing is hidden.
+        assertEquals(
+            "orientation = portrait, debounce=5",
+            summary("key" to "orientation", "operator" to "=", "value" to "portrait", "debounce" to "5"),
+        )
+        // With no key there's no check to describe, so the raw entries stay.
+        assertEquals("predicate=nonsense", summary("predicate" to "nonsense"))
+        // The engine checks only the predicate when one is set, so key fields beside a bad one aren't the check.
+        assertEquals(
+            "key=screen, operator==, predicate=nonsense, value=on",
+            summary("predicate" to "nonsense", "key" to "screen", "operator" to "=", "value" to "on"),
+        )
+    }
+
+    @Test
     fun pluginContextInspectionShowsWaitingBeforeFirstEvent() {
         val profile = Profile(
             id = 30,

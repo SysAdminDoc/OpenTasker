@@ -265,13 +265,32 @@ fun contextConfigSummary(spec: ContextSpec): String {
             val blurb = spec.config["blurb"]?.takeIf { it.isNotBlank() }
             if (blurb != null) "$pkg ($blurb)" else pkg
         }
-        else -> spec.config.entries
-            .sortedBy { it.key }
-            .joinToString { "${it.key}=${it.value}" }
-            .ifBlank { "No configuration" }
+        ContextType.STATE -> stateConditionSummary(spec) ?: configEntriesSummary(spec.config)
+        else -> configEntriesSummary(spec.config)
     }
     return if (spec.invert) "$summary; inverted" else summary
 }
+
+private fun configEntriesSummary(config: Map<String, String>): String =
+    config.entries
+        .sortedBy { it.key }
+        .joinToString { "${it.key}=${it.value}" }
+        .ifBlank { "No configuration" }
+
+/** Reads as the check it makes, "Bluetooth device nearby = Car" rather than "key=bt_near, operator==, value=Car". */
+private fun stateConditionSummary(spec: ContextSpec): String? {
+    // The engine reads a non-blank predicate alone, so one it can't parse shows as written, not as key fields it ignores.
+    val predicate = spec.config["predicate"]
+    if (!predicate.isNullOrBlank() && parseStatePredicate(predicate) == null) return null
+    val (key, operator, value) = stateCondition(spec)
+    val normalized = normalizeStateKey(key).ifEmpty { return null }
+    val label = if (normalized == BT_NEAR_STATE_KEY) "Bluetooth device nearby" else normalized.replace('_', ' ')
+    val condition = "$label ${operator.trim().ifEmpty { "=" }} ${value.trim()}".trim()
+    val extras = configEntriesSummary(spec.config.filterKeys { it !in STATE_CONDITION_KEYS })
+    return if (spec.config.keys.all { it in STATE_CONDITION_KEYS }) condition else "$condition, $extras"
+}
+
+private val STATE_CONDITION_KEYS = setOf("predicate", "key", "operator", "value")
 
 fun String.toContextSourceLabel(): String = when (this) {
     "app" -> "Application"

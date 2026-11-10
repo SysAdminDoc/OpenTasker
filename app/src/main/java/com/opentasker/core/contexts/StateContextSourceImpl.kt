@@ -345,6 +345,11 @@ internal fun parseStatePredicate(predicate: String): Triple<String, String, Stri
         Triple(match.groupValues[1], match.groupValues[2], match.groupValues[3])
     }
 
+/** A STATE spec's key, operator and value, read from its predicate when it has one. */
+internal fun stateCondition(spec: ContextSpec): Triple<String, String, String> =
+    spec.config["predicate"]?.takeIf(String::isNotBlank)?.let(::parseStatePredicate)
+        ?: Triple(spec.config["key"].orEmpty(), spec.config["operator"].orEmpty(), spec.config["value"].orEmpty())
+
 private fun wifiMatches(
     op: String,
     expectedRaw: String,
@@ -374,8 +379,7 @@ internal val WIFI_DISCONNECTED_WORDS = setOf("disconnected", "off", "false", "no
  */
 internal fun stateSpecReadsWifiSsid(spec: ContextSpec): Boolean {
     if (spec.type != ContextType.STATE) return false
-    val (key, operator, value) = spec.config["predicate"]?.takeIf(String::isNotBlank)?.let(::parseStatePredicate)
-        ?: Triple(spec.config["key"].orEmpty(), spec.config["operator"].orEmpty(), spec.config["value"].orEmpty())
+    val (key, operator, value) = stateCondition(spec)
     if (normalizeStateKey(key) != "wifi") return false
     // wifiMatches only compares names with "=", so any other operator never reads the name and
     // must not ask for location or blame a withheld name for a context that cannot match anyway.
@@ -387,8 +391,7 @@ internal fun stateSpecReadsWifiSsid(spec: ContextSpec): Boolean {
 /** The device a STATE context waits for, or null when it isn't a nearby-device context that can match. */
 internal fun bluetoothNearTarget(spec: ContextSpec): String? {
     if (spec.type != ContextType.STATE) return null
-    val (key, operator, value) = spec.config["predicate"]?.takeIf(String::isNotBlank)?.let(::parseStatePredicate)
-        ?: Triple(spec.config["key"].orEmpty(), spec.config["operator"].orEmpty(), spec.config["value"].orEmpty())
+    val (key, operator, value) = stateCondition(spec)
     if (normalizeStateKey(key) != BT_NEAR_STATE_KEY) return null
     if (operator.trim().ifEmpty { "=" } != "=") return null
     return value.trim().takeIf(String::isNotEmpty)
