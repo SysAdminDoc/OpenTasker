@@ -8,6 +8,7 @@
 - The Needs setup pill on a task's action goes away once the permission it waits on is granted, and it's checked again each time you come back to the app. It used to stay on every action of that kind, granted or not. Notification actions wait on the Notifications permission, Wi-Fi scan on location (all the time, since profiles scan in the background) and Nearby Wi-Fi, Bluetooth toggle on Android 12 on Bluetooth connect, and Write Setting on Write Settings or the secure settings grant depending on its table. An SMS trigger now asks Setup for Receive SMS rather than Send SMS. Volume actions on Android 17 and actions no grant can settle (scripts, a VPN app) keep their pill.
 - An OpenTasker bundle's Capability review says Ready for an action whose permission is already granted, the same way a task's actions do. It used to say Needs setup on Show Notification with notifications allowed.
 - The Run Log picks up a new run on its own while you're on the first page. It used to keep showing old entries until you tapped Refresh. Once you've scrolled further back the list stays put, so nothing moves under you.
+- Setup explains why a Bluetooth device nearby context asks for Bluetooth connect: a paired device that's already connected, like a car or headphones, often doesn't show up in a scan.
 
 ## v0.2.96 - 2026-11-09 (unreleased)
 

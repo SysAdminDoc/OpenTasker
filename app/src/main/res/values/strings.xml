@@ -478,8 +478,8 @@
     <string name="setup_background_location_body_legacy">Needed only when geofence automations must keep evaluating after OpenTasker is no longer visible. Android 10 can route users from the permission flow to the app location settings. Users can decline and keep using foreground-only automations. Public reliability still needs device verification.</string>
     <string name="setup_background_location_required_for">Background location radius evaluation</string>
     <string name="setup_bluetooth_title">Bluetooth connect</string>
-    <string name="setup_bluetooth_body">Needed on Android 12 and newer for Bluetooth device actions and context checks, including Android 16 bond-loss and encryption events.</string>
-    <string name="setup_bluetooth_required_for">Bluetooth actions and security event contexts</string>
+    <string name="setup_bluetooth_body">Needed on Android 12 and newer for Bluetooth device actions and context checks, including Android 16 bond-loss and encryption events. A Bluetooth device nearby context also uses it to spot a paired device that\'s connected, like a car or headphones, which often doesn\'t show up in a scan.</string>
+    <string name="setup_bluetooth_required_for">Bluetooth actions, Bluetooth device nearby and security event contexts</string>
     <string name="setup_bluetooth_scan_title">Nearby Bluetooth scan</string>
     <string name="setup_bluetooth_scan_body">Lets a Bluetooth device nearby context look for the device you named. Android 11 and older ask for location instead and need location turned on. A phone only shows up while it is advertising, and pairing it once helps Android recognize it.</string>
     <string name="setup_bluetooth_scan_required_for">Bluetooth device nearby contexts</string>

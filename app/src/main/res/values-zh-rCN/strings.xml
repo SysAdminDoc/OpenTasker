@@ -474,8 +474,8 @@
     <string name="setup_background_location_body_legacy">仅当地理围栏自动化需要在OpenTasker不再可见后继续评估时需要。Android 10可以将用户从权限流程路由到应用位置设置。用户可以拒绝并继续使用仅前台自动化。公共可靠性仍需要设备验证。</string>
     <string name="setup_background_location_required_for">后台位置半径评估</string>
     <string name="setup_bluetooth_title">蓝牙连接</string>
-    <string name="setup_bluetooth_body">在Android 12及更新版本上，蓝牙设备操作和上下文检查所需，包括Android 16的绑定丢失和加密事件。</string>
-    <string name="setup_bluetooth_required_for">蓝牙操作和安全事件上下文</string>
+    <string name="setup_bluetooth_body">在Android 12及更新版本上，蓝牙设备操作和上下文检查所需，包括Android 16的绑定丢失和加密事件。“附近的蓝牙设备”上下文也用它识别已连接的配对设备（例如车载系统或耳机），这类设备通常不会出现在扫描结果中。</string>
+    <string name="setup_bluetooth_required_for">蓝牙操作、附近的蓝牙设备和安全事件上下文</string>
     <string name="setup_screen_recording_title">屏幕录制检测</string>
     <string name="setup_screen_recording_body">在Android 15及更新版本上，当此应用在屏幕录制中变得可见或不可见时，OpenTasker可以做出反应。此触发不会捕获任何屏幕内容。</string>
     <string name="setup_screen_recording_required_for">屏幕录制事件上下文</string>
