@@ -88,15 +88,26 @@ object ExportRedactionPolicy {
 
         redacted = URL_PATTERN.replace(redacted) { match -> redactUrl(match.value, placeholder) }
         redacted = AUTHORIZATION_PATTERN.replace(redacted) { match ->
-            "${match.groupValues[1]}$placeholder"
+            "${match.groupValues[1]}${quotedLike(match.groupValues[2], placeholder)}"
         }
         redacted = BEARER_PATTERN.replace(redacted) { match ->
             "${match.groupValues[1]}$placeholder"
         }
         redacted = KEYED_VALUE_PATTERN.replace(redacted) { match ->
-            "${match.groupValues[1]}=$placeholder"
+            val (name, closingQuote, separator, value) = match.destructured
+            if (closingQuote.isEmpty()) {
+                "$name=$placeholder"
+            } else {
+                "$name$closingQuote$separator${quotedLike(value, placeholder)}"
+            }
         }
         return CARD_PATTERN.replace(redacted, REDACTED_CARD)
+    }
+
+    /** Keeps the quotes around a replaced value, so a redacted JSON body still parses. */
+    private fun quotedLike(value: String, placeholder: String): String {
+        val quote = value.take(if (value.startsWith('\\')) 2 else 1).takeIf { it.last() in "\"'" }.orEmpty()
+        return quote + placeholder + quote
     }
 
     fun referencesSecret(value: String, secretNames: Set<String>): Boolean {
@@ -140,16 +151,24 @@ object ExportRedactionPolicy {
         """(?i)(?:\{\{\s*(?:global\.|task\.|event\.|array\.)?|%)\s*([A-Za-z][A-Za-z0-9_-]*)""",
     )
     private val URL_PATTERN = Regex("""(?i)\b(?:https?|ftp)://[^\s<>"']+""")
-    private val AUTHORIZATION_PATTERN = Regex("""(?i)(\bauthorization\s*:\s*)[^\r\n]+""")
+    // A quoted value, JSON-escaped as a whole or holding escaped quotes of its own.
+    private const val QUOTED_VALUE =
+        """\\"[^"\r\n]*"|\\'[^'\r\n]*'|"[^"\\\r\n]*(?:\\[^\r\n][^"\\\r\n]*){0,256}"|'[^'\\\r\n]*(?:\\[^\r\n][^'\\\r\n]*){0,256}'"""
+    private val AUTHORIZATION_PATTERN = Regex(
+        """(?i)(\bauthorization\\?["']?\s*(?::|=(?!=))\s*)($QUOTED_VALUE|[^\r\n]+)""",
+    )
     private val BEARER_PATTERN = Regex("""(?i)(\bbearer\s+)[A-Za-z0-9._~+/=-]+""")
     // A credential rarely travels under a bare name. This also reads api_key, access_token,
     // client_secret, authToken and apikey, the quoted names and values of a JSON body, and a
-    // quoted value with spaces in it. Every repeat is bounded: the text is whatever a message or
-    // a server reply put in the log.
+    // quoted value with spaces in it. A "key" only counts under a credential's name, so sort_key
+    // and primary_key stay readable, and == is a condition, not an assignment. Every repeat is
+    // bounded: the text is whatever a message or a server reply put in the log.
     private val KEYED_VALUE_PATTERN = Regex(
-        """(?i)(?<![A-Za-z0-9])((?:[A-Za-z0-9]{1,32}[_.-]){0,4}""" +
-            """(?:[A-Za-z0-9]{0,32}(?:password|passwd|secret|token)|(?:api|private|access|signing)?key|auth))""" +
-            """\\?["']?\s*[:=]\s*(?:\\?"[^"\r\n]*"|\\?'[^'\r\n]*'|[^\s,;]+)""",
+        """(?i)((?<![A-Za-z0-9])(?:[A-Za-z0-9]{1,32}[_.-]){0,4}""" +
+            """(?:[A-Za-z0-9]{0,32}(?:password|passwd|secret|token)|auth|""" +
+            """(?:api|private|access|signing|secret|encryption|ssh|auth|client|master|shared)[_.-]?key)""" +
+            """|(?<![A-Za-z0-9_])key)""" +
+            """(\\?["']?)(\s*(?::|=(?!=))\s*)($QUOTED_VALUE|[^\s,;]+)""",
     )
     private val CARD_PATTERN = Regex("""\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b""")
 }

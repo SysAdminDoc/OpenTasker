@@ -97,6 +97,55 @@ class ExportRedactionPolicyTest {
     }
 
     @Test
+    fun anEscapedQuoteDoesNotEndTheRedaction() {
+        assertEquals(
+            """{"password":"[REDACTED]"}""",
+            ExportRedactionPolicy.redactText("""{"password":"hun\"ter2 secret"}"""),
+        )
+    }
+
+    @Test
+    fun aQuotedAuthorizationHeaderIsRedacted() {
+        assertEquals(
+            """headers {"Authorization":"[REDACTED]","Accept":"json"}""",
+            ExportRedactionPolicy.redactText("""headers {"Authorization":"Basic dXNlcjpwYXNz","Accept":"json"}"""),
+        )
+    }
+
+    @Test
+    fun aRedactedJsonBodyKeepsItsShape() {
+        assertEquals("""{"key":"[REDACTED]"}""", ExportRedactionPolicy.redactText("""{"key":"abc"}"""))
+    }
+
+    @Test
+    fun namesThatOnlyEndInKeyAreLeftAlone() {
+        val text = "sort_key=5 primary_key=1"
+
+        assertEquals(text, ExportRedactionPolicy.redactText(text))
+    }
+
+    @Test
+    fun aConditionOnACredentialNameIsLeftAlone() {
+        val text = "%access_token == x"
+
+        assertEquals(text, ExportRedactionPolicy.redactText(text))
+    }
+
+    @Test
+    fun basicAuthUnderACompoundNameIsRedacted() {
+        val result = ExportRedactionPolicy.redactText("basic_auth=dXNlcjpwYXNz")
+
+        assertEquals("basic_auth=[REDACTED]", result)
+    }
+
+    @Test
+    fun aLongUnterminatedQuotedValueIsStillRedacted() {
+        val result = ExportRedactionPolicy.redactText("password=\"" + "\\a".repeat(40_000))
+
+        assertEquals("password=[REDACTED]", result)
+    }
+
+    @Test
     fun aLongRunOfSeparatorsIsReadOnce() {
         val text = "a_".repeat(20_000) + " b-".repeat(20_000)
 
