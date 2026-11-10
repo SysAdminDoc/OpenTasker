@@ -13,14 +13,15 @@
 - A Locale condition on a variable now answers only the comparison you set up. The saved settings live in the host app, and one that rewrote them could change the operator or the expected value and work out what the variable holds, one guess at a time.
 - Local database backups and crash logs stay out of device-to-device transfers. A backup is sealed with a key that never leaves the old phone, so the copy could never open, and a crash log is written before redaction.
 - Logs and exports hide more credentials. Only a bare `password=` or `token:` was caught, so `api_key=`, `access_token:`, `client_secret=` and the quoted fields of a JSON reply reached exported run logs in the clear.
-- A value can't change what a condition asks anymore. An If or a loop that compared `%sms_body` had the message pasted in before the condition was read, so a text containing `x | 1 = 1` could turn false into true, and one that named another variable could read it. Conditions are split into their parts first now and each side is filled in after that, and the run preview agrees with the real run on these. Two small changes come with it: `%empty != word` is true when the variable is empty, and a variable on its own works as a ternary's condition.
+- A value can't change what a condition asks anymore. An If or a loop that compared `%sms_body` had the message pasted in before the condition was read, so a text reading `true ||` could turn false into true, and one that named another variable could read it. Conditions are split into their parts first now and each side is filled in after that, and the run preview agrees with the real run on these. Two small changes come with it: `%empty != word` is true when the variable is empty, and a variable on its own works as a ternary's condition.
+
 ### Fixed
 
 - A scene element that can't be drawn now says something like "Image unavailable" on the overlay. It used to show a raw [IMAGE] tag.
 - The scene image field no longer shows a repair error while it's still checking the picture.
 - The Locale condition editor now opens right under the variable you tap, keeps what you typed when you rotate, says why it can't save, and Clear really does clear the selection.
 - The widget, Quick Settings and Locale setup screens show a spinner while they load. They used to claim you had no tasks for a moment, and Setup's script count did the same.
-- The widget, Quick Settings and Locale setup screens no longer flash the wrong theme as they open.
+- The widget, Quick Settings and Locale setup screens wait for your saved theme before they draw, so they no longer flash the wrong one.
 - Removing device admin from Setup now waits until Android has finished before updating the row, and tells you if it didn't work.
 - Screen readers now hear the right label on search clear buttons, the watched setting switches and the secret variable switch, and scene errors show a warning icon, so they no longer depend on color alone.
 - Watch a setting turns off at the 64 rule limit and says why. A 65th rule used to vanish as soon as you saved it.
@@ -46,7 +47,7 @@
 - An all-day calendar event keeps matching until your day ends. West of UTC its stored end passes hours before local midnight, so in New York it dropped out of the calendar query at about 7 or 8 in the evening and a Calendar profile ended early.
 - Scene buttons and Locale plugin fires start their tasks again. Both send a broadcast that only apps holding OpenTasker's automation permission may receive, and OpenTasker declared that permission without asking for it, so Android dropped the app's own broadcast.
 - A run started from outside OpenTasker isn't marked failed when its request arrives twice at the same moment. The second copy got past the duplicate check, was refused further down, and that refusal overwrote the status of the run that was still going.
-- Connect or Disconnect VPN no longer takes credit for a tunnel it can't vouch for. When a VPN was already up and you asked WireGuard or Tailscale to connect, the run log said that tunnel had come up. It now says a VPN was already connected and that it can't confirm it's the one you named.
+- Connect or Disconnect VPN no longer takes credit for a tunnel it can't vouch for. When a VPN was already up and you asked WireGuard or Tailscale to connect, the run log said that tunnel had come up. It now says a VPN was already connected and that it can't confirm it's the one you named. Disconnecting when nothing was up says there was nothing to bring down.
 - Run Termux Script, Run Shizuku Script, Lookup Contact and the Home Assistant webhook get the time they're allowed. The engine stopped the first three at 60 seconds and the webhook at 120, so a script with a two-minute limit, a contact picker left open for a minute or a webhook on its last retry was reported as a timeout the action itself never hit.
 - The local release gate no longer runs its device tests on every phone and emulator adb can see. It uses the one attached device, or the one you name with `-Serial`, and stops before building when there are several and none is named.
 - The local release gate finishes again. Since the release certificate check went in on September 30, the release staging step couldn't be saved to Gradle's configuration cache, so every gate run failed after all its checks had passed.
