@@ -58,19 +58,9 @@ internal sealed interface IntentDispatchParseResult {
     data class Invalid(val message: String) : IntentDispatchParseResult
 }
 
-/**
- * The extras field holds one key=type:value per line. Expanded as one string, a variable holding a
- * line break added an extra the step never listed, so runs and Preflight expand each written line
- * on its own and stop the step when one comes out as more than one line.
- */
+/** The extras field holds one key=type:value per line, so it expands as a [LineListArguments] field. */
 internal object IntentExtrasLines {
     const val LINE_BREAK_FAILURE = "a variable in extras expanded to a line break, which would add an extra the step doesn't list"
-
-    fun applies(actionType: String, argumentName: String): Boolean =
-        actionType == "intent.launch" && argumentName == "extras"
-
-    fun lineBreakFailure(expandedLines: List<String>): String? =
-        LINE_BREAK_FAILURE.takeIf { expandedLines.any { line -> line.any { it == '\n' || it == '\r' } } }
 }
 
 /** Pure validation and bounded decoding for the intent action's primitive wire format. */

@@ -3,7 +3,7 @@ package com.opentasker.core.engine
 import com.opentasker.core.actions.ActionArgumentSensitivity
 import com.opentasker.core.actions.ActiveTransport
 import com.opentasker.core.actions.HttpNetworkConstraint
-import com.opentasker.core.actions.IntentExtrasLines
+import com.opentasker.core.actions.LineListArguments
 import com.opentasker.core.actions.httpNetworkDenial
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.capabilities.CapabilityLevel
@@ -536,9 +536,9 @@ object PreflightRunner {
         val rawValues = spec.args.mapValues { (key, raw) ->
             when {
                 outputNames.keepsAsWritten(key, raw) -> TemplateExpansionResult(raw, emptyList(), emptyList())
-                IntentExtrasLines.applies(spec.type, key) -> {
+                LineListArguments.applies(spec.type, key) -> {
                     val lines = raw.lines().map { line -> expand(line, variables, input) }
-                    IntentExtrasLines.lineBreakFailure(lines.map { it.value })?.let { failure = it }
+                    LineListArguments.lineBreakFailure(spec.type, key, lines.map { it.value })?.let { failure = it }
                     TemplateExpansionResult(
                         value = lines.joinToString("\n") { it.value },
                         traces = lines.flatMap { it.traces },

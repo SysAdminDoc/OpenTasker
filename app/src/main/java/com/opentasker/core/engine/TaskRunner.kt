@@ -1,7 +1,7 @@
 package com.opentasker.core.engine
 
 import com.opentasker.core.actions.ActionArgumentSensitivity
-import com.opentasker.core.actions.IntentExtrasLines
+import com.opentasker.core.actions.LineListArguments
 import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.capabilities.AutomationSensitivityRegistry
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
@@ -817,10 +817,10 @@ class TaskRunner(
                 return@mapValues arrayName
             }
             if (outputNames.keepsAsWritten(name, rawValue)) return@mapValues rawValue
-            if (IntentExtrasLines.applies(actionType, name)) {
+            if (LineListArguments.applies(actionType, name)) {
                 val lines = rawValue.lines().map { line -> expandValue(actionType, name, line, templateScope) }
                 val expanded = lines.joinToString("\n") { it.first }
-                IntentExtrasLines.lineBreakFailure(lines.map { it.first })?.let { failure = it }
+                LineListArguments.lineBreakFailure(actionType, name, lines.map { it.first })?.let { failure = it }
                 val traces = lines.mapNotNull { it.second }
                 if (traces.isNotEmpty()) {
                     val isSecretDerived = traces.any { it.isSecretDerived }
