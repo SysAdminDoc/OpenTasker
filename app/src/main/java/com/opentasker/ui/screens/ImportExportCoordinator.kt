@@ -81,8 +81,9 @@ class ImportExportCoordinator(private val scope: CoroutineScope) {
             try {
                 block { stage -> _progress.value = TransferProgress(stage, stepFraction(steps, stage)) }
             } finally {
-                _busy.value = false
+                // Progress first, so whoever sees the lane free never sees a stage left over.
                 _progress.value = null
+                _busy.value = false
             }
         }
         return true
