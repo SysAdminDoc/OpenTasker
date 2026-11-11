@@ -1138,10 +1138,12 @@ object TaskerXmlImporter {
     /**
      * True when [pattern] has a `$` that isn't escaped, quoted in `\Q...\E` or inside a character
      * class, read the way Java and RE2 both read it: a `]` straight after `[` or `[^` is a literal.
-     * An inline `(?m)` already makes `$` match at every line end, so the pattern behaves the same.
+     * A `$` under an inline `m` flag already matches at every line end, so the pattern behaves the
+     * same. The flag holds from a `(?m)` to the end of its group, or inside a `(?m:...)` group.
      */
     private fun hasEndAnchor(pattern: String): Boolean {
-        if (INLINE_MULTILINE_FLAG.containsMatchIn(pattern)) return false
+        val outerMultiline = ArrayDeque<Boolean>()
+        var multiline = false
         var index = 0
         var inClass = false
         while (index < pattern.length) {
@@ -1159,14 +1161,26 @@ object TaskerXmlImporter {
                     if (pattern.startsWith("^", index + 1)) index++
                     if (pattern.startsWith("]", index + 1)) index++
                 }
-                char == '$' -> return true
+                char == '(' -> {
+                    val flags = INLINE_FLAGS.find(pattern, index)?.takeIf { it.range.first == index }
+                    // A bare (?m) changes the group it sits in. Any other ( opens a group of its own.
+                    if (flags == null || flags.value.endsWith(":")) outerMultiline.addLast(multiline)
+                    if (flags != null) {
+                        val (on, off) = flags.destructured
+                        if ('m' in on) multiline = true
+                        if ('m' in off) multiline = false
+                        index = flags.range.last
+                    }
+                }
+                char == ')' -> multiline = outerMultiline.removeLastOrNull() ?: multiline
+                char == '$' && !multiline -> return true
             }
             index++
         }
         return false
     }
 
-    private val INLINE_MULTILINE_FLAG = Regex("""\(\?[A-Za-z]*m[A-Za-z-]*[):]""")
+    private val INLINE_FLAGS = Regex("""\(\?([A-Za-z]*)(?:-([A-Za-z]*))?[):]""")
 
     /** Tasker's Interrupt Mode numbers its modes from the most silent. Custom and the read-only query have no match here. */
     private fun taskerInterruptMode(
