@@ -297,7 +297,8 @@ private fun parseTemplateTraceLine(line: String): RunLogTemplateDiagnostic? {
         argName = parts[1].trim().takeIf { it.isNotBlank() } ?: return null,
         source = parts[2].trim().takeIf { it.isNotBlank() } ?: return null,
         expression = parts[3].trim(),
-        value = parts[4].trim(),
+        // A blank value with no warning leaves the line ending in tabs, which the line trim removes.
+        value = parts.getOrNull(4)?.trim().orEmpty(),
         warning = parts.getOrNull(5)?.trim()?.takeIf { it.isNotBlank() },
     )
 }
@@ -307,11 +308,17 @@ private fun parseVariableChangeLine(line: String): RunLogVariableChange? {
     if (parts.size < VARIABLE_CHANGE_FIELD_COUNT || !parts.first().equals(VARIABLE_CHANGE_PREFIX, ignoreCase = true)) {
         return null
     }
+    // With the value optional, a line missing a column would otherwise read shifted by one.
+    val change = parts[3].trim()
+    if (!change.equals(VARIABLE_CHANGE_ADDED, ignoreCase = true) && !change.equals(VARIABLE_CHANGE_UPDATED, ignoreCase = true)) {
+        return null
+    }
     return RunLogVariableChange(
         scope = parts[1].trim().takeIf { it.isNotBlank() } ?: return null,
         name = parts[2].trim().takeIf { it.isNotBlank() } ?: return null,
-        added = parts[3].trim().equals(VARIABLE_CHANGE_ADDED, ignoreCase = true),
-        value = parts[4].trim(),
+        added = change.equals(VARIABLE_CHANGE_ADDED, ignoreCase = true),
+        // A blank value leaves the line ending in a tab, which the line trim above removes.
+        value = parts.getOrNull(4)?.trim().orEmpty(),
     )
 }
 
@@ -337,9 +344,10 @@ private const val TEMPLATE_WARNINGS_DETAIL_PREFIX = "template warnings:"
 private const val TEMPLATE_TRACE_PREFIX = "Template:"
 private const val VARIABLE_CHANGE_PREFIX = "Var:"
 private const val VARIABLE_CHANGE_ADDED = "added"
-private const val VARIABLE_CHANGE_FIELD_COUNT = 5
+private const val VARIABLE_CHANGE_UPDATED = "updated"
+private const val VARIABLE_CHANGE_FIELD_COUNT = 4
 private const val VARIABLE_CHANGE_SPLIT_LIMIT = 5
-private const val TEMPLATE_TRACE_MIN_FIELD_COUNT = 5
+private const val TEMPLATE_TRACE_MIN_FIELD_COUNT = 4
 private const val TEMPLATE_TRACE_SPLIT_LIMIT = 6
 private const val SKIPPED_DECISION = "Skipped"
 private const val HELD_DECISION = "Held"
