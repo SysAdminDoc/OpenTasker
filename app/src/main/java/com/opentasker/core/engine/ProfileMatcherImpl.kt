@@ -311,15 +311,24 @@ internal fun timeBoundedEvents(
 /**
  * [source], read again after a pause whenever it fails. Nothing is emitted meanwhile, so a Time
  * context keeps the last globals it read instead of switching off until the profiles reload, and
- * stays off before the first read.
+ * stays off before the first read. The pause grows with the failures in a row and starts over once
+ * a read gets through, and only the first failure of a run is logged.
  */
 internal fun retryingGlobalValues(
-    pauseMs: (attempt: Long) -> Long = { attempt -> minOf(60_000L, 1_000L shl attempt.coerceAtMost(6L).toInt()) },
+    pauseMs: (failuresInARow: Long) -> Long = { failures -> minOf(60_000L, 1_000L shl failures.coerceAtMost(6L).toInt()) },
     source: () -> Flow<Map<String, String>>,
-): Flow<Map<String, String>> = flow { emitAll(source()) }.retryWhen { error, attempt ->
-    AppLogger.error("ProfileMatcher", "Could not read the globals a Time context is bounded by", error)
-    delay(pauseMs(attempt))
-    true
+): Flow<Map<String, String>> = flow {
+    var failures = 0L
+    emitAll(
+        flow { emitAll(source()) }
+            .onEach { failures = 0L }
+            .retryWhen { error, _ ->
+                if (failures == 0L) AppLogger.error("ProfileMatcher", "Could not read the globals a Time context is bounded by", error)
+                delay(pauseMs(failures))
+                failures++
+                true
+            },
+    )
 }
 
 private fun savedGlobalValues(projectId: Long): Flow<Map<String, String>> = retryingGlobalValues {

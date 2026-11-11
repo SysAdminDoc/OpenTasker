@@ -293,4 +293,24 @@ class ProfileMatcherTest {
         assertEquals(listOf(mapOf("Sunrise" to "6.42"), mapOf("Sunrise" to "7.00")), values)
         assertEquals(3, reads)
     }
+
+    @Test
+    fun aGlobalsReadThatGetsThroughStartsThePauseOver() = runBlocking {
+        val pauses = mutableListOf<Long>()
+        var reads = 0
+        val values = retryingGlobalValues(pauseMs = { failures -> pauses += failures; 1L }) {
+            reads++
+            when (reads) {
+                1, 2 -> throw IllegalStateException("database not open")
+                3 -> flow {
+                    emit(mapOf("Sunrise" to "6.42"))
+                    throw IOException("cursor closed")
+                }
+                else -> flowOf(mapOf("Sunrise" to "7.00"))
+            }
+        }.toList()
+
+        assertEquals(listOf(mapOf("Sunrise" to "6.42"), mapOf("Sunrise" to "7.00")), values)
+        assertEquals(listOf(0L, 1L, 0L), pauses)
+    }
 }
