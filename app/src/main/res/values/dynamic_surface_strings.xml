@@ -96,6 +96,7 @@
     <string name="locale_plugin_configure">Set up in the plugin</string>
     <string name="locale_plugin_configure_missing">That app doesn\'t have a plugin settings screen OpenTasker can open.</string>
     <string name="locale_plugin_configure_failed">The plugin\'s settings couldn\'t be saved: %1$s</string>
+    <string name="locale_plugin_configure_refused">OpenTasker didn\'t open the plugin\'s settings: %1$s</string>
     <string name="context_field_plugin_blurb_label" formatted="false">Description</string>
     <string name="context_field_plugin_blurb_hint" formatted="false">Optional label from plugin config</string>
     <string name="context_field_plugin_timeout_label" formatted="false">Query timeout ms</string>

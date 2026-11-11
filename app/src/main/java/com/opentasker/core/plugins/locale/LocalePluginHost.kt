@@ -65,6 +65,8 @@ data class LocalePluginEditIntentResult(
     val success: Boolean,
     val intent: Intent? = null,
     val message: String,
+    /** The package has no edit activity at all, as opposed to one OpenTasker refused to open. */
+    val notFound: Boolean = false,
 )
 
 data class LocalePluginConfigurationResult(
@@ -254,6 +256,42 @@ object LocalePluginBundleCodec {
             key to decoded
         }
     }
+
+    /**
+     * The saved bundle for the plugin's own settings screen. A typed slot holding a variable until
+     * the action runs, like `{"int":"%count"}`, goes as its text, and an entry that can't be read at
+     * all is left out, so the rest of the plugin's form still opens filled in. Empty when the JSON
+     * itself doesn't parse or is over the limits.
+     */
+    fun decodeBundleForEditing(bundleJson: String): Map<String, LocaleBundleValue> {
+        val strict = try {
+            decodeBundle(bundleJson)
+        } catch (_: IllegalArgumentException) {
+            null
+        } catch (_: IllegalStateException) {
+            null
+        }
+        if (strict != null) return strict
+        val obj = try {
+            Json.parseToJsonElement(bundleJson.trim().ifBlank { "{}" }) as? JsonObject
+        } catch (_: IllegalArgumentException) {
+            null
+        } ?: return emptyMap()
+        if (obj.size > LocalePluginContract.MAX_BUNDLE_ENTRIES) return emptyMap()
+        if (bundleJson.toByteArray(Charsets.UTF_8).size > LocalePluginContract.MAX_BUNDLE_JSON_BYTES) return emptyMap()
+        return obj.entries.mapNotNull { (key, value) ->
+            try {
+                decodeBundle(JsonObject(mapOf(key to value)).toString()).entries.single().toPair()
+            } catch (_: IllegalArgumentException) {
+                verbatimText(value)?.let { key to it }
+            } catch (_: IllegalStateException) {
+                verbatimText(value)?.let { key to it }
+            }
+        }.toMap()
+    }
+
+    private fun verbatimText(value: JsonElement): LocaleBundleValue.Text? =
+        ((value as? JsonObject)?.values?.singleOrNull() as? JsonPrimitive)?.contentOrNull?.let(LocaleBundleValue::Text)
 
     /** The bundle as the strings it used to send, for callers that only compare or display it. */
     fun decodeStringBundle(bundleJson: String): Map<String, String> =
@@ -475,13 +513,29 @@ object LocalePluginConfigurationResultParser {
     fun parse(resultCode: Int, data: Intent?): LocalePluginConfigurationResult {
         require(resultCode == Activity.RESULT_OK) { "Locale plugin configuration was canceled." }
         val resultIntent = requireNotNull(data) { "Locale plugin configuration returned no result intent." }
-        val bundle = resultIntent.getBundleExtra(LocalePluginContract.EXTRA_BUNDLE)
-            ?: error("Locale plugin configuration returned no bundle.")
-        val values = LocalePluginBundleCodec.fromBundleTyped(bundle)
+        val values = readingPluginData {
+            val bundle = resultIntent.getBundleExtra(LocalePluginContract.EXTRA_BUNDLE)
+                ?: error("Locale plugin configuration returned no bundle.")
+            LocalePluginBundleCodec.fromBundleTyped(bundle)
+        }
         return LocalePluginConfigurationResult(
             bundleJson = LocalePluginBundleCodec.encodeBundle(values),
-            blurb = resultIntent.getStringExtra(LocalePluginContract.EXTRA_BLURB).orEmpty().take(120),
+            blurb = readingPluginData { resultIntent.getStringExtra(LocalePluginContract.EXTRA_BLURB) }.orEmpty().take(120),
         )
+    }
+
+    /**
+     * Unparceling what a plugin sent can fail in ways of its own, like BadParcelableException for a
+     * class OpenTasker doesn't have. Those become the same refusal as any other unreadable result.
+     */
+    private inline fun <T> readingPluginData(read: () -> T): T = try {
+        read()
+    } catch (e: IllegalArgumentException) {
+        throw e
+    } catch (e: IllegalStateException) {
+        throw e
+    } catch (e: RuntimeException) {
+        throw IllegalStateException("Locale plugin configuration couldn't be read (${e.javaClass.simpleName}).", e)
     }
 }
 
@@ -578,8 +632,8 @@ class LocalePluginHost private constructor(
 
     /**
      * The plugin's own settings screen, opened on what's saved now so it can show it. The saved
-     * bundle can hold secrets, so a plugin whose signer changed gets nothing, and a bundle that
-     * doesn't decode is left off so the plugin starts blank.
+     * bundle can hold secrets, so a plugin whose signer changed gets nothing. Checking the signer
+     * can write its first pin, so call this off the main thread.
      */
     fun configurationIntent(
         packageName: String,
@@ -590,13 +644,7 @@ class LocalePluginHost private constructor(
         val edit = if (condition) buildEditConditionIntent(packageName) else buildEditSettingIntent(packageName)
         val intent = edit.intent ?: return edit
         signerRefusal(packageName)?.let { refusal -> return LocalePluginEditIntentResult(false, message = refusal) }
-        val saved = try {
-            LocalePluginBundleCodec.decodeBundle(bundleJson)
-        } catch (_: IllegalArgumentException) {
-            emptyMap()
-        } catch (_: IllegalStateException) {
-            emptyMap()
-        }
+        val saved = LocalePluginBundleCodec.decodeBundleForEditing(bundleJson)
         if (saved.isNotEmpty()) intent.putExtra(LocalePluginContract.EXTRA_BUNDLE, LocalePluginBundleCodec.toTypedBundle(saved))
         if (blurb.isNotBlank()) intent.putExtra(LocalePluginContract.EXTRA_BLURB, blurb.take(120))
         intent.putExtra(LocalePluginContract.EXTRA_STRING_BREADCRUMB, "OpenTasker")
@@ -716,6 +764,7 @@ class LocalePluginHost private constructor(
             0 -> LocalePluginEditIntentResult(
                 success = false,
                 message = "No Locale $label configuration activity found for $packageName.",
+                notFound = true,
             )
             1 -> {
                 val component = activities.single()
@@ -815,7 +864,9 @@ private fun queryEditActivities(
     packageName: String,
     action: String,
 ): List<ComponentName> =
-    pm.queryIntentActivities(Intent(action).setPackage(packageName), PackageManager.MATCH_DEFAULT_ONLY)
+    // No MATCH_DEFAULT_ONLY: the Locale spec's edit activities often don't declare CATEGORY_DEFAULT,
+    // and they're opened by explicit component, which doesn't need it.
+    pm.queryIntentActivities(Intent(action).setPackage(packageName), 0)
         .mapNotNull { resolveInfo ->
             val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
             if (activityInfo.packageName != packageName) return@mapNotNull null
@@ -824,7 +875,7 @@ private fun queryEditActivities(
         .sortedBy { it.className }
 
 private fun queryPackages(pm: PackageManager, action: String): Set<String> =
-    pm.queryIntentActivities(Intent(action), PackageManager.MATCH_DEFAULT_ONLY)
+    pm.queryIntentActivities(Intent(action), 0)
         .mapNotNull { it.activityInfo?.packageName }
         .toSet()
 

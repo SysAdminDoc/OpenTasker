@@ -95,6 +95,7 @@
     <string name="locale_plugin_configure">在插件中设置</string>
     <string name="locale_plugin_configure_missing">该应用没有 OpenTasker 可以打开的插件设置界面。</string>
     <string name="locale_plugin_configure_failed">无法保存插件设置：%1$s</string>
+    <string name="locale_plugin_configure_refused">OpenTasker 没有打开插件设置：%1$s</string>
     <string name="context_field_plugin_blurb_label" formatted="false">描述</string>
     <string name="context_field_plugin_blurb_hint" formatted="false">来自插件配置的可选标签</string>
     <string name="context_field_plugin_timeout_label" formatted="false">查询超时毫秒</string>

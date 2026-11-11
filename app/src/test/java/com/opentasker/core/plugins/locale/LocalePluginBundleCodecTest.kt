@@ -165,6 +165,32 @@ class LocalePluginBundleCodecTest {
     }
 
     @Test
+    fun canonicalValuesSpellOutTheType() {
+        assertEquals(mapOf("count" to "\"3\""), LocalePluginBundleCodec.canonicalValues(LocalePluginBundleCodec.decodeBundle("""{"count":"3"}""")))
+        assertEquals(mapOf("count" to """{"int":3}"""), LocalePluginBundleCodec.canonicalValues(LocalePluginBundleCodec.decodeBundle("""{"count":{"int":3}}""")))
+    }
+
+    @Test
+    fun thePluginsSettingsScreenStillGetsABundleHoldingAVariable() {
+        val values = LocalePluginBundleCodec.decodeBundleForEditing(
+            """{"count":{"int":"%count"},"name":"x","on":{"boolean":true},"bad":{"stringArray":[[1]]},"gone":null}"""
+        )
+
+        // The variable goes as its text; only the entries that can't be read at all are left out.
+        assertEquals(
+            mapOf(
+                "count" to LocaleBundleValue.Text("%count"),
+                "name" to LocaleBundleValue.Text("x"),
+                "on" to LocaleBundleValue.Flag(true),
+            ),
+            values,
+        )
+        val typed = """{"version":{"int":3}}"""
+        assertEquals(LocalePluginBundleCodec.decodeBundle(typed), LocalePluginBundleCodec.decodeBundleForEditing(typed))
+        assertEquals(emptyMap<String, LocaleBundleValue>(), LocalePluginBundleCodec.decodeBundleForEditing("not json"))
+    }
+
+    @Test
     fun configurationResultsKeepTheirTypes() {
         val values = LocalePluginBundleCodec.sanitizeTypedValues(
             mapOf(

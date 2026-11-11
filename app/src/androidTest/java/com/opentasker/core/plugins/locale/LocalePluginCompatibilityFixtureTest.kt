@@ -10,6 +10,7 @@ import com.opentasker.core.actions.ActionArgumentSensitivity
 import com.opentasker.core.actions.registerActionMetadata
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -171,6 +172,39 @@ class LocalePluginCompatibilityFixtureTest {
         assertTrue(fired?.containsKey("arguments") == true)
         assertEquals(null, fired?.getString("arguments"))
         assertEquals("hello.sh", fired?.getString("executable"))
+    }
+
+    @Test
+    fun aVariableInATypedSlotStillReopensThePluginFilledIn() {
+        val edit = host.configurationIntent(
+            packageName,
+            condition = false,
+            bundleJson = "{\"executable\":\"hello.sh\",\"version\":{\"int\":\"%v\"}}",
+            blurb = "",
+        )
+
+        assertTrue(edit.success)
+        val reopened = edit.intent?.getBundleExtra(LocalePluginContract.EXTRA_BUNDLE)
+        assertEquals("hello.sh", reopened?.getString("executable"))
+        assertEquals("%v", reopened?.getString("version"))
+    }
+
+    @Test
+    fun aPackageWithNoSettingsScreenIsNotFoundRatherThanRefused() {
+        val bare = LocalePluginHost(
+            componentResolver = object : LocalePluginComponentResolver {
+                override fun editActivities(packageName: String, action: String) = emptyList<ComponentName>()
+                override fun broadcastReceivers(packageName: String, action: String) = emptyList<ComponentName>()
+                override fun activityPackages(action: String) = emptySet<String>()
+                override fun broadcastReceiverPermissions(action: String) = emptyMap<String, List<String>>()
+            },
+            transport = transport,
+        )
+
+        val edit = bare.configurationIntent(packageName, condition = false, bundleJson = "{}", blurb = "")
+
+        assertFalse(edit.success)
+        assertTrue(edit.notFound)
     }
 
     private class SyntheticLocalePluginResolver(

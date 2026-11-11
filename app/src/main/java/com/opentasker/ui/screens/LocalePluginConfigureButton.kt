@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -20,7 +21,12 @@ import androidx.compose.ui.res.stringResource
 import com.opentasker.app.R
 import com.opentasker.core.apps.PackageNamePolicy
 import com.opentasker.core.plugins.locale.LocalePluginConfigurationResultParser
+import com.opentasker.core.plugins.locale.LocalePluginEditIntentResult
 import com.opentasker.core.plugins.locale.LocalePluginHost
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Opens a Locale plugin's own settings screen and writes what it saves into the bundle and blurb
@@ -35,8 +41,10 @@ internal fun LocalePluginConfigureButton(
     onConfigured: (bundleJson: String, blurb: String) -> Unit,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var problem by remember { mutableStateOf<String?>(null) }
     val failedTemplate = stringResource(R.string.locale_plugin_configure_failed)
+    val refusedTemplate = stringResource(R.string.locale_plugin_configure_refused)
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         // Backing out of the plugin's screen keeps what was there, and isn't an error.
         if (result.resultCode == Activity.RESULT_CANCELED) return@rememberLauncherForActivityResult
@@ -56,19 +64,32 @@ internal fun LocalePluginConfigureButton(
         OutlinedButton(
             enabled = PackageNamePolicy.isValid(target),
             onClick = {
-                val edit = LocalePluginHost(context.applicationContext)
-                    .configurationIntent(target, condition, bundleJson, blurb)
-                val intent = edit.intent
-                problem = if (!edit.success || intent == null) {
-                    missing
-                } else {
-                    try {
-                        launcher.launch(intent)
-                        null
-                    } catch (_: ActivityNotFoundException) {
-                        missing
-                    } catch (e: SecurityException) {
-                        failedTemplate.format(e.message.orEmpty())
+                scope.launch {
+                    // The signer check reads the package and can write its first pin, so not on the main thread.
+                    val edit = try {
+                        withContext(Dispatchers.IO) {
+                            LocalePluginHost(context.applicationContext).configurationIntent(target, condition, bundleJson, blurb)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: IllegalStateException) {
+                        // Includes a signer the package manager can't read.
+                        LocalePluginEditIntentResult(false, message = e.message.orEmpty())
+                    } catch (e: IllegalArgumentException) {
+                        LocalePluginEditIntentResult(false, message = e.message.orEmpty())
+                    }
+                    val intent = edit.intent
+                    problem = when {
+                        !edit.success || intent == null ->
+                            if (edit.notFound) missing else refusedTemplate.format(edit.message)
+                        else -> try {
+                            launcher.launch(intent)
+                            null
+                        } catch (_: ActivityNotFoundException) {
+                            missing
+                        } catch (e: SecurityException) {
+                            refusedTemplate.format(e.message.orEmpty())
+                        }
                     }
                 }
             },
