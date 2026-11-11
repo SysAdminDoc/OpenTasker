@@ -1,5 +1,6 @@
 package com.opentasker.core.updates
 
+import com.opentasker.core.data.JsonNesting
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -12,6 +13,8 @@ object UpdateCheckProtocol {
         "https://github.com/SysAdminDoc/OpenTasker/releases/tag/"
     const val RESPONSE_VARIABLE = "update_check_body"
     const val MAX_RESPONSE_BYTES = 65_536
+    /** GitHub's release object nests four levels (`assets[].uploader`). */
+    const val MAX_RESPONSE_DEPTH = 32
     const val REQUEST_TIMEOUT_SECONDS = 15
 
     private const val ACCEPT_HEADER = "Accept: application/vnd.github+json"
@@ -36,6 +39,9 @@ object UpdateCheckProtocol {
         if (payload.toByteArray(Charsets.UTF_8).size > MAX_RESPONSE_BYTES) {
             return UpdateCheckResult.Invalid("release response exceeds the size limit")
         }
+        val depth = JsonNesting.depth(payload)
+        if (depth == JsonNesting.NOT_JSON) return UpdateCheckResult.Invalid("release response is malformed")
+        if (depth > MAX_RESPONSE_DEPTH) return UpdateCheckResult.Invalid("release response nests too deep")
         return runCatching {
             parseLatestReleaseObject(payload, currentVersion)
         }.getOrElse {

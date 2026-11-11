@@ -58,9 +58,17 @@ internal class ImportBudgetExceededException(
 ) : IllegalArgumentException("Import budget exceeded: $budgetName is $observed; limit is $limit.")
 
 internal object ImportResourceGuard {
-    fun requireJsonPreflight(rawJson: String, budget: ImportResourceBudget = ImportResourceBudget.Default) {
+    /**
+     * [allowComments] matches the parser that reads [rawJson] next. One without comments reads `//`
+     * as a bare word, so skipping it as a comment here would hide the rest of the line.
+     */
+    fun requireJsonPreflight(
+        rawJson: String,
+        budget: ImportResourceBudget = ImportResourceBudget.Default,
+        allowComments: Boolean = true,
+    ) {
         requireWithin("JSON characters", rawJson.length.toLong(), budget.maxJsonChars.toLong())
-        JsonBudgetScanner(rawJson, budget).scan()
+        JsonBudgetScanner(rawJson, budget, allowComments).scan()
     }
 
     fun requireSourceCounts(
@@ -283,39 +291,64 @@ internal object ImportResourceGuard {
 private class JsonBudgetScanner(
     private val source: String,
     private val budget: ImportResourceBudget,
+    private val allowComments: Boolean,
 ) {
     private var index = 0
     private var depth = 0
     private var tokenCount = 0L
     private var stringBytes = 0L
+    private var closed = false
 
     fun scan() {
         while (index < source.length) {
             when (val char = source[index]) {
                 ' ', '\t', '\r', '\n' -> index++
                 '"' -> {
+                    requireSeparatorAfterClose(char)
                     countToken()
                     scanString()
                 }
                 '{', '[' -> {
+                    requireSeparatorAfterClose(char)
                     countToken()
                     depth++
                     requireWithin("nesting depth", depth.toLong(), budget.maxNestingDepth.toLong())
                     index++
                 }
                 '}', ']' -> {
+                    requireSeparatorAfterClose(char)
                     countToken()
                     depth--
+                    closed = true
                     index++
                 }
                 ':', ',' -> {
+                    requireSeparatorAfterClose(char)
                     countToken()
                     index++
                 }
-                '/' -> if (!scanComment()) scanBareToken()
-                else -> if (char.isWhitespace()) index++ else scanBareToken()
+                '/' -> if (!(allowComments && scanComment())) {
+                    requireSeparatorAfterClose(char)
+                    scanBareToken()
+                }
+                else -> {
+                    requireSeparatorAfterClose(char)
+                    if (char.isWhitespace()) index++ else scanBareToken()
+                }
             }
         }
+    }
+
+    /**
+     * kotlinx keeps reading values after a `]` or `}` as more of the container it just closed, so
+     * `[0][0]` nests while the depth count stays flat. Only `,`, `]` or `}` may follow a close; a
+     * Unicode space counts as a value there, since kotlinx reads it as the start of one.
+     */
+    private fun requireSeparatorAfterClose(char: Char) {
+        if (closed && char != ',' && char != ']' && char != '}') {
+            throw IllegalArgumentException("Import JSON has a value right after a closing bracket.")
+        }
+        closed = false
     }
 
     private fun scanString() {

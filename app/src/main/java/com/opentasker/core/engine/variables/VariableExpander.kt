@@ -1,5 +1,6 @@
 package com.opentasker.core.engine.variables
 
+import com.opentasker.core.data.JsonNesting
 import com.opentasker.core.engine.VariableStore
 import org.json.JSONObject
 import com.google.re2j.Pattern as Re2Pattern
@@ -590,6 +591,8 @@ class VariableExpander {
     }
 
     private fun evaluateJsonPath(json: String, path: String): String {
+        // org.json recurses per level and a StackOverflowError gets past the catch below.
+        if (JsonNesting.lenientDepth(json) > JsonNesting.MAX_DATA_DEPTH) return ""
         try {
             var current: Any? = JSONObject(json)
             val keys = path.split(".")

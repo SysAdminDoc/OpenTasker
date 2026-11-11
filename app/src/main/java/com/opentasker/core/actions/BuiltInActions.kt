@@ -287,7 +287,7 @@ class SetVariableAction : DeclaredAction(ActionCatalog.require("var.set")) {
         val value = args["value"] ?: ""
         if (name.contains('.') || name.contains('[')) {
             if (!ctx.variables.setAtPath(name, value)) {
-                return ActionResult.Failure("invalid path: $name")
+                return ActionResult.Failure("invalid path, or the variable's JSON nests too deep: $name")
             }
             val baseName = name.takeWhile { it != '.' && it != '[' }
             val loggedValue = if (ctx.isArgumentSensitive("value") || ctx.variables.isSensitive(baseName)) {

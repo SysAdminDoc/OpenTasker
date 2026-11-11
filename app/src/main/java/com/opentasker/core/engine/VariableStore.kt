@@ -1,5 +1,6 @@
 package com.opentasker.core.engine
 
+import com.opentasker.core.data.JsonNesting
 import com.opentasker.core.engine.variables.ArrayStore
 import com.opentasker.core.engine.variables.VariableExpander
 import com.opentasker.core.expressions.InertTemplateText
@@ -371,7 +372,8 @@ class VariableStore {
      * If no selectors are found, this falls through to a flat [set].
      * If the base variable does not exist or is not valid JSON, a new JSON structure is created.
      *
-     * Returns true if the write succeeded, false if the path is unparseable.
+     * Returns true if the write succeeded, false if the path is unparseable or the variable holds
+     * JSON nested deeper than [JsonNesting.MAX_DATA_DEPTH], which is left as it is.
      */
     fun setAtPath(fullPath: String, value: String): Boolean {
         val parsed = parsePathSelectors(fullPath) ?: return false
@@ -381,7 +383,9 @@ class VariableStore {
         }
 
         val current = get(parsed.base)
-        val root: JsonElement = if (current != null) {
+        val depth = current?.let(JsonNesting::depth)
+        if (depth != null && depth != JsonNesting.NOT_JSON && depth > JsonNesting.MAX_DATA_DEPTH) return false
+        val root: JsonElement = if (current != null && depth != JsonNesting.NOT_JSON) {
             try { jsonCodec.parseToJsonElement(current) } catch (_: Exception) { JsonObject(emptyMap()) }
         } else {
             JsonObject(emptyMap())

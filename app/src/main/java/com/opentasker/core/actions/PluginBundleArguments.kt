@@ -1,6 +1,6 @@
 package com.opentasker.core.actions
 
-import com.opentasker.core.plugins.locale.LocalePluginBundleCodec
+import com.opentasker.core.data.JsonNesting
 import com.opentasker.core.plugins.locale.LocalePluginContract
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -33,7 +33,7 @@ internal object PluginBundleArguments {
 
     fun expand(raw: String, expandText: (String) -> String): String? {
         if (raw.toByteArray(Charsets.UTF_8).size > LocalePluginContract.MAX_BUNDLE_JSON_BYTES) return null
-        if (LocalePluginBundleCodec.jsonNestingDepth(raw) > LocalePluginContract.MAX_BUNDLE_DEPTH) return null
+        if (!JsonNesting.within(raw, LocalePluginContract.MAX_BUNDLE_DEPTH)) return null
         val bundle = try {
             Json.parseToJsonElement(raw.trim().ifBlank { "{}" }) as? JsonObject
         } catch (_: IllegalArgumentException) {

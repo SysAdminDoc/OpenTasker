@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import com.opentasker.core.apps.PackageNamePolicy
 import com.opentasker.core.apps.TargetSignerCheck
 import com.opentasker.core.apps.TargetSignerGuard
+import com.opentasker.core.data.JsonNesting
 import com.opentasker.core.model.VariableNamePolicy
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -498,8 +499,13 @@ object LocalePluginBundleCodec {
         require(trimmed.toByteArray(Charsets.UTF_8).size <= LocalePluginContract.MAX_BUNDLE_JSON_BYTES) {
             "Plugin bundle JSON exceeds ${LocalePluginContract.MAX_BUNDLE_JSON_BYTES} bytes."
         }
-        require(jsonNestingDepth(trimmed) <= LocalePluginContract.MAX_BUNDLE_DEPTH) {
-            "Plugin bundle JSON nests deeper than a typed value."
+        val depth = JsonNesting.depth(trimmed)
+        require(depth <= LocalePluginContract.MAX_BUNDLE_DEPTH) {
+            if (depth == JsonNesting.NOT_JSON) {
+                "Plugin bundle JSON is malformed or nests deeper than a typed value."
+            } else {
+                "Plugin bundle JSON nests deeper than a typed value."
+            }
         }
         val element = Json.parseToJsonElement(trimmed)
         val obj = element as? JsonObject ?: error("Plugin bundle must be a JSON object.")
@@ -535,7 +541,7 @@ object LocalePluginBundleCodec {
         if (strict != null) return strict
         if (bundleJson.toByteArray(Charsets.UTF_8).size > LocalePluginContract.MAX_BUNDLE_JSON_BYTES) return emptyMap()
         // Only to keep the parser off the stack: an entry past MAX_BUNDLE_DEPTH is left out on its own below.
-        if (jsonNestingDepth(bundleJson) > MAX_EDITING_DEPTH) return emptyMap()
+        if (!JsonNesting.within(bundleJson, MAX_EDITING_DEPTH)) return emptyMap()
         val obj = try {
             Json.parseToJsonElement(bundleJson.trim().ifBlank { "{}" }) as? JsonObject
         } catch (_: IllegalArgumentException) {
@@ -617,35 +623,6 @@ object LocalePluginBundleCodec {
     }
 
     private const val MAX_EDITING_DEPTH = 64
-
-    /**
-     * How deep `{` and `[` nest outside strings, counted before parsing. kotlinx reads arrays
-     * recursively, so a few thousand `[` under the size limit overflow the stack. kotlinx also keeps
-     * reading values after a `]` or `}`, so `[0][0]` nests while the count stays flat: anything but
-     * `,`, `]` or `}` after a close counts as unlimited depth. Only JSON's own four whitespace
-     * characters are skipped there, since kotlinx reads a Unicode space as the start of a value.
-     */
-    internal fun jsonNestingDepth(text: String): Int {
-        var depth = 0
-        var deepest = 0
-        var inString = false
-        var escaped = false
-        var closed = false
-        for (char in text) {
-            if (closed && !inString && char !in " \t\n\r") {
-                if (char != ',' && char != ']' && char != '}') return Int.MAX_VALUE
-                closed = false
-            }
-            when {
-                escaped -> escaped = false
-                inString -> if (char == '\\') escaped = true else if (char == '"') inString = false
-                char == '"' -> inString = true
-                char == '{' || char == '[' -> deepest = maxOf(deepest, ++depth)
-                char == '}' || char == ']' -> { depth--; closed = true }
-            }
-        }
-        return deepest
-    }
 
     private fun requireValidKey(key: String) {
         require(key.isNotBlank()) { "Plugin bundle keys must not be blank." }

@@ -1,5 +1,6 @@
 package com.opentasker.core.actions
 
+import com.opentasker.core.data.JsonNesting
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
 import java.net.URI
@@ -19,6 +20,7 @@ data class HomeAssistantWebhookConfig(
 
 object HomeAssistantWebhookProtocol {
     const val MAX_PAYLOAD_BYTES = 16 * 1024
+    const val MAX_PAYLOAD_DEPTH = 64
     const val MAX_RETRIES = 3
     const val MAX_BACKOFF_MILLISECONDS = 5_000L
 
@@ -92,6 +94,8 @@ object HomeAssistantWebhookProtocol {
                 require(message.isNotBlank()) {
                     "Home Assistant message is required when data is provided"
                 }
+                // The payload wraps data in one more object, so data gets one level less.
+                requirePayloadBounds(data, "Home Assistant data", MAX_PAYLOAD_DEPTH - 1)
                 val dataElement = Json.parseToJsonElement(data.ifBlank { "{}" })
                 require(dataElement is JsonObject) {
                     "Home Assistant data must be a JSON object"
@@ -105,9 +109,7 @@ object HomeAssistantWebhookProtocol {
             }
             else -> "{}"
         }
-        require(payload.toByteArray(Charsets.UTF_8).size <= MAX_PAYLOAD_BYTES) {
-            "Home Assistant webhook payload exceeds ${MAX_PAYLOAD_BYTES / 1024} KB"
-        }
+        requirePayloadBounds(payload, "Home Assistant webhook payload", MAX_PAYLOAD_DEPTH)
         require(Json.parseToJsonElement(payload) is JsonObject) {
             "Home Assistant webhook payload must be a JSON object"
         }
@@ -132,6 +134,15 @@ object HomeAssistantWebhookProtocol {
             } ?: 500L,
             allowHttp = allowHttp,
         )
+    }
+
+    private fun requirePayloadBounds(json: String, label: String, maxDepth: Int) {
+        require(json.toByteArray(Charsets.UTF_8).size <= MAX_PAYLOAD_BYTES) {
+            "$label exceeds ${MAX_PAYLOAD_BYTES / 1024} KB"
+        }
+        val depth = JsonNesting.depth(json)
+        require(depth != JsonNesting.NOT_JSON) { "$label isn't valid JSON" }
+        require(depth <= maxDepth) { "$label nests deeper than $maxDepth levels" }
     }
 
     fun isTransientFailure(result: ActionResult): Boolean {

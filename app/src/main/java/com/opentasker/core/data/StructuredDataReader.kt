@@ -44,6 +44,7 @@ object StructuredDataReader {
     private val json = Json { ignoreUnknownKeys = true }
 
     private fun readJson(source: String, path: String): List<String>? {
+        if (!JsonNesting.within(source, JsonNesting.MAX_DATA_DEPTH)) return null
         val root = runCatching { json.parseToJsonElement(source) }.getOrNull() ?: return null
         val target = navigateJson(root, path) ?: return null
         return when (target) {

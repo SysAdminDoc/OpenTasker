@@ -1,6 +1,7 @@
 package com.opentasker.core.contexts
 
 import android.content.Intent
+import com.opentasker.core.data.JsonNesting
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
@@ -66,6 +67,8 @@ object PushContextEvents {
     const val MAX_MESSAGE_BYTES = 8 * 1024
     /** AND_3.1.0 bounds the encrypted UnifiedPush bytes message at 4096 bytes. */
     const val MAX_UNIFIED_PUSH_MESSAGE_BYTES = 4 * 1024
+    /** An ntfy message nests four levels at most (`actions[].headers`). */
+    const val MAX_UNIFIED_PUSH_MESSAGE_DEPTH = 32
     const val PENDING_PULSE_REPLAY_MS = 30_000L
 
     private val pushEvents = MutableSharedFlow<ContextEvent>(extraBufferCapacity = 32)
@@ -124,9 +127,9 @@ object PushContextEvents {
         nowMs: Long = System.currentTimeMillis(),
     ): ContextEvent? {
         if (content.isEmpty() || content.size > MAX_UNIFIED_PUSH_MESSAGE_BYTES) return null
-        val root = runCatching {
-            Json.parseToJsonElement(String(content, StandardCharsets.UTF_8))
-        }.getOrNull() as? JsonObject ?: return null
+        val text = String(content, StandardCharsets.UTF_8)
+        if (!JsonNesting.within(text, MAX_UNIFIED_PUSH_MESSAGE_DEPTH)) return null
+        val root = runCatching { Json.parseToJsonElement(text) }.getOrNull() as? JsonObject ?: return null
         val topic = root.stringValue("topic") ?: return null
         val eventId = root.stringValue("id", "event_id", "eventId") ?: return null
         val title = root.stringValue("title").orEmpty()

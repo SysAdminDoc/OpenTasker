@@ -1,5 +1,6 @@
 package com.opentasker.core.expressions
 
+import com.opentasker.core.data.JsonNesting
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -31,6 +32,7 @@ data class TemplateExpressionLimits(
     val maxExpansions: Int = 128,
     val maxFunctionChain: Int = 8,
     val maxJsonDepth: Int = 16,
+    val maxJsonNesting: Int = JsonNesting.MAX_DATA_DEPTH,
     val maxResolvedValueLength: Int = 4_096,
     val maxOutputLength: Int = 20_000,
 )
@@ -373,7 +375,7 @@ class TemplateExpressionEngine(
         path: String,
         isSecretDerived: Boolean,
     ): ResolvedValue {
-        if (selectors.size > limits.maxJsonDepth) {
+        if (selectors.size > limits.maxJsonDepth || !JsonNesting.within(jsonText, limits.maxJsonNesting)) {
             return ResolvedValue("", TemplateValueSource.MISSING, path, missing = true)
         }
 
