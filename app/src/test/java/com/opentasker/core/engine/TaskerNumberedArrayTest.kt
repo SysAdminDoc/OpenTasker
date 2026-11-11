@@ -152,6 +152,33 @@ class TaskerNumberedArrayTest {
     }
 
     @Test
+    fun aSplitTextArrayStaysHiddenOnceTheTaskerSplitDeletesItsBase() {
+        val variables = VariableStore()
+
+        act(variables, "text.split", "source" to "a,b,c", "delimiter" to ",", "var" to "words")
+        variables.set("words", "x y")
+        act(variables, "var.split", "name" to "words", "delete_base" to "true")
+
+        assertNull(variables.get("words"))
+        assertEquals("2", variables.expand("%words(#)"))
+        assertEquals("x", variables.expand("%words(1)"))
+        assertEquals("x,y", variables.expand("%words()"))
+    }
+
+    @Test
+    fun splitTextIntoAVariableWrittenWithItsPercentSignStoresTheSameArray() {
+        val variables = VariableStore()
+
+        assertEquals(ActionResult.Success, act(variables, "text.split", "source" to "a,b,c", "delimiter" to ",", "var" to "%parts"))
+        assertEquals(ActionResult.Success, act(variables, "text.match", "source" to "id=42", "pattern" to "id=(\\d+)", "var" to "%m"))
+
+        assertEquals("3", variables.expand("%parts(#)"))
+        assertEquals("b", variables.expand("%parts(1)"))
+        assertEquals("42", variables.expand("%m(1)"))
+        assertEquals(listOf("a", "b", "c"), variables.getArrayItems("parts"))
+    }
+
+    @Test
     fun aPositionVariableThatIsUnsetStopsTheStepInsteadOfUsingTheFirstElement() {
         fun pop(position: String) = Task(
             name = "T",

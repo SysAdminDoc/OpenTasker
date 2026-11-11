@@ -253,12 +253,14 @@ class VariableStore {
      * Arrays can be accessed via %arrayName(#) for length, %arrayName(0) for index, etc.
      */
     fun setArray(name: String, values: List<String>, sensitive: Boolean = false) {
+        // Named the way [set] names it, so an output field written as %parts stores parts.
+        val normalizedName = VariableNamePolicy.normalize(name) ?: return
         // Array taint is monotonic for the same reason global taint is (see [set]): mark before
         // publishing and never clear, so a later plain write can't race a secret array's flag off.
-        if (sensitive || sensitiveWriteDepth.get() > 0 || name in sensitiveArrayNames) {
-            sensitiveArrayNames += name
+        if (sensitive || sensitiveWriteDepth.get() > 0 || normalizedName in sensitiveArrayNames) {
+            sensitiveArrayNames += normalizedName
         }
-        arrayStore.put(name, values)
+        arrayStore.put(normalizedName, values)
     }
 
     /**

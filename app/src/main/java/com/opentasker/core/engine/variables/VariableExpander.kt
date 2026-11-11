@@ -252,8 +252,9 @@ class VariableExpander {
      * the parentheses is filled in first and trimmed, so `%parts(%i)` reads the element at `%i` and
      * gives empty while `%i` is, as does a range with an empty variable on either side. Any other
      * form joins the elements with it. Both actions also set [name] to the first element, so while
-     * it holds a value the stored array answers only those array forms, and only when [name] has
-     * no numbered elements (`%parts1`, ...) of its own. Null leaves [op] to them.
+     * it holds a value the stored array answers only those array forms. It never answers once
+     * [name] has numbered elements (`%parts1`, ...) of its own, whether [name] is set or not. Null
+     * leaves [op] to them.
      */
     private fun storedArrayValue(
         name: String,
@@ -265,7 +266,7 @@ class VariableExpander {
         val expanded = if ('%' in op) expandText(op, store, arrays) { it } else op
         val form = expanded.trim()
         val arrayForm = STORED_ARRAY_FORM.matches(form)
-        if (baseValue != null && (!arrayForm || store.numberedItems(name).isNotEmpty())) return null
+        if (store.numberedItems(name).isNotEmpty() || (baseValue != null && !arrayForm)) return null
         if (form.isEmpty() && '%' in op) return ""
         if (':' in op && op.split(':', limit = 2).any { side -> '%' in side && expandText(side, store, arrays) { it }.isBlank() }) return ""
         val size = arrays.length(name)
