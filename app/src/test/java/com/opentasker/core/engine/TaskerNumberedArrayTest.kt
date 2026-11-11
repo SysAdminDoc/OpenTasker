@@ -97,6 +97,30 @@ class TaskerNumberedArrayTest {
     }
 
     @Test
+    fun anUnsetVariableOnEitherSideOfARangeNamesNoElement() {
+        val variables = store("arr1" to "a", "arr2" to "b", "arr3" to "c", "two" to "2")
+
+        assertEquals("", variables.expand("%arr(%from:%to)"))
+        assertEquals("", variables.expand("%arr(%from:)"))
+        assertEquals("", variables.expand("%arr(:%to)"))
+        assertEquals("", variables.expand("%arr(%two:%to)"))
+        assertEquals("b,c", variables.expand("%arr(%two:)"))
+        assertEquals("a,b", variables.expand("%arr(:%two)"))
+        assertEquals("a,b,c", variables.expand("%arr(:)"))
+    }
+
+    @Test
+    fun aStoredArrayReadsTheElementAnIndexVariableNames() {
+        val variables = store("i" to "1").apply { setArray("parts", listOf("x", "y")) }
+
+        // Whatever element %parts(1) names, %parts(%i) names the same one, not a join on "%i".
+        assertEquals(variables.expand("%parts(1)"), variables.expand("%parts(%i)"))
+        assertTrue(variables.expand("%parts(%i)") in listOf("x", "y"))
+        assertEquals("", variables.expand("%parts(%unset)"))
+        assertEquals("x;y", variables.expand("%parts(;)"))
+    }
+
+    @Test
     fun aPositionVariableThatIsUnsetStopsTheStepInsteadOfUsingTheFirstElement() {
         fun pop(position: String) = Task(
             name = "T",

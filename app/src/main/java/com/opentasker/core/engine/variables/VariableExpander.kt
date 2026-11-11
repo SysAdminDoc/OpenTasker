@@ -181,11 +181,14 @@ class VariableExpander {
         val baseValue = store.get(name)
 
         if (arrays.contains(name) && baseValue == null) {
+            // %parts(%i) reads the element at %i, as the numbered forms below do, not a join on "%i".
+            val form = if ('%' in op) expandText(op, store, arrays) { it } else op
+            if (form.isBlank() && '%' in op) return ""
             return when {
-                op == "#" -> arrays.length(name).toString()
-                op.toIntOrNull() != null -> arrays.get(name, op.toInt())
-                op.isEmpty() -> arrays.join(name, "")
-                else -> arrays.join(name, op)
+                form == "#" -> arrays.length(name).toString()
+                form.toIntOrNull() != null -> arrays.get(name, form.toInt())
+                form.isEmpty() -> arrays.join(name, "")
+                else -> arrays.join(name, form)
             }
         }
 
@@ -258,7 +261,8 @@ class VariableExpander {
      * `#>` and `#<` give the first and last index, `>` and `<` the first and last value, a number
      * one element, and an empty, `:` or `a:b` form joins the elements set in that range with commas,
      * backwards when a is past b. A variable inside the parentheses is filled in first, so
-     * `%arr(%i)` works as it does in Tasker, and gives empty when `%i` is. Returns null when [op]
+     * `%arr(%i)` works as it does in Tasker, and gives empty when `%i` is, or when a variable on
+     * either side of a range is. Returns null when [op]
      * is none of these, or when [name] is a plain variable with no elements, so its own operators
      * still apply.
      */
@@ -274,8 +278,9 @@ class VariableExpander {
         val items = store.numberedItems(name)
         if (items.isEmpty() && baseValue != null) return null
         // An index variable that came out empty names no element, so it isn't the empty form
-        // that joins them all.
+        // that joins them all, nor the open side of a range (%arr(%a:%b) isn't %arr(:)).
         if (form.isEmpty() && '%' in op) return ""
+        if (':' in op && op.split(':', limit = 2).any { side -> '%' in side && expandText(side, store, arrays) { it }.isBlank() }) return ""
         val lastIndex = if (items.isEmpty()) 0 else items.lastKey()
         return when (form) {
             "#" -> items.size.toString()
