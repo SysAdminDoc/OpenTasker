@@ -4,12 +4,14 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import android.os.SystemClock
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Process-local activity visibility, for Android 17 audio eligibility decisions and for monitors
- * that need to re-check something when the user comes back to the app or closes a prompt over it.
+ * Process-local activity visibility and window focus, for Android 17 audio eligibility decisions,
+ * clipboard reads, and monitors that need to re-check something when the user comes back to the
+ * app or closes a prompt over it.
  */
 object AppVisibilityTracker : Application.ActivityLifecycleCallbacks {
     private val startedActivityCount = AtomicInteger(0)
@@ -23,6 +25,21 @@ object AppVisibilityTracker : Application.ActivityLifecycleCallbacks {
 
     val isAppVisible: Boolean
         get() = startedActivityCount.get() > 0
+
+    private val focusedActivities = ConcurrentHashMap.newKeySet<Activity>()
+    private val focusWatchedActivities = ConcurrentHashMap.newKeySet<Activity>()
+
+    /**
+     * True while one of the app's activity windows has input focus. From Android 10 the clipboard
+     * reads as empty to an app that's on screen but not focused, as in split screen or under the
+     * notification shade, so [isAppVisible] isn't enough there.
+     */
+    val hasWindowFocus: Boolean
+        get() = focusedActivities.isNotEmpty()
+
+    internal fun noteWindowFocus(activity: Activity, focused: Boolean) {
+        if (focused) focusedActivities += activity else focusedActivities -= activity
+    }
 
     /**
      * Milliseconds since an activity last opened or finished itself or the user tapped a notification
@@ -71,9 +88,21 @@ object AppVisibilityTracker : Application.ActivityLifecycleCallbacks {
         resumeListeners.forEach { listener -> runCatching(listener) }
     }
 
+    // Android 10 added this callback in the same release that tied clipboard reads to focus. The
+    // window may not be attached yet, but a listener added before it attaches carries over.
+    override fun onActivityPostResumed(activity: Activity) {
+        val decor = activity.window?.peekDecorView() ?: return
+        if (!focusWatchedActivities.add(activity)) return
+        decor.viewTreeObserver.addOnWindowFocusChangeListener { focused -> noteWindowFocus(activity, focused) }
+        noteWindowFocus(activity, decor.hasWindowFocus())
+    }
+
     // The widget and shortcut activity finishes inside onCreate, so it never starts or stops.
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = noteUserPresence()
     override fun onActivityPaused(activity: Activity) = Unit
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
-    override fun onActivityDestroyed(activity: Activity) = Unit
+    override fun onActivityDestroyed(activity: Activity) {
+        focusWatchedActivities -= activity
+        focusedActivities -= activity
+    }
 }

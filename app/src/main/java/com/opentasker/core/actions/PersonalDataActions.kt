@@ -34,9 +34,10 @@ class ClipboardGetAction : DeclaredAction(ActionCatalog.require("clipboard.get")
         // or the default IME. Automations run from the background service, so that is the normal
         // case, and treating null as "" reported Success with an empty value - indistinguishable
         // from a genuinely empty clipboard, and silently feeding blank data to whatever came next.
-        if (clip == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !AppVisibilityTracker.isAppVisible) {
+        // Being on screen isn't enough: split screen or the notification shade takes the focus.
+        if (clip == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !AppVisibilityTracker.hasWindowFocus) {
             return ActionResult.Failure(
-                "Android blocks clipboard reads from the background; run this action while OpenTasker is open",
+                "Android only lets the app in focus read the clipboard, so run this action while OpenTasker is open and in front",
             )
         }
 

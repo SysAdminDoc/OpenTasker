@@ -796,7 +796,7 @@ object TaskerXmlImporter {
                 ActionSpec(type = "clipboard.get", label = "Tasker get clipboard", args = mapOf("var" to "%cl_text")),
                 lossyWarning = "Tasker Get Clipboard's %cl_text comes over, but its %cl_html_text, %cl_uri, %cl_image_uri, " +
                     "%cl_mimetypes() and %cl_extras aren't set here, and on Android 10 and newer the clipboard can only be " +
-                    "read while OpenTasker is open",
+                    "read while OpenTasker is open and in front",
             )
             "410", "file.write" -> {
                 // Tasker's Write File stores arg2=Append and arg3=Add Newline. Append maps onto this
