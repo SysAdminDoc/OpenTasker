@@ -23,6 +23,7 @@ import com.opentasker.core.model.Variable
 import com.opentasker.core.model.enterTaskIdOrNull
 import com.opentasker.core.diagnostics.ExportRedactionPolicy
 import com.opentasker.core.engine.SUB_TASK_REF_KEYS
+import com.opentasker.core.engine.variables.VariableExpander
 import kotlin.math.roundToLong
 
 data class TaskerXmlExportReport(
@@ -436,9 +437,11 @@ object TaskerXmlExporter {
      * Writes the action's "Run only if" guard (ActionSpec.condition) back as the sibling
      * `<ConditionList>` element real Tasker exports use for the same concept, so an imported
      * guard survives an export/import round trip on any action instead of silently becoming
-     * unconditional. Guards this app's richer condition syntax cannot squeeze into a single
-     * Tasker lhs/op/rhs triple (boolean chains, template expressions, <=/>=) are dropped with a
-     * warning rather than exported wrong. A flow.if whose guard differs from its own
+     * unconditional. A guard joined with `&&` and `||` goes out as several conditions with Tasker's
+     * joiners ([taskerConditionChain]). Guards this can't write as Tasker's list (template
+     * expressions, <= and >=, which aren't written as a pair of Tasker conditions, and brackets
+     * alternating && and || deeper than its four joiner levels) are dropped with a warning rather
+     * than exported wrong. A flow.if whose guard differs from its own
      * args["condition"] test is also warned and dropped: on import the ConditionList overwrites
      * that arg, so exporting the guard would replace the if's actual test.
      */
@@ -460,18 +463,22 @@ object TaskerXmlExporter {
                 "re-enter it after import."
             return
         }
-        val condition = taskerConditionFor(guard)
-        if (condition == null) {
+        val chain = taskerConditionChain(guard)
+        if (chain == null) {
             warnings += "The run-only-if guard on '${action.type}' ('$guard') has no Tasker " +
                 "ConditionList equivalent and was dropped."
             return
         }
+        // Tasker writes its joiners ahead of the conditions they join.
         sb.appendLine("""      <ConditionList sr="if">""")
-        sb.appendLine("""        <Condition sr="c0" ve="3">""")
-        sb.appendLine("          <lhs>${escapeXml(condition.lhs)}</lhs>")
-        sb.appendLine("          <op>${condition.op}</op>")
-        sb.appendLine("          <rhs>${escapeXml(condition.rhs)}</rhs>")
-        sb.appendLine("        </Condition>")
+        chain.joiners.forEachIndexed { index, joiner -> sb.appendLine("        <bool$index>$joiner</bool$index>") }
+        chain.conditions.forEachIndexed { index, condition ->
+            sb.appendLine("""        <Condition sr="c$index" ve="3">""")
+            sb.appendLine("          <lhs>${escapeXml(condition.lhs)}</lhs>")
+            sb.appendLine("          <op>${condition.op}</op>")
+            sb.appendLine("          <rhs>${escapeXml(condition.rhs)}</rhs>")
+            sb.appendLine("        </Condition>")
+        }
         sb.appendLine("      </ConditionList>")
     }
 
@@ -528,17 +535,48 @@ object TaskerXmlExporter {
 
     private data class TaskerCondition(val lhs: String, val op: String, val rhs: String)
 
+    /** Tasker conditions in list order, and the joiner between each one and the next. */
+    private data class TaskerConditionChain(val conditions: List<TaskerCondition>, val joiners: List<String>)
+
     /**
-     * Reverse of TaskerXmlImport.parseImportedCondition: turns this app's condition string back
-     * into a single Tasker lhs/op/rhs triple when it has that shape. Anything the triple cannot
-     * express (&&/|| chains, template expressions, unsupported operators) returns null and the
-     * caller reports the loss.
+     * Reverse of TaskerXmlImport's joining: writes [guard]'s `||` and `&&` as Tasker joiners, each at
+     * the loosest of Or, And, Or2 and And2 that's no looser than the group around it, because
+     * Tasker splits its list at the loosest joiner present and each piece at the next. Null when a
+     * comparison has no Tasker triple or the brackets alternate deeper than those four levels.
+     */
+    private fun taskerConditionChain(guard: String, enclosingLevel: Int = -1): TaskerConditionChain? {
+        val (operator, parts) = conditionGrammar.conditionParts(guard)
+        if (operator == null) {
+            return taskerConditionFor(parts.single())?.let { TaskerConditionChain(listOf(it), emptyList()) }
+        }
+        // A group joined the same way as the one around it shares its level: a && (b && c) is And, And.
+        val level = TASKER_JOINERS.indices.firstOrNull { it >= enclosingLevel && TASKER_JOINERS[it].second == operator } ?: return null
+        val chains = parts.map { taskerConditionChain(it, level) ?: return null }
+        return TaskerConditionChain(
+            conditions = chains.flatMap { it.conditions },
+            joiners = chains.flatMapIndexed { index, chain ->
+                if (index == 0) chain.joiners else listOf(TASKER_JOINERS[level].first) + chain.joiners
+            },
+        )
+    }
+
+    /**
+     * Reverse of TaskerXmlImport.parseImportedCondition for one condition: turns this app's
+     * comparison back into a Tasker lhs/op/rhs triple when it has that shape. Anything the triple
+     * cannot express (&&/|| left in it, template expressions, unsupported operators) returns null
+     * and the caller reports the loss.
      */
     private fun taskerConditionFor(condition: String): TaskerCondition? {
         if (condition.contains("&&") || condition.contains("||") || condition.contains("{{")) return null
-        // Binary comparisons win over the unary is_set/not_set suffix, matching the evaluator:
-        // "%status == is_set" is an equality check against the literal word, not an existence
-        // check, so it must export as op 0 rather than op 12.
+        // Read the way the evaluator reads it: one operator outside brackets, so `%x ~ (a == b)`
+        // matches the pattern `(a == b)`. A comparison wins over the unary is_set/not_set suffix:
+        // "%status == is_set" is an equality check against the literal word, so it must export as
+        // op 0 rather than op 12.
+        conditionGrammar.comparisonParts(condition)?.let { (lhs, token, rhs) ->
+            return BINARY_CONDITION_OPS.firstOrNull { it.first == token }?.let { (_, op) -> TaskerCondition(lhs, op, rhs) }
+        }
+        // The evaluator finds no single operator in an imported pattern like `%html ~ *<b>*`, which
+        // Tasker reads as one comparison, so the first space-bounded operator is taken instead.
         for ((token, op) in BINARY_CONDITION_OPS) {
             val marker = " $token "
             val index = condition.indexOf(marker)
@@ -559,9 +597,9 @@ object TaskerXmlExporter {
     }
 
     // App condition operators -> Tasker Condition <op> codes (the import table's canonical
-    // inverse: numeric-equality ops 8/9 already collapsed on import). Longer tokens are matched
-    // before their substrings; every token is whitespace-bounded, so "a <= b" matches nothing
-    // here and is reported as unrepresentable instead of exported as "<".
+    // inverse: numeric-equality ops 8/9 already collapsed on import). <= and >= have no code, so a
+    // guard using one is reported as unrepresentable. For the space-bounded fallback, longer
+    // tokens come before their substrings, so "a <= b" matches nothing there instead of "<".
     private val BINARY_CONDITION_OPS = listOf(
         "==" to "0",
         "!=" to "1",
@@ -577,6 +615,13 @@ object TaskerXmlExporter {
         " is_set" to "12",
         " not_set" to "13",
     )
+
+    // Tasker's joiners from loosest to tightest (decompiled 6.7.8, u1), with the operator each one
+    // reads as here. Xor and Xor2 have no operator here, so nothing exports as them.
+    private val TASKER_JOINERS = listOf("Or" to "||", "And" to "&&", "Or2" to "||", "And2" to "&&")
+
+    /** Reads a guard the way the engine evaluates it. */
+    private val conditionGrammar = VariableExpander()
 
     /** Writes [profile] and returns true, or returns false when it has no context Tasker would take. */
     private fun appendProfile(

@@ -1972,12 +1972,13 @@ object TaskerXmlImporter {
      * or a null expression if the action has no ConditionList, which is the normal case for most
      * actions.
      *
-     * Only the single-condition case is handled: every real sample examined had exactly one
-     * `<Condition>` per list. Tasker does support AND/OR chains of multiple conditions via extra
-     * `<Condition>`/`<Bool>` siblings; a multi-condition list degrades to using only the first
-     * condition (rather than silently producing "true" the way every ConditionList case did before
-     * this fix) and reports that degradation via [ImportedCondition.warning]. Likewise, an `<op>`
-     * code outside the known Tasker set (0-9, 12, 13) yields a null expression -- which for flow.if
+     * Several conditions are joined by `<bool0>`, `<bool1>` and on, and come in as one expression
+     * joined with `&&` and `||`, grouped by [joinTaskerConditions]. Like Tasker (decompiled 6.7.8,
+     * u1), the list ends at the first condition number or joiner that isn't there, and conditions
+     * past it are left out with a note. A joined list is dropped with a note rather than imported with another meaning
+     * when it uses Xor or Xor2, which the condition grammar has no word for, or when a condition
+     * would change how the joined text splits ([joinableSide]). Likewise, an `<op>` code outside
+     * the known Tasker set (0-9, 12, 13) yields a null expression -- which for flow.if
      * specifically falls back to the old literal-"true" behavior -- but is now reported instead of
      * silently reproduced. Ops 4/5 are Tasker's "Matches Regex"/"Doesn't Match Regex" (verified
      * against Map-Tasker's operator table) and import as `~R`/`!~R`; a pattern RE2 can't compile
@@ -1987,35 +1988,83 @@ object TaskerXmlImporter {
     private fun Element.parseImportedCondition(): ImportedCondition {
         val conditionList = directChildren("ConditionList").firstOrNull() ?: return ImportedCondition(null, null)
         val conditions = conditionList.directChildren("Condition")
-        val condition = conditions.firstOrNull() ?: return ImportedCondition(null, null)
-        val lhs = condition.childText("lhs")
-        if (lhs.isBlank()) return ImportedCondition(null, null)
-        val multiConditionWarning = if (conditions.size > 1) {
-            "a multi-condition \"Run only if\" guard was reduced to just its first condition"
+        if (conditions.isEmpty()) return ImportedCondition(null, null)
+        // Tasker reads c0, bool0, c1 and on by number and stops at the first one missing. A
+        // hand-written list with no numbers at all is read in file order.
+        val numbered = if (conditions.all { it.argIndex() == Int.MAX_VALUE }) {
+            conditions.withIndex().associate { it.index to it.value }
         } else {
-            null
+            conditions.reversed().associateBy { it.argIndex() }
         }
-        val op = condition.taskerConditionOp()
-        val expression = when (op) {
+        val read = mutableListOf<Element>()
+        val joiners = mutableListOf<String>()
+        while (true) {
+            read += numbered[read.size] ?: break
+            joiners += conditionList.directChildren("bool${read.size - 1}").firstOrNull()?.textContent?.trim() ?: break
+        }
+        if (read.isEmpty()) {
+            return ImportedCondition(null, "a \"Run only if\" guard was dropped, since it has no first condition (c0) and Tasker reads none of it")
+        }
+        if (joiners.size == read.size) joiners.removeAt(joiners.lastIndex)
+        val cutWarning = when {
+            read.size == conditions.size -> null
+            read.size == 1 ->
+                "a multi-condition \"Run only if\" guard was reduced to just its first condition, since Tasker reads no condition past a missing number or a missing And or Or"
+            else ->
+                "a multi-condition \"Run only if\" guard was reduced to its first ${read.size} conditions, since Tasker reads no condition past a missing number or a missing And or Or"
+        }
+        fun withNotes(expression: String?, vararg notes: String?) =
+            ImportedCondition(expression, listOfNotNull(cutWarning, *notes).joinToString("; ").ifBlank { null })
+
+        if (read.size == 1) {
+            val condition = read.single()
+            if (condition.childText("lhs").isBlank()) return ImportedCondition(null, null)
+            val op = condition.taskerConditionOp()
+            val expression = condition.conditionExpression(op)
+                ?: return withNotes(null, "a \"Run only if\" guard used an unsupported Tasker comparison (op $op) and was dropped")
+            return withNotes(expression, condition.regexApproximationWarning(op))
+        }
+
+        fun dropped(reason: String) =
+            withNotes(null, "a \"Run only if\" guard joining ${read.size} conditions was dropped, since $reason")
+        joiners.firstOrNull { it !in TASKER_JOINER_ORDER }?.let { joiner ->
+            return dropped("it joins them with ${joiner.ifBlank { "an empty joiner" }}, which this app has no way to write")
+        }
+        val approximations = mutableListOf<String>()
+        val parts = read.map { condition ->
+            val op = condition.taskerConditionOp()
+            val lhs = condition.childText("lhs")
+            val rhs = condition.childText("rhs")
+            when {
+                lhs.isBlank() -> return dropped("one of them has nothing to compare")
+                !joinableSide(lhs) || !joinableSide(rhs) ->
+                    return dropped("one of them holds && or ||, a {{ template }} or an unmatched bracket, which would change how they join")
+            }
+            condition.regexApproximationWarning(op)?.let { approximations += it }
+            condition.conditionExpression(op)
+                ?: return dropped("one of them uses an unsupported Tasker comparison (op $op)")
+        }
+        return withNotes(joinTaskerConditions(parts, joiners), *approximations.toTypedArray())
+    }
+
+    /** This Condition in this app's syntax, or null when its [op] has no counterpart here. */
+    private fun Element.conditionExpression(op: String): String? {
+        val lhs = childText("lhs")
+        return when (op) {
             "12" -> "$lhs is_set"
             "13" -> "$lhs not_set"
-            else -> {
-                val token = TASKER_CONDITION_OP_TOKENS[op]
-                    ?: return ImportedCondition(
-                        expression = null,
-                        warning = listOfNotNull(
-                            multiConditionWarning,
-                            "a \"Run only if\" guard used an unsupported Tasker comparison (op $op) and was dropped",
-                        ).joinToString("; "),
-                    )
-                "$lhs $token ${condition.childText("rhs")}"
-            }
+            else -> TASKER_CONDITION_OP_TOKENS[op]?.let { token -> "$lhs $token ${childText("rhs")}" }
         }
-        // RE2 runs regex conditions here, and it has no backreferences or lookarounds, which Java's
-        // engine in Tasker does. A pattern built from a variable is only known when it runs, and an
-        // empty one matches nothing in Tasker too.
-        val rhs = condition.childText("rhs")
-        val regexApproximationWarning = when {
+    }
+
+    /**
+     * RE2 runs regex conditions here, and it has no backreferences or lookarounds, which Java's
+     * engine in Tasker does. A pattern built from a variable is only known when it runs, and an
+     * empty one matches nothing in Tasker too.
+     */
+    private fun Element.regexApproximationWarning(op: String): String? {
+        val rhs = childText("rhs")
+        return when {
             op != "4" && op != "5" || rhs.isBlank() || TASKER_VARIABLE_REFERENCE.containsMatchIn(rhs) -> null
             rhs.length > TextOps.MAX_PATTERN_CHARS ->
                 "a regex \"Run only if\" comparison (op $op) is longer than ${TextOps.MAX_PATTERN_CHARS} characters, so its pattern never matches here"
@@ -2023,12 +2072,44 @@ object TaskerXmlImporter {
                 "a regex \"Run only if\" comparison (op $op) uses regular expression features this app doesn't have, so its pattern never matches here: $rhs"
             else -> null
         }
-        return ImportedCondition(
-            expression,
-            listOfNotNull(multiConditionWarning, regexApproximationWarning)
-                .joinToString("; ")
-                .ifBlank { null },
-        )
+    }
+
+    /**
+     * Whether one side of a joined condition reads back as itself once it sits between `&&`, `||`
+     * and brackets. The condition grammar splits at a `&&` or `||` outside brackets and skips over
+     * `{{ }}`, so a side holding one of those, or a bracket it doesn't close, would move the split.
+     */
+    private fun joinableSide(text: String): Boolean {
+        if ("&&" in text || "||" in text || "{{" in text || "}}" in text) return false
+        var depth = 0
+        for (char in text) {
+            when (char) {
+                '(' -> depth++
+                ')' -> if (--depth < 0) return false
+            }
+        }
+        return depth == 0
+    }
+
+    /**
+     * Joins Tasker's conditions the way Tasker 6.7.8 evaluates the list (decompiled u1): it splits at
+     * the loosest joiner present, Or, then And, then Or2, then And2, and each piece again at the next
+     * one. A piece of several conditions goes in brackets, since the grammar here only knows `||`
+     * binding looser than `&&`.
+     */
+    private fun joinTaskerConditions(parts: List<String>, joiners: List<String>): String {
+        if (parts.size == 1) return parts.single()
+        val joiner = TASKER_JOINER_ORDER.first { it in joiners }
+        val pieces = mutableListOf<String>()
+        var start = 0
+        fun piece(end: Int) {
+            val inner = joinTaskerConditions(parts.subList(start, end + 1), joiners.subList(start, end))
+            pieces += if (end > start) "($inner)" else inner
+            start = end + 1
+        }
+        joiners.forEachIndexed { index, it -> if (it == joiner) piece(index) }
+        piece(parts.lastIndex)
+        return pieces.joinToString(if (joiner.startsWith("Or")) " || " else " && ")
     }
 
     /**
@@ -2251,4 +2332,8 @@ object TaskerXmlImporter {
         "8" to "==",
         "9" to "!=",
     )
+
+    // Tasker's condition joiners from loosest to tightest (decompiled 6.7.8, u1). Xor, looser than
+    // Or, and Xor2, between And and Or2, are left out: the grammar here has no exclusive or.
+    private val TASKER_JOINER_ORDER = listOf("Or", "And", "Or2", "And2")
 }

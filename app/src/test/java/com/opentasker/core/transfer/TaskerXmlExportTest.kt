@@ -155,9 +155,9 @@ class TaskerXmlExportTest {
     fun unrepresentableGuardIsDroppedWithWarningNotExportedWrong() {
         val task = Task(
             id = 1,
-            name = "Chained guard",
+            name = "At most guard",
             actions = listOf(
-                ActionSpec(type = "var.set", args = mapOf("name" to "%MODE", "value" to "on"), condition = "%a == 1 && %b == 2"),
+                ActionSpec(type = "var.set", args = mapOf("name" to "%MODE", "value" to "on"), condition = "%a <= 1"),
             ),
         )
         val report = TaskerXmlExporter.export(emptyList(), listOf(task))

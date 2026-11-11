@@ -374,16 +374,34 @@ class VariableExpander {
             false
         }
 
-    private fun evaluateConditionInternal(cond: String, expandOperand: (String, Boolean) -> String): Boolean {
+    /**
+     * How [evaluateCondition] reads [cond] at its top level, once its outer brackets come off: the
+     * parts it ORs (`||`, the looser) or ANDs (`&&`), or no joiner and the one comparison left. The
+     * Tasker exporter reads a guard through this so it writes the joiners the way the guard runs.
+     */
+    internal fun conditionParts(cond: String): Pair<String?, List<String>> {
         val normalized = stripOuterParens(cond.trim())
-        if (normalized.isEmpty()) return false
+        splitTopLevel(normalized, "||")?.let { return "||" to it }
+        splitTopLevel(normalized, "&&")?.let { return "&&" to it }
+        return null to listOf(normalized)
+    }
 
-        splitTopLevel(normalized, "||")?.let { parts ->
-            return parts.any { evaluateConditionInternal(it, expandOperand) }
+    /**
+     * The one comparison [evaluateCondition] finds in [cond] as its left side, operator token and
+     * right side, or null when there's none or more than one outside brackets. The Tasker exporter
+     * reads a condition through this, so an operator inside brackets stays part of its side.
+     */
+    internal fun comparisonParts(cond: String): Triple<String, String, String>? =
+        parseComparison(cond.trim())?.let { Triple(it.left, it.operator.token, it.right) }
+
+    private fun evaluateConditionInternal(cond: String, expandOperand: (String, Boolean) -> String): Boolean {
+        val (joiner, parts) = conditionParts(cond)
+        when (joiner) {
+            "||" -> return parts.any { evaluateConditionInternal(it, expandOperand) }
+            "&&" -> return parts.all { evaluateConditionInternal(it, expandOperand) }
         }
-        splitTopLevel(normalized, "&&")?.let { parts ->
-            return parts.all { evaluateConditionInternal(it, expandOperand) }
-        }
+        val normalized = parts.single()
+        if (normalized.isEmpty()) return false
 
         // A real binary comparison always wins over the unary is_set/not_set reading: e.g.
         // "%status == is_set", comparing a variable against the literal string "is_set", must
