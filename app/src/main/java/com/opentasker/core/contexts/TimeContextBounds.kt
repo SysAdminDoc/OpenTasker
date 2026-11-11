@@ -77,6 +77,18 @@ object TimeContextBounds {
         return event.copy(metadata = event.metadata - bounds.keys + resolved)
     }
 
+    /** Each bound of [spec] written as a variable, as written (`%Sunrise`), with the time [metadata] holds for it. */
+    fun boundTimes(spec: ContextSpec, metadata: Map<String, String>): List<Pair<String, String?>> {
+        if (spec.type != ContextType.TIME) return emptyList()
+        return listOf(configured(spec, "start", "from") to START_VALUE, configured(spec, "end", "to") to END_VALUE)
+            .filter { (raw, _) -> isVariable(raw) }
+            .map { (raw, key) -> raw.trim() to metadata[key]?.let(::clockFromValue) }
+    }
+
+    /** The bounds of [spec] written as a variable that hold no time yet. Until each has one, the context can't tell whether it holds. */
+    fun unresolvedBounds(spec: ContextSpec, metadata: Map<String, String>): List<String> =
+        boundTimes(spec, metadata).filter { (_, time) -> time == null }.map { (raw, _) -> raw }
+
     /** Time events for [spec], each carrying its variable bounds' values, again whenever one of those globals changes. */
     fun resolving(spec: ContextSpec, events: Flow<ContextEvent>, globals: Flow<Map<String, String>>): Flow<ContextEvent> {
         val names = variableBounds(spec).values.toSet()

@@ -423,6 +423,30 @@ class ContextInspectorTest {
     }
 
     @Test
+    fun anInvertedTimeWindowStaysOffWhileItsGlobalHoldsNoTime() {
+        val profile = Profile(
+            id = 31,
+            name = "Night",
+            enterTaskId = 1,
+            enabled = true,
+            contexts = listOf(ContextSpec(ContextType.TIME, mapOf("start" to "%Sunrise", "end" to "%Sunset"), invert = true)),
+        )
+        val source = ContextSourceSnapshot(
+            key = "time",
+            label = "Time and day",
+            registered = true,
+            lastObservation = ContextEventObservation(ContextEvent("time", true, mapOf("time" to "22:00")), observedAtMs = 1000),
+        )
+        fun inspect(globals: Map<String, String>) = inspectProfiles(listOf(profile), listOf(source)) { _, _, spec, observation ->
+            observation.copy(event = TimeContextBounds.withVariableValues(spec, observation.event, globals))
+        }.single()
+
+        assertFalse(inspect(emptyMap()).matching)
+        assertFalse(inspect(mapOf("Sunrise" to "soon", "Sunset" to "18.10")).contexts.single().effectiveMatched)
+        assertTrue(inspect(mapOf("Sunrise" to "6.42", "Sunset" to "18.10")).matching)
+    }
+
+    @Test
     fun pluginSourceLabelResolvesCorrectly() {
         assertEquals("Plugin condition", "plugin".toContextSourceLabel())
     }

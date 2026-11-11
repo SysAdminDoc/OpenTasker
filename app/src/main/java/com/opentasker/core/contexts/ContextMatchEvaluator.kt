@@ -1,6 +1,7 @@
 package com.opentasker.core.contexts
 
 import com.google.re2j.Pattern as Re2Pattern
+import com.opentasker.core.health.HealthPolling
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.location.FossGeofenceEvaluator
@@ -42,6 +43,14 @@ object ContextMatchEvaluator {
             ContextType.PLUGIN -> matchesPlugin(spec, event)
         }
     }
+
+    /**
+     * True when [spec] can't tell yet whether it holds: a Health reading that wasn't read, or a Time
+     * bound whose global holds no time. An inverted context stays off then too, since "not between
+     * %Sunrise and %Sunset" isn't true just because %Sunrise isn't set.
+     */
+    fun valueUnknown(spec: ContextSpec, metadata: Map<String, String>): Boolean =
+        HealthPolling.readingMissing(spec, metadata) || TimeContextBounds.unresolvedBounds(spec, metadata).isNotEmpty()
 
     private fun matchesApplication(spec: ContextSpec, event: ContextEvent): Boolean {
         val foreground = event.metadata["foreground"].orEmpty().ifBlank { event.metadata["package"].orEmpty() }

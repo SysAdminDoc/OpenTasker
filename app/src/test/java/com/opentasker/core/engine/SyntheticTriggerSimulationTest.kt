@@ -66,6 +66,25 @@ class SyntheticTriggerSimulationTest {
     }
 
     @Test
+    fun aPinnedEventWithNoTimeForAGlobalKeepsAnInvertedWindowOff() {
+        val profile = Profile(
+            id = 10L,
+            name = "Night",
+            enterTaskId = 14L,
+            contexts = listOf(ContextSpec(ContextType.TIME, mapOf("start" to "%Sunrise", "end" to "%Sunset"), invert = true)),
+        )
+
+        val context = SyntheticTriggerSimulator.simulate(
+            profile,
+            nowMs = 1_000_000L,
+            pinnedEvents = mapOf(0 to ContextEvent("time", true, mapOf("time" to "22:00"))),
+        ).contexts.single()
+
+        assertFalse(context.effectiveMatched)
+        assertTrue(context.explanation, context.explanation.contains("no value"))
+    }
+
+    @Test
     fun malformedTemplatesAreVisibleAsBlockedPredicates() {
         val simulation = SyntheticTriggerSimulator.simulate(
             Profile(

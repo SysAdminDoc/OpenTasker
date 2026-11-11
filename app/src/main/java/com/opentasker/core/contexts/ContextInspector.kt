@@ -1,7 +1,6 @@
 package com.opentasker.core.contexts
 
 import com.opentasker.core.engine.CausalLoopDiagnostic
-import com.opentasker.core.health.HealthPolling
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextBooleanOperator
 import com.opentasker.core.model.ContextExpressionNode
@@ -246,9 +245,9 @@ private fun inspectContextForProfile(
     val rawMatched = observation?.let { ContextMatchEvaluator.matches(spec, it.event) } ?: false
     val sourceStatus = snapshot?.status ?: ContextSourceStatus.Missing
     val sourceCanMatch = sourceStatus == ContextSourceStatus.Active
-    // Same rule as the engine: an inverted health context with no reading stays off.
+    // Same rule as the engine: an inverted context whose value is unknown stays off.
     val effectiveMatched = sourceCanMatch && if (spec.invert) {
-        !rawMatched && observation != null && !HealthPolling.readingMissing(spec, observation.event.metadata)
+        !rawMatched && observation != null && !ContextMatchEvaluator.valueUnknown(spec, observation.event.metadata)
     } else {
         rawMatched
     }

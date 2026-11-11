@@ -76,6 +76,19 @@ class ContextMatchEvaluatorTest {
     }
 
     @Test
+    fun aTimeBoundWhoseGlobalHoldsNoTimeIsUnknownNotFalse() {
+        val sun = ContextSpec(ContextType.TIME, config = mapOf("start" to "%Sunrise", "end" to "%Sunset"), invert = true)
+        val read = mapOf(TimeContextBounds.START_VALUE to "06:42", TimeContextBounds.END_VALUE to "16:51")
+
+        assertTrue(ContextMatchEvaluator.valueUnknown(sun, mapOf("time" to "12:00")))
+        assertTrue(ContextMatchEvaluator.valueUnknown(sun, read - TimeContextBounds.END_VALUE))
+        assertTrue(ContextMatchEvaluator.valueUnknown(sun, read + (TimeContextBounds.START_VALUE to "soon")))
+        assertEquals(listOf("%Sunset"), TimeContextBounds.unresolvedBounds(sun, read - TimeContextBounds.END_VALUE))
+        assertFalse(ContextMatchEvaluator.valueUnknown(sun, read))
+        assertFalse(ContextMatchEvaluator.valueUnknown(ContextSpec(ContextType.TIME, mapOf("start" to "09:00", "end" to "17:00")), emptyMap()))
+    }
+
+    @Test
     fun locationContextUsesFossGeofenceAccuracyAndDwell() {
         val spec = ContextSpec(
             type = ContextType.LOCATION,
