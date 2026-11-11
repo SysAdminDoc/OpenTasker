@@ -119,6 +119,7 @@ object TaskerXmlExporter {
         "array.process" to "369",
         "var.convert" to "596",
         "text.length" to "345",
+        "ringer.set" to "313",
     )
 
     fun export(
@@ -431,6 +432,17 @@ object TaskerXmlExporter {
                 appendInt(sb, 0, "0")
                 appendStr(sb, 1, args["source"].orEmpty())
                 appendStr(sb, 2, taskerVariableName(args["var"] ?: args["variable"], "length"))
+            }
+            // Ignore DND goes out on, since this app's ringer step leaves Do Not Disturb as
+            // Android left it, the way Tasker's does with that box ticked.
+            "ringer.set" -> {
+                val mode = args["mode"].orEmpty()
+                val value = TASKER_SOUND_MODE_VALUES[mode.trim().lowercase()]
+                if (value == null) {
+                    warnings += "Tasker's Sound Mode takes silent, vibrate or normal, so 'ringer.set' with '$mode' may not work there."
+                }
+                appendInt(sb, 0, value ?: mode)
+                appendInt(sb, 1, "1")
             }
         }
 
@@ -1030,6 +1042,8 @@ object TaskerXmlExporter {
     }
 
     private val TASKER_SET_VALUES = mapOf("off" to "0", "on" to "1", "toggle" to "2")
+
+    private val TASKER_SOUND_MODE_VALUES = mapOf("silent" to "0", "vibrate" to "1", "normal" to "2", "ring" to "2")
 
     /** Tasker's HTTP Request method spinner, the reverse of the import's table. */
     private val TASKER_HTTP_METHOD_INDEXES = mapOf(

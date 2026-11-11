@@ -4,6 +4,7 @@
 
 ### Added
 
+- Tasker's Sound Mode imports as the ringer step now, and the ringer step exports back out as Sound Mode with Ignore DND ticked. Silent, vibrate and normal carry over as they are. With Ignore DND off, Tasker puts Do Not Disturb back the way it was after changing the mode, which this app doesn't do, so the import says Do Not Disturb may change along with it. A mode taken from a variable stays a placeholder, since Tasker's holds a number and this step wants the mode's name.
 - Tasker's Variable Subtract imports as a real step now. Like Variable Add, it counts from 0 when the variable isn't set, and one that subtracts another variable or wraps around stays a placeholder that says so.
 - A Text Length action counts the characters in some text and stores the number. Tasker's Test Variable, whose one type is Length, now imports as this step instead of a placeholder, and exports back out as Test Variable. As in Tasker, the count is taken after variables are filled in, so a `%name` that was never set counts as the 5 characters it's written with. One that a Variable Clear emptied counts 0 here, where Tasker still counts 5.
 - A Set Wallpaper action changes the home screen, the lock screen or both to an image you pick with Browse. Two new templates put it on the At sunrise and At sunset presets, so the wallpaper can switch between a day image and a night image. They work from the latitude and longitude you type in and don't need location access.

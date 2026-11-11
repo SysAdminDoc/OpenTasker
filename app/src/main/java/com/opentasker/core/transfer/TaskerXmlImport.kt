@@ -619,6 +619,7 @@ object TaskerXmlImporter {
                 )
             }
             "312" -> taskerInterruptMode(code, byIndex, intsByIndex, intVariables)
+            "313" -> taskerSoundMode(code, intsByIndex, intVariables)
             "810", "brightness", "brightness.set" -> {
                 val level = intVariables[0]?.let { taskerNumberField("Display Brightness", it) }
                 ActionWithLoss(
@@ -1645,6 +1646,30 @@ object TaskerXmlImporter {
         )
     }
 
+    /**
+     * Tasker's Sound Mode hands its mode straight to Android's ringer: 0 silent, 1 vibrate, 2
+     * normal. With Ignore DND off, Tasker puts Do Not Disturb back the way it was afterwards, while
+     * this app's ringer step leaves whatever Android changed along with it, which is what Ignore
+     * DND on does.
+     */
+    private fun taskerSoundMode(code: String, ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss {
+        // A missing mode would read as 0, silent, so it's refused rather than guessed.
+        val index = ints[0]
+        val mode = index.takeIf { 0 !in variables }?.let(TASKER_SOUND_MODES::get)
+            ?: return taskerPlaceholder(
+                code,
+                variables[0]?.let { "Tasker Sound Mode takes its mode from $it, which has no match here" }
+                    ?: index?.let { "Tasker Sound Mode's mode $it has no match here" }
+                    ?: "Tasker Sound Mode has no mode",
+            )
+        return ActionWithLoss(
+            ActionSpec(type = "ringer.set", label = "Tasker sound mode", args = mapOf("mode" to mode)),
+            lossyWarning = ("Tasker Sound Mode puts Do Not Disturb back the way it was unless Ignore DND is on, " +
+                "and here Android may turn Do Not Disturb on or off along with the sound mode")
+                .takeIf { (ints[1] ?: 0) == 0 },
+        )
+    }
+
     /** Tasker's Goto: arg0 is the kind of jump, arg1 a step number, arg2 a label. */
     private fun taskerGoto(code: String, byIndex: Map<Int, String>, ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss =
         when (ints[0] ?: 0) {
@@ -2283,6 +2308,8 @@ object TaskerXmlImporter {
     private val TASKER_INTERRUPT_MODES = mapOf(0 to "total_silence", 1 to "priority", 2 to "off", 3 to "alarms")
 
     private val TASKER_INTERRUPT_MODE_NAMES = mapOf(4 to "Custom", 5 to "Query")
+
+    private val TASKER_SOUND_MODES = mapOf(0 to "silent", 1 to "vibrate", 2 to "normal")
 
     private val TASKER_INTENT_TARGETS = mapOf(0 to "broadcast", 1 to "activity", 2 to "service")
 
