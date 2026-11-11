@@ -1,8 +1,17 @@
 package com.opentasker.core.transfer
 
+import android.content.ContextWrapper
+import com.opentasker.core.actions.SetVariableAction
+import com.opentasker.core.actions.TextReplaceAction
+import com.opentasker.core.actions.TextSubstringAction
+import com.opentasker.core.engine.ActionContext
+import com.opentasker.core.engine.ActionRegistry
+import com.opentasker.core.engine.TaskRunner
+import com.opentasker.core.engine.VariableStore
 import com.opentasker.core.expressions.TemplateExpressionEngine
 import com.opentasker.core.expressions.TemplateScope
 import com.opentasker.core.model.ActionSpec
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -11,8 +20,8 @@ import org.junit.Test
 
 /**
  * Every fixture here copies the layout of an action from a real Tasker export found on GitHub, with
- * field meanings from Tasker's own action table as vendored by Map-Tasker. Codes 116 and 333 are the
- * exception: no public export holds them, so those two follow the table alone.
+ * field meanings from Tasker's own action table as vendored by Map-Tasker. Codes 116, 306, 312 and
+ * 333 are the exception: no public export holds them, so those follow the table alone.
  */
 class TaskerRealExportLayoutTest {
 
@@ -592,6 +601,264 @@ class TaskerRealExportLayoutTest {
         assertEquals("notify.cancel", cancel.type)
         assertEquals("%arcomm", show.args["tag"])
         assertEquals(show.args["tag"], cancel.args["tag"])
+    }
+
+    // Variable Add (888), Variable Clear (549), Variable Section (597), Variable Search Replace (598)
+
+    private val placeholder = TaskerXmlImporter.TASKER_UNSUPPORTED_ACTION_ID
+
+    @Test
+    fun variableAddCountsUpFromNothing() {
+        val add = action("""<code>888</code><Str sr="arg0" ve="3">%LiveCycles</Str><Int sr="arg1" val="1"/><Int sr="arg2" val="0"/>""")
+
+        assertEquals("var.set", add.type)
+        assertEquals("%LiveCycles", add.args["name"])
+        assertEquals("1", expand(add.args.getValue("value")))
+        assertEquals("5", expand(add.args.getValue("value"), "LiveCycles" to "4"))
+    }
+
+    @Test
+    fun variableAddThatWrapsOrAddsAVariableStaysAPlaceholder() {
+        listOf(
+            """<code>888</code><Str sr="arg0" ve="3">%n</Str><Int sr="arg1" val="1"/><Int sr="arg2" val="10"/>""",
+            """<code>888</code><Str sr="arg0" ve="3">%n</Str><Int sr="arg1"><var>%step</var></Int><Int sr="arg2" val="0"/>""",
+        ).forEach { assertEquals(it, placeholder, action(it).type) }
+    }
+
+    @Test
+    fun variableClearEmptiesOneVariable() {
+        val clear = action("""<code>549</code><Str sr="arg0" ve="3">%Recording</Str><Int sr="arg1" val="0"/>""")
+
+        assertEquals("var.set", clear.type)
+        assertEquals(mapOf("name" to "%Recording", "value" to ""), clear.args)
+    }
+
+    @Test
+    fun variableClearOfSeveralOrAllVariablesStaysAPlaceholder() {
+        val several = """<code>549</code><Str sr="arg0" ve="3">%command_failed/%errmsg/%stdout/%stderr/%result</Str>""" +
+            """<Int sr="arg1" val="1"/><Int sr="arg2" val="1"/><Int sr="arg3" val="0"/>"""
+        val all = """<code>549</code><Str sr="arg0" ve="3">%a</Str><Int sr="arg1" val="0"/><Int sr="arg2" val="0"/><Int sr="arg3" val="1"/>"""
+        // Local Variables Only can't reach a global one, so Tasker leaves it alone.
+        val globalLeftAlone = """<code>549</code><Str sr="arg0" ve="3">%Kept</Str><Int sr="arg1" val="0"/><Int sr="arg2" val="1"/><Int sr="arg3" val="0"/>"""
+
+        listOf(several, all, globalLeftAlone).forEach { assertEquals(it, placeholder, action(it).type) }
+        assertEquals("var.set", action(globalLeftAlone.replace("%Kept", "%kept")).type)
+    }
+
+    @Test
+    fun variableSectionCountsFromOne() {
+        val section = """<code>597</code><Str sr="arg0" ve="3">%APPCLOSE</Str><Int sr="arg1" val="6"/>""" +
+            """<Int sr="arg2" val="100"/><Int sr="arg3" val="1"/><Str sr="arg4" ve="3"/>"""
+        val action = action(section)
+
+        assertEquals("text.substring", action.type)
+        assertEquals(
+            mapOf("source" to "{{ APPCLOSE }}", "start" to "5", "end" to "105", "var" to "%APPCLOSE"),
+            action.args,
+        )
+        assertFalse(warnings(section).toString(), warnings(section).any { "Adapt To Fit" in it })
+        assertWarns(section.replace("""<Int sr="arg3" val="1"/>""", """<Int sr="arg3" val="0"/>"""), "Adapt To Fit")
+        assertEquals("%Tail", action(section.replace("""<Str sr="arg4" ve="3"/>""", """<Str sr="arg4" ve="3">%Tail</Str>""")).args["var"])
+    }
+
+    @Test
+    fun variableSectionFromAVariableStaysAPlaceholder() {
+        assertEquals(
+            placeholder,
+            action("""<code>597</code><Str sr="arg0" ve="3">%s</Str><Int sr="arg1"><var>%from</var></Int><Int sr="arg2" val="3"/><Int sr="arg3" val="1"/>""").type,
+        )
+    }
+
+    @Test
+    fun searchReplaceWritesTheResultBackToItsVariable() {
+        val replace = action(
+            """<code>598</code><Str sr="arg0" ve="3">%par1</Str><Str sr="arg1" ve="3">&lt;</Str><Int sr="arg2" val="0"/>""" +
+                """<Int sr="arg3" val="0"/><Int sr="arg4" val="0"/><Str sr="arg5" ve="3"/><Int sr="arg6" val="1"/><Str sr="arg7" ve="3">~lt~</Str>""",
+        )
+
+        assertEquals("text.replace", replace.type)
+        assertEquals(mapOf("source" to "{{ par1 }}", "pattern" to "<", "replacement" to "~lt~", "var" to "%par1"), replace.args)
+    }
+
+    @Test
+    fun searchReplaceKeepsItsSpacesFlagsAndEscapes() {
+        val quotes = action(
+            """<code>598</code><Str sr="arg0" ve="3">%argument_1</Str><Str sr="arg1" ve="3">'</Str><Int sr="arg2" val="0"/>""" +
+                """<Int sr="arg3" val="1"/><Int sr="arg4" val="0"/><Str sr="arg5" ve="3"/><Int sr="arg6" val="1"/><Str sr="arg7" ve="3">'\\''</Str>""",
+        )
+        assertEquals("(?m)'", quotes.args["pattern"])
+        assertEquals("""'\\''""", quotes.args["replacement"])
+
+        val spaced = action(
+            """<code>598</code><Str sr="arg0" ve="3">%text</Str><Str sr="arg1" ve="3">display:Odin Controller 0</Str><Int sr="arg2" val="1"/>""" +
+                """<Int sr="arg3" val="0"/><Int sr="arg4" val="0"/><Str sr="arg5" ve="3"/><Int sr="arg6" val="1"/><Str sr="arg7" ve="3"> Odin </Str>""",
+        )
+        assertEquals("(?i)display:Odin Controller 0", spaced.args["pattern"])
+        assertEquals(" Odin ", spaced.args["replacement"])
+    }
+
+    @Test
+    fun searchReplaceNamesTheEscapedPercentItCannotKeep() {
+        val termux = """<code>598</code><Str sr="arg0" ve="3">%command_failed</Str>""" +
+            """<Str sr="arg1" ve="3">^err = `\%err`[\n]+errmsg =[\n]```[\n]\%errmsg[\n]```[\n]+</Str><Int sr="arg2" val="0"/>""" +
+            """<Int sr="arg3" val="0"/><Int sr="arg4" val="0"/><Str sr="arg5" ve="3"/><Int sr="arg6" val="1"/><Str sr="arg7" ve="3"/>"""
+
+        assertEquals("text.replace", action(termux).type)
+        assertEquals("", action(termux).args["replacement"])
+        assertWarns(termux, "\\%")
+    }
+
+    @Test
+    fun searchReplaceThisAppCannotRunStaysAPlaceholder() {
+        val base = """<code>598</code><Str sr="arg0" ve="3">%t</Str><Str sr="arg1" ve="3">a</Str><Int sr="arg2" val="0"/>""" +
+            """<Int sr="arg3" val="0"/><Int sr="arg4" val="0"/><Str sr="arg5" ve="3"/><Int sr="arg6" val="1"/><Str sr="arg7" ve="3">b</Str>"""
+        assertEquals("text.replace", action(base).type)
+
+        listOf(
+            base.replace("""<Int sr="arg6" val="1"/>""", """<Int sr="arg6" val="0"/>"""),
+            base.replace("""<Int sr="arg4" val="0"/>""", """<Int sr="arg4" val="1"/>"""),
+            // RE2 has no lookahead, so this pattern would never compile when the step ran.
+            base.replace(""">a</Str>""", """>a(?=b)</Str>"""),
+        ).forEach { assertEquals(it, placeholder, action(it).type) }
+        assertWarns(base.replace("""<Str sr="arg5" ve="3"/>""", """<Str sr="arg5" ve="3">%found</Str>"""), "%found")
+    }
+
+    @Test
+    fun importedVariableStepsRunTheWayTaskersDo() {
+        ActionRegistry.register(SetVariableAction())
+        ActionRegistry.register(TextReplaceAction())
+        ActionRegistry.register(TextSubstringAction())
+        val add = """<code>888</code><Str sr="arg0" ve="3">%Count</Str><Int sr="arg1" val="1"/><Int sr="arg2" val="0"/>"""
+        val task = parse(
+            add,
+            add,
+            """<code>598</code><Str sr="arg0" ve="3">%Html</Str><Str sr="arg1" ve="3">&lt;</Str><Int sr="arg2" val="0"/>""" +
+                """<Int sr="arg3" val="0"/><Int sr="arg4" val="0"/><Str sr="arg5" ve="3"/><Int sr="arg6" val="1"/><Str sr="arg7" ve="3">~lt~</Str>""",
+            """<code>597</code><Str sr="arg0" ve="3">%Stamp</Str><Int sr="arg1" val="3"/><Int sr="arg2" val="2"/><Int sr="arg3" val="1"/>""" +
+                """<Str sr="arg4" ve="3">%Part</Str>""",
+            """<code>549</code><Str sr="arg0" ve="3">%Gone</Str><Int sr="arg1" val="0"/>""",
+        ).bundle.tasks.single()
+        val variables = VariableStore().apply {
+            set("Html", "a<b<c")
+            set("Stamp", "20261110")
+            set("Gone", "x")
+        }
+
+        val report = runBlocking { TaskRunner(ActionContext(ContextWrapper(null), variables)).run(task) }
+
+        assertTrue(report.toString(), report.success)
+        assertEquals("2", variables.get("Count"))
+        assertEquals("a~lt~b~lt~c", variables.get("Html"))
+        assertEquals("26", variables.get("Part"))
+        assertTrue(variables.get("Gone").isNullOrEmpty())
+    }
+
+    // Interrupt Mode (312). No public export holds one, so these follow Tasker's action table.
+
+    @Test
+    fun interruptModeMapsTheFourModesThisAppHas() {
+        fun mode(index: String) =
+            """<code>312</code><Int sr="arg0" val="$index"/><Int sr="arg1" val="0"/><Int sr="arg2" val="0"/><Int sr="arg3" val="0"/>"""
+
+        mapOf("0" to "total_silence", "1" to "priority", "2" to "off", "3" to "alarms").forEach { (index, expected) ->
+            val action = action(mode(index))
+            assertEquals("dnd.set", action.type)
+            assertEquals(expected, action.args["mode"])
+        }
+        assertWarns(mode("1"), "priority settings")
+        assertWarns(mode("2") + """<Str sr="arg6" ve="3">%mode</Str>""", "Output Variables")
+    }
+
+    @Test
+    fun interruptModeThisAppHasNoMatchForStaysAPlaceholder() {
+        listOf(
+            """<code>312</code><Int sr="arg0" val="4"/>""",
+            """<code>312</code><Int sr="arg0" val="5"/>""",
+            """<code>312</code><Int sr="arg0"><var>%m</var></Int>""",
+            // A missing mode would read as 0, the most silent one.
+            """<code>312</code><Int sr="arg1" val="0"/>""",
+        ).forEach { assertEquals(it, placeholder, action(it).type) }
+        assertWarns("""<code>312</code><Int sr="arg0" val="4"/>""", "Custom")
+    }
+
+    // Return (126)
+
+    @Test
+    fun returnEndsTheCalledTaskAndNamesTheValueItCannotPassBack() {
+        val stop = """<code>126</code><Str sr="arg0" ve="3">%par1</Str><Int sr="arg1" val="1"/><Int sr="arg2" val="0"/><Int sr="arg3" val="0"/><Str sr="arg4" ve="3"/>"""
+
+        assertEquals("flow.stop", action(stop).type)
+        assertWarns(stop, "%par1")
+        assertEquals(placeholder, action(stop.replace("""<Int sr="arg1" val="1"/>""", """<Int sr="arg1" val="0"/>""")).type)
+    }
+
+    // Send Intent (877)
+
+    @Test
+    fun sendIntentCarriesItsFieldsToIntentLaunch() {
+        val onpc = """<code>877</code><Str sr="arg0" ve="3">android.intent.action.MAIN</Str><Int sr="arg1" val="8"/>""" +
+            """<Str sr="arg2" ve="3">text/xml</Str><Str sr="arg3" ve="3">%iscpCmd</Str><Str sr="arg4" ve="3"/><Str sr="arg5" ve="3"/>""" +
+            """<Str sr="arg6" ve="3"/><Str sr="arg7" ve="3">com.mkulesh.onpc</Str><Str sr="arg8" ve="3">com.mkulesh.onpc.MainActivity</Str><Int sr="arg9" val="1"/>"""
+        val action = action(onpc)
+
+        assertEquals("intent.launch", action.type)
+        assertEquals(
+            mapOf(
+                "package" to "com.mkulesh.onpc",
+                "mode" to "activity",
+                "component" to "com.mkulesh.onpc.MainActivity",
+                "action" to "android.intent.action.MAIN",
+                "category" to "android.intent.category.LAUNCHER",
+                "uri" to "%iscpCmd",
+                "mime_type" to "text/xml",
+            ),
+            action.args,
+        )
+        assertWarns(onpc, "grant_read_uri")
+    }
+
+    @Test
+    fun sendIntentExtrasKeepTheTypesTaskerWouldGiveThem() {
+        val ping = """<code>877</code><Str sr="arg0" ve="3">com.example.app.PING</Str><Int sr="arg1" val="0"/>""" +
+            """<Str sr="arg4" ve="3">count:5</Str><Str sr="arg5" ve="3">loud:true</Str><Str sr="arg6" ve="3">label:hi there</Str>""" +
+            """<Str sr="arg7" ve="3">com.example.app</Str><Str sr="arg8" ve="3">com.example.app.Receiver</Str><Int sr="arg9" val="0"/>"""
+        val action = action(ping)
+
+        assertEquals("intent.launch", action.type)
+        assertEquals("broadcast", action.args["mode"])
+        assertEquals("count=int:5\nloud=bool:true\nlabel=string:hi there", action.args["extras"])
+        assertFalse(warnings(ping).toString(), warnings(ping).any { "sent as text" in it })
+
+        val guessed = ping.replace("loud:true", "big:9999999999").replace("label:hi there", "who:%who")
+        assertEquals("count=int:5\nbig=string:9999999999\nwho=string:%who", action(guessed).args["extras"])
+        assertWarns(guessed, "sent as text: big, who")
+    }
+
+    @Test
+    fun sendIntentThisAppCannotSendStaysAPlaceholderAndSaysWhy() {
+        val anki = """<code>877</code><Str sr="arg0" ve="3">com.ichi2.anki.DO_SYNC</Str><Int sr="arg1" val="1"/><Str sr="arg2" ve="3"/>""" +
+            """<Str sr="arg3" ve="3"/><Str sr="arg7" ve="3"/><Str sr="arg8" ve="3"/><Int sr="arg9" val="2"/>"""
+        val camsung = """<code>877</code><Str sr="arg0" ve="3">android.com.ericswpark.camsung.ACTION_SET_CAMERA</Str><Int sr="arg1" val="0"/>""" +
+            """<Str sr="arg2" ve="3"/><Str sr="arg3" ve="3">app://mute</Str><Str sr="arg7" ve="3">android.com.ericswpark.camsung</Str>""" +
+            """<Str sr="arg8" ve="3">android.com.ericswpark.camsung.Receiver</Str><Int sr="arg9" val="0"/>"""
+        val autojs = """<code>877</code><Str sr="arg0" ve="3"/><Int sr="arg1" val="1"/><Str sr="arg2" ve="3">text/javascript</Str>""" +
+            """<Str sr="arg3" ve="3">file:///storage/emulated/0/a.js</Str><Str sr="arg7" ve="3">org.autojs.autojs6</Str>""" +
+            """<Str sr="arg8" ve="3">org.autojs.autojs.external.open.RunIntentActivity</Str><Int sr="arg9" val="1"/>"""
+
+        listOf(anki, camsung, autojs).forEach { assertEquals(it, placeholder, action(it).type) }
+        assertWarns(anki, "names no app")
+        assertWarns(camsung, "not allowlisted")
+    }
+
+    // In-Call Volume (306)
+
+    @Test
+    fun inCallVolumeSetsTheVoiceStream() {
+        val voice = action("""<code>306</code><Int sr="arg0" val="4"/><Int sr="arg1" val="0"/><Int sr="arg2" val="0"/>""")
+
+        assertEquals("volume.set", voice.type)
+        assertEquals("voice", voice.args["stream"])
+        assertEquals("4", voice.args["level"])
     }
 
     // The item's acceptance: one of each code the item named, nothing left as a placeholder.

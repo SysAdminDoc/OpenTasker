@@ -1,9 +1,12 @@
 package com.opentasker.core.transfer
 
+import com.opentasker.core.actions.IntentDispatchParseResult
+import com.opentasker.core.actions.IntentDispatchPolicy
 import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.DaySchedule
 import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
 import com.opentasker.core.contexts.WIFI_DISCONNECTED_WORDS
+import com.opentasker.core.data.TextOps
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -469,6 +472,10 @@ object TaskerXmlImporter {
                 lossyWarning = "flash styling was represented as a standard notification",
             )
             "547", "var.set", "variable.set" -> taskerVariableSet(strings, intsByIndex)
+            "888" -> taskerVariableAdd(code, byIndex, intsByIndex, intVariables)
+            "549" -> taskerVariableClear(code, byIndex, intsByIndex)
+            "597" -> taskerVariableSection(code, byIndex, intsByIndex, intVariables)
+            "598" -> taskerSearchReplace(code, element, byIndex, intsByIndex)
             "30", "wait", "flow.wait" -> {
                 val duration = taskerDuration(
                     actionName = "Wait",
@@ -510,7 +517,7 @@ object TaskerXmlImporter {
                     lossyWarning = duration.warning,
                 )
             }
-            "303", "304", "305", "307", "308", "volume.set" -> {
+            "303", "304", "305", "306", "307", "308", "volume.set" -> {
                 val level = intVariables[0]?.let { taskerNumberField("Volume", it) }
                 ActionWithLoss(
                     action = ActionSpec(
@@ -524,6 +531,7 @@ object TaskerXmlImporter {
                     lossyWarning = joinWarnings(level?.warning, "Tasker volume display/sound flags were not imported"),
                 )
             }
+            "312" -> taskerInterruptMode(code, byIndex, intsByIndex, intVariables)
             "810", "brightness", "brightness.set" -> {
                 val level = intVariables[0]?.let { taskerNumberField("Display Brightness", it) }
                 ActionWithLoss(
@@ -643,6 +651,7 @@ object TaskerXmlImporter {
                 lossyWarning = element.actionAppPackage(1)
                     ?.let { "Tasker Browse URL's app $it was not imported; the default app opens the link" },
             )
+            "877" -> taskerSendIntent(code, byIndex, intsByIndex, intVariables)
             "176", "screenshot", "screenshot.take" -> ActionWithLoss(
                 ActionSpec(
                     type = "screenshot.take",
@@ -738,6 +747,7 @@ object TaskerXmlImporter {
                     )
                 }
             }
+            "126" -> taskerReturn(code, byIndex, intsByIndex)
             "130", "perform.task", "task.run" -> taskerPerformTask(element, strings, byIndex, intsByIndex)
             "log" -> ActionWithLoss(
                 action = ActionSpec(
@@ -999,6 +1009,254 @@ object TaskerXmlImporter {
         )
     }
 
+    /** Variable Add counts from 0 when the variable isn't set yet, the way Tasker's does. */
+    private fun taskerVariableAdd(
+        code: String,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
+        val name = byIndex[0].orEmpty()
+        val refusal = when {
+            !TASKER_PLAIN_VARIABLE.matches(name) -> "Tasker Variable Add's name $name isn't one plain variable"
+            1 in variables -> "Tasker Variable Add adds ${variables[1]}, and this app only adds a fixed number"
+            (ints[2] ?: 0) != 0 -> "Tasker Variable Add's Wrap Around has no match here"
+            else -> null
+        }
+        if (refusal != null) return taskerPlaceholder(code, refusal)
+        return ActionWithLoss(
+            ActionSpec(
+                type = "var.set",
+                label = "Tasker variable add",
+                args = mapOf("name" to name, "value" to "{{ ${name.removePrefix("%")} | default:0 | add:${ints[1] ?: 1} }}"),
+            ),
+        )
+    }
+
+    /** Clearing sets the variable empty, which this app's Is Set checks read as unset. */
+    private fun taskerVariableClear(code: String, byIndex: Map<Int, String>, ints: Map<Int, Int>): ActionWithLoss {
+        val name = byIndex[0].orEmpty()
+        val refusal = when {
+            (ints[3] ?: 0) != 0 -> "Tasker Variable Clear's Clear All Variables has no match here"
+            !TASKER_PLAIN_VARIABLE.matches(name) -> "Tasker Variable Clear clears $name, and this app clears one variable at a time"
+            (ints[2] ?: 0) != 0 && name.any(Char::isUpperCase) ->
+                "Tasker Variable Clear only clears local variables there, so it leaves $name alone"
+            else -> null
+        }
+        if (refusal != null) return taskerPlaceholder(code, refusal)
+        return ActionWithLoss(
+            ActionSpec(type = "var.set", label = "Tasker variable clear", args = mapOf("name" to name, "value" to "")),
+        )
+    }
+
+    /**
+     * Tasker counts From from 1. This app's substring always cuts a section short at the end of
+     * the text, which is Tasker's Adapt To Fit, so with that off Tasker fails where this doesn't.
+     */
+    private fun taskerVariableSection(
+        code: String,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
+        val name = byIndex[0].orEmpty()
+        val from = ints[1]
+        val length = ints[2]
+        val storeIn = byIndex[4].orEmptyIfBlank()
+        val refusal = when {
+            !TASKER_PLAIN_VARIABLE.matches(name) -> "Tasker Variable Section's name $name isn't one plain variable"
+            1 in variables || 2 in variables -> "Tasker Variable Section takes From or Length from a variable, which has no match here"
+            from == null || from < 1 -> "Tasker Variable Section starts at ${from ?: "nothing"}, before the first character"
+            length == null || length < 0 -> "Tasker Variable Section has no length"
+            storeIn != null && !TASKER_PLAIN_VARIABLE.matches(storeIn) -> "Tasker Variable Section stores into $storeIn, which isn't one plain variable"
+            else -> null
+        }
+        if (refusal != null || from == null || length == null) return taskerPlaceholder(code, refusal.orEmpty())
+        val start = from - 1
+        return ActionWithLoss(
+            ActionSpec(
+                type = "text.substring",
+                label = "Tasker variable section",
+                args = mapOf(
+                    "source" to "{{ ${name.removePrefix("%")} }}",
+                    "start" to start.toString(),
+                    "end" to (start.toLong() + length).coerceAtMost(Int.MAX_VALUE.toLong()).toString(),
+                    "var" to (storeIn ?: name),
+                ),
+            ),
+            lossyWarning = "Tasker Variable Section's Adapt To Fit was off for $name, so a section past the end is cut short here instead of failing"
+                .takeIf { (ints[3] ?: 0) == 0 },
+        )
+    }
+
+    /**
+     * Search Replace runs a regular expression over a variable and writes the result back. Search
+     * and Replace With are read untrimmed, because a space there is part of the pattern.
+     */
+    private fun taskerSearchReplace(code: String, element: Element, byIndex: Map<Int, String>, ints: Map<Int, Int>): ActionWithLoss {
+        val name = byIndex[0].orEmpty()
+        val search = element.rawActionString(1)
+        val replaceWith = element.rawActionString(7)
+        val flags = buildString {
+            if ((ints[2] ?: 0) != 0) append('i')
+            if ((ints[3] ?: 0) != 0) append('m')
+        }
+        val pattern = if (flags.isEmpty()) search else "(?$flags)$search"
+        // A pattern holding a variable is only known when the step runs, so it's checked then.
+        val checkable = !TASKER_VARIABLE_REFERENCE.containsMatchIn(pattern)
+        val refusal = when {
+            !TASKER_PLAIN_VARIABLE.matches(name) -> "Tasker Search Replace's variable $name isn't one plain variable"
+            (ints[6] ?: 0) == 0 -> "Tasker Search Replace with Replace Matches off only collects matches, which has no match here"
+            (ints[4] ?: 0) != 0 -> "Tasker Search Replace's One Match Only has no match here"
+            search.isEmpty() -> "Tasker Search Replace has nothing to search for"
+            checkable && TextOps.match("", pattern) == null ->
+                "Tasker Search Replace's pattern $search uses regular expression features this app doesn't have"
+            else -> null
+        }
+        if (refusal != null) return taskerPlaceholder(code, refusal)
+        return ActionWithLoss(
+            ActionSpec(
+                type = "text.replace",
+                label = "Tasker search replace",
+                args = mapOf(
+                    "source" to "{{ ${name.removePrefix("%")} }}",
+                    "pattern" to pattern,
+                    "replacement" to replaceWith,
+                    "var" to name,
+                ),
+            ),
+            lossyWarning = joinWarnings(
+                byIndex[5].orEmptyIfBlank()?.let { "Tasker Search Replace's Store Matches In Array was not imported: $it" },
+                "Tasker Search Replace writes \\% for a plain percent sign, and here a variable with that name is still filled in"
+                    .takeIf { "\\%" in search || "\\%" in replaceWith },
+            ),
+        )
+    }
+
+    /** Tasker's Interrupt Mode numbers its modes from the most silent. Custom and the read-only query have no match here. */
+    private fun taskerInterruptMode(
+        code: String,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
+        // A missing mode would read as 0, the most silent one, so it's refused rather than guessed.
+        val index = ints[0]
+        val mode = index.takeIf { 0 !in variables }?.let(TASKER_INTERRUPT_MODES::get)
+            ?: return taskerPlaceholder(
+                code,
+                variables[0]?.let { "Tasker Interrupt Mode takes its mode from $it, which has no match here" }
+                    ?: index?.let { "Tasker Interrupt Mode's ${TASKER_INTERRUPT_MODE_NAMES[it] ?: it} mode has no match here" }
+                    ?: "Tasker Interrupt Mode has no mode",
+            )
+        return ActionWithLoss(
+            ActionSpec(type = "dnd.set", label = "Tasker interrupt mode", args = mapOf("mode" to mode)),
+            lossyWarning = joinWarnings(
+                "Tasker Interrupt Mode's callers, senders, categories and effects were not imported; the phone's own priority settings apply"
+                    .takeIf { mode == "priority" },
+                byIndex[6].orEmptyIfBlank()?.let { "Tasker Interrupt Mode's Output Variables were not imported: $it" },
+            ),
+        )
+    }
+
+    /** A called task already runs on its own here, so stopping it hands control back to the caller. */
+    private fun taskerReturn(code: String, byIndex: Map<Int, String>, ints: Map<Int, Int>): ActionWithLoss {
+        if ((ints[1] ?: 1) == 0) return taskerPlaceholder(code, "Tasker Return with Stop off has no match here")
+        return ActionWithLoss(
+            ActionSpec(type = "flow.stop", label = "Tasker return"),
+            lossyWarning = byIndex[0].orEmptyIfBlank()?.let { "Tasker Return's value $it isn't passed back to the calling task" },
+        )
+    }
+
+    /**
+     * Send Intent becomes this app's intent.launch. Fields that hold a variable are checked when the
+     * step runs; the rest go through the same rules now, and anything those refuse stays a placeholder.
+     */
+    private fun taskerSendIntent(
+        code: String,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
+        val packageName = byIndex[7].orEmptyIfBlank()
+            ?: return taskerPlaceholder(code, "Tasker Send Intent names no app, and this app only sends an intent to a named one")
+        val targetIndex = ints[9] ?: 0
+        val target = TASKER_INTENT_TARGETS[targetIndex].takeIf { 9 !in variables }
+            ?: return taskerPlaceholder(code, "Tasker Send Intent's Target ${variables[9] ?: targetIndex} has no match here")
+        val categoryIndex = ints[1] ?: 0
+        val category = when {
+            1 in variables -> return taskerPlaceholder(code, "Tasker Send Intent takes its category from ${variables[1]}, which has no match here")
+            categoryIndex == 0 -> null
+            else -> TASKER_INTENT_CATEGORIES[categoryIndex]
+                ?: return taskerPlaceholder(code, "Tasker Send Intent's category $categoryIndex has no match here")
+        }
+        val extras = mutableListOf<ImportedExtra>()
+        val skipped = mutableListOf<String>()
+        (4..6).mapNotNull { byIndex[it].orEmptyIfBlank() }.forEach { extra ->
+            val imported = taskerIntentExtra(extra)
+            if (imported != null) extras += imported else skipped += extra
+        }
+        val uri = byIndex[3].orEmptyIfBlank()
+        val args = buildMap {
+            put("package", packageName)
+            put("mode", target)
+            byIndex[8].orEmptyIfBlank()?.let { put("component", it) }
+            byIndex[0].orEmptyIfBlank()?.let { put("action", it) }
+            category?.let { put("category", it) }
+            uri?.let { put("uri", it) }
+            byIndex[2].orEmptyIfBlank()?.let { put("mime_type", it) }
+            if (extras.isNotEmpty()) put("extras", extras.joinToString("\n") { it.line })
+        }
+        // A URI waits for someone to add a grant flag, which Tasker never asked for, so the policy is
+        // checked as if they had. The step itself is imported without one.
+        if (args.values.none { TASKER_VARIABLE_REFERENCE.containsMatchIn(it) }) {
+            val checked = if (uri == null) args else args + ("flags" to "grant_read_uri")
+            val result = IntentDispatchPolicy.parse(checked)
+            if (result is IntentDispatchParseResult.Invalid) {
+                return taskerPlaceholder(code, "Tasker Send Intent to $packageName can't be sent from this app: ${result.message}")
+            }
+        }
+        return ActionWithLoss(
+            ActionSpec(type = "intent.launch", label = "Tasker send intent", args = args),
+            lossyWarning = joinWarnings(
+                "Tasker Send Intent's Data $uri needs grant_read_uri or grant_write_uri added to the step's flags before it runs"
+                    .takeIf { uri != null },
+                extras.filter { it.asText }.takeIf { it.isNotEmpty() }
+                    ?.let { list -> "Tasker Send Intent extras sent as text: ${list.joinToString(", ") { it.key }}" },
+                skipped.takeIf { it.isNotEmpty() }?.let { "Tasker Send Intent extras not imported: ${it.joinToString(", ")}" },
+            ),
+        )
+    }
+
+    private data class ImportedExtra(val key: String, val line: String, val asText: Boolean)
+
+    /**
+     * Tasker writes an extra as `key:value` and guesses its type from the value. True or false and
+     * a whole number that fits in an int carry over. Anything else, a cast like `(long)5` or a
+     * variable among them, is sent as text and named, since Tasker decided those when it ran.
+     */
+    private fun taskerIntentExtra(extra: String): ImportedExtra? {
+        val separator = extra.indexOf(':')
+        if (separator <= 0) return null
+        val key = extra.substring(0, separator).trim()
+        if (!TASKER_INTENT_EXTRA_KEY.matches(key)) return null
+        val value = extra.substring(separator + 1)
+        val typed = when {
+            value.equals("true", ignoreCase = true) || value.equals("false", ignoreCase = true) -> "bool:${value.lowercase()}"
+            value.toIntOrNull() != null -> "int:$value"
+            else -> null
+        }
+        val typedWhenRun = value.toDoubleOrNull() != null || value.trimStart().startsWith("(") ||
+            TASKER_VARIABLE_REFERENCE.containsMatchIn(value)
+        return ImportedExtra(key, "$key=${typed ?: "string:$value"}", asText = typed == null && typedWhenRun)
+    }
+
+    /** A Str field exactly as written, for the fields where a leading or trailing space counts. */
+    private fun Element.rawActionString(index: Int): String =
+        directChildren("Str").firstOrNull { it.argIndex() == index }
+            ?.let { if (it.hasAttribute("val")) it.getAttribute("val") else it.textContent.orEmpty() }
+            .orEmpty()
+
     private fun taskerHttpRequest(byIndex: Map<Int, String>, ints: Map<Int, Int>): ActionWithLoss {
         val methodIndex = ints[TASKER_HTTP_METHOD_ARG]
         val method = methodIndex?.let(TASKER_HTTP_METHODS::get)
@@ -1109,6 +1367,7 @@ object TaskerXmlImporter {
         "303" -> "alarm"
         "304" -> "ring"
         "305" -> "notification"
+        "306" -> "voice"
         "308" -> "system"
         else -> "music"
     }
@@ -1379,6 +1638,33 @@ object TaskerXmlImporter {
     )
 
     private val TASKER_PLAIN_VARIABLE = Regex("""%[A-Za-z][A-Za-z0-9_]*""")
+
+    /** Anywhere Tasker would fill in a variable when the action runs. */
+    private val TASKER_VARIABLE_REFERENCE = Regex("""%[A-Za-z]""")
+
+    private val TASKER_INTERRUPT_MODES = mapOf(0 to "total_silence", 1 to "priority", 2 to "off", 3 to "alarms")
+
+    private val TASKER_INTERRUPT_MODE_NAMES = mapOf(4 to "Custom", 5 to "Query")
+
+    private val TASKER_INTENT_TARGETS = mapOf(0 to "broadcast", 1 to "activity", 2 to "service")
+
+    private val TASKER_INTENT_CATEGORIES = mapOf(
+        1 to "android.intent.category.DEFAULT",
+        2 to "android.intent.category.ALTERNATIVE",
+        3 to "android.intent.category.BROWSABLE",
+        4 to "android.intent.category.CAR_DOCK",
+        5 to "android.intent.category.DESK_DOCK",
+        6 to "android.intent.category.HOME",
+        7 to "android.intent.category.INFO",
+        8 to "android.intent.category.LAUNCHER",
+        9 to "android.intent.category.PREFERENCE",
+        10 to "android.intent.category.SELECTED_ALTERNATIVE",
+        11 to "android.intent.category.TAB",
+        12 to "android.intent.category.TEST",
+        13 to "com.google.intent.category.CARDBOARD",
+    )
+
+    private val TASKER_INTENT_EXTRA_KEY = Regex("""[A-Za-z_][A-Za-z0-9_.-]*""")
 
     private val TASKER_SIMPLE_SUM = Regex("""%([A-Za-z][A-Za-z0-9_]*)\s*([-+*/])\s*(\d+(?:\.\d+)?)""")
 

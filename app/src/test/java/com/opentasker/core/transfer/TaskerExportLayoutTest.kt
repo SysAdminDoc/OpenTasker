@@ -165,6 +165,18 @@ class TaskerExportLayoutTest {
     }
 
     @Test
+    fun everyVolumeStreamExportsAsItsOwnTaskerAction() {
+        mapOf("alarm" to "303", "ring" to "304", "notification" to "305", "voice" to "306", "music" to "307", "system" to "308")
+            .forEach { (stream, code) ->
+                assertHas(xml("volume.set", "stream" to stream, "level" to "3"), "<code>$code</code>")
+                val back = roundTrip("volume.set", "stream" to stream, "level" to "3")
+                assertEquals(stream, back.args["stream"])
+                assertEquals("3", back.args["level"])
+            }
+        assertHas(xml("volume.set", "level" to "3"), "<code>307</code>")
+    }
+
+    @Test
     fun lockAndScreenshotExport() {
         assertHas(xml("lock"), "<code>16</code>")
         assertEquals("lock", roundTrip("lock").type)

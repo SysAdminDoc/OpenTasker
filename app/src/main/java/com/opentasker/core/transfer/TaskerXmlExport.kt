@@ -739,13 +739,26 @@ object TaskerXmlExporter {
         "sound.stop" to "4",
     )
 
+    /** Tasker has one volume action per stream, and the stream names are the ones volume.set takes. */
+    private val TASKER_VOLUME_CODES = mapOf(
+        "alarm" to "303",
+        "ring" to "304",
+        "ringer" to "304",
+        "notification" to "305",
+        "voice" to "306",
+        "call" to "306",
+        "music" to "307",
+        "media" to "307",
+        "system" to "308",
+    )
+
     private val TEMPLATE_ARRAY = Regex("""\{\{\s*array\.([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")
 
     private val BARE_ARRAY = Regex("""%?([A-Za-z][A-Za-z0-9_]*)(?:\(\))?""")
 
     private fun taskerCodeFor(action: ActionSpec): String? {
         if (action.type == "volume.set") {
-            return if (action.args["stream"].orEmpty().lowercase() in setOf("music", "media")) "307" else null
+            return TASKER_VOLUME_CODES[(action.args["stream"] ?: "music").lowercase()]
         }
         return REVERSE_ACTION_MAP[action.type]
     }
