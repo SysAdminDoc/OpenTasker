@@ -60,6 +60,7 @@ import com.opentasker.core.model.Profile
 import com.opentasker.core.model.ProfileLifecyclePolicy
 import com.opentasker.core.model.ProfileLifetime
 import com.opentasker.core.model.ProfileLifecycleStrings
+import com.opentasker.core.model.ProfileOverflowPolicy
 import com.opentasker.core.model.Task
 import com.opentasker.core.platform.AudioForegroundServiceEligibility
 import com.opentasker.core.platform.PromotedOngoingNotificationSupport
@@ -205,6 +206,13 @@ class AutomationService : Service() {
     private val dispatchedProfiles = Collections.synchronizedSet(mutableSetOf<Long>())
     private val cooldowns = CooldownReservations(persist = { profileId, deadline -> cooldownStore.set(profileId, deadline) })
     private val matcherJobs = Collections.synchronizedMap(mutableMapOf<Long, Job>()) // Track jobs for cleanup
+    /** The profiles as last loaded. A matcher a reload kept acts on the edited profile through this. */
+    private val registeredProfiles = Collections.synchronizedMap(mutableMapOf<Long, Profile>())
+    /**
+     * Held while a profile going on or off is handled, and by a reload while it decides which
+     * matchers to keep, so a matcher still running can't change a profile's state under it.
+     */
+    private val profileStateLock = Mutex()
     private val profileTaskSlots = ProfileTaskSlots()
     private val queuedProfileTasks = Collections.synchronizedMap(mutableMapOf<Long, ArrayDeque<QueuedProfileTask>>())
     private val activeTaskNames = Collections.synchronizedMap(mutableMapOf<Long, String>())
@@ -374,6 +382,7 @@ class AutomationService : Service() {
         taskJobSnapshot.forEach { it.cancel() }
         matcherJobs.clear()
         matchers.clear()
+        registeredProfiles.clear()
         matchedProfiles.clear()
         AutomationLiveConditionState.clear()
         dispatchedProfiles.clear()
@@ -418,13 +427,85 @@ class AutomationService : Service() {
         }
     }
 
-    private suspend fun reloadProfiles() = profileReloadMutex.withLock {
-        val oldJobs = matcherJobs.values.toList()
-        matcherJobs.clear()
-        matchers.clear()
+    /**
+     * Stops the matchers [planMatcherReload] lets go, starts [profiles]' new ones and runs the held
+     * back profiles it released. Call with [profileStateLock] held.
+     */
+    private suspend fun startMatchers(profiles: List<Profile>, activeIds: Set<Long>) {
+        val running = synchronized(registeredProfiles) {
+            registeredProfiles.filterKeys { matcherJobs[it]?.isActive == true }
+        }
+        // Same lock order as onProfileDeactivated.
+        val reload = synchronized(matchedProfiles) {
+            synchronized(dispatchedProfiles) { planMatcherReload(running, profiles, matchedProfiles, dispatchedProfiles) }
+        }
+        val oldJobs = synchronized(matcherJobs) {
+            matcherJobs.filterKeys { it !in reload.kept }.values.toList().also { matcherJobs.keys.retainAll(reload.kept) }
+        }
+        matchers.keys.retainAll(reload.kept)
         oldJobs.forEach { it.cancel() }
         oldJobs.joinAll()
+        synchronized(registeredProfiles) {
+            registeredProfiles.clear()
+            profiles.associateByTo(registeredProfiles) { it.id }
+        }
+        AutomationLiveConditionState.retainProfiles(activeIds)
+        synchronized(pulseContinuities) {
+            pulseContinuities.keys.removeAll { it !in activeIds }
+        }
+        // Prune against profiles that still exist, not the enabled ones: activeIds comes from
+        // getAllEnabled(), so disabling a profile mid-cooldown deleted its persisted deadline while
+        // the in-memory reservation survived. Whether the cooldown still applied then depended on
+        // whether the service happened to restart before the profile was switched back on.
+        cooldownStore.pruneDeleted(db.profileDao().getAllIds().toSet())
+        synchronized(queuedProfileTasks) {
+            // Slots are keyed +id for enter tasks and -id for exit tasks; prune both.
+            queuedProfileTasks.keys.removeAll { kotlin.math.abs(it) !in activeIds }
+        }
+        registerPluginSubscriptions(profiles)
+        for (domain in profiles) {
+            if (domain.id in reload.kept) continue
+            val pulseContinuity = pulseContinuities.getOrPut(domain.id) { PulseEventContinuity() }
+            // A profile that was on stays on: a reload doesn't run its enter task again, and runs
+            // its exit task when the edit's fresh readings no longer match.
+            val matcher = ProfileMatcher(this, domain, pulseContinuity, initiallyActive = domain.id in reload.stillOn)
 
+            // A later reload can keep this matcher for an edited profile.
+            fun current() = registeredProfiles[domain.id] ?: domain
+            val matcherJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                try {
+                    matcher.stateChanges().collect { change ->
+                        try {
+                            profileStateLock.withLock {
+                                val profile = current()
+                                when (change) {
+                                    is ProfileStateChange.Activated -> onProfileActivated(profile, change.event)
+                                    is ProfileStateChange.Deactivated -> onProfileDeactivated(profile)
+                                }
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            AppLogger.error(TAG, "Failed handling state change for ${current().name}", e)
+                            recordMatcherError("Failed handling state change for ${current().name}", e)
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    AppLogger.error(TAG, "Profile matcher stopped for ${current().name}", e)
+                    recordMatcherError("Profile matcher stopped for ${current().name}", e)
+                }
+            }
+
+            matcherJobs[domain.id] = matcherJob
+            matchers[domain.id] = matcher
+        }
+        // Weighed only once every matcher is in place, as onProfileDeactivated weighs the ones it frees.
+        reload.released.forEach { onProfileActivated(it, null) }
+    }
+
+    private suspend fun reloadProfiles() = profileReloadMutex.withLock {
         val profileEntities = db.profileDao().getAllEnabled()
         val nowMs = System.currentTimeMillis()
         val profiles = profileEntities.mapNotNull { entity ->
@@ -451,57 +532,7 @@ class AutomationService : Service() {
             }
         }
         val activeIds = profiles.map { it.id }.toSet()
-        synchronized(matchedProfiles) {
-            matchedProfiles.keys.retainAll(activeIds)
-            profiles.forEach { profile ->
-                if (profile.id in matchedProfiles) matchedProfiles[profile.id] = profile
-            }
-        }
-        AutomationLiveConditionState.retainProfiles(activeIds)
-        synchronized(dispatchedProfiles) { dispatchedProfiles.retainAll(activeIds) }
-        synchronized(pulseContinuities) {
-            pulseContinuities.keys.removeAll { it !in activeIds }
-        }
-        // Prune against profiles that still exist, not the enabled ones: activeIds comes from
-        // getAllEnabled(), so disabling a profile mid-cooldown deleted its persisted deadline while
-        // the in-memory reservation survived. Whether the cooldown still applied then depended on
-        // whether the service happened to restart before the profile was switched back on.
-        cooldownStore.pruneDeleted(db.profileDao().getAllIds().toSet())
-        synchronized(queuedProfileTasks) {
-            // Slots are keyed +id for enter tasks and -id for exit tasks; prune both.
-            queuedProfileTasks.keys.removeAll { kotlin.math.abs(it) !in activeIds }
-        }
-        registerPluginSubscriptions(profiles)
-        for (domain in profiles) {
-            val pulseContinuity = pulseContinuities.getOrPut(domain.id) { PulseEventContinuity() }
-            val matcher = ProfileMatcher(this, domain, pulseContinuity)
-
-            val matcherJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
-                try {
-                    matcher.stateChanges().collect { change ->
-                        try {
-                            when (change) {
-                                is ProfileStateChange.Activated -> onProfileActivated(domain, change.event)
-                                is ProfileStateChange.Deactivated -> onProfileDeactivated(domain)
-                            }
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            AppLogger.error(TAG, "Failed handling state change for ${domain.name}", e)
-                            recordMatcherError("Failed handling state change for ${domain.name}", e)
-                        }
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    AppLogger.error(TAG, "Profile matcher stopped for ${domain.name}", e)
-                    recordMatcherError("Profile matcher stopped for ${domain.name}", e)
-                }
-            }
-            
-            matcherJobs[domain.id] = matcherJob
-            matchers[domain.id] = matcher
-        }
+        profileStateLock.withLock { startMatchers(profiles, activeIds) }
         val subscriptionsReady = withTimeoutOrNull(MONITOR_SUBSCRIPTION_TIMEOUT_MS) {
             matchers.values.toList().forEach { it.awaitMonitorSubscriptions() }
             true
@@ -1329,3 +1360,52 @@ internal fun profileRegistrySignature(profiles: List<ProfileEntity>): List<Strin
             ).joinToString("|")
         }
         .toList()
+
+/**
+ * Which matchers a reload keeps running, which of the ones it builds again start out on, and the
+ * profiles held back by priority that nothing outranks anymore.
+ */
+internal data class MatcherReload(val kept: Set<Long>, val stillOn: Set<Long>, val released: List<Profile> = emptyList())
+
+/**
+ * Plans a reload of [profiles], the enabled set, against [running], the profiles whose matchers are
+ * still going, and prunes the engine's record of [matched] and [dispatched] profiles to match.
+ * A profile whose matching rules haven't changed keeps its matcher, so the reload doesn't read its
+ * contexts again: a source's first event can be a stand-in, like the App source's empty foreground
+ * or a sensor's default. Of the rest, a profile whose enter task was handed off stays on, and one
+ * that matched without running, held back by a higher priority profile, starts off and matches
+ * afresh. A kept profile that's held back stays matched, and is released once the edited
+ * priorities, or a profile no longer enabled, leave nothing outranking it.
+ */
+internal fun planMatcherReload(
+    running: Map<Long, Profile>,
+    profiles: List<Profile>,
+    matched: MutableMap<Long, Profile>,
+    dispatched: MutableSet<Long>,
+): MatcherReload {
+    val kept = profiles.filter { profile ->
+        val before = running[profile.id]
+        before != null && matchingRules(before) == matchingRules(profile)
+    }.mapTo(mutableSetOf()) { it.id }
+    dispatched.retainAll(profiles.mapTo(mutableSetOf()) { it.id })
+    matched.keys.retainAll { it in dispatched || it in kept }
+    profiles.forEach { profile -> if (profile.id in matched) matched[profile.id] = profile }
+    val candidates = matched.values.toList()
+    val released = candidates.filter { it.id !in dispatched && ProfileLifecyclePolicy.suppressor(it, candidates) == null }
+    return MatcherReload(kept, matched.keys - kept, released)
+}
+
+/** [profile] without what only matters once it has gone on or off: its name, tasks, priority and run limits. */
+internal fun matchingRules(profile: Profile): Profile = profile.copy(
+    name = "",
+    enterTaskId = 0,
+    exitTaskId = null,
+    cooldownSec = 0,
+    automationMode = AutomationMode.SINGLE,
+    group = null,
+    priority = 0,
+    maxActiveExecutions = null,
+    burstLimit = null,
+    overflowPolicy = ProfileOverflowPolicy.LOG,
+    fallbackTaskId = null,
+)

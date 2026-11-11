@@ -11,6 +11,7 @@ import com.opentasker.core.contexts.UNRESOLVED_STATE_KEY
 import com.opentasker.core.contexts.stateContextKey
 import com.opentasker.core.contexts.SubscriptionReadyContextSource
 import com.opentasker.core.contexts.TimeContextBounds
+import com.opentasker.core.location.FossGeofenceEvaluator
 import com.opentasker.core.location.LocationDwellStateStore
 import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.model.ContextSpec
@@ -23,6 +24,7 @@ import com.opentasker.core.storage.VariableRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -33,8 +35,12 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.scan
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Watches a Profile's contexts and emits level-state transitions or event pulses.
@@ -50,6 +56,8 @@ internal class ProfileMatcher(
     private val clock: () -> Long = { System.currentTimeMillis() },
     /** A project's saved globals by name, read only for a Time context bounded by one. */
     private val globalValues: (projectId: Long) -> Flow<Map<String, String>> = ::savedGlobalValues,
+    /** The profile was on before this matcher replaced its last one, as on a reload. */
+    private val initiallyActive: Boolean = false,
 ) {
     private val tag = "ProfileMatcher[${profile.name}]"
     private val performanceThresholdMs = 1000L // Warn if evaluation takes > 1 second
@@ -65,7 +73,8 @@ internal class ProfileMatcher(
     fun stateChanges(): Flow<ProfileStateChange> {
         if (profile.contexts.isEmpty() || ProfileLifecyclePolicy.isSuppressed(profile, clock())) {
             monitorSubscriptionsReady.complete(Unit)
-            return emptyFlow()
+            // An edit that leaves a profile that was on with nothing to match switches it off.
+            return if (initiallyActive) flowOf(ProfileStateChange.Deactivated) else emptyFlow()
         }
 
         val pulseContextCount = profile.contexts.count { it.type == ContextType.EVENT }
@@ -122,6 +131,7 @@ internal class ProfileMatcher(
                         pulseContext = isPulseContext,
                         observedSequence = pulseObservation?.sequence,
                         previousSequence = previous.pulseSequence,
+                        previouslyUnread = previous.unread,
                     )
                 }.onEach { update ->
                     publishLiveContextState(profile.id, index, update)
@@ -129,7 +139,8 @@ internal class ProfileMatcher(
             } else {
                 AppLogger.warn(tag, "No context source registered for ${spec.type}; treating as non-matching")
                 if (spec.type == ContextType.EVENT) markPulseContextSubscribed(index, pulseContextCount)
-                flowOf(ContextMatchUpdate.initial(spec.type == ContextType.EVENT)).onEach { update ->
+                // Never read, so a profile that was on isn't held waiting for it.
+                flowOf(ContextMatchUpdate.initial(spec.type == ContextType.EVENT).copy(unread = false)).onEach { update ->
                     publishLiveContextState(profile.id, index, update)
                 }
             }
@@ -152,6 +163,7 @@ internal class ProfileMatcher(
                     snapshots = stabilizedSnapshots,
                     hasPulseContexts = hasPulseContexts,
                     initialPulseSequence = pulseContinuity.currentSequence(),
+                    initiallyActive = initiallyActive,
                 ) { change ->
                     val startTime = System.currentTimeMillis()
                     when (change) {
@@ -205,22 +217,14 @@ internal class ProfileMatcher(
         contextMatches: Array<ContextMatchUpdate>,
     ): ProfileMatchSnapshot {
         val startTime = System.currentTimeMillis()
-        val allMatched = evaluateContextExpression(contextMatches, profile.contexts, profile.contextExpression)
-        val pulseSequence = contextMatches
-            .filter { it.pulseContext }
-            .maxOfOrNull { it.pulseSequence }
-            ?: 0L
+        val snapshot = profileMatchSnapshot(contextMatches, profile.contexts, profile.contextExpression)
         val duration = System.currentTimeMillis() - startTime
 
         if (duration > performanceThresholdMs) {
             AppLogger.warn(tag, "Slow profile evaluation: ${duration}ms (threshold: ${performanceThresholdMs}ms)")
         }
 
-        return ProfileMatchSnapshot(
-            allMatched = allMatched,
-            pulseSequence = pulseSequence,
-            event = contextMatches.lastOrNull { it.event != null }?.event,
-        )
+        return snapshot
     }
 
     private fun markPulseContextSubscribed(index: Int, expectedCount: Int) {
@@ -257,7 +261,9 @@ internal fun stabilizeProfileSnapshots(
 
 /**
  * One context's latest result. [unknown] means its value can't be told yet ([matched] is false
- * then): a level context before its first reading, or [ContextMatchEvaluator.valueUnknown].
+ * then): a level context before its first event, or [ContextMatchEvaluator.valueUnknown].
+ * [unread] means no event has held this context's own reading yet: one before its first event, or
+ * one whose events so far didn't carry it ([readsContext]).
  */
 internal data class ContextMatchUpdate(
     val matched: Boolean,
@@ -265,11 +271,18 @@ internal data class ContextMatchUpdate(
     val pulseSequence: Long,
     val event: ContextEvent? = null,
     val unknown: Boolean = false,
+    val unread: Boolean = false,
 ) {
     companion object {
         /** An event that hasn't come yet is a known "no"; a state that hasn't been read is unknown. */
         fun initial(pulseContext: Boolean, pulseSequence: Long = 0L): ContextMatchUpdate =
-            ContextMatchUpdate(matched = false, pulseContext = pulseContext, pulseSequence = pulseSequence, unknown = !pulseContext)
+            ContextMatchUpdate(
+                matched = false,
+                pulseContext = pulseContext,
+                pulseSequence = pulseSequence,
+                unknown = !pulseContext,
+                unread = !pulseContext,
+            )
     }
 }
 
@@ -292,6 +305,7 @@ internal fun contextMatchUpdate(
     pulseContext: Boolean = false,
     observedSequence: Long? = null,
     previousSequence: Long = 0L,
+    previouslyUnread: Boolean = false,
 ): ContextMatchUpdate {
     val matched = ContextMatchEvaluator.matches(spec, event)
     val unknown = !matched && ContextMatchEvaluator.valueUnknown(spec, event.metadata)
@@ -302,8 +316,28 @@ internal fun contextMatchUpdate(
         pulseSequence = pulseSequenceAfterObservation(matched, observedSequence, previousSequence),
         event = if (pulseContext && effectiveMatched) event else null,
         unknown = unknown,
+        unread = previouslyUnread && !readsContext(spec, event.metadata),
     )
 }
+
+/**
+ * Whether [metadata] holds a reading [spec] can be told from. A State source's first event carries
+ * only what it reads at once, with Wi-Fi, sensors and health coming after, a Location source's can
+ * be a wait for the first fix, and the App source starts with an empty foreground until an app is
+ * seen, so none of those is a reading of a context whose value comes later.
+ */
+internal fun readsContext(spec: ContextSpec, metadata: Map<String, String>): Boolean = when (spec.type) {
+    ContextType.STATE -> when (val key = stateContextKey(spec)) {
+        null -> true
+        "wifi" -> WIFI_READING_KEYS.any(metadata::containsKey)
+        else -> key in metadata
+    }
+    ContextType.LOCATION -> FossGeofenceEvaluator.hasFix(metadata)
+    ContextType.APPLICATION -> metadata["foreground"].orEmpty().isNotBlank()
+    else -> true
+}
+
+private val WIFI_READING_KEYS = listOf("wifi", "wifi_connected", "wifi_ssid")
 
 /**
  * The pulse sequence a context reports after observing an event.
@@ -363,25 +397,58 @@ private fun savedGlobalValues(projectId: Long): Flow<Map<String, String>> = retr
         .map { variables -> TimeContextBounds.valuesByProject(variables)[projectId].orEmpty() }
 }
 
+/**
+ * [awaitingFirstReadings] is set while [allMatched] still hangs on a context that hasn't been read.
+ * [readMatched] is [allMatched] with each context that hasn't been read counted as unknown, so its
+ * source's stand-in first value can't match. The two differ only while [awaitingFirstReadings] is set.
+ */
 internal data class ProfileMatchSnapshot(
     val allMatched: Boolean,
     val pulseSequence: Long,
     val event: ContextEvent? = null,
+    val awaitingFirstReadings: Boolean = false,
+    val readMatched: Boolean = allMatched,
 )
+
+/** What [contextMatches] add up to for a profile with [specs] and [expression]. */
+internal fun profileMatchSnapshot(
+    contextMatches: Array<ContextMatchUpdate>,
+    specs: List<ContextSpec>,
+    expression: ContextExpressionNode?,
+): ProfileMatchSnapshot {
+    val asRead = Array(contextMatches.size) { i ->
+        contextMatches[i].let { if (it.unread) it.copy(matched = false, unknown = true) else it }
+    }
+    return ProfileMatchSnapshot(
+        allMatched = evaluateContextExpression(contextMatches, specs, expression),
+        pulseSequence = contextMatches.filter { it.pulseContext }.maxOfOrNull { it.pulseSequence } ?: 0L,
+        event = contextMatches.lastOrNull { it.event != null }?.event,
+        awaitingFirstReadings = awaitingFirstReadings(contextMatches, specs, expression),
+        readMatched = evaluateContextExpression(asRead, specs, expression),
+    )
+}
 
 private data class PulseAccumulator(
     val lastPulseSequence: Long,
     val change: ProfileStateChange?,
 )
 
+/**
+ * A profile that was [initiallyActive] stays on without its enter task running again, and goes off
+ * the first time its contexts, once each has been read, don't match. A context still unread after
+ * [firstReadingsWaitMs] counts as unknown until it's read, so its source's stand-in value can't keep
+ * the profile on or turn it back on.
+ */
 internal fun profileStateChangesFromSnapshots(
     snapshots: Flow<ProfileMatchSnapshot>,
     hasPulseContexts: Boolean,
     initialPulseSequence: Long = 0L,
+    initiallyActive: Boolean = false,
+    firstReadingsWaitMs: Long = FIRST_READINGS_WAIT_MS,
     onChange: (ProfileStateChange) -> Unit = {},
 ): Flow<ProfileStateChange> =
     if (hasPulseContexts) {
-        snapshots.scan(PulseAccumulator(lastPulseSequence = initialPulseSequence, change = null)) { previous, snapshot ->
+        val pulses = snapshots.scan(PulseAccumulator(lastPulseSequence = initialPulseSequence, change = null)) { previous, snapshot ->
             val pulseChanged = snapshot.pulseSequence != previous.lastPulseSequence
             val change = if (pulseChanged && snapshot.pulseSequence > 0 && snapshot.allMatched) {
                 ProfileStateChange.Activated(snapshot.event)
@@ -392,10 +459,12 @@ internal fun profileStateChangesFromSnapshots(
         }.mapNotNull { accumulator ->
             accumulator.change?.also(onChange)
         }
+        // Only a profile without an event stays on, so one that was on was just edited to wait for one.
+        if (initiallyActive) pulses.onStart { emit(ProfileStateChange.Deactivated.also(onChange)) } else pulses
     } else {
-        snapshots.map { it.allMatched }
+        (if (initiallyActive) snapshots.heldForFirstReadings(firstReadingsWaitMs).map { it.readMatched } else snapshots.map { it.allMatched })
             .distinctUntilChanged()
-            .scan(Pair(false, false)) { (_, prev), now -> Pair(prev, now) }
+            .scan(Pair(initiallyActive, initiallyActive)) { (_, prev), now -> Pair(prev, now) }
             .mapNotNull { (prev, now) ->
                 val change = when {
                     !prev && now -> ProfileStateChange.Activated(null)
@@ -405,6 +474,46 @@ internal fun profileStateChangesFromSnapshots(
                 change?.also(onChange)
             }
     }
+
+/** As long as a location fix can take, and a few rounds of plugin queries. */
+internal const val FIRST_READINGS_WAIT_MS = 180_000L
+
+/**
+ * [this], holding back the snapshots that wait on a first reading for at most [waitMs]. A reading
+ * that never comes, like a plugin whose query keeps failing, then counts as not matching, and the
+ * latest snapshot held goes through. Nothing is sent for the wait once a snapshot has gone through
+ * or the snapshots end, so a held snapshot never follows a newer one.
+ */
+internal fun Flow<ProfileMatchSnapshot>.heldForFirstReadings(waitMs: Long): Flow<ProfileMatchSnapshot> = channelFlow {
+    val lock = Mutex()
+    var settled = false
+    var held: ProfileMatchSnapshot? = null
+    val wait = launch {
+        delay(waitMs)
+        lock.withLock {
+            if (!settled) {
+                settled = true
+                held?.let { send(it) }
+                held = null
+            }
+        }
+    }
+    collect { snapshot ->
+        val settledNow = lock.withLock {
+            if (settled || !snapshot.awaitingFirstReadings) {
+                settled = true
+                held = null
+                send(snapshot)
+            } else {
+                held = snapshot
+            }
+            settled
+        }
+        if (settledNow) wait.cancel()
+    }
+    lock.withLock { settled = true }
+    wait.cancel()
+}
 
 internal fun evaluateWithOrGroups(
     contextMatches: Array<ContextMatchUpdate>,
@@ -424,6 +533,49 @@ internal fun evaluateWithOrGroups(
     }
     return andTerms.all { it } && orGroups.values.all { it }
 }
+
+/**
+ * Whether reading the unread contexts could still turn the profile on when it isn't on without
+ * them. An expression is three-valued, the way [ContextExpressionNode.evaluate] treats it: a context
+ * that was read and is still unknown stays unknown, so only the unread ones are tried both ways.
+ * Without an expression a context that was read is plain true or false, as in [evaluateWithOrGroups].
+ */
+internal fun awaitingFirstReadings(
+    contextMatches: Array<ContextMatchUpdate>,
+    specs: List<ContextSpec>,
+    expression: ContextExpressionNode?,
+): Boolean {
+    if (contextMatches.none { it.unread }) return false
+    if (expression != null) {
+        if (!expression.isValidForContextCount(specs.size)) return false
+        val known = contextMatches.map { if (it.unread || it.unknown) null else it.matched }
+        if (expression.evaluate(known) != null) return false
+        val unread = contextMatches.indices.filter { contextMatches[it].unread }
+        if (unread.size > MAX_UNREAD_CONTEXTS_TRIED) return true
+        return (0 until (1 shl unread.size)).any { bits ->
+            val values = known.toMutableList()
+            unread.forEachIndexed { bit, index -> values[index] = (bits shr bit) and 1 == 1 }
+            expression.evaluate(values) == true
+        }
+    }
+    val terms = mutableListOf<Boolean?>()
+    val orGroups = mutableMapOf<String, MutableList<Boolean?>>()
+    contextMatches.forEachIndexed { i, update ->
+        val value = if (update.unread) null else update.matched
+        val group = specs.getOrNull(i)?.orGroup
+        if (group != null) orGroups.getOrPut(group) { mutableListOf() } += value else terms += value
+    }
+    orGroups.values.forEach { members ->
+        terms += when {
+            true in members -> true
+            null in members -> null
+            else -> false
+        }
+    }
+    return false !in terms && null in terms
+}
+
+private const val MAX_UNREAD_CONTEXTS_TRIED = 10
 
 internal fun evaluateContextExpression(
     contextMatches: Array<ContextMatchUpdate>,

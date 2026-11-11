@@ -148,6 +148,11 @@ object FossGeofenceEvaluator {
         return seconds?.coerceAtLeast(0L)?.times(1_000L) ?: 0L
     }
 
+    /** Whether [metadata] holds a position, not just a wait for one or a reason there isn't one. */
+    fun hasFix(metadata: Map<String, String>): Boolean =
+        first(metadata, "latitude", "lat").toDoubleOrNull() != null &&
+            first(metadata, "longitude", "lon", "lng").toDoubleOrNull() != null
+
     private fun first(values: Map<String, String>, vararg keys: String): String =
         keys.firstNotNullOfOrNull { values[it]?.trim()?.takeIf(String::isNotBlank) }.orEmpty()
 
