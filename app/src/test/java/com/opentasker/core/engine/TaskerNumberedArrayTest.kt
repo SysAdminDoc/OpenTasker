@@ -121,6 +121,37 @@ class TaskerNumberedArrayTest {
     }
 
     @Test
+    fun splitTextsPartsReadByIndexRangeAndCountThoughItSetsTheFirstPartToo() {
+        val variables = store("i" to "2", "padded" to "1 ", "zero" to "0", "blank" to "")
+
+        assertEquals(ActionResult.Success, act(variables, "text.split", "source" to "a,b,c", "delimiter" to ",", "var" to "parts"))
+
+        assertEquals("a", variables.expand("%parts"))
+        assertEquals("3", variables.expand("%parts(#)"))
+        assertEquals("c", variables.expand("%parts(%i)"))
+        assertEquals("b", variables.expand("%parts(%padded)"))
+        assertEquals("a,b", variables.expand("%parts(%zero:1)"))
+        assertEquals("b,c", variables.expand("%parts(1:)"))
+        assertEquals("c,b,a", variables.expand("%parts(2:0)"))
+        assertEquals("", variables.expand("%parts(%blank:1)"))
+        assertEquals("", variables.expand("%parts(%unset)"))
+        // Not an array form, so %parts's own operators still apply to the first part.
+        assertEquals("A", variables.expand("%parts(upper)"))
+    }
+
+    @Test
+    fun aSplitTextArrayNeverHidesATaskerArrayOfTheSameName() {
+        val variables = VariableStore()
+
+        act(variables, "text.split", "source" to "a,b,c", "delimiter" to ",", "var" to "words")
+        variables.set("words", "x y")
+        act(variables, "var.split", "name" to "words")
+
+        assertEquals("2", variables.expand("%words(#)"))
+        assertEquals("y", variables.expand("%words(2)"))
+    }
+
+    @Test
     fun aPositionVariableThatIsUnsetStopsTheStepInsteadOfUsingTheFirstElement() {
         fun pop(position: String) = Task(
             name = "T",

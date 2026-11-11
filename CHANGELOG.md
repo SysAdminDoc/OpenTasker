@@ -58,6 +58,7 @@
 - A diagnostics report lists special access (exact alarms, display over other apps, modify system settings, usage access, installing apps and Do Not Disturb) the way Settings has it. It used to read the install-time flag, so exact alarms showed as denied while they worked and Do Not Disturb always showed as granted. A permission the phone doesn't know, from a newer Android or an app that isn't installed, now says it isn't defined instead of denied, and other apps' permissions keep their full names.
 - App triggers keep running when usage access was granted with `adb shell pm grant`. OpenTasker used to count only the Settings switch, so it paused app triggers and Setup listed usage access as missing while Android was serving the data.
 - The Locale condition picker no longer freezes for up to 30 seconds when it's opened right after a backup restore. If the database still isn't back by then, the condition and task pickers close instead of crashing.
+- After Split Text or Match Text, `%parts(#)` counts the parts again and `%parts(2)` or `%parts(%i)` reads one of them. Both actions also set `%parts` to the first part, and that made every one of those forms give the first part instead. A range like `%parts(0:1)` joins those parts with commas, and an index held in a variable with a stray space still reads its part.
 
 ## v0.2.96 - 2026-11-09 (unreleased)
 

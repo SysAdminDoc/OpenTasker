@@ -180,17 +180,7 @@ class VariableExpander {
     private fun evaluateVarOp(name: String, op: String, store: VariableStore, arrays: ArrayStore): String {
         val baseValue = store.get(name)
 
-        if (arrays.contains(name) && baseValue == null) {
-            // %parts(%i) reads the element at %i, as the numbered forms below do, not a join on "%i".
-            val form = if ('%' in op) expandText(op, store, arrays) { it } else op
-            if (form.isBlank() && '%' in op) return ""
-            return when {
-                form == "#" -> arrays.length(name).toString()
-                form.toIntOrNull() != null -> arrays.get(name, form.toInt())
-                form.isEmpty() -> arrays.join(name, "")
-                else -> arrays.join(name, form)
-            }
-        }
+        if (arrays.contains(name)) storedArrayValue(name, op, baseValue, store, arrays)?.let { return it }
 
         taskerArrayValue(name, op, baseValue, store, arrays)?.let { return it }
 
@@ -253,6 +243,42 @@ class VariableExpander {
                 replaceRegex(pattern, baseValue, replacement) ?: baseValue
             }
             else -> baseValue
+        }
+    }
+
+    /**
+     * The 0-based arrays text.split and text.match store: `#` counts the elements, a number is one
+     * element and `a:b` joins a range with commas, backwards when a is past b. A variable inside
+     * the parentheses is filled in first and trimmed, so `%parts(%i)` reads the element at `%i` and
+     * gives empty while `%i` is, as does a range with an empty variable on either side. Any other
+     * form joins the elements with it. Both actions also set [name] to the first element, so while
+     * it holds a value the stored array answers only those array forms, and only when [name] has
+     * no numbered elements (`%parts1`, ...) of its own. Null leaves [op] to them.
+     */
+    private fun storedArrayValue(
+        name: String,
+        op: String,
+        baseValue: String?,
+        store: VariableStore,
+        arrays: ArrayStore,
+    ): String? {
+        val expanded = if ('%' in op) expandText(op, store, arrays) { it } else op
+        val form = expanded.trim()
+        val arrayForm = STORED_ARRAY_FORM.matches(form)
+        if (baseValue != null && (!arrayForm || store.numberedItems(name).isNotEmpty())) return null
+        if (form.isEmpty() && '%' in op) return ""
+        if (':' in op && op.split(':', limit = 2).any { side -> '%' in side && expandText(side, store, arrays) { it }.isBlank() }) return ""
+        val size = arrays.length(name)
+        return when {
+            form == "#" -> size.toString()
+            form.isEmpty() || !arrayForm -> arrays.join(name, expanded)
+            ':' !in form -> form.toIntOrNull()?.let { arrays.get(name, it) }.orEmpty()
+            else -> {
+                val from = form.substringBefore(':').ifEmpty { "0" }.toIntOrNull() ?: return ""
+                val to = form.substringAfter(':').ifEmpty { null }?.let { it.toIntOrNull() ?: return "" } ?: (size - 1)
+                val range = if (from <= to) from..to else from downTo to
+                range.filter { it in 0 until size }.joinToString(",") { arrays.get(name, it) }
+            }
         }
     }
 
@@ -662,6 +688,7 @@ class VariableExpander {
         private const val MAX_REGEX_LENGTH = 256
         private const val MAX_REGEX_INPUT_LENGTH = 10_000
         private val TASKER_ARRAY_FORM = Regex("""#[<>]?|[<>]|\d*(?::\d*)?""")
+        private val STORED_ARRAY_FORM = Regex("""#|\d*(?::\d*)?""")
 
         private fun compileLinearRegex(pattern: String): Re2Pattern? {
             return try {
