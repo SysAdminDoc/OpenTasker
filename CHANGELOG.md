@@ -39,6 +39,7 @@
 
 ### Fixed
 
+- A plugin step showed "Needs setup" forever, even with its plugin installed and set up, and tapping it did nothing. The pill now shows only while the plugin isn't installed.
 - Turning a profile on with OpenTasker's `SET_PROFILE_ENABLED` broadcast, from a Send Intent step for example, gets the same checks as turning it on in the app. It used to only stop an import still waiting for its review, so a profile whose tasks call each other in a loop could be switched on that way without the review the app asks for. The broadcast also changes only whether the profile is on. It used to save the whole profile as it read it, so an edit saved in the same moment could be lost, and a profile deleted in the same moment came back.
 - Tasker tasks with more than ten steps import in the right order. Tasker writes a task's steps sorted as text, so step 11 comes right after step 2 in the file, and the import kept that order. A long task came in scrambled, with step 11 running right after step 2. That hit 21 of the 48 real exports we test against.
 - A Tasker import says when a Say, Play Ringtone or Music Play step used a stream this app doesn't have. Play Ringtone usually sends its sound to the Notification stream, and it used to come over on Music without a word. It still plays on Music, but the import note now tells you, and names the variable when the stream came from one.

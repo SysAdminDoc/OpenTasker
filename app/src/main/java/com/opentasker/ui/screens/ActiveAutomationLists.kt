@@ -93,6 +93,7 @@ import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.RunLogEntry
 import com.opentasker.core.model.Task
+import com.opentasker.core.plugins.locale.localePluginReceiverInstalled
 import com.opentasker.core.storage.StorageDecodeIssue
 import com.opentasker.ui.theme.DesignSystem
 import com.opentasker.ui.utils.expandCollapseToggle
@@ -489,6 +490,16 @@ private fun ProfileCard(
  */
 @Composable
 internal fun rememberPendingSetup(refreshKey: Any?, read: () -> Set<SetupRequirement>): Set<SetupRequirement>? {
+    val resumes = rememberResumeCount()
+    val pending by produceState<Set<SetupRequirement>?>(null, resumes, refreshKey) {
+        value = withContext(Dispatchers.IO) { read() }
+    }
+    return pending
+}
+
+/** Goes up on every ON_RESUME, so a read keyed on it runs again when the user comes back from another app. */
+@Composable
+private fun rememberResumeCount(): Int {
     val lifecycleOwner = LocalLifecycleOwner.current
     var resumes by remember { mutableIntStateOf(0) }
     DisposableEffect(lifecycleOwner) {
@@ -496,10 +507,7 @@ internal fun rememberPendingSetup(refreshKey: Any?, read: () -> Set<SetupRequire
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    val pending by produceState<Set<SetupRequirement>?>(null, resumes, refreshKey) {
-        value = withContext(Dispatchers.IO) { read() }
-    }
-    return pending
+    return resumes
 }
 
 @Composable
@@ -899,13 +907,33 @@ internal fun ActionRow(
     onToggleEnabled: () -> Unit = {},
 ) {
     var menuExpanded by rememberSaveable { mutableStateOf(false) }
-    val resources = LocalContext.current.resources
+    val context = LocalContext.current
+    val resources = context.resources
     val metadata = ActionMetadataRegistry.get(action.type)
     val capability = ActionCapabilityRegistry.get(action.type)
+    // A plugin step's setup is its plugin being installed, which no Setup row grants, so the pill
+    // asks the package manager instead of staying on for good.
+    val pluginCondition = action.type == "plugin.locale.query"
+    val pluginStep = pluginCondition || action.type == "plugin.locale.fire"
+    val pluginPackage = action.args["package"]?.trim().orEmpty().takeIf { pluginStep }
+    // Asked again on resume, since the plugin usually gets installed in another app. A package
+    // named by a variable is only known when the step runs, so there's nothing to look up here.
+    val resumes = if (pluginStep) rememberResumeCount() else 0
+    val pluginMissing by produceState<Boolean?>(null, pluginPackage, pluginCondition, resumes) {
+        value = pluginPackage?.takeUnless { '%' in it }?.let { packageName ->
+            withContext(Dispatchers.IO) {
+                !localePluginReceiverInstalled(context.applicationContext, packageName, pluginCondition)
+            }
+        }
+    }
     // The tier says an action can need setup, the live grants say whether it still does. An action
     // no Setup row can settle (an approved script, a VPN app) keeps its pill.
     val needsSetup = capability.level == CapabilityLevel.RequiresSetup &&
-        SetupRequirementResolver.stillNeedsSetup(action, Build.VERSION.SDK_INT, pendingSetup)
+        if (pluginStep) {
+            pluginMissing == true
+        } else {
+            SetupRequirementResolver.stillNeedsSetup(action, Build.VERSION.SDK_INT, pendingSetup)
+        }
     // Setup lists a row only for enabled profiles, so the pill opens Setup on the rows it means.
     val setupRows = if (needsSetup && pendingSetup != null) {
         SetupRequirementResolver.forAction(action, Build.VERSION.SDK_INT) intersect pendingSetup

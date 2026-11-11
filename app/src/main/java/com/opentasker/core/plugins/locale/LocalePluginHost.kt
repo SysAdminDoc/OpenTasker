@@ -1169,6 +1169,19 @@ class LocalePluginDiscovery(
 /** A step with no wait still gets this long for the broadcast to leave. */
 private const val SETTING_DISPATCH_TIMEOUT_MS = 5_000L
 
+/**
+ * Whether [packageName] has the receiver a plugin step sends to. That's the only setup a plugin step
+ * has, so it's what the step's "Needs setup" pill goes by. Asks the package manager, so not on the
+ * main thread.
+ */
+fun localePluginReceiverInstalled(context: Context, packageName: String, condition: Boolean): Boolean =
+    PackageNamePolicy.isValid(packageName) &&
+        queryBroadcastReceivers(
+            context.packageManager,
+            packageName,
+            if (condition) LocalePluginContract.ACTION_QUERY_CONDITION else LocalePluginContract.ACTION_FIRE_SETTING,
+        ).isNotEmpty()
+
 private data class LocaleBroadcastReceiverTarget(
     val component: ComponentName,
 )
