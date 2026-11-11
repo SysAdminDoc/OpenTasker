@@ -127,6 +127,35 @@ class TaskerNumberedArrayTest {
     }
 
     @Test
+    fun preflightBlocksAnUnsetPositionOnlyWhenNothingCouldSetIt() {
+        fun pop(position: String) = ActionSpec(type = "array.pop", args = mapOf("array" to "%arr", "position" to position, "to_var" to "got"))
+        fun stepFor(report: PreflightReport, taskName: String) = report.tasks.single { it.taskName == taskName }.steps.last()
+        val child = Task(id = 2, name = "Child", actions = listOf(pop("%par1")))
+        val caller = Task(id = 1, name = "Caller", actions = listOf(ActionSpec(type = "task.run", args = mapOf("task" to "2", "par1" to "2"))))
+        val fromCaller = stepFor(PreflightRunner.preflightTask(caller, listOf(caller, child)), "Child")
+        val earlierOutput = Task(
+            id = 3,
+            name = "Split",
+            actions = listOf(
+                ActionSpec(type = "text.split", args = mapOf("text" to "2,1", "separator" to ",", "var" to "%Pos")),
+                pop("%Pos1"),
+            ),
+        )
+        val fromOutput = stepFor(PreflightRunner.preflightTask(earlierOutput), "Split")
+        val noWriter = stepFor(PreflightRunner.preflightTask(Task(id = 4, name = "Alone", actions = listOf(pop("%Pos")))), "Alone")
+
+        // %par1 comes from the caller, which Preflight doesn't pass on, so it warns and goes on.
+        assertEquals(PreflightStepStatus.SIMULATED, fromCaller.status)
+        assertTrue(fromCaller.warnings.toString(), fromCaller.warnings.any { "%par1 is empty here" in it })
+        // A global written by an earlier step's output isn't one Preflight plays either.
+        assertEquals(PreflightStepStatus.SIMULATED, fromOutput.status)
+        assertTrue(fromOutput.warnings.toString(), fromOutput.warnings.any { "%Pos1 is empty here" in it })
+        // A global nothing writes really does stop the run's step.
+        assertEquals(PreflightStepStatus.BLOCKED, noWriter.status)
+        assertTrue(noWriter.warnings.toString(), noWriter.warnings.any { "The run stops this step" in it })
+    }
+
+    @Test
     fun arrayFormsReadTheNumberedElements() {
         val variables = store("arr1" to "a", "arr2" to "b", "arr3" to "c", "i" to "2")
 

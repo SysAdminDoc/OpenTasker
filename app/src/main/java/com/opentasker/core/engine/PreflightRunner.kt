@@ -1,10 +1,12 @@
 package com.opentasker.core.engine
 
 import com.opentasker.core.actions.ActionArgumentSensitivity
+import com.opentasker.core.actions.ActionValueType
 import com.opentasker.core.actions.ActiveTransport
 import com.opentasker.core.actions.ArrayPositionArguments
 import com.opentasker.core.actions.HttpNetworkConstraint
 import com.opentasker.core.actions.LineListArguments
+import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.actions.httpNetworkDenial
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.capabilities.CapabilityLevel
@@ -118,6 +120,7 @@ object PreflightRunner {
     private const val MAX_STEPS = 512
     private const val MAX_SUBTASK_DEPTH = 8
     private const val MAX_DISPLAY_VALUE_LENGTH = 256
+    private val SINGLE_VARIABLE = Regex("%[A-Za-z][A-Za-z0-9_]*")
 
     fun preflightTask(
         task: Task,
@@ -323,7 +326,22 @@ object PreflightRunner {
             val networkBlock = httpNetworkBlock(spec.type, expansion.rawValues, input.activeTransport)
             if (networkBlock != null) stepWarnings += networkBlock
             expansion.failure?.let { stepWarnings += "The run stops this step: $it." }
-            val effectiveStatus = if (networkBlock != null || expansion.failure != null) PreflightStepStatus.BLOCKED else status
+            // Preflight plays Variable Set but not every write a run makes (other actions' outputs,
+            // a caller's %par1, event values), so an unset position blocks only when nothing could set it.
+            val positionStop = expansion.unsetPosition?.let { (position, reason) ->
+                if (staysUnset(position, spec, task, tasks)) {
+                    stepWarnings += "The run stops this step: $reason."
+                    reason
+                } else {
+                    stepWarnings += "$position is empty here. If nothing sets it before this step, the run stops the step."
+                    null
+                }
+            }
+            val effectiveStatus = if (networkBlock != null || expansion.failure != null || positionStop != null) {
+                PreflightStepStatus.BLOCKED
+            } else {
+                status
+            }
             val step = PreflightStep(
                 taskPath = taskPath,
                 actionIndex = pc,
@@ -529,11 +547,14 @@ object PreflightRunner {
         val warnings: List<String>,
         /** Set when the run would stop the step before the action got its arguments. */
         val failure: String? = null,
+        /** An Array Push or Pop position that came out empty, as written, with the run's reason. */
+        val unsetPosition: Pair<String, String>? = null,
     )
 
     private fun expandArguments(spec: ActionSpec, variables: VariableStore, input: PreflightInputs): Expansion {
         val outputNames = OutputNameArguments(spec.type)
         var failure: String? = null
+        var unsetPosition: Pair<String, String>? = null
         val rawValues = spec.args.mapValues { (key, raw) ->
             when {
                 outputNames.keepsAsWritten(key, raw) -> TemplateExpansionResult(raw, emptyList(), emptyList())
@@ -547,7 +568,7 @@ object PreflightRunner {
                     )
                 }
                 else -> expand(raw, variables, input).also { expansion ->
-                    ArrayPositionArguments.emptyFailure(spec.type, key, raw, expansion.value)?.let { failure = it }
+                    ArrayPositionArguments.emptyFailure(spec.type, key, raw, expansion.value)?.let { unsetPosition = raw.trim() to it }
                 }
             }
         }
@@ -557,7 +578,26 @@ object PreflightRunner {
             if (secret) ActionArgumentSensitivity.REDACTED
             else ActionArgumentSensitivity.maskValue(spec.type, key, expansion.value, rawValues.mapValues { it.value.value })
         }
-        return Expansion(display, rawValues.mapValues { it.value.value }, warnings.distinct(), failure)
+        return Expansion(display, rawValues.mapValues { it.value.value }, warnings.distinct(), failure, unsetPosition)
+    }
+
+    /**
+     * True when [position] is a single global that no step here could write: no step names it in an
+     * argument (an output name, a Variable Set, anything) and no declared output resolves to it.
+     */
+    private fun staysUnset(position: String, step: ActionSpec, task: Task, tasks: List<Task>): Boolean {
+        if (!SINGLE_VARIABLE.matches(position) || !VariableNamePolicy.isGlobal(position)) return false
+        val name = VariableNamePolicy.normalize(position) ?: return false
+        return (tasks.filterNot { it.id == task.id } + task).flatMap(Task::actions).none { action ->
+            val named = action.args.any { (key, value) ->
+                !(action === step && key == "position") && VariableNamePolicy.normalize(value) == name
+            }
+            named || declaredActionOutputs(action.type).any { output ->
+                val written = output.resolveName(action.args) ?: return@any false
+                written == name || (output.type == ActionValueType.ARRAY && name.startsWith(written) &&
+                    name.drop(written.length).let { it.isNotEmpty() && it.all(Char::isDigit) })
+            }
+        }
     }
 
     private fun expand(raw: String, variables: VariableStore, input: PreflightInputs): TemplateExpansionResult {
