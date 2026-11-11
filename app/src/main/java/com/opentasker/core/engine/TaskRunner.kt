@@ -1,6 +1,7 @@
 package com.opentasker.core.engine
 
 import com.opentasker.core.actions.ActionArgumentSensitivity
+import com.opentasker.core.actions.ArrayPositionArguments
 import com.opentasker.core.actions.LineListArguments
 import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.capabilities.AutomationSensitivityRegistry
@@ -837,6 +838,7 @@ class TaskRunner(
             }
             val (expanded, trace) = expandValue(actionType, name, rawValue, templateScope)
             trace?.let { expansions += it }
+            ArrayPositionArguments.emptyFailure(actionType, name, rawValue, expanded)?.let { failure = it }
             expanded
         }
 

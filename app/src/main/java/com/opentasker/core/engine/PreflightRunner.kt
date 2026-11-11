@@ -2,6 +2,7 @@ package com.opentasker.core.engine
 
 import com.opentasker.core.actions.ActionArgumentSensitivity
 import com.opentasker.core.actions.ActiveTransport
+import com.opentasker.core.actions.ArrayPositionArguments
 import com.opentasker.core.actions.HttpNetworkConstraint
 import com.opentasker.core.actions.LineListArguments
 import com.opentasker.core.actions.httpNetworkDenial
@@ -545,7 +546,9 @@ object PreflightRunner {
                         warnings = lines.flatMap { it.warnings },
                     )
                 }
-                else -> expand(raw, variables, input)
+                else -> expand(raw, variables, input).also { expansion ->
+                    ArrayPositionArguments.emptyFailure(spec.type, key, raw, expansion.value)?.let { failure = it }
+                }
             }
         }
         val warnings = rawValues.values.flatMap { it.warnings }

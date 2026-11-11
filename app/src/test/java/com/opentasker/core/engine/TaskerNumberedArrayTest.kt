@@ -88,6 +88,36 @@ class TaskerNumberedArrayTest {
     }
 
     @Test
+    fun aPositionVariableThatIsUnsetStopsTheStepInsteadOfUsingTheFirstElement() {
+        fun pop(position: String) = Task(
+            name = "T",
+            actions = listOf(ActionSpec(type = "array.pop", args = mapOf("array" to "%arr", "position" to position, "to_var" to "got"))),
+        )
+        fun run(task: Task, variables: VariableStore) =
+            runBlocking { TaskRunner(ActionContext(ContextWrapper(null), variables)).run(task) }
+        fun preflightWarnings(task: Task, variables: Map<String, String>) =
+            PreflightRunner.preflightTask(task = task, inputs = PreflightInputs(globalVariables = variables))
+                .tasks.single().steps.single().let { it.status to it.warnings }
+        val unset = store("arr1" to "a", "arr2" to "b")
+        val given = store("arr1" to "a", "arr2" to "b", "pos" to "2")
+        val blank = store("arr1" to "a", "arr2" to "b")
+
+        val stopped = run(pop("%pos"), unset)
+        assertFalse(stopped.success)
+        assertTrue((stopped.results.single() as ActionResult.Failure).message.contains("%pos came out empty"))
+        assertEquals(mapOf(1 to "a", 2 to "b"), unset.elements("arr"))
+        assertTrue(run(pop("%pos"), given).success)
+        assertEquals(mapOf(1 to "a"), given.elements("arr"))
+        assertTrue(run(pop(""), blank).success)
+        assertEquals(mapOf(1 to "b"), blank.elements("arr"))
+
+        val (status, warnings) = preflightWarnings(pop("%POS"), emptyMap())
+        assertEquals(PreflightStepStatus.BLOCKED, status)
+        assertTrue(warnings.toString(), warnings.any { "%POS came out empty" in it })
+        assertFalse(preflightWarnings(pop("%POS"), mapOf("POS" to "2")).second.any { "came out empty" in it })
+    }
+
+    @Test
     fun arrayFormsReadTheNumberedElements() {
         val variables = store("arr1" to "a", "arr2" to "b", "arr3" to "c", "i" to "2")
 
