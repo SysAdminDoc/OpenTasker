@@ -179,6 +179,27 @@ class TaskerNumberedArrayTest {
     }
 
     @Test
+    fun aForLoopOverAPercentNamedSplitWalksItsArrayAndKeepsItsTaint() {
+        val variables = VariableStore().apply { set("secret", "a,b,c", sensitive = true) }
+        val task = Task(
+            name = "T",
+            actions = listOf(
+                ActionSpec(type = "text.split", args = mapOf("source" to "%secret", "delimiter" to ",", "var" to "%parts")),
+                ActionSpec(type = "flow.foreach", args = mapOf("list" to "%parts", "var" to "%item")),
+                ActionSpec(type = "test.array.record", args = mapOf("v" to "%item")),
+                ActionSpec(type = "flow.endfor"),
+            ),
+        )
+
+        val report = runBlocking { TaskRunner(ActionContext(ContextWrapper(null), variables)).run(task) }
+
+        assertTrue(report.toString(), report.success)
+        assertEquals(listOf("a", "b", "c"), recorded)
+        assertTrue(variables.isArraySensitive("%parts"))
+        assertTrue(variables.isArraySensitive("parts"))
+    }
+
+    @Test
     fun aPositionVariableThatIsUnsetStopsTheStepInsteadOfUsingTheFirstElement() {
         fun pop(position: String) = Task(
             name = "T",

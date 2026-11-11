@@ -266,12 +266,15 @@ class VariableStore {
     /**
      * Returns the elements of a stored array by name, or else Tasker's numbered elements (`arr1`,
      * `arr2`, ...) in index order, or null when neither exists. Used by the `flow.foreach` control
-     * action to iterate over array variables.
+     * action to iterate over array variables. [name] may carry its percent sign, as a For list does.
      */
     fun getArrayItems(name: String): List<String>? =
-        arrayStore.snapshot()[name] ?: numberedItems(name).values.toList().ifEmpty { null }
+        arrayStore.snapshot()[storedArrayName(name)] ?: numberedItems(name).values.toList().ifEmpty { null }
 
-    fun isArraySensitive(name: String): Boolean = name in sensitiveArrayNames || anyNumberedItemSensitive(name)
+    fun isArraySensitive(name: String): Boolean = storedArrayName(name) in sensitiveArrayNames || anyNumberedItemSensitive(name)
+
+    /** The key [setArray] stores [name] under, so a lookup and its taint check find the same array. */
+    private fun storedArrayName(name: String): String = VariableNamePolicy.normalize(name) ?: name
 
     /** Expand all variable references in [s] using the current scope chain. */
     fun expand(s: String): String {
