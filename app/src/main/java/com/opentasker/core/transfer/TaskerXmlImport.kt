@@ -1129,8 +1129,26 @@ object TaskerXmlImporter {
                 byIndex[5].orEmptyIfBlank()?.let { "Tasker Search Replace's Store Matches In Array was not imported: $it" },
                 "Tasker Search Replace writes \\% for a plain percent sign, and here a variable with that name is still filled in"
                     .takeIf { "\\%" in search || "\\%" in replaceWith },
+                "Tasker Search Replace's $ also matches just before a final line break, and here it matches only at the very end"
+                    .takeIf { 'm' !in flags && hasEndAnchor(search) },
             ),
         )
+    }
+
+    /** True when [pattern] has a `$` that isn't escaped or inside a character class. */
+    private fun hasEndAnchor(pattern: String): Boolean {
+        var escaped = false
+        var inClass = false
+        for (char in pattern) {
+            when {
+                escaped -> escaped = false
+                char == '\\' -> escaped = true
+                inClass -> if (char == ']') inClass = false
+                char == '[' -> inClass = true
+                char == '$' -> return true
+            }
+        }
+        return false
     }
 
     /** Tasker's Interrupt Mode numbers its modes from the most silent. Custom and the read-only query have no match here. */

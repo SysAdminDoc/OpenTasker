@@ -731,6 +731,21 @@ class TaskerRealExportLayoutTest {
     }
 
     @Test
+    fun searchReplaceNamesTheEndAnchorThatSkipsAFinalLineBreak() {
+        val base = """<code>598</code><Str sr="arg0" ve="3">%stdout</Str><Str sr="arg1" ve="3">PATTERN</Str><Int sr="arg2" val="0"/>""" +
+            """<Int sr="arg3" val="0"/><Int sr="arg4" val="0"/><Str sr="arg5" ve="3"/><Int sr="arg6" val="1"/><Str sr="arg7" ve="3"/>"""
+        val trailing = base.replace("PATTERN", """\d+$""")
+
+        assertEquals("text.replace", action(trailing).type)
+        assertWarns(trailing, "final line break")
+        listOf(
+            base.replace("PATTERN", """\$5"""),
+            base.replace("PATTERN", "[$]5"),
+            base.replace("PATTERN", """\d+$""").replace("""<Int sr="arg3" val="0"/>""", """<Int sr="arg3" val="1"/>"""),
+        ).forEach { xml -> assertFalse(xml, warnings(xml).any { "final line break" in it }) }
+    }
+
+    @Test
     fun importedVariableStepsRunTheWayTaskersDo() {
         ActionRegistry.register(SetVariableAction())
         ActionRegistry.register(TextReplaceAction())
