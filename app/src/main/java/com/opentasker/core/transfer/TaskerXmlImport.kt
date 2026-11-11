@@ -3,6 +3,7 @@ package com.opentasker.core.transfer
 import com.opentasker.core.actions.ArrayProcessAction
 import com.opentasker.core.actions.IntentDispatchParseResult
 import com.opentasker.core.actions.IntentDispatchPolicy
+import com.opentasker.core.apps.PackageNamePolicy
 import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.DaySchedule
 import com.opentasker.core.contexts.TimeContextBounds
@@ -21,10 +22,14 @@ import com.opentasker.core.model.ProfileOverflowPolicy
 import com.opentasker.core.model.Task
 import com.opentasker.core.model.Variable
 import com.opentasker.core.model.VariableNamePolicy
+import com.opentasker.core.plugins.locale.LocaleBundleValue
+import com.opentasker.core.plugins.locale.LocalePluginBundleCodec
+import com.opentasker.core.plugins.locale.LocalePluginContract
 import org.w3c.dom.Document
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import org.xml.sax.InputSource
+import org.xml.sax.SAXException
 import java.io.StringReader
 import java.util.Locale
 import javax.xml.parsers.DocumentBuilderFactory
@@ -813,7 +818,7 @@ object TaskerXmlImporter {
                     args = mapOf("message" to strings.getOrElse(0) { "Imported Tasker log action" }),
                 ),
             )
-            else -> ActionWithLoss(unsupportedAction(code))
+            else -> taskerPluginAction(code, element, byIndex, intsByIndex) ?: ActionWithLoss(unsupportedAction(code))
         }
         // Real Tasker exports carry a "Run only if" guard as a sibling <ConditionList>, not as
         // <Str> action args -- this applies to any action type, not just flow-control If/Else If.
@@ -1015,6 +1020,116 @@ object TaskerXmlImporter {
         return ActionWithLoss(
             ActionSpec(type = "profile.set", label = "Tasker profile status", args = mapOf("profile" to name, "state" to state)),
         )
+    }
+
+    /**
+     * A plugin step keeps the plugin's settings in `<Bundle sr="arg0">`, each value next to a
+     * `<key>-type` element naming its Java type, with the plugin's package in arg1, its settings
+     * screen in arg2 and how long Tasker waits for it in arg3. No built-in action has a package in
+     * arg1, which is what tells a plugin step apart, whatever its code. Here it fires through the
+     * Locale host, which sends the settings and goes on without waiting for an answer, so the
+     * variables the plugin would set stay unset and the import says which.
+     */
+    private fun taskerPluginAction(
+        code: String,
+        element: Element,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+    ): ActionWithLoss? {
+        val bundle = element.directChildren("Bundle").firstOrNull { it.argIndex() == 0 } ?: return null
+        val packageName = byIndex[1].orEmpty()
+        if (!PackageNamePolicy.isValid(packageName) || byIndex[2].isNullOrBlank()) return null
+        val values = try {
+            LocalePluginBundleCodec.sanitizeTypedValues(
+                bundle.directChildren("Vals").firstOrNull()?.let(::taskerBundleValues).orEmpty(),
+            )
+        } catch (error: IllegalArgumentException) {
+            return taskerPlaceholder(code, "Tasker plugin $packageName: ${error.message}")
+        } catch (error: IllegalStateException) {
+            return taskerPlaceholder(code, "Tasker plugin $packageName: ${error.message}")
+        }
+        val blurb = (values[LocalePluginContract.EXTRA_BLURB] as? LocaleBundleValue.Text)?.value.orEmpty()
+        val outputs = (values[LocalePluginContract.EXTRA_RELEVANT_VARIABLES] as? LocaleBundleValue.TextArray)
+            ?.values
+            ?.mapNotNull { item -> item.lineSequence().first().trim().takeIf { it.startsWith("%") } }
+            .orEmpty()
+        val waitSeconds = ints[3]?.takeIf { it > 0 }
+        return ActionWithLoss(
+            ActionSpec(
+                type = "plugin.locale.fire",
+                label = "Tasker plugin",
+                args = buildMap {
+                    put("package", packageName)
+                    put("bundleJson", LocalePluginBundleCodec.encodeBundle(values - LocalePluginContract.EXTRA_BLURB))
+                    if (blurb.isNotBlank()) put("blurb", blurb.take(120))
+                },
+            ),
+            lossyWarning = joinWarnings(
+                outputs.takeIf { it.isNotEmpty() }?.let {
+                    "Tasker plugin $packageName sets ${it.joinToString(", ")} when it finishes; here it's sent its settings without waiting for an answer, so those stay unset"
+                },
+                waitSeconds?.let {
+                    "Tasker waits up to $it seconds for plugin $packageName to finish before the next step; here the next step starts right after the plugin is sent its settings"
+                },
+            ),
+        )
+    }
+
+    /**
+     * A plugin bundle's values as the Java values Tasker saved: `<null>` is a null string, and a
+     * string array is itself XML inside the value, one `<_array_KEYn>` element per item. A type
+     * a plugin bundle here can't hold is refused, naming the key, rather than sent as text.
+     */
+    private fun taskerBundleValues(vals: Element): Map<String, Any?> {
+        val children = vals.directChildElements()
+        val values = linkedMapOf<String, Any?>()
+        var index = 0
+        while (index < children.size) {
+            val key = children[index].tagName
+            // Tasker writes each value right before its `<key-type>`, so a key that itself ends in -type still pairs up.
+            val type = children.getOrNull(index + 1)?.takeIf { it.tagName == "$key-type" }?.textContent?.trim()
+                ?: throw IllegalArgumentException("$key has no type")
+            val text = children[index].textContent.orEmpty()
+            fun invalid(): Nothing = throw IllegalArgumentException("$key isn't a valid $type")
+            values[key] = when (type) {
+                "java.lang.String" -> text.takeUnless { it == "<null>" }
+                "java.lang.Boolean" -> text.trim().toBooleanStrictOrNull() ?: invalid()
+                "java.lang.Integer" -> text.trim().toIntOrNull() ?: invalid()
+                "java.lang.Long" -> text.trim().toLongOrNull() ?: invalid()
+                "java.lang.Float" -> text.trim().toFloatOrNull() ?: invalid()
+                "java.lang.Double" -> text.trim().toDoubleOrNull() ?: invalid()
+                "[Ljava.lang.String;" -> taskerStringArray(key, text) ?: invalid()
+                else -> throw IllegalArgumentException("$key is of type $type, which a plugin bundle here can't hold")
+            }
+            index += 2
+        }
+        return values
+    }
+
+    /** Items of a string array value, in their numbered order, or null when the value isn't one. */
+    private fun taskerStringArray(key: String, text: String): Array<String>? {
+        if (text.isBlank()) return emptyArray()
+        // The outer document had its doctype checked; this nested one gets no doctype or entity at all,
+        // and its own budget, since a plugin bundle holds at most 16 KB and items never nest.
+        if ("<!" in text) return null
+        val root = try {
+            ImportResourceGuard.requireXmlPreflight(text, STRING_ARRAY_BUDGET)
+            parseDocument(text).documentElement
+        } catch (_: IllegalArgumentException) {
+            return null
+        } catch (_: SAXException) {
+            return null
+        }
+        if (root.tagName != "StringArray") return null
+        return root.directChildElements()
+            // Items are `_array_<key><n>`, so a key ending in digits, like `since1700000000`, still sorts by n.
+            .sortedBy { item ->
+                item.tagName.removePrefix("_array_$key").toIntOrNull()
+                    ?: item.tagName.takeLastWhile(Char::isDigit).toIntOrNull()
+                    ?: Int.MAX_VALUE
+            }
+            .map { it.textContent.orEmpty() }
+            .toTypedArray()
     }
 
     /** Media Control sends a media key, which is exactly what this app's own media actions do. */
@@ -1942,6 +2057,9 @@ object TaskerXmlImporter {
     private val TASKER_VIBRATE_UNITS = listOf(1L)
 
     private val TASKER_SET_STATES = mapOf(0 to "off", 1 to "on", 2 to "toggle")
+
+    // A plugin's string array: <StringArray> and its items, nothing deeper.
+    private val STRING_ARRAY_BUDGET = ImportResourceBudget.Default.copy(maxXmlChars = 256 * 1024, maxXmlNodes = 16_384, maxNestingDepth = 2)
 
     private val TASKER_SETTING_TABLES = mapOf(0 to "global", 1 to "secure", 2 to "system")
 

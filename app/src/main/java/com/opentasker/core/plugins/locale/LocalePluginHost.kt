@@ -266,7 +266,7 @@ object LocalePluginBundleCodec {
                 is JsonObject -> typedValue(key, value)
                 else -> error("Plugin bundle value for $key must be a string, number, boolean or typed value.")
             }
-            requireValueSize(decoded)
+            requireValueSize(key, decoded)
             key to decoded
         }
     }
@@ -314,7 +314,7 @@ object LocalePluginBundleCodec {
         if (!VARIABLE_IN_TEXT.containsMatchIn(text)) return null
         return try {
             requireValidKey(key)
-            LocaleBundleValue.Text(text).also(::requireValueSize)
+            LocaleBundleValue.Text(text).also { requireValueSize(key, it) }
         } catch (_: IllegalArgumentException) {
             null
         }
@@ -403,13 +403,13 @@ object LocalePluginBundleCodec {
     private fun requireValidKey(key: String) {
         require(key.isNotBlank()) { "Plugin bundle keys must not be blank." }
         require(key.toByteArray(Charsets.UTF_8).size <= LocalePluginContract.MAX_BUNDLE_KEY_BYTES) {
-            "Plugin bundle key is too large."
+            "Plugin bundle key ${key.take(40)}... is too large."
         }
     }
 
-    private fun requireValueSize(value: LocaleBundleValue) {
+    private fun requireValueSize(key: String, value: LocaleBundleValue) {
         require(encodeValue(value).toString().toByteArray(Charsets.UTF_8).size <= LocalePluginContract.MAX_BUNDLE_JSON_BYTES) {
-            "Plugin bundle value is too large."
+            "Plugin bundle value for $key is too large."
         }
     }
 
@@ -472,13 +472,14 @@ object LocalePluginBundleCodec {
                 is Boolean -> LocaleBundleValue.Flag(value)
                 is Int -> LocaleBundleValue.IntNumber(value)
                 is Long -> LocaleBundleValue.LongNumber(value)
-                is Float -> LocaleBundleValue.FloatNumber(value)
-                is Double -> LocaleBundleValue.DoubleNumber(value)
+                // The bundle JSON can't carry NaN or infinity back, so they're refused here rather than at run time.
+                is Float -> LocaleBundleValue.FloatNumber(value.also { require(it.isFinite()) { "Plugin bundle value for $key isn't a finite float." } })
+                is Double -> LocaleBundleValue.DoubleNumber(value.also { require(it.isFinite()) { "Plugin bundle value for $key isn't a finite double." } })
                 is Array<*> -> LocaleBundleValue.TextArray(stringItems(key, value.asList()))
                 is ArrayList<*> -> LocaleBundleValue.TextList(stringItems(key, value))
                 else -> error("Plugin bundle value for $key is a ${value.javaClass.simpleName}, which OpenTasker can't store.")
             }
-            requireValueSize(converted)
+            requireValueSize(key, converted)
             key to converted
         }
         require(encodeBundle(typed).toByteArray(Charsets.UTF_8).size <= LocalePluginContract.MAX_BUNDLE_JSON_BYTES) {

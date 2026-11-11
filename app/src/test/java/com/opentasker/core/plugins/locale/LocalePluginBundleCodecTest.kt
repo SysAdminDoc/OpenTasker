@@ -274,6 +274,19 @@ class LocalePluginBundleCodecTest {
     }
 
     @Test
+    fun configurationResultsRefuseNumbersTheJsonCantCarryByName() {
+        val notANumber = runCatching {
+            LocalePluginBundleCodec.sanitizeTypedValues(mapOf("ratio" to Double.NaN))
+        }.exceptionOrNull()
+        val infinite = runCatching {
+            LocalePluginBundleCodec.sanitizeTypedValues(mapOf("scale" to Float.POSITIVE_INFINITY))
+        }.exceptionOrNull()
+
+        assertTrue(notANumber is IllegalArgumentException && notANumber.message.orEmpty().contains("ratio"))
+        assertTrue(infinite is IllegalArgumentException && infinite.message.orEmpty().contains("scale"))
+    }
+
+    @Test
     fun parsesConditionResultCodes() {
         val satisfied = LocalePluginConditionResultParser.parse(
             LocalePluginContract.RESULT_CONDITION_SATISFIED,
