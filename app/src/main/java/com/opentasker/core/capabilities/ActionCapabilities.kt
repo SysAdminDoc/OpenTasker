@@ -142,6 +142,7 @@ object ActionCapabilityRegistry {
         "sms.send" to smsCapability(),
         "screenshot.take" to elevatedUnsupported("screenshot.take", "Screenshots require MediaProjection consent or privileged shell access.", R.string.capability_screenshot_unsupported),
         "sound.play" to audioOutputCapability("Plays audio from a file path or content URI."),
+        "sound.beep" to audioOutputCapability("Plays a generated tone."),
         "sound.stop" to mediaKeyCapability("Stop playback via media key dispatch."),
         "sound.pause" to mediaKeyCapability("Pause playback via media key dispatch."),
         "track.next" to mediaKeyCapability("Next track via media key dispatch."),

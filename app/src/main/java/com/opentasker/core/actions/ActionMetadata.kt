@@ -183,6 +183,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "download",
     "wol",
     "sound.play",
+    "sound.beep",
     "sound.stop",
     "sound.pause",
     "track.next",
@@ -1589,6 +1590,21 @@ fun registerActionMetadata() {
             fields = listOf(
                 ActionField("path", R.string.catalog_action_sound_play_field_path_label, FieldType.FILE, required = true, fileRule = deviceFileRule),
                 ActionField("volume", R.string.catalog_action_sound_play_field_volume_label, FieldType.NUMBER, hintRes = R.string.catalog_action_sound_play_field_volume_hint, numberRule = decimalRule(0.0, 100.0)),
+                ActionField("stream", R.string.catalog_action_sound_play_field_stream_label, FieldType.DROPDOWN, hintRes = R.string.catalog_action_sound_play_field_stream_hint, options = audioOutputOptions),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "sound.beep",
+            nameRes = R.string.catalog_action_sound_beep_name,
+            descriptionRes = R.string.catalog_action_sound_beep_description,
+            categoryRes = R.string.catalog_category_media,
+            fields = listOf(
+                ActionField("frequency", R.string.catalog_action_sound_beep_field_frequency_label, FieldType.NUMBER, required = true, hintRes = R.string.catalog_action_sound_beep_field_frequency_hint, numberRule = decimalRule(0.0, 10_000.0)),
+                ActionField("duration", R.string.catalog_action_sound_beep_field_duration_label, FieldType.NUMBER, required = true, numberRule = integerRule(1, 10_000)),
+                ActionField("amplitude", R.string.catalog_action_sound_beep_field_amplitude_label, FieldType.NUMBER, hintRes = R.string.catalog_action_sound_beep_field_amplitude_hint, numberRule = integerRule(0, 100)),
                 ActionField("stream", R.string.catalog_action_sound_play_field_stream_label, FieldType.DROPDOWN, hintRes = R.string.catalog_action_sound_play_field_stream_hint, options = audioOutputOptions),
             )
         )

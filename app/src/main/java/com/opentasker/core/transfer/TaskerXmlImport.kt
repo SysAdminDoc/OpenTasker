@@ -56,6 +56,12 @@ data class TaskerUnsupportedAction(
 /** Tasker stores an audio stream as Android's own number, and 4 is AudioManager.STREAM_ALARM. */
 internal const val TASKER_ALARM_STREAM = 4
 
+/** AudioManager.STREAM_MUSIC, the stream Tasker's Beep plays on unless it's told otherwise. */
+internal const val TASKER_MUSIC_STREAM = 3
+
+/** Tasker's Beep plays a tone at a quarter of the frequency number it stores. */
+internal const val TASKER_BEEP_PITCH_DIVISOR = 4L
+
 private fun taskerAlarmStreamArg(stream: Int?): Map<String, String> =
     if (stream == TASKER_ALARM_STREAM) mapOf("stream" to "alarm") else emptyMap()
 
@@ -599,6 +605,7 @@ object TaskerXmlImporter {
                 code, "WiFi Tether", "hotspot.toggle", strings, intsByIndex, intVariables,
                 warning = "Tasker WiFi Tether's Keep Wi-Fi when turning on was not imported".takeIf { (intsByIndex[1] ?: 0) != 0 },
             )
+            "171" -> taskerBeep(byIndex, intsByIndex, intVariables)
             "192", "play", "sound.play" -> {
                 // Play Ringtone's arg1 is the sound. Older exports from this app wrote the path at arg0.
                 val path = byIndex[1].orEmptyIfBlank() ?: strings.firstOrNull().orEmpty()
@@ -839,9 +846,10 @@ object TaskerXmlImporter {
     /**
      * A number field holding a variable. A plain `%x` needs nothing because actions expand it when
      * they run, and `%x + 1` becomes a template. A null result is anything harder than that.
-     * [factor] converts the field's unit, so `%x` seconds can arrive as milliseconds.
+     * [factor] converts the field's unit, so `%x` seconds can arrive as milliseconds, and [divisor]
+     * scales it down the same way.
      */
-    private fun taskerNumberTemplate(text: String, factor: Long = 1L): String? {
+    private fun taskerNumberTemplate(text: String, factor: Long = 1L, divisor: Long = 1L): String? {
         val trimmed = text.trim()
         val filters = mutableListOf<String>()
         val name = if (TASKER_PLAIN_VARIABLE.matches(trimmed)) {
@@ -852,6 +860,7 @@ object TaskerXmlImporter {
             sum.groupValues[1]
         }
         if (factor != 1L) filters += "mul:$factor"
+        if (divisor != 1L) filters += "div:$divisor"
         return if (filters.isEmpty()) "%$name" else "{{ $name | ${filters.joinToString(" | ")} }}"
     }
 
@@ -1100,6 +1109,45 @@ object TaskerXmlImporter {
             ),
         )
     }
+
+    /**
+     * Tasker's Beep plays a quarter of the frequency it's given (its sine steps by pi times the
+     * frequency over 16000, at 8000 samples a second), so the number comes in divided by 4 and
+     * sounds the same here. Missing numbers stay out, so the step names them when it runs.
+     */
+    private fun taskerBeep(byIndex: Map<Int, String>, ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss {
+        val frequency = variables[0]?.let { text ->
+            taskerNumberTemplate(text, divisor = TASKER_BEEP_PITCH_DIVISOR)?.let { ImportedField(it) }
+                ?: ImportedField(text, "Tasker Beep holds a sum this app doesn't work out: $text")
+        } ?: ints[0]?.let { ImportedField(plainDecimal(it / TASKER_BEEP_PITCH_DIVISOR.toDouble())) }
+        val duration = variables[1]?.let { taskerNumberField("Beep", it) } ?: ints[1]?.let { ImportedField(it.toString()) }
+        val amplitude = variables[2]?.let { taskerNumberField("Beep", it) } ?: ints[2]?.let { ImportedField(it.toString()) }
+        val stream = ints[3]
+        val doAt = byIndex[4].orEmptyIfBlank()
+        return ActionWithLoss(
+            ActionSpec(
+                type = "sound.beep",
+                label = "Tasker beep",
+                args = buildMap {
+                    frequency?.let { put("frequency", it.value) }
+                    duration?.let { put("duration", it.value) }
+                    amplitude?.let { put("amplitude", it.value) }
+                    putAll(taskerAlarmStreamArg(stream))
+                },
+            ),
+            lossyWarning = joinWarnings(
+                frequency?.warning,
+                duration?.warning,
+                amplitude?.warning,
+                "Tasker Beep plays on stream $stream, which this app doesn't offer, so it beeps on Music"
+                    .takeIf { stream != null && stream != TASKER_MUSIC_STREAM && stream != TASKER_ALARM_STREAM },
+                "Tasker Beep's Do At Time $doAt was not imported, so it beeps right away".takeIf { doAt != null },
+            ),
+        )
+    }
+
+    private fun plainDecimal(value: Double): String =
+        if (value == Math.floor(value)) value.toLong().toString() else value.toString()
 
     /**
      * Tasker counts From from 1. This app's substring always cuts a section short at the end of

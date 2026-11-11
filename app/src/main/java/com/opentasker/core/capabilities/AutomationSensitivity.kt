@@ -150,6 +150,7 @@ object AutomationSensitivityRegistry {
         "download",
         "wol",
         "sound.play",
+        "sound.beep",
         "sound.stop",
         "sound.pause",
         "track.next",

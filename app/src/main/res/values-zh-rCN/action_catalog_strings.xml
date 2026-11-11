@@ -607,6 +607,13 @@
     <string name="catalog_action_sound_play_field_path_label" formatted="false">声音文件路径</string>
     <string name="catalog_action_sound_play_field_volume_label" formatted="false">音量（0-100）</string>
     <string name="catalog_action_sound_play_field_volume_hint" formatted="false">可选；为空时使用当前音量</string>
+    <string name="catalog_action_sound_beep_name" formatted="false">蜂鸣</string>
+    <string name="catalog_action_sound_beep_description" formatted="false">以设定的音高播放一个音</string>
+    <string name="catalog_action_sound_beep_field_frequency_label" formatted="false">频率（Hz）</string>
+    <string name="catalog_action_sound_beep_field_frequency_hint" formatted="false">音高，0 到 10000。440 是中央 C 上方的 A 音。</string>
+    <string name="catalog_action_sound_beep_field_duration_label" formatted="false">时长（毫秒）</string>
+    <string name="catalog_action_sound_beep_field_amplitude_label" formatted="false">振幅（0-100）</string>
+    <string name="catalog_action_sound_beep_field_amplitude_hint" formatted="false">为空时为 50</string>
     <string name="catalog_action_sound_stop_name" formatted="false">停止声音</string>
     <string name="catalog_action_sound_stop_description" formatted="false">停止播放</string>
     <string name="catalog_action_sound_pause_name" formatted="false">暂停声音</string>

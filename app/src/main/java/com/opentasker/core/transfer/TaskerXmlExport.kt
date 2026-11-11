@@ -21,6 +21,7 @@ import com.opentasker.core.model.Task
 import com.opentasker.core.model.Variable
 import com.opentasker.core.diagnostics.ExportRedactionPolicy
 import com.opentasker.core.engine.SUB_TASK_REF_KEYS
+import kotlin.math.roundToLong
 
 data class TaskerXmlExportReport(
     val xml: String,
@@ -75,6 +76,7 @@ object TaskerXmlExporter {
         "airplane.toggle" to "333",
         "hotspot.toggle" to "113",
         "sound.play" to "445",
+        "sound.beep" to "171",
         "sound.stop" to "443",
         "sound.pause" to "443",
         "track.next" to "443",
@@ -249,6 +251,13 @@ object TaskerXmlExporter {
                 if (args["volume"] != null) {
                     warnings += "Tasker's Music Play has no volume of its own, so the volume on 'sound.play' was left out."
                 }
+            }
+            "sound.beep" -> {
+                appendInt(sb, 0, taskerBeepFrequency(args["frequency"].orEmpty(), warnings))
+                appendInt(sb, 1, args["duration"] ?: "")
+                appendInt(sb, 2, args["amplitude"].orEmpty().ifBlank { "50" })
+                appendInt(sb, 3, (if (args["stream"] == "alarm") TASKER_ALARM_STREAM else TASKER_MUSIC_STREAM).toString())
+                appendStr(sb, 4, "")
             }
             "sound.stop", "sound.pause", "track.next", "track.previous" -> {
                 appendInt(sb, 0, TASKER_MEDIA_COMMANDS.getValue(action.type))
@@ -728,6 +737,18 @@ object TaskerXmlExporter {
         sb.appendLine("""      <Str sr="arg$index" ve="3">${escapeXml(value)}</Str>""")
     }
 
+    /**
+     * Tasker's Beep plays a quarter of the frequency it stores, so a pitch goes out times 4. The
+     * template an import makes from a Tasker variable goes back to that variable.
+     */
+    private fun taskerBeepFrequency(value: String, warnings: MutableList<String>): String {
+        val trimmed = value.trim()
+        trimmed.toDoubleOrNull()?.let { return (it * TASKER_BEEP_PITCH_DIVISOR).roundToLong().toString() }
+        BEEP_PITCH_TEMPLATE.matchEntire(trimmed)?.let { return "%" + it.groupValues[1] }
+        warnings += "Tasker's Beep plays a quarter of the frequency it's given, so the frequency '$trimmed' on 'sound.beep' needs multiplying by 4 in Tasker."
+        return trimmed
+    }
+
     /** A number field holding a variable or a sum is written the way Tasker writes it, in a `<var>`. */
     private fun appendInt(sb: StringBuilder, index: Int, value: String) {
         val trimmed = value.trim()
@@ -907,6 +928,8 @@ object TaskerXmlExporter {
         "media" to "307",
         "system" to "308",
     )
+
+    private val BEEP_PITCH_TEMPLATE = Regex("""\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\|\s*div:4\s*\}\}""")
 
     private val TEMPLATE_ARRAY = Regex("""\{\{\s*array\.([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")
 

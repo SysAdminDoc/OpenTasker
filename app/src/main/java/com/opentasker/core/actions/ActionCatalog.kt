@@ -121,6 +121,7 @@ object ActionCatalog {
         define("download", ActionCategory.NET, ActionRetrySafety.IDEMPOTENT, ::DownloadAction),
         define("wol", ActionCategory.NET, ActionRetrySafety.IDEMPOTENT, ::WakeOnLanAction),
         define("sound.play", ActionCategory.MEDIA, ActionRetrySafety.NEVER, ::PlaySoundAction),
+        define("sound.beep", ActionCategory.MEDIA, ActionRetrySafety.NEVER, ::BeepAction),
         define("sound.stop", ActionCategory.MEDIA, ActionRetrySafety.IDEMPOTENT, ::StopSoundAction),
         define("sound.pause", ActionCategory.MEDIA, ActionRetrySafety.IDEMPOTENT, ::PauseSoundAction),
         define("track.next", ActionCategory.MEDIA, ActionRetrySafety.NEVER, ::NextTrackAction),

@@ -165,6 +165,31 @@ class TaskerExportLayoutTest {
     }
 
     @Test
+    fun aBeepGoesOutAtTheNumberTaskerNeedsForItsPitch() {
+        assertHas(
+            xml("sound.beep", "frequency" to "463", "duration" to "100", "amplitude" to "9"),
+            "<code>171</code>",
+            """<Int sr="arg0" val="1852"/>""",
+            """<Int sr="arg1" val="100"/>""",
+            """<Int sr="arg2" val="9"/>""",
+            """<Int sr="arg3" val="3"/>""",
+        )
+        assertHas(xml("sound.beep", "frequency" to "440", "duration" to "100", "stream" to "alarm"), """<Int sr="arg2" val="50"/>""", """<Int sr="arg3" val="4"/>""")
+
+        val back = roundTrip("sound.beep", "frequency" to "196.75", "duration" to "100", "amplitude" to "9", "stream" to "alarm")
+        assertEquals(mapOf("frequency" to "196.75", "duration" to "100", "amplitude" to "9", "stream" to "alarm"), back.args)
+    }
+
+    @Test
+    fun aBeepPitchFromATaskerVariableGoesBackToThatVariable() {
+        assertHas(xml("sound.beep", "frequency" to "{{ freq | div:4 }}", "duration" to "100"), """<Int sr="arg0"><var>%freq</var></Int>""")
+        assertEquals("{{ freq | div:4 }}", roundTrip("sound.beep", "frequency" to "{{ freq | div:4 }}", "duration" to "100").args["frequency"])
+
+        val report = export(ActionSpec(type = "sound.beep", args = mapOf("frequency" to "%pitch", "duration" to "100")))
+        assertTrue(report.warnings.toString(), report.warnings.any { "multiplying by 4" in it })
+    }
+
+    @Test
     fun everyVolumeStreamExportsAsItsOwnTaskerAction() {
         mapOf("alarm" to "303", "ring" to "304", "notification" to "305", "voice" to "306", "music" to "307", "system" to "308")
             .forEach { (stream, code) ->

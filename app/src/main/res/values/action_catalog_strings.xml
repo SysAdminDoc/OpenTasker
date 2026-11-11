@@ -643,6 +643,13 @@
     <string name="catalog_action_sound_play_field_volume_hint" formatted="false">Optional; uses current volume when empty</string>
     <string name="catalog_action_sound_play_field_stream_label" formatted="false">Audio stream</string>
     <string name="catalog_action_sound_play_field_stream_hint" formatted="false">Music by default. On Android 17 a task started in the background can only be heard on Alarm, which needs exact-alarm access and follows the alarm volume.</string>
+    <string name="catalog_action_sound_beep_name" formatted="false">Beep</string>
+    <string name="catalog_action_sound_beep_description" formatted="false">Play a tone at a set pitch</string>
+    <string name="catalog_action_sound_beep_field_frequency_label" formatted="false">Frequency (Hz)</string>
+    <string name="catalog_action_sound_beep_field_frequency_hint" formatted="false">Pitch of the tone, 0 to 10000. 440 is the A above middle C.</string>
+    <string name="catalog_action_sound_beep_field_duration_label" formatted="false">Duration (ms)</string>
+    <string name="catalog_action_sound_beep_field_amplitude_label" formatted="false">Amplitude (0-100)</string>
+    <string name="catalog_action_sound_beep_field_amplitude_hint" formatted="false">50 when empty</string>
     <string name="catalog_action_sound_stop_name" formatted="false">Stop Sound</string>
     <string name="catalog_action_sound_stop_description" formatted="false">Stop playback</string>
     <string name="catalog_action_sound_pause_name" formatted="false">Pause Sound</string>

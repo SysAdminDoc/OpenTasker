@@ -534,6 +534,33 @@ class TaskerRealExportLayoutTest {
         assertEquals("alarm", action("""<code>192</code><Int sr="arg0" val="1"/><Str sr="arg1" ve="3">/a.ogg</Str><Int sr="arg2" val="4"/>""").args["stream"])
     }
 
+    // Beep (171)
+
+    @Test
+    fun beepComesInAtThePitchTaskerPlays() {
+        val xml = """<code>171</code><Int sr="arg0" val="1852"/><Int sr="arg1" val="100"/><Int sr="arg2" val="9"/><Int sr="arg3" val="3"/><Str sr="arg4" ve="3"/>"""
+
+        assertEquals("sound.beep", action(xml).type)
+        assertEquals(mapOf("frequency" to "463", "duration" to "100", "amplitude" to "9"), action(xml).args)
+        assertTrue(warnings(xml).isEmpty())
+        assertEquals("196.75", action("""<code>171</code><Int sr="arg0" val="787"/><Int sr="arg1" val="100"/>""").args["frequency"])
+        assertEquals("0.25", action("""<code>171</code><Int sr="arg0" val="1"/><Int sr="arg1" val="15"/><Int sr="arg2" val="0"/>""").args["frequency"])
+    }
+
+    @Test
+    fun aBeepPitchFromAVariableComesInAsAQuarterOfIt() {
+        assertEquals("{{ freq | div:4 }}", action("""<code>171</code><Int sr="arg0"><var>%freq</var></Int><Int sr="arg1" val="100"/>""").args["frequency"])
+        assertEquals("{{ freq | add:100 | div:4 }}", action("""<code>171</code><Int sr="arg0"><var>%freq + 100</var></Int><Int sr="arg1" val="100"/>""").args["frequency"])
+        assertEquals("%len", action("""<code>171</code><Int sr="arg0" val="1852"/><Int sr="arg1"><var>%len</var></Int>""").args["duration"])
+    }
+
+    @Test
+    fun beepKeepsTheAlarmStreamAndNamesWhatItDrops() {
+        assertEquals("alarm", action("""<code>171</code><Int sr="arg0" val="1852"/><Int sr="arg1" val="100"/><Int sr="arg3" val="4"/>""").args["stream"])
+        assertWarns("""<code>171</code><Int sr="arg0" val="1852"/><Int sr="arg1" val="100"/><Int sr="arg3" val="2"/>""", "stream 2")
+        assertWarns("""<code>171</code><Int sr="arg0" val="1852"/><Int sr="arg1" val="100"/><Str sr="arg4" ve="3">%later</Str>""", "Do At Time")
+    }
+
     @Test
     fun tasksOwnMusicPlayerJumpsSayTheySteerWhateverIsPlaying() {
         assertEquals("track.next", action("<code>451</code>").type)
