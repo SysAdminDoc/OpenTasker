@@ -13,6 +13,7 @@ import com.opentasker.core.model.Task
 import com.opentasker.ui.screens.grantedSetupRequirements
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -112,6 +113,27 @@ class PreflightRunnerTest {
         val steps = PreflightRunner.preflightTask(task = task).tasks.single().steps
 
         assertEquals("night", steps[2].expandedArguments["value"])
+    }
+
+    @Test
+    fun aPersistedVariableWhoseGlobalNameComesOutBlankSetsNothingAsTheRunDoes() {
+        fun checkAfter(globalName: String, read: String): String? {
+            val task = Task(
+                id = 6,
+                name = "Keep mode",
+                actions = listOf(
+                    ActionSpec(type = "var.set", args = mapOf("name" to "mode", "value" to "night")),
+                    ActionSpec(type = "var.persist", args = mapOf("name" to "mode", "global_name" to globalName)),
+                    ActionSpec(type = "var.set", args = mapOf("name" to "check", "value" to read)),
+                ),
+            )
+            val inputs = PreflightInputs(eventVariables = mapOf("blank" to ""))
+            return PreflightRunner.preflightTask(task = task, inputs = inputs).tasks.single().steps[2].expandedArguments["value"]
+        }
+
+        assertEquals("night", checkAfter("saved", "%Saved"))
+        // The run fails with an invalid global name here, so Mode is never set.
+        assertNotEquals("night", checkAfter("{{ event.blank }}", "%Mode"))
     }
 
     @Test

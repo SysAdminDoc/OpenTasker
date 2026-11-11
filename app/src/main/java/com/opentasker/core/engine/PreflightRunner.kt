@@ -587,8 +587,9 @@ object PreflightRunner {
             }
             "var.persist" -> {
                 val source = values["name"]?.trim().orEmpty()
-                // The same promotion the run uses, so "mode" becomes "Mode" here too, not "MODE".
-                val target = VariableNamePolicy.promoteToGlobal(values["global_name"]?.trim().orEmpty().ifBlank { source })
+                // The same promotion the run uses, so "mode" becomes "Mode" here too, not "MODE". A
+                // global_name that comes out blank fails the run, so it sets nothing here either.
+                val target = VariableNamePolicy.promoteToGlobal(values["global_name"] ?: source)
                 val value = variables.get(source)
                 if (value != null && target != null) variables.set(target, value, sensitive = variables.isSensitive(source))
             }
