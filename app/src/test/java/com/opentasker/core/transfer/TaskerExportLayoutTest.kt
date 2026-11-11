@@ -190,6 +190,16 @@ class TaskerExportLayoutTest {
     }
 
     @Test
+    fun aBeepFrequencyThatIsNotAFiniteNumberWarnsInsteadOfStoppingTheExport() {
+        listOf("NaN", "Infinity").forEach { frequency ->
+            val report = export(ActionSpec(type = "sound.beep", args = mapOf("frequency" to frequency, "duration" to "100")))
+
+            assertHas(report.xml, "<code>171</code>")
+            assertTrue(report.warnings.toString(), report.warnings.any { "'$frequency'" in it })
+        }
+    }
+
+    @Test
     fun everyVolumeStreamExportsAsItsOwnTaskerAction() {
         mapOf("alarm" to "303", "ring" to "304", "notification" to "305", "voice" to "306", "music" to "307", "system" to "308")
             .forEach { (stream, code) ->

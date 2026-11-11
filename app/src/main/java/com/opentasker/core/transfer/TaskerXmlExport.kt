@@ -743,7 +743,7 @@ object TaskerXmlExporter {
      */
     private fun taskerBeepFrequency(value: String, warnings: MutableList<String>): String {
         val trimmed = value.trim()
-        trimmed.toDoubleOrNull()?.let { return (it * TASKER_BEEP_PITCH_DIVISOR).roundToLong().toString() }
+        trimmed.toDoubleOrNull()?.takeIf { it.isFinite() }?.let { return (it * TASKER_BEEP_PITCH_DIVISOR).roundToLong().toString() }
         BEEP_PITCH_TEMPLATE.matchEntire(trimmed)?.let { return "%" + it.groupValues[1] }
         warnings += "Tasker's Beep plays a quarter of the frequency it's given, so the frequency '$trimmed' on 'sound.beep' needs multiplying by 4 in Tasker."
         return trimmed
