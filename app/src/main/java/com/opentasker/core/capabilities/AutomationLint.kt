@@ -312,9 +312,11 @@ object AutomationLint {
             }
         ) return true
         return enterTask?.actions.orEmpty().any { action ->
-            action.condition?.trim()?.isNotEmpty() == true ||
-                action.args["idempotent"].equals("true", ignoreCase = true) ||
-                action.args["guard"].equals("true", ignoreCase = true)
+            action.enabled && (
+                action.condition?.trim()?.isNotEmpty() == true ||
+                    action.args["idempotent"].equals("true", ignoreCase = true) ||
+                    action.args["guard"].equals("true", ignoreCase = true)
+                )
         }
     }
 
@@ -332,6 +334,8 @@ object AutomationLint {
         ?: emptySet()
 
     private fun ActionSpec.toSettingWrite(task: Task): SettingWrite? {
+        // A step turned off writes nothing, so it can't need a reversal or conflict with another.
+        if (!enabled) return null
         val key = when (type) {
             "wifi.toggle" -> "wifi"
             "bluetooth.toggle" -> "bluetooth"
@@ -490,7 +494,7 @@ object AutomationLint {
     private fun directTaskReferences(task: Task, tasks: List<Task>): List<Task> {
         val byId = tasks.associateBy(Task::id)
         val byName = tasks.groupBy { it.name.trim().lowercase(Locale.US) }
-        return task.actions.filter { it.type == "task.run" }.flatMap { action ->
+        return task.actions.filter { it.enabled && it.type == "task.run" }.flatMap { action ->
             val reference = listOf("task", "name", "id")
                 .firstNotNullOfOrNull { key -> action.args[key]?.trim()?.takeIf(String::isNotBlank) }
                 ?: return@flatMap emptyList()

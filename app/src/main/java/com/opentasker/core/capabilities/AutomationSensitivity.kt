@@ -1,5 +1,6 @@
 package com.opentasker.core.capabilities
 
+import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
 import kotlinx.serialization.Serializable
@@ -220,7 +221,8 @@ object AutomationSensitivityRegistry {
         val chains = linkedSetOf<DataToExternalChain>()
         var latestDataSource: String? = null
 
-        task.actions.forEach { action ->
+        // A step turned off never runs, so it lends the task none of its powers.
+        task.actions.filter(ActionSpec::enabled).forEach { action ->
             val classification = classify(action.type)
             powers += classification.powers
             if (classification.powers.isNotEmpty()) sensitiveActionIds += action.type
@@ -249,7 +251,7 @@ object AutomationSensitivityRegistry {
         while (queued.isNotEmpty()) {
             val task = queued.removeFirst()
             if (!visited.add(task.id)) continue
-            task.actions.filter { it.type == "task.run" }.forEach { action ->
+            task.actions.filter { it.enabled && it.type == "task.run" }.forEach { action ->
                 val reference = listOf("task", "name", "id")
                     .firstNotNullOfOrNull { key -> action.args[key]?.trim()?.takeIf(String::isNotBlank) }
                     ?: return@forEach
@@ -309,6 +311,7 @@ object ImportedProfileEnablePolicy {
         val reachable = AutomationSensitivityRegistry.reachableTasks(profile, tasks)
         val unsupported = reachable
             .flatMap { it.actions }
+            .filter(ActionSpec::enabled)
             .map { it.type }
             .filterNot { ActionCapabilityRegistry.get(it).canAdd }
             .toSortedSet()

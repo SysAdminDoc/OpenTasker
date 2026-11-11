@@ -79,7 +79,9 @@ class TaskRunner(
         val results = mutableListOf<ActionResult>()
         val traces = mutableListOf<ActionExecutionTrace>()
 
+        // A step turned off never runs, so it can't hold the rest of the task back.
         val unknownActionIds = task.actions
+            .filter(ActionSpec::enabled)
             .map(ActionSpec::type)
             .filter { actionId ->
                 !AutomationSensitivityRegistry.isKnown(actionId) && ActionRegistry.get(actionId) == null
@@ -95,6 +97,7 @@ class TaskRunner(
         }
 
         val unsupportedActionIds = task.actions
+            .filter(ActionSpec::enabled)
             .map(ActionSpec::type)
             .filter { actionId ->
                 AutomationSensitivityRegistry.isKnown(actionId) &&
@@ -146,6 +149,12 @@ class TaskRunner(
                     break
                 }
                 val spec = task.actions[pc]
+                if (!spec.enabled) {
+                    results += ActionResult.Skip
+                    traces += markerTrace(pc, spec, ActionResult.Skip, ActionTraceStatus.SKIPPED, STEP_TURNED_OFF)
+                    pc++
+                    continue
+                }
                 if (FlowControl.isControl(spec.type)) {
                     val outcome = stepControl(pc, spec, task.actions, structure, loopStack, tryStack, armedElseIndices, ifResults)
                     results += outcome.result
@@ -505,13 +514,14 @@ class TaskRunner(
      * A retry restarts at `tryIndex + 1`, so every action in the body runs again - not just the one
      * that failed. Checking only the failing action let a body like `[sms.send, http.get]` re-send
      * the message each time the HTTP call failed. Control markers carry no side effects and are
-     * skipped; an unknown action id is treated as unsafe.
+     * skipped, and so are steps turned off, which a replay passes over too; an unknown action id
+     * is treated as unsafe.
      */
     private fun tryBodyIsRetrySafe(task: Task, frame: TryFrame): Boolean {
         val bodyEnd = frame.catchIndex ?: frame.endIndex
         return ((frame.tryIndex + 1) until bodyEnd)
             .mapNotNull { index -> task.actions.getOrNull(index) }
-            .filterNot { bodySpec -> FlowControl.isControl(bodySpec.type) }
+            .filterNot { bodySpec -> FlowControl.isControl(bodySpec.type) || !bodySpec.enabled }
             .all { bodySpec ->
                 ActionRegistry.get(bodySpec.type)?.retrySafetyFor(bodySpec.args) == ActionRetrySafety.IDEMPOTENT
             }
@@ -1044,6 +1054,9 @@ const val SUB_TASK_ACTION_ID = "task.run"
 const val MAX_SUBTASK_DEPTH = 8
 /** Argument keys `task.run` accepts as its target, in precedence order. */
 val SUB_TASK_REF_KEYS = listOf("task", "name", "id")
+
+/** What the run log and Preflight say for a step turned off. */
+const val STEP_TURNED_OFF = "step is turned off"
 
 /** Safety cap on total interpreted steps to bound pathological flow.foreach loops. */
 private const val MAX_FLOW_STEPS = 100_000

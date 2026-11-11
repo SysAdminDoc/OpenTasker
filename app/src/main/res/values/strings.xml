@@ -117,6 +117,8 @@
     <string name="transfer_stage_write">Saving</string>
     <string name="action_save">Save</string>
     <string name="action_run_alone">Run this action</string>
+    <string name="action_turn_off">Turn off</string>
+    <string name="action_turn_on">Turn on</string>
     <string name="action_delete">Delete</string>
     <string name="action_dismiss">Dismiss</string>
     <string name="action_import">Import</string>
@@ -332,8 +334,11 @@
     <string name="action_continue_on_error_helper">Run the next action even if this one reports a failure.</string>
     <string name="action_condition_summary">If %1$s</string>
     <string name="action_continue_on_error_summary">Continues after failure</string>
+    <string name="action_turned_off_summary">Turned off, so runs skip it</string>
     <string name="a11y_move_action_up">Move action %1$d, %2$s, up</string>
     <string name="a11y_move_action_down">Move action %1$d, %2$s, down</string>
+    <string name="a11y_turn_off_action">Turn off action %1$d, %2$s</string>
+    <string name="a11y_turn_on_action">Turn on action %1$d, %2$s</string>
 
     <!-- Context editor -->
     <string name="context_invert_match">Invert match</string>
@@ -1705,6 +1710,8 @@
     <string name="ui_message_action_added">Action added</string>
     <string name="ui_message_action_updated">Action updated</string>
     <string name="ui_message_action_removed">Action removed</string>
+    <string name="ui_message_action_turned_off">Action turned off</string>
+    <string name="ui_message_action_turned_on">Action turned on</string>
     <string name="ui_message_context_added">Context added</string>
     <string name="ui_message_context_updated">Context updated</string>
     <string name="ui_message_context_removed">Context removed</string>

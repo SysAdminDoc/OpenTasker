@@ -339,6 +339,7 @@ object AutomationSemanticDiff {
                 compare(changes, "$label / Type", before.type, after.type)
                 compare(changes, "$label / Label", before.label, after.label)
                 compare(changes, "$label / Continue on error", before.continueOnError, after.continueOnError)
+                compare(changes, "$label / On", before.enabled, after.enabled)
                 compare(
                     changes,
                     "$label / Condition",
@@ -368,6 +369,7 @@ object AutomationSemanticDiff {
         changes += change(kind, "Action / Type", action.type)
         changes += change(kind, "Action / Label", action.label)
         changes += change(kind, "Action / Continue on error", action.continueOnError)
+        if (!action.enabled) changes += change(kind, "Action / On", false)
         changes += change(kind, "Action / Condition", action.condition)
         action.args.toSortedMap().forEach { (key, value) ->
             changes += change(kind, "Action / Argument $key", maskActionArgument(action, key, value, taskNames))

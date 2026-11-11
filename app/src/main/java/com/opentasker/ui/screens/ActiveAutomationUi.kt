@@ -803,6 +803,9 @@ fun ActiveAutomationUi(
                     viewModel.moveTaskAction(task.id, fromIndex, toIndex)
                 },
                 onRunAction = { task, index -> viewModel.runActionNow(task, index) },
+                onToggleAction = { task, index ->
+                    task.actions.getOrNull(index)?.let { viewModel.setTaskActionEnabled(task, index, !it.enabled) }
+                },
                 runBusy = runBusy, pendingSetup = pendingSetup,
                 onOpenSetup = { needed ->
                     setupFocusRequirements = withSetupFocus(setupFocusRequirements, needed)

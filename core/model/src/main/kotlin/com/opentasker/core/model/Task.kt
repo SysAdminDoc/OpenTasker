@@ -1,5 +1,7 @@
 package com.opentasker.core.model
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
 /**
@@ -22,6 +24,7 @@ data class Task(
 @Serializable
 enum class CollisionMode { ABORT_NEW, ABORT_EXISTING, RUN_BOTH, WAIT }
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ActionSpec(
     val id: Long = 0,
@@ -30,4 +33,10 @@ data class ActionSpec(
     val args: Map<String, String> = emptyMap(),
     val continueOnError: Boolean = false,
     val condition: String? = null,          // optional %var-based condition
+    /**
+     * A step turned off stays in the task, keeps its number and is passed over by a run, like a
+     * Tasker step switched off. Left out of saved JSON while on, so older builds still read a bundle.
+     */
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val enabled: Boolean = true,
 )

@@ -835,7 +835,9 @@ object TaskerXmlImporter {
             actionWithLoss.action
         }
         // The step's own Tasker label, which a Goto can jump to by name.
-        val action = element.childText("label").orEmptyIfBlank()?.let { guarded.copy(label = it) } ?: guarded
+        val labelled = element.childText("label").orEmptyIfBlank()?.let { guarded.copy(label = it) } ?: guarded
+        // Tasker writes <on>false</on> for a step the user switched off, and nothing while it's on.
+        val action = if (element.childText("on").equals("false", ignoreCase = true)) labelled.copy(enabled = false) else labelled
         val unsupported = if (action.type == TASKER_UNSUPPORTED_ACTION_ID) {
             TaskerUnsupportedAction(taskName = taskName, taskerCode = code, actionIndex = actionIndex)
         } else {

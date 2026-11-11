@@ -104,7 +104,7 @@ fun tryRetryPlan(
     val nonRetryable = linkedSetOf<String>()
     for (index in (tryIndex + 1) until bodyEnd) {
         val action = actions.getOrNull(index) ?: continue
-        if (FlowControl.isControl(action.type)) continue
+        if (FlowControl.isControl(action.type) || !action.enabled) continue
         if (safetyFor(action) == ActionRetrySafety.IDEMPOTENT) {
             retryable += action.type
         } else {
@@ -172,6 +172,8 @@ data class FlowStructure(
             val stack = ArrayDeque<Frame>()
 
             actions.forEachIndexed { index, spec ->
+                // A marker turned off isn't there, so the body it held runs as part of the block around it.
+                if (!spec.enabled) return@forEachIndexed
                 when (spec.type) {
                     FlowControl.IF -> stack.addLast(Frame(FlowControl.IF, index))
                     FlowControl.FOREACH -> stack.addLast(Frame(FlowControl.FOREACH, index))

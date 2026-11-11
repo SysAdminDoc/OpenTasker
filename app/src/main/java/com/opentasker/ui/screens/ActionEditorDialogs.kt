@@ -565,6 +565,8 @@ internal fun ActionConfigDialog(
                             },
                             continueOnError = continueOnError,
                             condition = condition.trim().ifBlank { null },
+                            // Turned on and off from the step's menu, so an edit leaves it as it was.
+                            enabled = state.existing?.enabled ?: true,
                         )
                     )
                 },

@@ -64,7 +64,8 @@ object SetupRequirementResolver {
         while (queue.isNotEmpty()) {
             val task = queue.removeFirst()
             if (!visited.add(task.id)) continue
-            task.actions.forEach { action ->
+            // A step turned off never runs, so it needs nothing granted.
+            task.actions.filter(ActionSpec::enabled).forEach { action ->
                 requirements += actionRequirements(action.type, action.args)
                 if (action.type != "task.run") return@forEach
                 val reference = listOf("task", "name", "id")

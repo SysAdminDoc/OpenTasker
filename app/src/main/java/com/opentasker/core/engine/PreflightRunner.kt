@@ -281,6 +281,11 @@ object PreflightRunner {
         var halted = false
         while (!halted && pc in task.actions.indices && interpretedSteps++ < MAX_STEPS) {
             val spec = task.actions[pc]
+            if (!spec.enabled) {
+                recordStep(steps, turnedOff(taskPath, pc, spec))
+                pc++
+                continue
+            }
             if (FlowControl.isControl(spec.type)) {
                 val control = simulateControl(
                     pc, spec, task.actions, structure, loopStack, tryStack, armedElseIndices, ifResults, variables, input,
@@ -404,6 +409,10 @@ object PreflightRunner {
             .filterNot(steps::containsKey)
             .forEach { index ->
                 val spec = task.actions[index]
+                if (!spec.enabled) {
+                    steps[index] = turnedOff(taskPath, index, spec)
+                    return@forEach
+                }
                 steps[index] = PreflightStep(
                     taskPath = taskPath,
                     actionIndex = index,
@@ -418,6 +427,18 @@ object PreflightRunner {
             }
         return PreflightTaskReport(task.id, task.name, taskPath, steps.values.sortedBy { it.actionIndex })
     }
+
+    private fun turnedOff(taskPath: String, index: Int, spec: ActionSpec) = PreflightStep(
+        taskPath = taskPath,
+        actionIndex = index,
+        actionType = spec.type,
+        label = spec.label ?: spec.type,
+        status = PreflightStepStatus.SKIPPED,
+        expandedArguments = emptyMap(),
+        branchDecision = STEP_TURNED_OFF,
+        capability = ActionCapabilityRegistry.get(spec.type).level,
+        intendedEffect = PreflightActionRegistry.intendedEffect(spec.type),
+    )
 
     private data class PreflightLoopFrame(
         val foreachIndex: Int,
@@ -676,7 +697,7 @@ object PreflightRunner {
     private fun staysUnset(position: String, task: Task, tasks: List<Task>): Boolean {
         if (!SINGLE_VARIABLE.matches(position) || !VariableNamePolicy.isGlobal(position)) return false
         val name = VariableNamePolicy.normalize(position) ?: return false
-        return (tasks.filterNot { it.id == task.id } + task).flatMap(Task::actions).none { action ->
+        return (tasks.filterNot { it.id == task.id } + task).flatMap(Task::actions).filter(ActionSpec::enabled).none { action ->
             val named = action.args.any { (key, value) ->
                 !ArrayPositionArguments.isPosition(action.type, key) && VariableNamePolicy.normalize(value) == name
             }

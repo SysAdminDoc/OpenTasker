@@ -322,6 +322,8 @@ private fun ActionSpec.toNode(
         target = AutomationFlowTarget.Action(taskId, index),
         condition = condition?.trim()?.takeUnless { it.isBlank() },
         isSubTask = subTaskRef != null,
+        // A step turned off is drawn like a disabled profile.
+        muted = !enabled,
         strings = strings,
         outputs = ActionMetadataRegistry.get(type)?.resolveOutputs(this@toNode, actionIndex = index).orEmpty(),
     )

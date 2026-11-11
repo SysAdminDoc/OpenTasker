@@ -68,6 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -520,6 +521,7 @@ internal fun TasksScreen(
     onMoveAction: (Task, Int, Int) -> Unit,
     onRunAction: (Task, Int) -> Unit,
     contentPadding: PaddingValues,
+    onToggleAction: (Task, Int) -> Unit = { _, _ -> },
     runBusy: Boolean = false,
     contentLoaded: Boolean = true,
     historyAvailability: EditHistoryAvailabilityState = EditHistoryAvailabilityState(),
@@ -601,6 +603,7 @@ internal fun TasksScreen(
                 onDeleteAction = { index -> onDeleteAction(task, index) },
                 onMoveAction = { fromIndex, toIndex -> onMoveAction(task, fromIndex, toIndex) },
                 onRunAction = { index -> onRunAction(task, index) },
+                onToggleAction = { index -> onToggleAction(task, index) },
                 runBusy = runBusy,
                 pendingSetup = pendingSetup,
                 onOpenSetup = onOpenSetup,
@@ -628,6 +631,7 @@ private fun TaskCard(
     onDeleteAction: (Int) -> Unit,
     onMoveAction: (Int, Int) -> Unit,
     onRunAction: (Int) -> Unit,
+    onToggleAction: (Int) -> Unit,
     runBusy: Boolean,
     pendingSetup: Set<SetupRequirement>?,
     onOpenSetup: (Set<SetupRequirement>) -> Unit,
@@ -729,6 +733,7 @@ private fun TaskCard(
                         onEdit = { onEditAction(index, action) },
                         onDelete = { onDeleteAction(index) },
                         onRun = { onRunAction(index) },
+                        onToggleEnabled = { onToggleAction(index) },
                         runBusy = runBusy,
                         pendingSetup = pendingSetup,
                         onOpenSetup = onOpenSetup,
@@ -891,6 +896,7 @@ internal fun ActionRow(
     runBusy: Boolean,
     pendingSetup: Set<SetupRequirement>?,
     onOpenSetup: (Set<SetupRequirement>) -> Unit = {},
+    onToggleEnabled: () -> Unit = {},
 ) {
     var menuExpanded by rememberSaveable { mutableStateOf(false) }
     val resources = LocalContext.current.resources
@@ -914,6 +920,11 @@ internal fun ActionRow(
     val runDescription = stringResource(R.string.a11y_run_action, index + 1, actionLabel)
     val moveUpDescription = stringResource(R.string.a11y_move_action_up, index + 1, actionLabel)
     val moveDownDescription = stringResource(R.string.a11y_move_action_down, index + 1, actionLabel)
+    val toggleDescription = stringResource(
+        if (action.enabled) R.string.a11y_turn_off_action else R.string.a11y_turn_on_action,
+        index + 1,
+        actionLabel,
+    )
     Column(Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 10.dp),
@@ -933,7 +944,8 @@ internal fun ActionRow(
                     )
                 }
             }
-            Column(Modifier.weight(1f)) {
+            // A step turned off is dimmed, the way it greys out in Tasker.
+            Column(Modifier.weight(1f).alpha(if (action.enabled) 1f else 0.55f)) {
                 Text(actionLabel, style = MaterialTheme.typography.titleSmall)
                 Text(
                     ActionSummaryFormatter.format(resources, action.type, action.args)
@@ -972,6 +984,14 @@ internal fun ActionRow(
                         stringResource(R.string.action_continue_on_error_summary),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+                if (!action.enabled) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.action_turned_off_summary),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -1023,6 +1043,11 @@ internal fun ActionRow(
                             leadingIcon = { Icon(Icons.Filled.PlayArrow, contentDescription = runDescription) },
                         )
                     }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(if (action.enabled) R.string.action_turn_off else R.string.action_turn_on)) },
+                        onClick = { menuExpanded = false; onToggleEnabled() },
+                        modifier = Modifier.semantics { contentDescription = toggleDescription },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.action_delete)) },
                         onClick = { menuExpanded = false; onDelete() },

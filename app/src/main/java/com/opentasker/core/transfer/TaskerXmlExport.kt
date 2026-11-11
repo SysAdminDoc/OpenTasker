@@ -234,6 +234,7 @@ object TaskerXmlExporter {
         // The rest are mostly the names an import gave each step.
         action.label?.trim()?.takeIf { it in layout.labels && layout.firstLabelled[it] == index }
             ?.let { sb.appendLine("      <label>${escapeXml(it)}</label>") }
+        if (!action.enabled) sb.appendLine("      <on>false</on>")
 
         when (action.type) {
             "notify.show", "notify.cancel" -> {

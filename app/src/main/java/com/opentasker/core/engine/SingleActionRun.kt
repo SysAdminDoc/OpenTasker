@@ -34,7 +34,8 @@ object SingleActionRun {
     fun taskFor(task: Task, index: Int): Task? {
         val action = task.actions.getOrNull(index) ?: return null
         if (!isRunnableAlone(action)) return null
-        return task.copy(actions = listOf(action))
+        // Asked for by name, so a step turned off in the task still runs here.
+        return task.copy(actions = listOf(action.copy(enabled = true)))
     }
 
     /**

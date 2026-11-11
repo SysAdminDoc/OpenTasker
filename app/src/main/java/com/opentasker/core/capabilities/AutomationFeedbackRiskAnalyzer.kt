@@ -21,7 +21,7 @@ object AutomationFeedbackRiskAnalyzer {
         val risks = linkedSetOf<FeedbackLoopRisk>()
 
         fun references(action: ActionSpec): List<Task> {
-            if (action.type != TASK_RUN_ACTION) return emptyList()
+            if (!action.enabled || action.type != TASK_RUN_ACTION) return emptyList()
             val reference = listOf("task", "name", "id")
                 .firstNotNullOfOrNull { key -> action.args[key]?.trim()?.takeIf(String::isNotBlank) }
                 ?: return emptyList()
