@@ -33,7 +33,9 @@ class HealthConnectPollWorker(
         val metrics = HealthPolling.decodeMetrics(inputData.getString(KEY_METRICS))
         if (metrics.isEmpty()) return Result.success()
         val context = applicationContext
-        val readings = HealthConnectReader(context).read(metrics)
+        // One clock reading for the whole poll, so a slow read can't push the midnight read a day late.
+        val now = Instant.now()
+        val readings = HealthConnectReader(context).read(metrics, now)
         HealthStateEvents.publish(
             healthStatePatch(
                 readings,
@@ -42,10 +44,13 @@ class HealthConnectPollWorker(
                 },
                 unavailableDetail = context.getString(R.string.health_setup_unavailable_detail),
                 failedBefore = recordFailures(readings),
+                failedDetail = { metric ->
+                    context.getString(R.string.health_setup_failed_detail, context.getString(metric.labelRes))
+                },
             ),
         )
         // The midnight read doesn't book the next one, since that would replace the work running it.
-        if (!inputData.getBoolean(KEY_MIDNIGHT, false)) scheduleMidnightRead(context, metrics)
+        if (!inputData.getBoolean(KEY_MIDNIGHT, false)) scheduleMidnightRead(context, metrics, now)
         return Result.success()
     }
 
@@ -74,10 +79,10 @@ class HealthConnectPollWorker(
          * Steps and exercise count from local midnight, so a read just after it starts them over.
          * Without it yesterday's total would stand until the next poll, which can be most of a day.
          */
-        private fun scheduleMidnightRead(context: Context, metrics: Set<HealthMetric>) {
+        private fun scheduleMidnightRead(context: Context, metrics: Set<HealthMetric>, now: Instant) {
             val daily = metrics.filterTo(linkedSetOf(), HealthMetric::resetsAtMidnight)
             if (daily.isEmpty()) return
-            val delay = HealthPolling.untilMidnightRead(Instant.now(), ZoneId.systemDefault())
+            val delay = HealthPolling.untilMidnightRead(now, ZoneId.systemDefault())
             val request = OneTimeWorkRequestBuilder<HealthConnectPollWorker>()
                 .setInitialDelay(delay.toMillis(), TimeUnit.MILLISECONDS)
                 .setInputData(workDataOf(KEY_METRICS to HealthPolling.encodeMetrics(daily), KEY_MIDNIGHT to true))

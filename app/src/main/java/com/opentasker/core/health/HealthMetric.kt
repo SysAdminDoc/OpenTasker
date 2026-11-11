@@ -41,8 +41,48 @@ enum class HealthMetric(
     }
 }
 
-/** One sleep session, with how much of it its stages mark as awake or out of bed. */
-data class SleepSpan(val start: Instant, val end: Instant, val awake: Duration = Duration.ZERO)
+/**
+ * One sleep session, with how much of it its stages mark as awake or out of bed. [awakeSpans] says
+ * where that awake time fell, which lets two sources' sessions for the same night be merged.
+ */
+data class SleepSpan(
+    val start: Instant,
+    val end: Instant,
+    val awake: Duration = Duration.ZERO,
+    val awakeSpans: List<Pair<Instant, Instant>> = emptyList(),
+) {
+    internal val minutesAsleep: Long
+        get() = Duration.between(start, end).minus(awake).coerceAtLeast(Duration.ZERO).toMinutes()
+
+    /** The stretches spent asleep, or null when [awakeSpans] doesn't account for all of [awake]. */
+    internal fun asleepSpans(): List<Pair<Instant, Instant>>? {
+        val placed = awakeSpans.fold(Duration.ZERO) { total, (from, to) -> total.plus(Duration.between(from, to)) }
+        if (placed != awake) return null
+        val asleep = mutableListOf<Pair<Instant, Instant>>()
+        var cursor = start
+        for ((from, to) in mergeSpans(awakeSpans)) {
+            val until = minOf(from, end)
+            if (until.isAfter(cursor)) asleep += cursor to until
+            if (to.isAfter(cursor)) cursor = to
+        }
+        if (end.isAfter(cursor)) asleep += cursor to end
+        return asleep
+    }
+}
+
+/** Sorts [spans] and joins the ones that overlap. */
+internal fun mergeSpans(spans: List<Pair<Instant, Instant>>): List<Pair<Instant, Instant>> {
+    val merged = mutableListOf<Pair<Instant, Instant>>()
+    for ((from, to) in spans.filter { it.second.isAfter(it.first) }.sortedBy { it.first }) {
+        val last = merged.lastOrNull()
+        if (last != null && from.isBefore(last.second)) {
+            merged[merged.lastIndex] = last.first to maxOf(last.second, to)
+        } else {
+            merged += from to to
+        }
+    }
+    return merged
+}
 
 /** Which readings the enabled profiles compare, and how often to read them. */
 data class HealthPollPlan(val metrics: Set<HealthMetric>, val intervalMinutes: Long)
@@ -123,13 +163,39 @@ object HealthPolling {
      * awake stages. Counting by end time keeps a night that started before the window from showing
      * up as half a night. Null when no session ended in the window, which is no data rather than
      * no sleep, so an "under 6 hours" profile doesn't match on a phone with no sleep tracker.
+     *
+     * A watch and a phone app often both log the same night. Sessions that overlap count the time
+     * either one marks as asleep, once, instead of adding the night up twice.
      */
     fun sleepMinutes(sessions: List<SleepSpan>, windowStart: Instant, windowEnd: Instant): Long? {
         val ended = sessions.filter { it.end.isAfter(windowStart) && !it.end.isAfter(windowEnd) }
         if (ended.isEmpty()) return null
-        return ended.sumOf { span ->
-            Duration.between(span.start, span.end).minus(span.awake).coerceAtLeast(Duration.ZERO).toMinutes()
+        return overlappingGroups(ended).sumOf { group ->
+            val asleep = group.map(SleepSpan::asleepSpans)
+            when {
+                group.size == 1 -> group.single().minutesAsleep
+                // Awake time that can't be placed can't be merged, so the fullest session stands in.
+                asleep.any { it == null } -> group.maxOf(SleepSpan::minutesAsleep)
+                else -> mergeSpans(asleep.flatMap { it.orEmpty() })
+                    .fold(Duration.ZERO) { total, (from, to) -> total.plus(Duration.between(from, to)) }
+                    .toMinutes()
+            }
         }
+    }
+
+    private fun overlappingGroups(sessions: List<SleepSpan>): List<List<SleepSpan>> {
+        val groups = mutableListOf<MutableList<SleepSpan>>()
+        var groupEnd = Instant.MIN
+        for (session in sessions.sortedBy { it.start }) {
+            if (groups.isNotEmpty() && session.start.isBefore(groupEnd)) {
+                groups.last() += session
+                groupEnd = maxOf(groupEnd, session.end)
+            } else {
+                groups += mutableListOf(session)
+                groupEnd = session.end
+            }
+        }
+        return groups
     }
 
     /** The newest sample inside the window, whichever record or source it came from. */

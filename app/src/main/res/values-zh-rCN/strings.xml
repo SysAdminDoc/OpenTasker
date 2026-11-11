@@ -482,6 +482,7 @@
     <string name="health_metric_exercise">锻炼</string>
     <string name="health_setup_denied_detail">Health Connect 不允许 OpenTasker 在后台读取%1$s，所以此上下文无法匹配。请在设置向导的“读取 Health Connect”中允许。</string>
     <string name="health_setup_unavailable_detail">这台手机上的 Health Connect 缺失、需要更新或无法在后台读取，所以此上下文无法匹配。设置向导的“读取 Health Connect”会说明原因。</string>
+    <string name="health_setup_failed_detail">从 Health Connect 读取%1$s连续失败两次，所以在读取成功之前此上下文无法匹配。应用日志里有错误详情。</string>
     <string name="health_rationale_title">OpenTasker 与你的健康数据</string>
     <string name="health_rationale_body">OpenTasker 只为你设置了健康上下文的配置文件读取 Health Connect，例如今天的步数或最近一次心率。\n\n它可以读取步数、心率、睡眠和锻炼，并且只读取你的配置文件用到的项目。读数按你的健康上下文中最短的计划检查，最快每 15 分钟一次。读取在后台进行，所以 OpenTasker 未打开时配置文件也能运行。\n\nOpenTasker 从不写入 Health Connect，也不会把你的读数发送到任何地方。你可以随时在 Health Connect 中收回访问权限。</string>
     <string name="setup_overlay_access_title">叠加层访问</string>

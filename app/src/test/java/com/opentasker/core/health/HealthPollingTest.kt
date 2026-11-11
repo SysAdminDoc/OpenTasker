@@ -242,6 +242,34 @@ class HealthPollingTest {
     }
 
     @Test
+    fun aNightLoggedByTwoSourcesCountsOnce() {
+        val windowEnd = Instant.parse("2026-11-10T14:00:00Z")
+        val windowStart = windowEnd.minus(Duration.ofHours(24))
+        fun at(time: String) = Instant.parse("2026-11-10T${time}:00Z")
+        val awakeAt3 = listOf(at("03:00") to at("03:30"))
+        // 23:00 to 7:00 and 23:30 to 6:30, the night before.
+        val watch = SleepSpan(at("00:00").minus(Duration.ofHours(1)), at("07:00"))
+        val phone = SleepSpan(at("00:00").minus(Duration.ofMinutes(30)), at("06:30"))
+
+        // The same 8 hours from a watch and a phone app is 8 hours, not 16.
+        assertEquals(480L, HealthPolling.sleepMinutes(listOf(watch, watch.copy()), windowStart, windowEnd))
+        // Both woke at 3:00 for half an hour; the watch also caught 23:00 to 23:30 and 6:30 to 7:00.
+        val watchStaged = watch.copy(awake = Duration.ofMinutes(30), awakeSpans = awakeAt3)
+        val phoneStaged = phone.copy(awake = Duration.ofMinutes(30), awakeSpans = awakeAt3)
+        assertEquals(450L, HealthPolling.sleepMinutes(listOf(phoneStaged, watchStaged), windowStart, windowEnd))
+        // A nap that overlaps neither still adds.
+        val nap = SleepSpan(at("13:00"), at("13:45"))
+        assertEquals(450L + 45L, HealthPolling.sleepMinutes(listOf(watchStaged, nap, phoneStaged), windowStart, windowEnd))
+        // Sessions that only touch don't overlap, so both count whole.
+        val firstHalf = SleepSpan(at("00:00"), at("03:00"))
+        val secondHalf = SleepSpan(at("03:00"), at("06:00"))
+        assertEquals(360L, HealthPolling.sleepMinutes(listOf(firstHalf, secondHalf), windowStart, windowEnd))
+        // Awake time with no place can't be merged, so the session with the most sleep stands in.
+        val unplaced = watch.copy(awake = Duration.ofMinutes(30))
+        assertEquals(450L, HealthPolling.sleepMinutes(listOf(unplaced, phone.copy(awake = Duration.ofMinutes(90))), windowStart, windowEnd))
+    }
+
+    @Test
     fun theNewestHeartRateWinsAcrossRecords() {
         val windowEnd = Instant.parse("2026-11-10T14:00:00Z")
         val windowStart = windowEnd.minus(Duration.ofHours(1))
@@ -288,9 +316,16 @@ class HealthPollingTest {
     fun aSecondFailedReadInARowClearsTheValue() {
         val readings = mapOf(HealthMetric.STEPS to HealthReading.Failed, HealthMetric.SLEEP to HealthReading.Failed)
 
-        val patch = healthStatePatch(readings, { "" }, "", failedBefore = setOf(HealthMetric.SLEEP))
+        val patch = healthStatePatch(
+            readings,
+            { "" },
+            "",
+            failedBefore = setOf(HealthMetric.SLEEP),
+            failedDetail = { "failed ${it.stateKey}" },
+        )
 
-        assertEquals(mapOf("health_sleep_minutes" to ""), patch)
+        // The marker tells the Inspector why the context stopped matching.
+        assertEquals(mapOf("health_sleep_minutes" to "", "_setup_health_sleep_minutes" to "failed health_sleep_minutes"), patch)
     }
 
     @Test

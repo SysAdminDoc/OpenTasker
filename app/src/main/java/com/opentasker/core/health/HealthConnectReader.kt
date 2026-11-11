@@ -5,6 +5,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.AggregateRequest
@@ -14,6 +15,7 @@ import com.opentasker.core.logging.AppLogger
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import kotlin.reflect.KClass
 import kotlinx.coroutines.CancellationException
 
 /** Whether Health Connect can be used at all on this phone, before any permission is looked at. */
@@ -116,9 +118,7 @@ class HealthConnectReader(private val context: Context) {
         start: Instant,
         end: Instant,
     ): Long? {
-        val records = client.readRecords(
-            ReadRecordsRequest(HeartRateRecord::class, range, ascendingOrder = false, pageSize = HEART_RATE_PAGE_SIZE),
-        ).records
+        val records = readAllPages(client, range, HeartRateRecord::class, ascending = false)
         return HealthPolling.newestSample(
             records.flatMap { record -> record.samples.map { it.time to it.beatsPerMinute } },
             start,
@@ -127,24 +127,42 @@ class HealthConnectReader(private val context: Context) {
     }
 
     private suspend fun sleepSpans(client: HealthConnectClient, range: TimeRangeFilter): List<SleepSpan> =
-        client.readRecords(ReadRecordsRequest(SleepSessionRecord::class, range)).records.map { session ->
+        readAllPages(client, range, SleepSessionRecord::class, ascending = true).map { session ->
+            // Clipped to the session, in case a source writes a stage past its edges.
+            val awakeSpans = session.stages
+                .filter { it.stage in AWAKE_STAGES }
+                .map { maxOf(it.startTime, session.startTime) to minOf(it.endTime, session.endTime) }
+                .filter { (from, to) -> to.isAfter(from) }
             SleepSpan(
                 start = session.startTime,
                 end = session.endTime,
-                awake = session.stages
-                    .filter { it.stage in AWAKE_STAGES }
-                    .fold(Duration.ZERO) { total, stage ->
-                        // Clipped to the session, in case a source writes a stage past its edges.
-                        val from = maxOf(stage.startTime, session.startTime)
-                        val to = minOf(stage.endTime, session.endTime)
-                        if (to.isAfter(from)) total.plus(Duration.between(from, to)) else total
-                    },
+                awake = awakeSpans.fold(Duration.ZERO) { total, (from, to) -> total.plus(Duration.between(from, to)) },
+                awakeSpans = awakeSpans,
             )
         }
 
+    /** Every record in [range], following page tokens; a single page can stop short of the newest. */
+    private suspend fun <T : Record> readAllPages(
+        client: HealthConnectClient,
+        range: TimeRangeFilter,
+        type: KClass<T>,
+        ascending: Boolean,
+    ): List<T> {
+        val records = mutableListOf<T>()
+        var pageToken: String? = null
+        do {
+            val response = client.readRecords(
+                ReadRecordsRequest(type, range, ascendingOrder = ascending, pageSize = PAGE_SIZE, pageToken = pageToken),
+            )
+            records += response.records
+            pageToken = response.pageToken
+        } while (pageToken != null)
+        return records
+    }
+
     private companion object {
         const val TAG = "HealthConnectReader"
-        const val HEART_RATE_PAGE_SIZE = 100
+        const val PAGE_SIZE = 1000
         val AWAKE_STAGES = setOf(
             SleepSessionRecord.STAGE_TYPE_AWAKE,
             SleepSessionRecord.STAGE_TYPE_AWAKE_IN_BED,

@@ -54,13 +54,15 @@ sealed interface HealthReading {
  * The STATE patch for one poll. A refused or impossible read clears the value, so a profile fails
  * closed instead of acting on an old number, and sets the `_setup_` marker the Inspector explains.
  * A failed read changes nothing the first time, so one hiccup doesn't flap a profile, and clears
- * the value when the read before it, listed in [failedBefore], failed too.
+ * the value, with [failedDetail] as the marker, when the read before it, listed in [failedBefore],
+ * failed too.
  */
 internal fun healthStatePatch(
     readings: Map<HealthMetric, HealthReading>,
     deniedDetail: (HealthMetric) -> String,
     unavailableDetail: String,
     failedBefore: Set<HealthMetric> = emptySet(),
+    failedDetail: (HealthMetric) -> String = { "" },
 ): Map<String, String> = buildMap {
     readings.forEach { (metric, reading) ->
         val marker = "_setup_${metric.stateKey}"
@@ -77,7 +79,10 @@ internal fun healthStatePatch(
                 put(metric.stateKey, "")
                 put(marker, unavailableDetail)
             }
-            HealthReading.Failed -> if (metric in failedBefore) put(metric.stateKey, "")
+            HealthReading.Failed -> if (metric in failedBefore) {
+                put(metric.stateKey, "")
+                put(marker, failedDetail(metric))
+            }
         }
     }
 }

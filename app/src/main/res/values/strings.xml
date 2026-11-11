@@ -487,6 +487,7 @@
     <string name="health_metric_exercise">exercise</string>
     <string name="health_setup_denied_detail">Health Connect isn\'t letting OpenTasker read %1$s in the background, so this context can\'t match. Allow it in Setup under Read Health Connect.</string>
     <string name="health_setup_unavailable_detail">Health Connect is missing, needs an update, or can\'t be read in the background on this phone, so this context can\'t match. Setup under Read Health Connect says which.</string>
+    <string name="health_setup_failed_detail">Reading %1$s from Health Connect failed twice in a row, so this context can\'t match until a read works. The app log has the error.</string>
     <string name="health_rationale_title">OpenTasker and your health data</string>
     <string name="health_rationale_body">OpenTasker reads Health Connect only for profiles you set up with a health context, like steps today or your latest heart rate.\n\nIt can read steps, heart rate, sleep and exercise, and only the ones your profiles use. Readings are checked on the shortest schedule any of your health contexts asks for, at most every 15 minutes. That happens in the background, so a profile can run while OpenTasker isn\'t open.\n\nOpenTasker never writes to Health Connect and doesn\'t send your readings anywhere. You can take the access back at any time in Health Connect.</string>
     <string name="setup_overlay_access_title">Overlay access</string>
