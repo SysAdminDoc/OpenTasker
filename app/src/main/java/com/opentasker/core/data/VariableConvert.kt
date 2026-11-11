@@ -57,13 +57,13 @@ object VariableConvert {
             "bytes_to_megabytes" -> value.doubleOrNull()?.let { humanReadable(it / 1_048_576.0, wholeAbove = 10.0) }
             "bytes_to_gigabytes" -> value.doubleOrNull()?.let { humanReadable(it / 1_073_741_824.0, wholeAbove = null) }
             "date_time_to_seconds" -> parseDateTime(value, locale, zone)?.let { (it / 1000).toString() }
-            "seconds_to_date_time" -> value.longOrNull()?.let { seconds ->
+            "seconds_to_date_time" -> value.epochMillisOrNull()?.let { millis ->
                 val date = DateFormat.getDateInstance(DateFormat.SHORT, locale).apply { timeZone = zone }
-                "${date.format(seconds * 1000).replace('/', '-')} ${pattern("HH.mm", locale, zone).format(seconds * 1000)}"
+                "${date.format(millis).replace('/', '-')} ${pattern("HH.mm", locale, zone).format(millis)}"
             }
             // Android reads the k in Tasker's "kk:mm" as H, so midnight is 00 here too.
-            "seconds_to_medium_date_time" -> value.longOrNull()?.let { pattern("MMM dd, yyyy HH:mm", locale, zone).format(it * 1000) }
-            "seconds_to_long_date_time" -> value.longOrNull()?.let { pattern("EEEE, MMMM dd, yyyy hh:mmaa", locale, zone).format(it * 1000) }
+            "seconds_to_medium_date_time" -> value.epochMillisOrNull()?.let { pattern("MMM dd, yyyy HH:mm", locale, zone).format(it) }
+            "seconds_to_long_date_time" -> value.epochMillisOrNull()?.let { pattern("EEEE, MMMM dd, yyyy hh:mmaa", locale, zone).format(it) }
             "html_to_text" -> htmlToText(value)
             "celsius_to_fahrenheit" -> value.doubleOrNull()?.let { (it * 9.0 / 5.0 + 32.0).toString() }
             "fahrenheit_to_celsius" -> value.doubleOrNull()?.let { ((it - 32.0) * 5.0 / 9.0).toString() }
@@ -90,6 +90,9 @@ object VariableConvert {
     // decimal may carry them, an exponent or a d suffix.
     private fun String.longOrNull(): Long? = runCatching { java.lang.Long.parseLong(this) }.getOrNull()
     private fun String.doubleOrNull(): Double? = runCatching { java.lang.Double.parseDouble(this) }.getOrNull()
+
+    /** Seconds as epoch milliseconds, or null when that overflows rather than wrapping to a wrong date. */
+    private fun String.epochMillisOrNull(): Long? = longOrNull()?.let { runCatching { Math.multiplyExact(it, 1000L) }.getOrNull() }
 
     /** Tasker keeps one decimal only when it isn't 0, and none at all above [wholeAbove]. */
     private fun humanReadable(amount: Double, wholeAbove: Double?): String {

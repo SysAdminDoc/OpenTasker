@@ -105,6 +105,16 @@ class VariableConvertTest {
     }
 
     @Test
+    fun secondsTooBigForMillisecondsFailInsteadOfWrappingToAWrongDate() {
+        val tooBig = (Long.MAX_VALUE / 1000 + 1).toString()
+        listOf("seconds_to_date_time", "seconds_to_medium_date_time", "seconds_to_long_date_time").forEach {
+            assertNull(it, convert(it, tooBig))
+            assertNull(it, convert(it, "-$tooBig"))
+        }
+        assertEquals("Nov 14, 2023 22:13", convert("seconds_to_medium_date_time", "1700000000"))
+    }
+
+    @Test
     fun dateTimesParseInTheLocalesOrder() {
         assertEquals(1700000000L, parse("20231114 22.13.20"))
         assertEquals(1700000000L, parse("11/14/23 10:13:20 pm"))
