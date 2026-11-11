@@ -187,6 +187,11 @@
     <string name="catalog_action_array_clear_description" formatted="false">Unset every element of an array</string>
     <string name="catalog_action_array_clear_field_array_label" formatted="false">Array</string>
     <string name="catalog_action_array_clear_field_array_hint" formatted="false">%arr, with elements %arr1, %arr2, …</string>
+    <string name="catalog_action_array_process_name" formatted="false">Array Process</string>
+    <string name="catalog_action_array_process_description" formatted="false">Sort, reverse, rotate, shuffle, dedupe or squash an array\'s elements as a group</string>
+    <string name="catalog_action_array_process_field_array_label" formatted="false">Array</string>
+    <string name="catalog_action_array_process_field_array_hint" formatted="false">%arr, with elements %arr1, %arr2, …</string>
+    <string name="catalog_action_array_process_field_type_label" formatted="false">Operation</string>
     <string name="catalog_action_tts_speak_name" formatted="false">Say (Text-to-Speech)</string>
     <string name="catalog_action_tts_speak_description" formatted="false">Speak text aloud using the device speaker</string>
     <string name="catalog_action_tts_speak_field_text_label" formatted="false">Text to speak</string>

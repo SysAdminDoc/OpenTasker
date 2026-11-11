@@ -150,3 +150,76 @@ class ArrayClearAction : DeclaredAction(ActionCatalog.require("array.clear")) {
         return ActionResult.Success
     }
 }
+
+/**
+ * Tasker's Array Process. Args: `array`, `type`. Reorders the values over the indices the elements
+ * already have, so gaps stay where they are. Remove Duplicates unsets every later copy of a value,
+ * and Squash renumbers the elements from 1, dropping empty ones. Equal values keep index order.
+ */
+class ArrayProcessAction : DeclaredAction(ActionCatalog.require("array.process")) {
+
+    override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+        val base = arrayBase(args, "array") ?: return ActionResult.Failure("invalid array name")
+        val type = args["type"]?.trim().orEmpty()
+        if (type !in TYPES) return ActionResult.Failure("unknown array process type '$type'")
+        val items = ctx.variables.elementsWithFlags(base)
+        val values = items.values.toList()
+        val processed: Map<Int, Pair<String, Boolean>> = when (type) {
+            "remove_duplicates" -> {
+                val seen = HashSet<String>()
+                items.filterTo(java.util.TreeMap<Int, Pair<String, Boolean>>()) { (_, item) -> seen.add(item.first) }
+            }
+            "squash" -> values.filter { it.first.isNotEmpty() }.withIndex().associate { (index, item) -> index + 1 to item }
+            else -> items.keys.zip(reorder(type, values)).toMap()
+        }
+        ctx.variables.replaceNumberedItems(base, processed)
+        ctx.logger("array.process -> %$base ($type, ${processed.size} element(s))")
+        return ActionResult.Success
+    }
+
+    private fun reorder(type: String, values: List<Pair<String, Boolean>>): List<Pair<String, Boolean>> = when (type) {
+        "reverse" -> values.asReversed()
+        "rotate_left" -> values.drop(1) + values.take(1)
+        "rotate_right" -> values.takeLast(1) + values.dropLast(1)
+        "shuffle" -> values.shuffled()
+        "sort_alpha" -> values.sortedWith { a, b -> a.first.compareTo(b.first) }
+        "sort_alpha_reverse" -> values.sortedWith { a, b -> a.first.compareTo(b.first) }.asReversed()
+        "sort_alpha_caseless" -> values.sortedWith { a, b -> a.first.compareTo(b.first, ignoreCase = true) }
+        // Tasker sorts with the comparison turned round here, not sort-then-reverse, so ties keep their order.
+        "sort_alpha_caseless_reverse" -> values.sortedWith { a, b -> b.first.compareTo(a.first, ignoreCase = true) }
+        "sort_shortest_first" -> values.sortedWith { a, b -> a.first.length.compareTo(b.first.length) }
+        "sort_longest_first" -> values.sortedWith { a, b -> b.first.length.compareTo(a.first.length) }
+        "sort_numeric_integer" -> sortedByNumber(values) { it.toLongOrNull() ?: FIRST_INTEGER.find(it)?.value?.toLongOrNull() }
+        "sort_numeric_float" -> sortedByNumber(values) { it.toDoubleOrNull() ?: FIRST_DECIMAL.find(it)?.value?.toDoubleOrNull() }
+        else -> throw IllegalStateException("array.process has no reorder for $type")
+    }
+
+    /** Numbers in order, then the values with no number in them, A to Z ignoring case. */
+    private fun <N : Comparable<N>> sortedByNumber(
+        values: List<Pair<String, Boolean>>,
+        number: (String) -> N?,
+    ): List<Pair<String, Boolean>> = values
+        .map { it to number(it.first) }
+        .sortedWith { (a, aNumber), (b, bNumber) ->
+            when {
+                aNumber == null && bNumber == null -> a.first.compareTo(b.first, ignoreCase = true)
+                aNumber == null -> 1
+                bNumber == null -> -1
+                else -> aNumber.compareTo(bNumber)
+            }
+        }
+        .map { it.first }
+
+    companion object {
+        /** The types in Tasker's order, so a type's index is the number Tasker stores for it. */
+        val TYPES = listOf(
+            "remove_duplicates", "reverse", "rotate_left", "rotate_right", "shuffle",
+            "sort_alpha", "sort_alpha_reverse", "sort_alpha_caseless", "sort_alpha_caseless_reverse",
+            "sort_shortest_first", "sort_longest_first", "sort_numeric_integer", "sort_numeric_float", "squash",
+        )
+
+        // A value that isn't a number as a whole sorts by the first number in it, as Tasker's do.
+        private val FIRST_INTEGER = Regex("""-?\d+""")
+        private val FIRST_DECIMAL = Regex("""-?\d+(?:\.\d+)?""")
+    }
+}

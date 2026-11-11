@@ -63,6 +63,7 @@ object ActionCapabilityRegistry {
         "array.push",
         "array.pop",
         "array.clear",
+        "array.process",
         // Flow control: engine-handled markers plus the runtime wait.
         "flow.wait",
         "task.run",

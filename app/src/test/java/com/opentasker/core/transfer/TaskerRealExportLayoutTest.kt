@@ -796,6 +796,7 @@ class TaskerRealExportLayoutTest {
     }
 
     // Variable Split (590), Variable Join (592), Array Push (355), Array Pop (356), Array Clear (357)
+    // and Array Process (369)
 
     @Test
     fun variableSplitKeepsItsSplitterAsWritten() {
@@ -883,6 +884,54 @@ class TaskerRealExportLayoutTest {
         assertTrue(report.toString(), report.success)
         assertEquals("c", variables.get("Last"))
         assertEquals("zero+a+b", variables.get("Joined"))
+    }
+
+    @Test
+    fun arrayProcessMapsTaskersOperationNumbers() {
+        val sortNames = action("""<code>369</code><Str sr="arg0" ve="3">%names</Str><Int sr="arg1" val="5"/>""")
+        val shuffle = action("""<code>369</code><label>随机</label><Str sr="arg0" ve="3">%Wallpaper</Str><Int sr="arg1" val="4"/>""")
+        val caseless = action("""<code>369</code><Str sr="arg0" ve="3">%output</Str><Int sr="arg1" val="7"/>""")
+
+        assertEquals("array.process", sortNames.type)
+        assertEquals(mapOf("array" to "%names", "type" to "sort_alpha"), sortNames.args)
+        assertEquals("shuffle", shuffle.args["type"])
+        assertEquals("sort_alpha_caseless", caseless.args["type"])
+        val expected = listOf(
+            "remove_duplicates", "reverse", "rotate_left", "rotate_right", "shuffle", "sort_alpha", "sort_alpha_reverse",
+            "sort_alpha_caseless", "sort_alpha_caseless_reverse", "sort_shortest_first", "sort_longest_first",
+            "sort_numeric_integer", "sort_numeric_float", "squash",
+        )
+        expected.forEachIndexed { ordinal, type ->
+            assertEquals(type, action("""<code>369</code><Str sr="arg0" ve="3">%list</Str><Int sr="arg1" val="$ordinal"/>""").args["type"])
+        }
+    }
+
+    @Test
+    fun arrayProcessWithAnUnknownOperationOrIndirectArrayStaysAPlaceholder() {
+        listOf(
+            """<code>369</code><Str sr="arg0" ve="3">%%array</Str><Int sr="arg1" val="11"/>""",
+            """<code>369</code><Str sr="arg0" ve="3">%list</Str><Int sr="arg1" val="14"/>""",
+            """<code>369</code><Str sr="arg0" ve="3">%list</Str><Int sr="arg1"><var>%op</var></Int>""",
+            """<code>369</code><Str sr="arg0" ve="3">%list</Str>""",
+        ).forEach { assertEquals(it, placeholder, action(it).type) }
+    }
+
+    @Test
+    fun importedArrayProcessSortsTheWayTaskersDo() {
+        registerCoreRuntime()
+        val task = parse(
+            """<code>590</code><Str sr="arg0" ve="3">%extras</Str><Str sr="arg1" ve="3">,</Str><Int sr="arg2" val="0"/>""",
+            """<code>369</code><Str sr="arg0" ve="3">%extras</Str><Int sr="arg1" val="11"/>""",
+            """<code>592</code><Str sr="arg0" ve="3">%extras</Str><Str sr="arg1" ve="3">,</Str><Int sr="arg2" val="0"/>""",
+            """<code>547</code><Str sr="arg0" ve="3">%Sorted</Str><Str sr="arg1" ve="3">%extras</Str><Int sr="arg2" val="0"/>""" +
+                """<Int sr="arg3" val="0"/><Int sr="arg4" val="0"/>""",
+        ).bundle.tasks.single()
+        val variables = VariableStore().apply { set("extras", "b5,a3c,none,1x,-2") }
+
+        val report = runBlocking { TaskRunner(ActionContext(ContextWrapper(null), variables)).run(task) }
+
+        assertTrue(report.toString(), report.success)
+        assertEquals("-2,1x,a3c,b5,none", variables.get("Sorted"))
     }
 
     // Interrupt Mode (312). No public export holds one, so these follow Tasker's action table.

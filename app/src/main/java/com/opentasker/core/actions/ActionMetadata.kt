@@ -114,6 +114,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "array.push",
     "array.pop",
     "array.clear",
+    "array.process",
     "tts.speak",
     "flow.wait",
     "task.run",
@@ -539,6 +540,40 @@ fun registerActionMetadata() {
             categoryRes = R.string.catalog_category_variable,
             fields = listOf(
                 ActionField("array", R.string.catalog_action_array_clear_field_array_label, required = true, hintRes = R.string.catalog_action_array_clear_field_array_hint),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "array.process",
+            nameRes = R.string.catalog_action_array_process_name,
+            descriptionRes = R.string.catalog_action_array_process_description,
+            categoryRes = R.string.catalog_category_variable,
+            fields = listOf(
+                ActionField("array", R.string.catalog_action_array_process_field_array_label, required = true, hintRes = R.string.catalog_action_array_process_field_array_hint),
+                ActionField(
+                    "type",
+                    R.string.catalog_action_array_process_field_type_label,
+                    FieldType.DROPDOWN,
+                    required = true,
+                    options = listOf(
+                        option("remove_duplicates", R.string.action_option_array_remove_duplicates),
+                        option("reverse", R.string.action_option_array_reverse),
+                        option("rotate_left", R.string.action_option_array_rotate_left),
+                        option("rotate_right", R.string.action_option_array_rotate_right),
+                        option("shuffle", R.string.action_option_array_shuffle),
+                        option("sort_alpha", R.string.action_option_array_sort_alpha),
+                        option("sort_alpha_reverse", R.string.action_option_array_sort_alpha_reverse),
+                        option("sort_alpha_caseless", R.string.action_option_array_sort_alpha_caseless),
+                        option("sort_alpha_caseless_reverse", R.string.action_option_array_sort_alpha_caseless_reverse),
+                        option("sort_shortest_first", R.string.action_option_array_sort_shortest_first),
+                        option("sort_longest_first", R.string.action_option_array_sort_longest_first),
+                        option("sort_numeric_integer", R.string.action_option_array_sort_numeric_integer),
+                        option("sort_numeric_float", R.string.action_option_array_sort_numeric_float),
+                        option("squash", R.string.action_option_array_squash),
+                    ),
+                ),
             )
         )
     )

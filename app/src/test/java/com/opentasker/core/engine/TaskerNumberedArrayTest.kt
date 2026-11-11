@@ -417,6 +417,97 @@ class TaskerNumberedArrayTest {
         assertTrue(variables.isSensitive("arr"))
     }
 
+    private fun processed(type: String, vararg elements: Pair<Int, String>): Map<Int, String> {
+        val variables = store(*elements.map { (index, value) -> "arr$index" to value }.toTypedArray())
+        assertEquals(ActionResult.Success, act(variables, "array.process", "array" to "arr", "type" to type))
+        return variables.elements("arr")
+    }
+
+    @Test
+    fun processReordersValuesOverTheIndicesTheArrayAlreadyHas() {
+        val gapped = arrayOf(1 to "c", 2 to "a", 4 to "b")
+
+        assertEquals(mapOf(1 to "a", 2 to "b", 4 to "c"), processed("sort_alpha", *gapped))
+        assertEquals(mapOf(1 to "b", 2 to "a", 4 to "c"), processed("reverse", *gapped))
+        assertEquals(mapOf(1 to "a", 2 to "b", 4 to "c"), processed("rotate_left", *gapped))
+        assertEquals(mapOf(1 to "b", 2 to "c", 4 to "a"), processed("rotate_right", *gapped))
+        assertEquals(mapOf(1 to "only"), processed("rotate_left", 1 to "only"))
+        assertEquals(emptyMap<Int, String>(), processed("sort_alpha"))
+    }
+
+    @Test
+    fun removeDuplicatesKeepsTheFirstCopyAndUnsetsTheLaterOnes() {
+        assertEquals(
+            mapOf(1 to "a", 2 to "b", 4 to "c"),
+            processed("remove_duplicates", 1 to "a", 2 to "b", 3 to "a", 4 to "c", 5 to "b"),
+        )
+    }
+
+    @Test
+    fun squashRenumbersFromOneAndDropsEmptyElements() {
+        assertEquals(
+            mapOf(1 to "one", 2 to "three", 3 to "six"),
+            processed("squash", 1 to "one", 3 to "three", 4 to "", 6 to "six"),
+        )
+    }
+
+    @Test
+    fun alphabeticalSortsFollowTaskersCaseRules() {
+        val mixed = arrayOf(1 to "b", 2 to "B", 3 to "a", 4 to "A")
+
+        assertEquals(listOf("A", "B", "a", "b"), processed("sort_alpha", *mixed).values.toList())
+        assertEquals(listOf("b", "a", "B", "A"), processed("sort_alpha_reverse", *mixed).values.toList())
+        assertEquals(listOf("a", "A", "b", "B"), processed("sort_alpha_caseless", *mixed).values.toList())
+        // Tasker turns the comparison round instead of reversing the sorted list, so "b" stays before "B".
+        assertEquals(listOf("b", "B", "a", "A"), processed("sort_alpha_caseless_reverse", *mixed).values.toList())
+    }
+
+    @Test
+    fun lengthSortsKeepEqualLengthsInIndexOrder() {
+        val words = arrayOf(1 to "ccc", 2 to "a", 3 to "bb", 4 to "d")
+
+        assertEquals(listOf("a", "d", "bb", "ccc"), processed("sort_shortest_first", *words).values.toList())
+        assertEquals(listOf("ccc", "bb", "a", "d"), processed("sort_longest_first", *words).values.toList())
+    }
+
+    @Test
+    fun numericSortsUseTheFirstNumberAndPutTheRestLast() {
+        val values = arrayOf(1 to "10", 2 to "v1.5", 3 to "1.25", 4 to "9", 5 to "zeta", 6 to "Alpha", 7 to "-3")
+
+        assertEquals(
+            listOf("-3", "v1.5", "1.25", "9", "10", "Alpha", "zeta"),
+            processed("sort_numeric_integer", *values).values.toList(),
+        )
+        assertEquals(
+            listOf("-3", "1.25", "v1.5", "9", "10", "Alpha", "zeta"),
+            processed("sort_numeric_float", *values).values.toList(),
+        )
+    }
+
+    @Test
+    fun shuffleKeepsTheSameValuesOnTheSameIndices() {
+        val result = processed("shuffle", 1 to "a", 2 to "b", 3 to "c", 4 to "d", 7 to "g")
+
+        assertEquals(setOf(1, 2, 3, 4, 7), result.keys)
+        assertEquals(listOf("a", "b", "c", "d", "g"), result.values.sorted())
+    }
+
+    @Test
+    fun processMovesSecretFlagsWithTheirValuesAndRefusesAnUnknownType() {
+        val variables = VariableStore().apply {
+            set("arr1", "b", sensitive = true)
+            set("arr2", "a")
+        }
+
+        assertTrue(act(variables, "array.process", "array" to "arr", "type" to "sideways") is ActionResult.Failure)
+        assertEquals(mapOf(1 to "b", 2 to "a"), variables.elements("arr"))
+        act(variables, "array.process", "array" to "arr", "type" to "sort_alpha")
+
+        assertEquals(mapOf(1 to "a", 2 to "b"), variables.elements("arr"))
+        assertFalse(variables.isSensitive("arr1"))
+        assertTrue(variables.isSensitive("arr2"))
+    }
+
     @Test
     fun anImportedSplitAndLoopRunsInATask() {
         val variables = store("csv" to "a,b,c")

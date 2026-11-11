@@ -1499,6 +1499,20 @@
     <string name="action_option_network_wifi">Wi-Fi</string>
     <string name="action_option_network_cellular">移动数据</string>
     <string name="action_option_network_unmetered">非计费连接</string>
+    <string name="action_option_array_remove_duplicates">删除重复项</string>
+    <string name="action_option_array_reverse">反转</string>
+    <string name="action_option_array_rotate_left">向左轮换</string>
+    <string name="action_option_array_rotate_right">向右轮换</string>
+    <string name="action_option_array_shuffle">随机打乱</string>
+    <string name="action_option_array_sort_alpha">按字母排序（A 到 Z）</string>
+    <string name="action_option_array_sort_alpha_reverse">按字母倒序（Z 到 A）</string>
+    <string name="action_option_array_sort_alpha_caseless">按字母排序，忽略大小写</string>
+    <string name="action_option_array_sort_alpha_caseless_reverse">按字母倒序，忽略大小写</string>
+    <string name="action_option_array_sort_shortest_first">最短的在前</string>
+    <string name="action_option_array_sort_longest_first">最长的在前</string>
+    <string name="action_option_array_sort_numeric_integer">按整数排序</string>
+    <string name="action_option_array_sort_numeric_float">按小数排序</string>
+    <string name="action_option_array_squash">压缩（去掉空位）</string>
 
     <!-- Secondary-surface localization -->
     <string name="nav_more">更多</string>

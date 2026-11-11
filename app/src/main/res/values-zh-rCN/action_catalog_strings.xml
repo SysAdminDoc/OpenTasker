@@ -181,6 +181,11 @@
     <string name="catalog_action_array_clear_description" formatted="false">取消设置数组的所有元素</string>
     <string name="catalog_action_array_clear_field_array_label" formatted="false">数组</string>
     <string name="catalog_action_array_clear_field_array_hint" formatted="false">%arr，元素为 %arr1、%arr2……</string>
+    <string name="catalog_action_array_process_name" formatted="false">数组处理</string>
+    <string name="catalog_action_array_process_description" formatted="false">将数组元素作为一组排序、反转、轮换、打乱、去重或压缩</string>
+    <string name="catalog_action_array_process_field_array_label" formatted="false">数组</string>
+    <string name="catalog_action_array_process_field_array_hint" formatted="false">%arr，元素为 %arr1、%arr2……</string>
+    <string name="catalog_action_array_process_field_type_label" formatted="false">操作</string>
     <string name="catalog_action_tts_speak_name" formatted="false">朗读（文本转语音）</string>
     <string name="catalog_action_tts_speak_description" formatted="false">使用设备扬声器朗读文本</string>
     <string name="catalog_action_tts_speak_field_text_label" formatted="false">要朗读的文本</string>

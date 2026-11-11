@@ -54,6 +54,7 @@ object AutomationSensitivityRegistry {
         "array.push",
         "array.pop",
         "array.clear",
+        "array.process",
         "flow.wait",
         "task.run",
         "flow.if",

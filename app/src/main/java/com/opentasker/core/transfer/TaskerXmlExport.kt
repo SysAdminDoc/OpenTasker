@@ -1,5 +1,6 @@
 package com.opentasker.core.transfer
 
+import com.opentasker.core.actions.ArrayProcessAction
 import com.opentasker.core.actions.HttpNetworkConstraint
 import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.DaySchedule
@@ -106,6 +107,7 @@ object TaskerXmlExporter {
         "array.push" to "355",
         "array.pop" to "356",
         "array.clear" to "357",
+        "array.process" to "369",
     )
 
     fun export(
@@ -360,6 +362,15 @@ object TaskerXmlExporter {
                 appendStr(sb, 2, args["to_var"]?.ifBlank { null }?.let { taskerVariableName(it, it) }.orEmpty())
             }
             "array.clear" -> appendStr(sb, 0, taskerVariableName(args["array"], "arr"))
+            "array.process" -> {
+                val type = args["type"].orEmpty().trim()
+                val ordinal = ArrayProcessAction.TYPES.indexOf(type).takeIf { it >= 0 }
+                if (ordinal == null) {
+                    warnings += "Tasker's Array Process has no '$type' operation."
+                }
+                appendStr(sb, 0, taskerVariableName(args["array"], "arr"))
+                appendInt(sb, 1, ordinal?.toString() ?: type)
+            }
         }
 
         appendConditionList(sb, action, redactionContext, warnings)

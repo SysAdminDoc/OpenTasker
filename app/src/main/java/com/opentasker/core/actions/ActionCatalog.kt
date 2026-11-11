@@ -66,6 +66,7 @@ object ActionCatalog {
         define("array.push", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::ArrayPushAction),
         define("array.pop", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::ArrayPopAction),
         define("array.clear", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::ArrayClearAction),
+        define("array.process", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::ArrayProcessAction),
         define("tts.speak", ActionCategory.NOTIFICATION, ActionRetrySafety.NEVER, ::SayAction),
         define("flow.wait", ActionCategory.FLOW, ActionRetrySafety.NEVER, ::WaitAction),
         define("intent.launch", ActionCategory.APP, ActionRetrySafety.NEVER, ::LaunchIntentAction),

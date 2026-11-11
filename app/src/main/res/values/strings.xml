@@ -1536,6 +1536,20 @@
     <string name="action_option_network_wifi">Wi-Fi</string>
     <string name="action_option_network_cellular">Mobile data</string>
     <string name="action_option_network_unmetered">Unmetered connections</string>
+    <string name="action_option_array_remove_duplicates">Remove duplicates</string>
+    <string name="action_option_array_reverse">Reverse</string>
+    <string name="action_option_array_rotate_left">Rotate left</string>
+    <string name="action_option_array_rotate_right">Rotate right</string>
+    <string name="action_option_array_shuffle">Shuffle</string>
+    <string name="action_option_array_sort_alpha">Sort A to Z</string>
+    <string name="action_option_array_sort_alpha_reverse">Sort Z to A</string>
+    <string name="action_option_array_sort_alpha_caseless">Sort A to Z, ignoring case</string>
+    <string name="action_option_array_sort_alpha_caseless_reverse">Sort Z to A, ignoring case</string>
+    <string name="action_option_array_sort_shortest_first">Shortest first</string>
+    <string name="action_option_array_sort_longest_first">Longest first</string>
+    <string name="action_option_array_sort_numeric_integer">Sort by whole number</string>
+    <string name="action_option_array_sort_numeric_float">Sort by decimal number</string>
+    <string name="action_option_array_squash">Squash (close the gaps)</string>
 
     <!-- Secondary-surface localization -->
     <string name="nav_more">More</string>
