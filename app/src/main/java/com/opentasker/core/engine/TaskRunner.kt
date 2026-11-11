@@ -1,6 +1,7 @@
 package com.opentasker.core.engine
 
 import com.opentasker.core.actions.ActionArgumentSensitivity
+import com.opentasker.core.actions.IntentExtrasLines
 import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.capabilities.AutomationSensitivityRegistry
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
@@ -624,6 +625,10 @@ class TaskRunner(
                 return result to traceFor(index, spec, started, result, ActionArgumentExpansionReport.Empty)
             }
         val expansionReport = expandArgs(spec.type, spec.args)
+        expansionReport.failure?.let { message ->
+            val result = ActionResult.Failure(message)
+            return result to traceFor(index, spec, started, result, expansionReport)
+        }
         val timeoutMs = actionTimeoutMs(spec.type)
         val before = ctx.variables.toTemplateScope()
         val rawResult = try {
@@ -806,57 +811,91 @@ class TaskRunner(
         val templateScope = ctx.variables.toTemplateScope(ctx.eventVariables)
         val expansions = mutableListOf<ActionArgumentExpansionTrace>()
         val outputNames = OutputNameArguments(actionType)
+        var failure: String? = null
         val expandedArgs = args.mapValues { (name, rawValue) ->
             arrayReferenceName(actionType, name, rawValue)?.let { arrayName ->
                 return@mapValues arrayName
             }
             if (outputNames.keepsAsWritten(name, rawValue)) return@mapValues rawValue
-            val legacy = ctx.variables.expandTracked(rawValue)
-            if (!legacy.value.contains("{{")) {
-                if (legacy.isSecretDerived) {
+            if (IntentExtrasLines.applies(actionType, name)) {
+                val lines = rawValue.lines().map { line -> expandValue(actionType, name, line, templateScope) }
+                val expanded = lines.joinToString("\n") { it.first }
+                IntentExtrasLines.lineBreakFailure(lines.map { it.first })?.let { failure = it }
+                val traces = lines.mapNotNull { it.second }
+                if (traces.isNotEmpty()) {
+                    val isSecretDerived = traces.any { it.isSecretDerived }
                     expansions += ActionArgumentExpansionTrace(
                         argName = name,
                         rawValue = rawValue,
-                        expandedValue = REDACTED_VALUE,
-                        expressions = emptyList(),
-                        warnings = emptyList(),
-                        isSecretDerived = true,
-                    )
-                } else if (actionType == SUB_TASK_ACTION_ID && name !in SUB_TASK_REF_KEYS) {
-                    // Only expansions get a trace, so a sub-task input typed as plain text would
-                    // otherwise never appear in the run log of the step that passed it.
-                    val shown = if (ActionArgumentSensitivity.isSensitive(actionType, name)) REDACTED_VALUE else legacy.text
-                    expansions += ActionArgumentExpansionTrace(
-                        argName = name,
-                        rawValue = shown,
-                        expandedValue = shown,
-                        expressions = emptyList(),
-                        warnings = emptyList(),
-                        isSecretDerived = false,
+                        expandedValue = if (isSecretDerived) REDACTED_VALUE else expanded,
+                        expressions = traces.flatMap { it.expressions },
+                        warnings = traces.flatMap { it.warnings },
+                        isSecretDerived = isSecretDerived,
                     )
                 }
-                return@mapValues legacy.text
+                return@mapValues expanded
             }
-
-            val result = templateExpressionEngine.expand(legacy.value, templateScope)
-            val expanded = InertTemplateText.restore(result.value)
-            val isSecretDerived = legacy.isSecretDerived || result.traces.any { it.isSecretDerived }
-            if (result.traces.isNotEmpty() || result.warnings.isNotEmpty() || isSecretDerived) {
-                expansions += ActionArgumentExpansionTrace(
-                    argName = name,
-                    rawValue = rawValue,
-                    expandedValue = if (isSecretDerived) REDACTED_VALUE else expanded,
-                    expressions = result.traces.map { trace ->
-                        if (trace.isSecretDerived) trace.copy(value = REDACTED_VALUE) else trace
-                    },
-                    warnings = result.warnings,
-                    isSecretDerived = isSecretDerived,
-                )
-            }
+            val (expanded, trace) = expandValue(actionType, name, rawValue, templateScope)
+            trace?.let { expansions += it }
             expanded
         }
 
-        return ActionArgumentExpansionReport(expandedArgs, expansions, actionType)
+        return ActionArgumentExpansionReport(expandedArgs, expansions, actionType, failure)
+    }
+
+    private fun expandValue(
+        actionType: String,
+        name: String,
+        rawValue: String,
+        templateScope: TemplateScope,
+    ): Pair<String, ActionArgumentExpansionTrace?> {
+        val legacy = ctx.variables.expandTracked(rawValue)
+        if (!legacy.value.contains("{{")) {
+            val trace = if (legacy.isSecretDerived) {
+                ActionArgumentExpansionTrace(
+                    argName = name,
+                    rawValue = rawValue,
+                    expandedValue = REDACTED_VALUE,
+                    expressions = emptyList(),
+                    warnings = emptyList(),
+                    isSecretDerived = true,
+                )
+            } else if (actionType == SUB_TASK_ACTION_ID && name !in SUB_TASK_REF_KEYS) {
+                // Only expansions get a trace, so a sub-task input typed as plain text would
+                // otherwise never appear in the run log of the step that passed it.
+                val shown = if (ActionArgumentSensitivity.isSensitive(actionType, name)) REDACTED_VALUE else legacy.text
+                ActionArgumentExpansionTrace(
+                    argName = name,
+                    rawValue = shown,
+                    expandedValue = shown,
+                    expressions = emptyList(),
+                    warnings = emptyList(),
+                    isSecretDerived = false,
+                )
+            } else {
+                null
+            }
+            return legacy.text to trace
+        }
+
+        val result = templateExpressionEngine.expand(legacy.value, templateScope)
+        val expanded = InertTemplateText.restore(result.value)
+        val isSecretDerived = legacy.isSecretDerived || result.traces.any { it.isSecretDerived }
+        val trace = if (result.traces.isNotEmpty() || result.warnings.isNotEmpty() || isSecretDerived) {
+            ActionArgumentExpansionTrace(
+                argName = name,
+                rawValue = rawValue,
+                expandedValue = if (isSecretDerived) REDACTED_VALUE else expanded,
+                expressions = result.traces.map { trace ->
+                    if (trace.isSecretDerived) trace.copy(value = REDACTED_VALUE) else trace
+                },
+                warnings = result.warnings,
+                isSecretDerived = isSecretDerived,
+            )
+        } else {
+            null
+        }
+        return expanded to trace
     }
 
     /**
@@ -1079,6 +1118,8 @@ private data class ActionArgumentExpansionReport(
     val args: Map<String, String>,
     val expansions: List<ActionArgumentExpansionTrace>,
     val actionType: String? = null,
+    /** Set when the expanded arguments can't be handed to the action at all. */
+    val failure: String? = null,
 ) {
     fun templateWarnings(): List<String> =
         expansions.flatMap { expansion -> expansion.warnings.map { "${expansion.argName}: $it" } }.distinct()

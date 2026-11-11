@@ -3,6 +3,7 @@ package com.opentasker.core.engine
 import com.opentasker.core.actions.ActionArgumentSensitivity
 import com.opentasker.core.actions.ActiveTransport
 import com.opentasker.core.actions.HttpNetworkConstraint
+import com.opentasker.core.actions.IntentExtrasLines
 import com.opentasker.core.actions.httpNetworkDenial
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.capabilities.CapabilityLevel
@@ -320,7 +321,8 @@ object PreflightRunner {
             // preview is to say so before the user waits for a failure.
             val networkBlock = httpNetworkBlock(spec.type, expansion.rawValues, input.activeTransport)
             if (networkBlock != null) stepWarnings += networkBlock
-            val effectiveStatus = if (networkBlock != null) PreflightStepStatus.BLOCKED else status
+            expansion.failure?.let { stepWarnings += "The run stops this step: $it." }
+            val effectiveStatus = if (networkBlock != null || expansion.failure != null) PreflightStepStatus.BLOCKED else status
             val step = PreflightStep(
                 taskPath = taskPath,
                 actionIndex = pc,
@@ -524,13 +526,27 @@ object PreflightRunner {
         val values: Map<String, String>,
         val rawValues: Map<String, String>,
         val warnings: List<String>,
+        /** Set when the run would stop the step before the action got its arguments. */
+        val failure: String? = null,
     )
 
     private fun expandArguments(spec: ActionSpec, variables: VariableStore, input: PreflightInputs): Expansion {
         val outputNames = OutputNameArguments(spec.type)
+        var failure: String? = null
         val rawValues = spec.args.mapValues { (key, raw) ->
-            if (outputNames.keepsAsWritten(key, raw)) TemplateExpansionResult(raw, emptyList(), emptyList())
-            else expand(raw, variables, input)
+            when {
+                outputNames.keepsAsWritten(key, raw) -> TemplateExpansionResult(raw, emptyList(), emptyList())
+                IntentExtrasLines.applies(spec.type, key) -> {
+                    val lines = raw.lines().map { line -> expand(line, variables, input) }
+                    IntentExtrasLines.lineBreakFailure(lines.map { it.value })?.let { failure = it }
+                    TemplateExpansionResult(
+                        value = lines.joinToString("\n") { it.value },
+                        traces = lines.flatMap { it.traces },
+                        warnings = lines.flatMap { it.warnings },
+                    )
+                }
+                else -> expand(raw, variables, input)
+            }
         }
         val warnings = rawValues.values.flatMap { it.warnings }
         val display = rawValues.mapValues { (key, expansion) ->
@@ -538,7 +554,7 @@ object PreflightRunner {
             if (secret) ActionArgumentSensitivity.REDACTED
             else ActionArgumentSensitivity.maskValue(spec.type, key, expansion.value, rawValues.mapValues { it.value.value })
         }
-        return Expansion(display, rawValues.mapValues { it.value.value }, warnings.distinct())
+        return Expansion(display, rawValues.mapValues { it.value.value }, warnings.distinct(), failure)
     }
 
     private fun expand(raw: String, variables: VariableStore, input: PreflightInputs): TemplateExpansionResult {
