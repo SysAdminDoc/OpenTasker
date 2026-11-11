@@ -166,6 +166,14 @@
     <string name="catalog_action_var_join_field_name_hint" formatted="false">%arr joins %arr1, %arr2, … into %arr</string>
     <string name="catalog_action_var_join_field_joiner_label" formatted="false">Joiner</string>
     <string name="catalog_action_var_join_field_delete_parts_label" formatted="false">Delete the elements after joining</string>
+    <string name="catalog_action_var_convert_name" formatted="false">Variable Convert</string>
+    <string name="catalog_action_var_convert_description" formatted="false">Convert a variable\'s value, such as bytes to megabytes, seconds to a date or text to Base64</string>
+    <string name="catalog_action_var_convert_field_name_label" formatted="false">Variable</string>
+    <string name="catalog_action_var_convert_field_name_hint" formatted="false">%name, whose value gets converted</string>
+    <string name="catalog_action_var_convert_field_function_label" formatted="false">Conversion</string>
+    <string name="catalog_action_var_convert_field_var_label" formatted="false">Store result in</string>
+    <string name="catalog_action_var_convert_field_var_hint" formatted="false">Leave blank to replace the variable\'s own value</string>
+    <string name="catalog_action_var_convert_field_url_safe_label" formatted="false">URL-safe Base64 (Base64 decode only)</string>
     <string name="catalog_action_array_push_name" formatted="false">Array Push</string>
     <string name="catalog_action_array_push_description" formatted="false">Insert a value into an array and move later elements up</string>
     <string name="catalog_action_array_push_field_array_label" formatted="false">Array</string>

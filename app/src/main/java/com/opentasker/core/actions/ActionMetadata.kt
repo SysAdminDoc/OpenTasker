@@ -111,6 +111,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "text.substring",
     "var.split",
     "var.join",
+    "var.convert",
     "array.push",
     "array.pop",
     "array.clear",
@@ -499,6 +500,60 @@ fun registerActionMetadata() {
                 ActionField("name", R.string.catalog_action_var_join_field_name_label, required = true, hintRes = R.string.catalog_action_var_join_field_name_hint),
                 ActionField("joiner", R.string.catalog_action_var_join_field_joiner_label),
                 ActionField("delete_parts", R.string.catalog_action_var_join_field_delete_parts_label, FieldType.CHECKBOX),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "var.convert",
+            nameRes = R.string.catalog_action_var_convert_name,
+            descriptionRes = R.string.catalog_action_var_convert_description,
+            categoryRes = R.string.catalog_category_variable,
+            fields = listOf(
+                ActionField("name", R.string.catalog_action_var_convert_field_name_label, required = true, hintRes = R.string.catalog_action_var_convert_field_name_hint),
+                ActionField(
+                    "function",
+                    R.string.catalog_action_var_convert_field_function_label,
+                    FieldType.DROPDOWN,
+                    required = true,
+                    options = listOf(
+                        option("bytes_to_kilobytes", R.string.action_option_convert_bytes_to_kilobytes),
+                        option("bytes_to_megabytes", R.string.action_option_convert_bytes_to_megabytes),
+                        option("bytes_to_gigabytes", R.string.action_option_convert_bytes_to_gigabytes),
+                        option("date_time_to_seconds", R.string.action_option_convert_date_time_to_seconds),
+                        option("seconds_to_date_time", R.string.action_option_convert_seconds_to_date_time),
+                        option("seconds_to_medium_date_time", R.string.action_option_convert_seconds_to_medium_date_time),
+                        option("seconds_to_long_date_time", R.string.action_option_convert_seconds_to_long_date_time),
+                        option("html_to_text", R.string.action_option_convert_html_to_text),
+                        option("celsius_to_fahrenheit", R.string.action_option_convert_celsius_to_fahrenheit),
+                        option("fahrenheit_to_celsius", R.string.action_option_convert_fahrenheit_to_celsius),
+                        option("centimetres_to_inches", R.string.action_option_convert_centimetres_to_inches),
+                        option("inches_to_centimetres", R.string.action_option_convert_inches_to_centimetres),
+                        option("metres_to_feet", R.string.action_option_convert_metres_to_feet),
+                        option("feet_to_metres", R.string.action_option_convert_feet_to_metres),
+                        option("kilograms_to_pounds", R.string.action_option_convert_kilograms_to_pounds),
+                        option("pounds_to_kilograms", R.string.action_option_convert_pounds_to_kilograms),
+                        option("kilometres_to_miles", R.string.action_option_convert_kilometres_to_miles),
+                        option("miles_to_kilometres", R.string.action_option_convert_miles_to_kilometres),
+                        option("url_decode", R.string.action_option_convert_url_decode),
+                        option("url_encode", R.string.action_option_convert_url_encode),
+                        option("binary_to_decimal", R.string.action_option_convert_binary_to_decimal),
+                        option("decimal_to_binary", R.string.action_option_convert_decimal_to_binary),
+                        option("hex_to_decimal", R.string.action_option_convert_hex_to_decimal),
+                        option("decimal_to_hex", R.string.action_option_convert_decimal_to_hex),
+                        option("base64_encode", R.string.action_option_convert_base64_encode),
+                        option("base64_decode", R.string.action_option_convert_base64_decode),
+                        option("md5_digest", R.string.action_option_convert_md5_digest),
+                        option("sha1_digest", R.string.action_option_convert_sha1_digest),
+                        option("lower_case", R.string.action_option_convert_lower_case),
+                        option("upper_case", R.string.action_option_convert_upper_case),
+                        option("upper_case_first", R.string.action_option_convert_upper_case_first),
+                        option("json_encode", R.string.action_option_convert_json_encode),
+                    ),
+                ),
+                ActionField("var", R.string.catalog_action_var_convert_field_var_label, hintRes = R.string.catalog_action_var_convert_field_var_hint),
+                ActionField("url_safe", R.string.catalog_action_var_convert_field_url_safe_label, FieldType.CHECKBOX),
             )
         )
     )

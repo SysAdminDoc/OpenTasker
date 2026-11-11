@@ -9,6 +9,7 @@ import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
 import com.opentasker.core.contexts.WIFI_DISCONNECTED_WORDS
 import com.opentasker.core.data.TextOps
+import com.opentasker.core.data.VariableConvert
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -489,6 +490,7 @@ object TaskerXmlImporter {
             "547", "var.set", "variable.set" -> taskerVariableSet(strings, intsByIndex)
             "888" -> taskerVariableAdd(code, byIndex, intsByIndex, intVariables)
             "549" -> taskerVariableClear(code, byIndex, intsByIndex)
+            "596" -> taskerVariableConvert(code, byIndex, intsByIndex, intVariables)
             "597" -> taskerVariableSection(code, byIndex, intsByIndex, intVariables)
             "598" -> taskerSearchReplace(code, element, byIndex, intsByIndex)
             "590", "592", "355", "356", "357", "369" -> taskerArrayAction(code, element, byIndex, intsByIndex, intVariables)
@@ -1062,6 +1064,40 @@ object TaskerXmlImporter {
         if (refusal != null) return taskerPlaceholder(code, refusal)
         return ActionWithLoss(
             ActionSpec(type = "var.set", label = "Tasker variable clear", args = mapOf("name" to name, "value" to "")),
+        )
+    }
+
+    /**
+     * Variable Convert's function is a number in Tasker's own order, which is the order of
+     * [VariableConvert.FUNCTIONS]. Mode 1 is URL-safe Base64, and only Base64 Decode reads it.
+     */
+    private fun taskerVariableConvert(
+        code: String,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
+        val name = byIndex[0].orEmpty()
+        val function = ints[1]?.let(VariableConvert.FUNCTIONS::getOrNull).takeIf { 1 !in variables }
+        val storeIn = byIndex[2].orEmptyIfBlank()
+        val refusal = when {
+            !TASKER_PLAIN_VARIABLE.matches(name) -> "Tasker Variable Convert's name $name isn't one plain variable"
+            function == null -> "Tasker Variable Convert's function ${variables[1] ?: ints[1]} isn't one of its 32 conversions"
+            storeIn != null && !TASKER_PLAIN_VARIABLE.matches(storeIn) -> "Tasker Variable Convert stores into $storeIn, which isn't one plain variable"
+            else -> null
+        }
+        if (refusal != null || function == null) return taskerPlaceholder(code, refusal.orEmpty())
+        return ActionWithLoss(
+            ActionSpec(
+                type = "var.convert",
+                label = "Tasker variable convert",
+                args = buildMap {
+                    put("name", name)
+                    put("function", function)
+                    storeIn?.let { put("var", it) }
+                    if (ints[3] == 1) put("url_safe", "true")
+                },
+            ),
         )
     }
 

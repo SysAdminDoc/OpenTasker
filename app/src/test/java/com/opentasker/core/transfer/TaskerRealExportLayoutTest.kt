@@ -934,6 +934,65 @@ class TaskerRealExportLayoutTest {
         assertEquals("-2,1x,a3c,b5,none", variables.get("Sorted"))
     }
 
+    // Variable Convert (596)
+
+    @Test
+    fun variableConvertMapsTaskersFunctionNumbersAndStoreIn() {
+        val toDateTime = action("""<code>596</code><Str sr="arg0" ve="3">%endtime</Str><Int sr="arg1" val="4"/><Str sr="arg2" ve="3">%enddatetime</Str>""")
+        val lowerInPlace = action("""<code>596</code><Str sr="arg0" ve="3">%name</Str><Int sr="arg1" val="28"/><Str sr="arg2" ve="3"/><Int sr="arg3" val="0"/>""")
+        val html = action("""<code>596</code><Str sr="arg0" ve="3">%newsout</Str><Int sr="arg1" val="7"/><Str sr="arg2" ve="3"/>""")
+        val toSeconds = action("""<code>596</code><Str sr="arg0" ve="3">%spxdate</Str><Int sr="arg1" val="3"/><Str sr="arg2" ve="3">%spxtime</Str>""")
+        val urlSafe = action("""<code>596</code><Str sr="arg0" ve="3">%token</Str><Int sr="arg1" val="25"/><Str sr="arg2" ve="3"/><Int sr="arg3" val="1"/>""")
+
+        assertEquals("var.convert", toDateTime.type)
+        assertEquals(mapOf("name" to "%endtime", "function" to "seconds_to_date_time", "var" to "%enddatetime"), toDateTime.args)
+        assertEquals(mapOf("name" to "%name", "function" to "lower_case"), lowerInPlace.args)
+        assertEquals("html_to_text", html.args["function"])
+        assertEquals(mapOf("name" to "%spxdate", "function" to "date_time_to_seconds", "var" to "%spxtime"), toSeconds.args)
+        assertEquals(mapOf("name" to "%token", "function" to "base64_decode", "url_safe" to "true"), urlSafe.args)
+        val expected = listOf(
+            "bytes_to_kilobytes", "bytes_to_megabytes", "bytes_to_gigabytes", "date_time_to_seconds", "seconds_to_date_time",
+            "seconds_to_medium_date_time", "seconds_to_long_date_time", "html_to_text", "celsius_to_fahrenheit",
+            "fahrenheit_to_celsius", "centimetres_to_inches", "inches_to_centimetres", "metres_to_feet", "feet_to_metres",
+            "kilograms_to_pounds", "pounds_to_kilograms", "kilometres_to_miles", "miles_to_kilometres", "url_decode",
+            "url_encode", "binary_to_decimal", "decimal_to_binary", "hex_to_decimal", "decimal_to_hex", "base64_encode",
+            "base64_decode", "md5_digest", "sha1_digest", "lower_case", "upper_case", "upper_case_first", "json_encode",
+        )
+        expected.forEachIndexed { ordinal, function ->
+            assertEquals(function, action("""<code>596</code><Str sr="arg0" ve="3">%v</Str><Int sr="arg1" val="$ordinal"/>""").args["function"])
+        }
+    }
+
+    @Test
+    fun variableConvertOfAnArrayItemOrAnUnknownFunctionStaysAPlaceholder() {
+        listOf(
+            """<code>596</code><Str sr="arg0" ve="3">%SS_TimedTimes(%num)</Str><Int sr="arg1" val="4"/><Str sr="arg2" ve="3">%time</Str>""",
+            """<code>596</code><Str sr="arg0" ve="3">%v</Str><Int sr="arg1" val="32"/>""",
+            """<code>596</code><Str sr="arg0" ve="3">%v</Str><Int sr="arg1"><var>%how</var></Int>""",
+            """<code>596</code><Str sr="arg0" ve="3">%v</Str><Int sr="arg1" val="28"/><Str sr="arg2" ve="3">%out(1)</Str>""",
+        ).forEach { assertEquals(it, placeholder, action(it).type) }
+        assertWarns("""<code>596</code><Str sr="arg0" ve="3">%SS_TimedTimes(%num)</Str><Int sr="arg1" val="4"/>""", "isn't one plain variable")
+    }
+
+    @Test
+    fun importedVariableConvertRunsTheWayTaskersDoes() {
+        registerCoreRuntime()
+        val task = parse(
+            """<code>547</code><Str sr="arg0" ve="3">%Bytes</Str><Str sr="arg1" ve="3">1572864</Str><Int sr="arg2" val="0"/>""" +
+                """<Int sr="arg3" val="0"/><Int sr="arg4" val="0"/>""",
+            """<code>596</code><Str sr="arg0" ve="3">%Bytes</Str><Int sr="arg1" val="1"/><Str sr="arg2" ve="3">%Megabytes</Str><Int sr="arg3" val="0"/>""",
+            """<code>596</code><Str sr="arg0" ve="3">%Name</Str><Int sr="arg1" val="28"/><Str sr="arg2" ve="3"/><Int sr="arg3" val="0"/>""",
+        ).bundle.tasks.single()
+        val variables = VariableStore().apply { set("Name", "Front DOOR") }
+
+        val report = runBlocking { TaskRunner(ActionContext(ContextWrapper(null), variables)).run(task) }
+
+        assertTrue(report.toString(), report.success)
+        assertEquals("1.5", variables.get("Megabytes"))
+        assertEquals("1572864", variables.get("Bytes"))
+        assertEquals("front door", variables.get("Name"))
+    }
+
     // Interrupt Mode (312). No public export holds one, so these follow Tasker's action table.
 
     @Test

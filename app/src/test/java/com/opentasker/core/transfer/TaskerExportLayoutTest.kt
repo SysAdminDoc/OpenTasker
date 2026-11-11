@@ -224,8 +224,21 @@ class TaskerExportLayoutTest {
             "array.pop" to mapOf("array" to "%Log", "position" to "%pos", "to_var" to "%Out"),
             "array.clear" to mapOf("array" to "%Log"),
             "array.process" to mapOf("array" to "%Log", "type" to "sort_numeric_float"),
+            "var.convert" to mapOf("name" to "%Bytes", "function" to "bytes_to_megabytes", "var" to "%Mb"),
+            "var.convert" to mapOf("name" to "%raw", "function" to "base64_decode", "url_safe" to "true"),
         )
         assertHas(xml("array.process", "array" to "names", "type" to "squash"), "<code>369</code>", """<Str sr="arg0" ve="3">%names</Str>""", """<Int sr="arg1" val="13"/>""")
+        assertHas(
+            xml("var.convert", "name" to "raw", "function" to "base64_decode", "url_safe" to "true"),
+            "<code>596</code>",
+            """<Str sr="arg0" ve="3">%raw</Str>""",
+            """<Int sr="arg1" val="25"/>""",
+            """<Str sr="arg2" ve="3"></Str>""",
+            """<Int sr="arg3" val="1"/>""",
+        )
+        val unknown = export(ActionSpec(type = "var.convert", args = mapOf("name" to "%x", "function" to "rot13")))
+        assertHas(unknown.xml, "<code>596</code>", "<var>rot13</var>")
+        assertTrue(unknown.warnings.toString(), unknown.warnings.any { "'rot13'" in it })
         cases.forEach { (type, args) ->
             val back = roundTrip(type, *args.toList().toTypedArray())
             assertEquals(type, back.type)

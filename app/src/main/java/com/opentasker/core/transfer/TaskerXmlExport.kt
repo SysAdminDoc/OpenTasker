@@ -10,6 +10,7 @@ import com.opentasker.core.contexts.WIFI_DISCONNECTED_WORDS
 import com.opentasker.core.contexts.normalizeStateExpectedValue
 import com.opentasker.core.contexts.normalizeStateKey
 import com.opentasker.core.contexts.parseStatePredicate
+import com.opentasker.core.data.VariableConvert
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -108,6 +109,7 @@ object TaskerXmlExporter {
         "array.pop" to "356",
         "array.clear" to "357",
         "array.process" to "369",
+        "var.convert" to "596",
     )
 
     fun export(
@@ -370,6 +372,17 @@ object TaskerXmlExporter {
                 }
                 appendStr(sb, 0, taskerVariableName(args["array"], "arr"))
                 appendInt(sb, 1, ordinal?.toString() ?: type)
+            }
+            "var.convert" -> {
+                val function = args["function"].orEmpty().trim()
+                val ordinal = VariableConvert.FUNCTIONS.indexOf(function).takeIf { it >= 0 }
+                if (ordinal == null) {
+                    warnings += "Tasker's Variable Convert has no '$function' conversion."
+                }
+                appendStr(sb, 0, taskerVariableName(args["name"], "VAR"))
+                appendInt(sb, 1, ordinal?.toString() ?: function)
+                appendStr(sb, 2, args["var"]?.ifBlank { null }?.let { taskerVariableName(it, it) }.orEmpty())
+                appendInt(sb, 3, taskerFlag(args["url_safe"]))
             }
         }
 

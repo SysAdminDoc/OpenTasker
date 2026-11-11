@@ -160,6 +160,14 @@
     <string name="catalog_action_var_join_field_name_hint" formatted="false">%arr 把 %arr1、%arr2……合并到 %arr</string>
     <string name="catalog_action_var_join_field_joiner_label" formatted="false">连接符</string>
     <string name="catalog_action_var_join_field_delete_parts_label" formatted="false">合并后删除各元素</string>
+    <string name="catalog_action_var_convert_name" formatted="false">变量转换</string>
+    <string name="catalog_action_var_convert_description" formatted="false">转换变量的值，例如字节转兆字节、秒数转日期或文本转 Base64</string>
+    <string name="catalog_action_var_convert_field_name_label" formatted="false">变量</string>
+    <string name="catalog_action_var_convert_field_name_hint" formatted="false">%name，其值会被转换</string>
+    <string name="catalog_action_var_convert_field_function_label" formatted="false">转换方式</string>
+    <string name="catalog_action_var_convert_field_var_label" formatted="false">结果存入</string>
+    <string name="catalog_action_var_convert_field_var_hint" formatted="false">留空则替换该变量自身的值</string>
+    <string name="catalog_action_var_convert_field_url_safe_label" formatted="false">URL 安全的 Base64（仅用于 Base64 解码）</string>
     <string name="catalog_action_array_push_name" formatted="false">数组插入</string>
     <string name="catalog_action_array_push_description" formatted="false">向数组插入一个值，后面的元素依次后移</string>
     <string name="catalog_action_array_push_field_array_label" formatted="false">数组</string>

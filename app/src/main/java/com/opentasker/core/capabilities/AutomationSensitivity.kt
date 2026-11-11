@@ -51,6 +51,7 @@ object AutomationSensitivityRegistry {
         "text.substring",
         "var.split",
         "var.join",
+        "var.convert",
         "array.push",
         "array.pop",
         "array.clear",

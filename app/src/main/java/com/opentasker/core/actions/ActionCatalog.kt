@@ -63,6 +63,7 @@ object ActionCatalog {
         // doesn't repeat the first try. Clearing twice clears the same elements.
         define("var.split", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::VarSplitAction),
         define("var.join", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::VarJoinAction),
+        define("var.convert", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::VarConvertAction),
         define("array.push", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::ArrayPushAction),
         define("array.pop", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::ArrayPopAction),
         define("array.clear", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::ArrayClearAction),
