@@ -208,7 +208,7 @@ class ContextInspectorViewModel(
         CausalLoopDiagnostics.latest,
     ) { profiles, observations, errors, now, causalLoop ->
         if (profiles == null) return@combine null
-        val sources = buildContextSourceSnapshots(appContext, observations, errors)
+        val sources = buildContextSourceSnapshots(appContext, profiles, observations, errors)
         ContextInspectionSnapshot(
             generatedAtMs = now,
             sources = sources,
@@ -1011,6 +1011,7 @@ private fun sourceStatusIcon(status: ContextSourceStatus) = when (status) {
 
 private fun buildContextSourceSnapshots(
     context: Context,
+    profiles: List<Profile>,
     observations: Map<String, ContextEventObservation>,
     errors: Map<String, String>,
 ): List<ContextSourceSnapshot> {
@@ -1026,7 +1027,27 @@ private fun buildContextSourceSnapshots(
             setupDetail = setup.detail,
             error = errors[key],
             lastObservation = observations[key],
+            eventSetupGaps = if (key == "event") eventSetupGaps(context, profiles) else emptyMap(),
         )
+    }
+}
+
+/**
+ * Android 16+ drops tag scans for an app the user hasn't allowed, so NFC events never arrive. Only
+ * asked while an enabled profile waits for one, which is also when Setup shows the row it points to.
+ */
+private fun eventSetupGaps(context: Context, profiles: List<Profile>): Map<String, String> {
+    val waitsForNfc = profiles.any { profile ->
+        profile.enabled && profile.contexts.any { it.type == ContextType.EVENT && it.config["event"].equals("nfc", ignoreCase = true) }
+    }
+    if (!waitsForNfc) return emptyMap()
+    val nfcTags = SetupProbes(::logFailedCheck).read("NFC tag reading", NfcTagIntentGate.State.NOT_APPLICABLE) {
+        NfcTagIntentGate.current(context)
+    }
+    return if (nfcTags == NfcTagIntentGate.State.BLOCKED) {
+        mapOf("nfc" to context.getString(R.string.inspector_setup_nfc_blocked))
+    } else {
+        emptyMap()
     }
 }
 
@@ -1097,12 +1118,6 @@ private fun contextSourceSetup(context: Context, key: String): ContextSourceSetu
                 listening.sorted().joinToString(", "),
             )
         }
-        // Android 16+ drops tag scans for an app the user hasn't allowed, so NFC events never arrive.
-        val nfcDetail = if (NfcTagIntentGate.current(context) == NfcTagIntentGate.State.BLOCKED) {
-            context.getString(R.string.inspector_setup_nfc_blocked)
-        } else {
-            null
-        }
         ContextSourceSetup(
             ready = true,
             detail = listOfNotNull(
@@ -1111,7 +1126,6 @@ private fun contextSourceSetup(context: Context, key: String): ContextSourceSetu
                 } else {
                     context.getString(R.string.inspector_setup_event_notification_missing, calendarDetail)
                 },
-                nfcDetail,
                 broadcastDetail,
             ).joinToString(" "),
         )

@@ -47,6 +47,11 @@ data class ContextSourceSnapshot(
     val setupDetail: String? = null,
     val error: String? = null,
     val lastObservation: ContextEventObservation? = null,
+    /**
+     * Setup gaps that stop one kind of event while the source itself runs, keyed by the lowercase
+     * `event` value they block, like "nfc" while Android withholds tags. Only those contexts show it.
+     */
+    val eventSetupGaps: Map<String, String> = emptyMap(),
 ) {
     val status: ContextSourceStatus
         get() = when {
@@ -348,6 +353,9 @@ private fun contextReason(
     snapshot.error?.let { return "The ${snapshot.label} source stopped with an error: $it" }
     if (!snapshot.setupReady) {
         return snapshot.setupDetail ?: "${snapshot.label} needs setup before it can report values."
+    }
+    if (spec.type == ContextType.EVENT) {
+        spec.config["event"]?.lowercase(Locale.ROOT)?.let(snapshot.eventSetupGaps::get)?.let { return it }
     }
     if (observation == null) return "Waiting for the first ${snapshot.label} event."
     if (observation.event.type != sourceKey) return "Latest event came from ${observation.event.type}, not $sourceKey."

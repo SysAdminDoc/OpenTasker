@@ -282,6 +282,32 @@ class ContextInspectorTest {
     }
 
     @Test
+    fun aWithheldNfcTagIsExplainedOnTheNfcContextAndNowhereElse() {
+        val profile = Profile(
+            id = 5,
+            name = "Tag or meeting",
+            enabled = true,
+            enterTaskId = 10,
+            contexts = listOf(
+                ContextSpec(ContextType.EVENT, mapOf("event" to "NFC", "tagId" to "AABB"), orGroup = "any"),
+                ContextSpec(ContextType.EVENT, mapOf("event" to "calendar"), orGroup = "any"),
+            ),
+        )
+        val source = ContextSourceSnapshot(
+            key = "event",
+            label = "System event",
+            registered = true,
+            eventSetupGaps = mapOf("nfc" to "Allow NFC tags in Setup."),
+        )
+
+        val result = inspectProfiles(listOf(profile), listOf(source)).single()
+
+        assertEquals(ContextSourceStatus.Waiting, source.status)
+        assertEquals("Allow NFC tags in Setup.", result.contexts[0].reason)
+        assertEquals("Waiting for the first System event event.", result.contexts[1].reason)
+    }
+
+    @Test
     fun stateSensorSetupMarkerPointsToSetupAndFailsClosed() {
         val profile = Profile(
             id = 6,
