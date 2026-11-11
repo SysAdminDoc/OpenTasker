@@ -11,6 +11,7 @@ import com.opentasker.core.engine.VariableStore
 import com.opentasker.core.expressions.TemplateExpressionEngine
 import com.opentasker.core.expressions.TemplateScope
 import com.opentasker.core.model.ActionSpec
+import com.opentasker.core.model.VariableNamePolicy
 import com.opentasker.core.registerCoreRuntime
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -972,6 +973,16 @@ class TaskerRealExportLayoutTest {
             """<code>596</code><Str sr="arg0" ve="3">%v</Str><Int sr="arg1" val="28"/><Str sr="arg2" ve="3">%out(1)</Str>""",
         ).forEach { assertEquals(it, placeholder, action(it).type) }
         assertWarns("""<code>596</code><Str sr="arg0" ve="3">%SS_TimedTimes(%num)</Str><Int sr="arg1" val="4"/>""", "isn't one plain variable")
+    }
+
+    @Test
+    fun aVariableNameLongerThanThisAppTakesStaysAPlaceholder() {
+        val longest = "%" + "a".repeat(VariableNamePolicy.MAX_LENGTH)
+        val tooLong = "%" + "a".repeat(VariableNamePolicy.MAX_LENGTH + 1)
+
+        assertEquals("var.convert", action("""<code>596</code><Str sr="arg0" ve="3">$longest</Str><Int sr="arg1" val="28"/>""").type)
+        assertEquals(placeholder, action("""<code>596</code><Str sr="arg0" ve="3">$tooLong</Str><Int sr="arg1" val="28"/>""").type)
+        assertEquals(placeholder, action("""<code>596</code><Str sr="arg0" ve="3">%v</Str><Int sr="arg1" val="28"/><Str sr="arg2" ve="3">$tooLong</Str>""").type)
     }
 
     @Test

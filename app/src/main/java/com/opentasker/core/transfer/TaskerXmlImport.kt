@@ -1837,7 +1837,8 @@ object TaskerXmlImporter {
         7 to "Fast Forward",
     )
 
-    private val TASKER_PLAIN_VARIABLE = Regex("""%[A-Za-z][A-Za-z0-9_]*""")
+    /** One variable whose name fits [VariableNamePolicy.MAX_LENGTH], so a step can store into it. */
+    private val TASKER_PLAIN_VARIABLE = Regex("""%[A-Za-z][A-Za-z0-9_]{0,${VariableNamePolicy.MAX_LENGTH - 1}}""")
 
     /** Tasker's array actions: their Tasker name and the action each one maps to. */
     private val TASKER_ARRAY_ACTIONS = mapOf(
@@ -1876,7 +1877,8 @@ object TaskerXmlImporter {
 
     private val TASKER_INTENT_EXTRA_KEY = Regex("""[A-Za-z_][A-Za-z0-9_.-]*""")
 
-    private val TASKER_SIMPLE_SUM = Regex("""%([A-Za-z][A-Za-z0-9_]*)\s*([-+*/])\s*(\d+(?:\.\d+)?)""")
+    private val TASKER_SIMPLE_SUM =
+        Regex("""%([A-Za-z][A-Za-z0-9_]{0,${VariableNamePolicy.MAX_LENGTH - 1}})\s*([-+*/])\s*(\d+(?:\.\d+)?)""")
 
     private val TASKER_SUM_FILTERS = mapOf("+" to "add", "-" to "sub", "*" to "mul", "/" to "div")
 
