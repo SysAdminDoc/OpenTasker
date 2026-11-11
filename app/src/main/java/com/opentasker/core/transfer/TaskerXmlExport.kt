@@ -78,6 +78,7 @@ object TaskerXmlExporter {
         "hotspot.toggle" to "113",
         "sound.play" to "445",
         "sound.beep" to "171",
+        "profile.set" to "159",
         "sound.stop" to "443",
         "sound.pause" to "443",
         "track.next" to "443",
@@ -268,6 +269,10 @@ object TaskerXmlExporter {
             }
             "torch.set", "wifi.toggle", "bluetooth.toggle", "airplane.toggle", "hotspot.toggle" ->
                 appendSetField(sb, action.type, args["state"] ?: "toggle", warnings)
+            "profile.set" -> {
+                appendStr(sb, 0, args["profile"] ?: "")
+                appendSetField(sb, action.type, args["state"] ?: "toggle", warnings, index = 1)
+            }
             "sound.play" -> {
                 appendStr(sb, 0, args["path"] ?: "")
                 appendInt(sb, 1, "0")
@@ -944,12 +949,12 @@ object TaskerXmlExporter {
         }
     }
 
-    private fun appendSetField(sb: StringBuilder, type: String, state: String, warnings: MutableList<String>) {
+    private fun appendSetField(sb: StringBuilder, type: String, state: String, warnings: MutableList<String>, index: Int = 0) {
         val value = TASKER_SET_VALUES[state.trim().lowercase()]
         if (value == null) {
             warnings += "Tasker's Set field takes off, on or toggle, so '$type' with '$state' may not work there."
         }
-        appendInt(sb, 0, value ?: state)
+        appendInt(sb, index, value ?: state)
     }
 
     private fun taskerVariableName(name: String?, fallback: String): String {

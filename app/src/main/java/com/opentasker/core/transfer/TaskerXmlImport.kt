@@ -629,6 +629,7 @@ object TaskerXmlImporter {
                 warning = "Tasker WiFi Tether's Keep Wi-Fi when turning on was not imported".takeIf { (intsByIndex[1] ?: 0) != 0 },
             )
             "171" -> taskerBeep(byIndex, intsByIndex, intVariables)
+            "159" -> taskerProfileStatus(code, byIndex, intsByIndex, intVariables)
             "192", "play", "sound.play" -> {
                 // Play Ringtone's arg1 is the sound. Older exports from this app wrote the path at arg0.
                 val path = byIndex[1].orEmptyIfBlank() ?: strings.firstOrNull().orEmpty()
@@ -990,6 +991,29 @@ object TaskerXmlImporter {
         return ActionWithLoss(
             ActionSpec(type = type, label = "Tasker $actionName", args = mapOf("state" to state)),
             lossyWarning = warning,
+        )
+    }
+
+    /**
+     * Profile Status names its profile in arg0, which can be a variable, and keeps Set in arg1 like
+     * Tasker's other switches. A Set held in a variable would hold Tasker's number, not a word.
+     */
+    private fun taskerProfileStatus(
+        code: String,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
+        val name = byIndex[0].orEmpty().trim()
+        val state = TASKER_SET_STATES[ints[1] ?: 0].takeIf { 1 !in variables }
+        val refusal = when {
+            name.isEmpty() -> "Tasker Profile Status names no profile"
+            state == null -> "Tasker Profile Status's Set field holds ${variables[1] ?: ints[1]}, which isn't off, on or toggle"
+            else -> null
+        }
+        if (refusal != null || state == null) return taskerPlaceholder(code, refusal.orEmpty())
+        return ActionWithLoss(
+            ActionSpec(type = "profile.set", label = "Tasker profile status", args = mapOf("profile" to name, "state" to state)),
         )
     }
 

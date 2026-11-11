@@ -70,6 +70,8 @@ object ActionCatalog {
         define("array.process", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::ArrayProcessAction),
         define("tts.speak", ActionCategory.NOTIFICATION, ActionRetrySafety.NEVER, ::SayAction),
         define("flow.wait", ActionCategory.FLOW, ActionRetrySafety.NEVER, ::WaitAction),
+        // NEVER, not IDEMPOTENT: "toggle" reads the profile again, so a retry flips it back.
+        define("profile.set", ActionCategory.FLOW, ActionRetrySafety.NEVER, ::ProfileStatusAction),
         define("intent.launch", ActionCategory.APP, ActionRetrySafety.NEVER, ::LaunchIntentAction),
         define("wifi.toggle", ActionCategory.SETTINGS, ActionRetrySafety.NEVER, ::WiFiToggleAction),
         // IDEMPOTENT: it only reads. Retrying re-reads the same cache and rewrites the same

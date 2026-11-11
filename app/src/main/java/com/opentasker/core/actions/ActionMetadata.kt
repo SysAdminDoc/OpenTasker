@@ -118,6 +118,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "array.process",
     "tts.speak",
     "flow.wait",
+    "profile.set",
     "task.run",
     "flow.if",
     "flow.else",
@@ -657,6 +658,19 @@ fun registerActionMetadata() {
             categoryRes = R.string.catalog_category_flow,
             fields = listOf(
                 ActionField("millis", R.string.catalog_action_flow_wait_field_millis_label, FieldType.NUMBER, required = true, hintRes = R.string.catalog_action_flow_wait_field_millis_hint, numberRule = integerRule(0, 1_800_000)),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "profile.set",
+            nameRes = R.string.catalog_action_profile_set_name,
+            descriptionRes = R.string.catalog_action_profile_set_description,
+            categoryRes = R.string.catalog_category_flow,
+            fields = listOf(
+                ActionField("profile", R.string.catalog_action_profile_set_field_profile_label, required = true, hintRes = R.string.catalog_action_profile_set_field_profile_hint),
+                ActionField("state", R.string.catalog_action_profile_set_field_state_label, FieldType.DROPDOWN, required = true, options = toggleOptions),
             )
         )
     )

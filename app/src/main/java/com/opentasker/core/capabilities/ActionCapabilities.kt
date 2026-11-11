@@ -67,6 +67,8 @@ object ActionCapabilityRegistry {
         "array.process",
         // Flow control: engine-handled markers plus the runtime wait.
         "flow.wait",
+        // Switches one of the app's own profiles, which needs no access from Android.
+        "profile.set",
         "task.run",
         "flow.if",
         "flow.else",

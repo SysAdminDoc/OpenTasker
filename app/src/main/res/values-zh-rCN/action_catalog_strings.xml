@@ -202,6 +202,11 @@
     <string name="catalog_category_flow" formatted="false">流程</string>
     <string name="catalog_action_flow_wait_field_millis_label" formatted="false">毫秒</string>
     <string name="catalog_action_flow_wait_field_millis_hint" formatted="false">时长（毫秒）</string>
+    <string name="catalog_action_profile_set_name" formatted="false">配置文件状态</string>
+    <string name="catalog_action_profile_set_description" formatted="false">按名称开启或关闭一个配置文件</string>
+    <string name="catalog_action_profile_set_field_profile_label" formatted="false">配置文件名称</string>
+    <string name="catalog_action_profile_set_field_profile_hint" formatted="false">与配置文件列表中显示的一致。应用本身不会开启的配置文件（例如仍在等待审核的）在这里也不会被开启。</string>
+    <string name="catalog_action_profile_set_field_state_label" formatted="false">设置</string>
     <string name="catalog_action_task_run_name" formatted="false">运行任务</string>
     <string name="catalog_action_task_run_description" formatted="false">将另一个任务作为可复用的子任务运行（共享变量；最多8层嵌套）</string>
     <string name="catalog_action_task_run_field_task_label" formatted="false">任务ID或名称</string>

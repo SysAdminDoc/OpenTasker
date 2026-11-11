@@ -164,6 +164,14 @@ interface ProfileDao {
     @Query("SELECT * FROM profiles WHERE name = :name COLLATE NOCASE LIMIT 1")
     suspend fun getByNameIgnoreCase(name: String): ProfileEntity?
 
+    /**
+     * Turns one profile on or off without rewriting the rest of its row, so an edit saved in the
+     * meantime isn't lost. It never turns on a profile still waiting for its review,
+     * and returns how many rows it changed, so 0 means the profile is gone or still needs review.
+     */
+    @Query("UPDATE profiles SET enabled = :enabled WHERE id = :id AND (:enabled = 0 OR requiresRiskAcknowledgement = 0)")
+    suspend fun setEnabled(id: Long, enabled: Boolean): Int
+
     @Query("SELECT id FROM profiles") suspend fun getAllIds(): List<Long>
     @Query("SELECT COUNT(*) FROM profiles") suspend fun countAll(): Int
 

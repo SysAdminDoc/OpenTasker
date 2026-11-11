@@ -164,6 +164,9 @@ object AutomationSensitivityRegistry {
         "lock",
         "screen.off",
         "wake",
+        // Turning another profile on or off changes what the phone does next, so an imported task
+        // that does it is called out. It can't turn on an imported profile still waiting for review.
+        "profile.set",
     )
 
     private val destructiveActionIds = setOf(

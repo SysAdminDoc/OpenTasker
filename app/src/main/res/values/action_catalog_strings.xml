@@ -210,6 +210,11 @@
     <string name="catalog_category_flow" formatted="false">Flow</string>
     <string name="catalog_action_flow_wait_field_millis_label" formatted="false">Milliseconds</string>
     <string name="catalog_action_flow_wait_field_millis_hint" formatted="false">Duration in ms</string>
+    <string name="catalog_action_profile_set_name" formatted="false">Profile Status</string>
+    <string name="catalog_action_profile_set_description" formatted="false">Turn a profile on or off by its name</string>
+    <string name="catalog_action_profile_set_field_profile_label" formatted="false">Profile name</string>
+    <string name="catalog_action_profile_set_field_profile_hint" formatted="false">As it shows in the profile list. A profile the app wouldn\'t turn on, such as one still waiting for its review, stays off here too.</string>
+    <string name="catalog_action_profile_set_field_state_label" formatted="false">Set</string>
     <string name="catalog_action_task_run_name" formatted="false">Run Task</string>
     <string name="catalog_action_task_run_description" formatted="false">Run another task as a sub-task, up to 8 levels deep. Inputs you add become variables in that task.</string>
     <string name="catalog_action_task_run_field_task_label" formatted="false">Task id or name</string>
