@@ -14,6 +14,7 @@ import com.opentasker.core.capabilities.CapabilityLevel
 import com.opentasker.core.capabilities.SetupRequirement
 import com.opentasker.core.capabilities.SetupRequirementResolver
 import com.opentasker.core.diagnostics.ExportRedactionPolicy
+import com.opentasker.core.engine.variables.TaskerBuiltIns
 import com.opentasker.core.expressions.InertTemplateText
 import com.opentasker.core.expressions.TemplateExpansionResult
 import com.opentasker.core.expressions.TemplateExpressionEngine
@@ -315,7 +316,7 @@ object PreflightRunner {
                         branchDecision = "condition -> false",
                         capability = ActionCapabilityRegistry.get(spec.type).level,
                         intendedEffect = PreflightActionRegistry.intendedEffect(spec.type),
-                        warnings = expansion.warnings + conditionResult.warnings,
+                        warnings = expansion.warnings + conditionResult.warnings + builtInWriteWarnings(spec.type, expansion.rawValues),
                     ),
                 )
                 pc++
@@ -337,6 +338,7 @@ object PreflightRunner {
                 else -> PreflightStepStatus.SIMULATED
             }
             if (capability.level == CapabilityLevel.RequiresSetup) stepWarnings += capability.reason
+            stepWarnings += builtInWriteWarnings(spec.type, expansion.rawValues)
             // A request restricted to Wi-Fi is not going to run on cellular, and the point of a
             // preview is to say so before the user waits for a failure.
             val networkBlock = httpNetworkBlock(spec.type, expansion.rawValues, input.activeTransport)
@@ -451,6 +453,21 @@ object PreflightRunner {
         capability = ActionCapabilityRegistry.get(spec.type).level,
         intendedEffect = PreflightActionRegistry.intendedEffect(spec.type),
     )
+
+    /**
+     * Tasker won't let a task set one of its built-ins, and a value stored here hides the one this
+     * app fills in. A built-in this app doesn't fill in has nothing to hide, and some of those are
+     * Tasker's own outputs (HTTP Request writes `%HTTPD`). Splitting one into numbered elements is
+     * fine, since that leaves the built-in alone. A skipped step still gets this, since it runs when
+     * its condition holds.
+     */
+    private fun builtInWriteWarnings(type: String, rawValues: Map<String, String>): List<String> =
+        declaredActionOutputs(type)
+            .filter { it.type != ActionValueType.ARRAY }
+            .mapNotNull { it.resolveName(rawValues) }
+            .filter { it in TaskerBuiltIns.SUPPORTED }
+            .distinct()
+            .map { "%$it is a Tasker built-in, which Tasker won't let a task set. Here the value this step sets replaces it until the variable is set to nothing." }
 
     private data class PreflightLoopFrame(
         val foreachIndex: Int,

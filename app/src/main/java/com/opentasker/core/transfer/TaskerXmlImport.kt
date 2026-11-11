@@ -1,8 +1,10 @@
 package com.opentasker.core.transfer
 
+import com.opentasker.core.actions.ActionValueType
 import com.opentasker.core.actions.ArrayProcessAction
 import com.opentasker.core.actions.IntentDispatchParseResult
 import com.opentasker.core.actions.IntentDispatchPolicy
+import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.apps.PackageNamePolicy
 import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.DaySchedule
@@ -11,6 +13,7 @@ import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
 import com.opentasker.core.contexts.WIFI_DISCONNECTED_WORDS
 import com.opentasker.core.data.TextOps
 import com.opentasker.core.data.VariableConvert
+import com.opentasker.core.engine.variables.TaskerBuiltIns
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -90,6 +93,17 @@ private fun taskerStreamWarning(actionName: String, stream: Int?, variable: Stri
     else -> null
 }
 
+/** Names the Tasker built-ins a task reads that this app leaves as written. */
+private fun taskerBuiltInWarning(taskName: String, names: List<String>): String {
+    val listed = names.map { "%$it" }
+    return if (listed.size == 1) {
+        "Task '$taskName' reads ${listed.single()}, a Tasker built-in this app doesn't fill in yet, so it stays as written."
+    } else {
+        "Task '$taskName' reads ${listed.dropLast(1).joinToString(", ")} and ${listed.last()}, " +
+            "Tasker built-ins this app doesn't fill in yet, so they stay as written."
+    }
+}
+
 object TaskerXmlImporter {
     fun parse(
         rawXml: String,
@@ -166,6 +180,12 @@ object TaskerXmlImporter {
                 parsed.lossyWarning?.let { lossyWarnings += "Task '$name' action ${actionIndex + 1}: $it" }
                 parsed.action
             }
+            // A built-in the task's own steps set here, like %HTTPD from HTTP Request, is filled in.
+            val written = actions.flatMap { action ->
+                declaredActionOutputs(action.type).filter { it.type != ActionValueType.ARRAY }.mapNotNull { it.resolveName(action.args) }
+            }.toSet()
+            val builtIns = TaskerBuiltIns.unsupportedReads(element.directChildren("Action").flatMap { it.textNodes() }.joinToString("\n")) - written
+            if (builtIns.isNotEmpty()) lossyWarnings += taskerBuiltInWarning(name, builtIns)
             Task(id = id, name = name, actions = actions)
         }
     }
@@ -1914,6 +1934,12 @@ object TaskerXmlImporter {
 
     private fun Element.directChildElements(): List<Element> =
         childNodes.asElementList()
+
+    /** Each text node under this one, kept apart: textContent runs `<lhs>%A</lhs><op>6</op>` into `%A6`. */
+    private fun Node.textNodes(): List<String> = when (nodeType) {
+        Node.TEXT_NODE, Node.CDATA_SECTION_NODE -> listOf(nodeValue.orEmpty())
+        else -> (0 until childNodes.length).flatMap { childNodes.item(it).textNodes() }
+    }
 
     private fun Element.childText(vararg names: String): String =
         names.firstNotNullOfOrNull { name ->

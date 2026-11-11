@@ -24,7 +24,11 @@ data class TemplateScope(
     val sensitiveTask: Set<String> = emptySet(),
     val sensitiveArrays: Set<String> = emptySet(),
     val sensitiveEvent: Set<String> = emptySet(),
+    /** Read last, and in place of an empty stored value: Tasker's built-ins like `TIMES`. */
+    val builtIns: (String) -> String? = NoBuiltIns,
 )
+
+private val NoBuiltIns: (String) -> String? = { null }
 
 data class TemplateExpressionLimits(
     val maxTemplateLength: Int = 20_000,
@@ -238,24 +242,33 @@ class TemplateExpressionEngine(
                 TemplateValueSource.EVENT,
                 scope.sensitiveEvent,
             )
-            normalized.startsWith("global.") -> resolveInMap(
-                normalized.removePrefix("global."),
-                scope.global,
-                TemplateValueSource.GLOBAL,
-                scope.sensitiveGlobal,
-            )
+            normalized.startsWith("global.") -> normalized.removePrefix("global.").let { name ->
+                resolveInMap(name, scope.global, TemplateValueSource.GLOBAL, scope.sensitiveGlobal)
+                    .orBuiltIn(name, scope)
+            }
             normalized.startsWith("array.") -> resolveArray(
                 normalized.removePrefix("array."),
                 scope.arrays,
                 scope.sensitiveArrays,
             )
-            else -> resolveInMap(normalized, scope.task, TemplateValueSource.TASK, scope.sensitiveTask)
-                .takeIfResolved()
-                ?: resolveInMap(normalized, scope.event, TemplateValueSource.EVENT, scope.sensitiveEvent).takeIfResolved()
-                ?: resolveInMap(normalized, scope.global, TemplateValueSource.GLOBAL, scope.sensitiveGlobal).takeIfResolved()
-                ?: resolveArray(normalized, scope.arrays, scope.sensitiveArrays).takeIfResolved()
-                ?: ResolvedValue("", TemplateValueSource.MISSING, normalized, missing = true)
+            else -> (
+                resolveInMap(normalized, scope.task, TemplateValueSource.TASK, scope.sensitiveTask).takeIfResolved()
+                    ?: resolveInMap(normalized, scope.event, TemplateValueSource.EVENT, scope.sensitiveEvent).takeIfResolved()
+                    ?: resolveInMap(normalized, scope.global, TemplateValueSource.GLOBAL, scope.sensitiveGlobal).takeIfResolved()
+                    ?: resolveArray(normalized, scope.arrays, scope.sensitiveArrays).takeIfResolved()
+                    ?: ResolvedValue("", TemplateValueSource.MISSING, normalized, missing = true)
+                ).orBuiltIn(normalized, scope)
         }
+    }
+
+    /**
+     * A Tasker built-in fills in when nothing is stored under its name, or only an empty value is
+     * (an imported Variable Clear sets it to nothing).
+     */
+    private fun ResolvedValue.orBuiltIn(name: String, scope: TemplateScope): ResolvedValue {
+        if (value.isNotEmpty()) return this
+        val builtIn = scope.builtIns(name) ?: return this
+        return ResolvedValue(builtIn, TemplateValueSource.GLOBAL, name)
     }
 
     private fun parseLiteral(reference: String): ResolvedValue? {

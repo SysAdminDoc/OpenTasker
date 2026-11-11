@@ -2,6 +2,7 @@ package com.opentasker.core.engine
 
 import com.opentasker.core.data.JsonNesting
 import com.opentasker.core.engine.variables.ArrayStore
+import com.opentasker.core.engine.variables.TaskerBuiltIns
 import com.opentasker.core.engine.variables.VariableExpander
 import com.opentasker.core.expressions.InertTemplateText
 import com.opentasker.core.expressions.TemplateExpressionEngine
@@ -108,7 +109,10 @@ class VariableStore {
                 localStack[i][normalizedName]?.let { return it }
             }
         }
-        return rootLocals[normalizedName] ?: globals[normalizedName]
+        // A Tasker built-in fills in when nothing is stored under its name, or only an empty value
+        // is (an imported Variable Clear sets it to nothing).
+        val stored = rootLocals[normalizedName] ?: globals[normalizedName]
+        return if (stored.isNullOrEmpty()) TaskerBuiltIns.value(normalizedName) ?: stored else stored
     }
 
     /**
@@ -353,6 +357,7 @@ class VariableStore {
             },
             sensitiveArrays = sensitiveArrayNames.toSet(),
             sensitiveEvent = event.keys.filterTo(mutableSetOf(), EventTaskVariables::isSensitive),
+            builtIns = TaskerBuiltIns::value,
         )
     }
 
