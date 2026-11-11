@@ -200,6 +200,20 @@ class TaskerExportLayoutTest {
     }
 
     @Test
+    fun aBeepFrequencyPastTaskersIntWarnsInsteadOfSaturating() {
+        listOf("1e300", "600000000").forEach { frequency ->
+            val report = export(ActionSpec(type = "sound.beep", args = mapOf("frequency" to frequency, "duration" to "100")))
+
+            assertTrue(report.xml, "9223372036854775807" !in report.xml && "2400000000" !in report.xml)
+            assertTrue(report.warnings.toString(), report.warnings.any { "'$frequency'" in it })
+        }
+        assertHas(
+            export(ActionSpec(type = "sound.beep", args = mapOf("frequency" to "536870911", "duration" to "100"))).xml,
+            """<Int sr="arg0" val="2147483644"/>""",
+        )
+    }
+
+    @Test
     fun everyVolumeStreamExportsAsItsOwnTaskerAction() {
         mapOf("alarm" to "303", "ring" to "304", "notification" to "305", "voice" to "306", "music" to "307", "system" to "308")
             .forEach { (stream, code) ->

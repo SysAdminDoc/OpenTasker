@@ -743,7 +743,10 @@ object TaskerXmlExporter {
      */
     private fun taskerBeepFrequency(value: String, warnings: MutableList<String>): String {
         val trimmed = value.trim()
-        trimmed.toDoubleOrNull()?.takeIf { it.isFinite() }?.let { return (it * TASKER_BEEP_PITCH_DIVISOR).roundToLong().toString() }
+        // Tasker keeps the pitch in an int, so NaN, infinity or anything past an int stays as typed, with a warning.
+        trimmed.toDoubleOrNull()?.let { it * TASKER_BEEP_PITCH_DIVISOR }
+            ?.takeIf { it in Int.MIN_VALUE.toDouble()..Int.MAX_VALUE.toDouble() }
+            ?.let { return it.roundToLong().toString() }
         BEEP_PITCH_TEMPLATE.matchEntire(trimmed)?.let { return "%" + it.groupValues[1] }
         warnings += "Tasker's Beep plays a quarter of the frequency it's given, so the frequency '$trimmed' on 'sound.beep' needs multiplying by 4 in Tasker."
         return trimmed
