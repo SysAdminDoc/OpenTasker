@@ -477,7 +477,9 @@ class TemplateExpressionEngine(
             "urlencode" -> FunctionApplication(
                 current.copy(value = URLEncoder.encode(value, "UTF-8").replace("+", "%20"), missing = false),
             )
-            "round" -> applyUnaryNumber(current) { it.roundToLong().toDouble() }
+            // roundToLong throws on NaN, so a value that isn't finite passes through and comes
+            // out empty, the way the other numeric functions leave one.
+            "round" -> applyUnaryNumber(current) { if (it.isFinite()) it.roundToLong().toDouble() else it }
             "floor" -> applyUnaryNumber(current) { floor(it) }
             "add" -> applyBinaryNumber(current, arg, name) { left, right -> left + right }
             "sub" -> applyBinaryNumber(current, arg, name) { left, right -> left - right }
