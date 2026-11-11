@@ -1,6 +1,7 @@
 package com.opentasker.core.plugins.locale
 
 import android.content.Context
+import com.opentasker.core.model.ContextSpec
 import java.security.MessageDigest
 
 /**
@@ -53,6 +54,23 @@ class LocaleConditionGrantStore(context: Context) {
     /** Revoke every grant bound to a variable (kept as a named compatibility helper). */
     fun revokeAllForVariable(variableKey: String) = revokeAllForBinding(variableKey)
 
+    /** Revoke the context grants a change from [previous] to [next] ends; see [changedContextKeys]. */
+    fun revokeChangedContexts(profileId: Long, previous: List<ContextSpec>, next: List<ContextSpec>) {
+        changedContextKeys(profileId, previous, next).forEach(::revokeAllForBinding)
+    }
+
+    /**
+     * Revoke every context grant. A restore replaces the profiles wholesale, so the positions the
+     * grants name may hold other contexts now.
+     */
+    fun revokeAllContextGrants() {
+        val toRemove = prefs.all
+            .filter { (key, value) -> key.startsWith(KEY_PREFIX) && (value as? String)?.startsWith(CONTEXT_PREFIX) == true }
+            .keys
+        if (toRemove.isEmpty()) return
+        prefs.edit().apply { toRemove.forEach { remove(it) } }.apply()
+    }
+
     /** All currently issued grants, for inspection/revocation UIs. */
     fun grants(): List<LocaleConditionGrant> =
         prefs.all.mapNotNull { (key, value) ->
@@ -66,6 +84,7 @@ class LocaleConditionGrantStore(context: Context) {
     companion object {
         private const val PREFS = "locale_condition_grants"
         private const val KEY_PREFIX = "grant:"
+        private const val CONTEXT_PREFIX = "context:"
 
         /** Stable identity of the profile condition a grant authorizes reading. */
         fun profileKey(profileId: Long): String = "profile:${requirePositiveId(profileId)}"
@@ -74,8 +93,21 @@ class LocaleConditionGrantStore(context: Context) {
         fun contextKey(profileId: Long, contextIndex: Int): String {
             requirePositiveId(profileId)
             require(contextIndex >= 0) { "Context index must not be negative." }
-            return "context:$profileId:$contextIndex"
+            return "$CONTEXT_PREFIX$profileId:$contextIndex"
         }
+
+        /** Every context grant of one profile, as a prefix for [revokeAllForBinding]. */
+        fun profileContextsKey(profileId: Long): String = "$CONTEXT_PREFIX${requirePositiveId(profileId)}"
+
+        /**
+         * A context grant names a position, so it holds only while the same context still sits
+         * there. Every position whose context was moved, edited or removed going from [previous] to
+         * [next] is returned; a context added at the end ends nothing.
+         */
+        fun changedContextKeys(profileId: Long, previous: List<ContextSpec>, next: List<ContextSpec>): List<String> =
+            previous.indices
+                .filter { index -> next.getOrNull(index) != previous[index] }
+                .map { index -> contextKey(profileId, index) }
 
         /** Stable identity of the variable a grant authorizes reading. */
         fun variableKey(projectId: Long, variableName: String): String = "$projectId:$variableName"

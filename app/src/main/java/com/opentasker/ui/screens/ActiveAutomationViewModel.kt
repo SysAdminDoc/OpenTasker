@@ -871,11 +871,7 @@ class ActiveAutomationViewModel(
                 }
                 if (previous != null && previous.contexts != profile.contexts) {
                     locationDwellStateStore.clearProfile(profile.id)
-                    previous.contexts.indices.forEach { index ->
-                        LocaleConditionGrantStore(appContext).revokeAllForBinding(
-                            LocaleConditionGrantStore.contextKey(profile.id, index),
-                        )
-                    }
+                    LocaleConditionGrantStore(appContext).revokeChangedContexts(profile.id, previous.contexts, profile.contexts)
                 }
                 db.profileDao().upsert(reviewedProfile.toEntity())
             }

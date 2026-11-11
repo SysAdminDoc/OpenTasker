@@ -29,6 +29,7 @@ import com.opentasker.core.engine.EngineWatchdogWorker
 import com.opentasker.core.engine.reconcileExecutionJournal
 import com.opentasker.core.engine.DirectBootTriggerStore
 import com.opentasker.core.platform.AppVisibilityTracker
+import com.opentasker.core.plugins.locale.LocaleConditionGrantStore
 import com.opentasker.core.power.ShizukuPowerBackend
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -178,6 +179,7 @@ class OpenTaskerApp_NoHilt : Application() {
         if (DatabaseBackupManager.pendingRestoreFile(this).exists()) _startupStage.value = StartupStage.Restoring
         when (val restoreResult = DatabaseBackupManager.applyPendingRestoreIfPresent(this)) {
             is PendingRestoreApplyResult.Applied -> {
+                LocaleConditionGrantStore(this).revokeAllContextGrants()
                 AppLogger.info(
                     "OpenTasker",
                     "Applied pending database restore to ${restoreResult.databaseFile.name}; " +

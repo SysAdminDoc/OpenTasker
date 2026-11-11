@@ -263,6 +263,15 @@ internal class EditHistoryTransitions(
                     ?: SemanticDiffDocument()
                 db.profileDao().upsert(target.toEntity())
                 locationDwellStateStore.clearProfile(entityId)
+                // Undoing a removed context moves the ones after it back, so a grant on a position
+                // ends here as it does on a save. Unreadable contexts give no positions to compare.
+                LocaleConditionGrantStore(appContext).run {
+                    if (currentDecoded.issue == null) {
+                        revokeChangedContexts(entityId, currentDecoded.value.contexts, target.contexts)
+                    } else {
+                        revokeAllForBinding(LocaleConditionGrantStore.profileContextsKey(entityId))
+                    }
+                }
                 if (redo) history.markRedone(snapshot.id) else history.markUndone(snapshot.id, currentJson)
                 return@withTransaction diff
             }
