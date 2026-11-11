@@ -1,6 +1,8 @@
 package com.opentasker.core.contexts
 
 import com.opentasker.core.engine.CausalLoopDiagnostic
+import com.opentasker.core.engine.ContextMatchUpdate
+import com.opentasker.core.engine.contextMatchUpdate
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextBooleanOperator
 import com.opentasker.core.model.ContextExpressionNode
@@ -246,20 +248,20 @@ private fun inspectContextForProfile(
 ): ContextCheck {
     val sourceKey = ContextMatchEvaluator.sourceKey(spec.type)
     val snapshot = sourceKey?.let(sourcesByKey::get)
-    val observation = snapshot?.lastObservation?.let {
-        observationTransformer(profile, index, spec, it)
-    }
+    val observation = snapshot?.takeIf(ContextSourceSnapshot::registered)?.lastObservation
+        ?.let { observationTransformer(profile, index, spec, it) }
+        // The engine skips a plugin result meant for another plugin or setting, so it isn't a reading here.
+        ?.takeUnless { spec.type == ContextType.PLUGIN && !ContextMatchEvaluator.pluginEventAddressesSpec(spec, it.event) }
     val rawMatched = observation?.let { ContextMatchEvaluator.matches(spec, it.event) } ?: false
     val sourceStatus = snapshot?.status ?: ContextSourceStatus.Missing
-    val sourceCanMatch = sourceStatus == ContextSourceStatus.Active
-    // Same rule as the engine: a state with no reading yet, or one whose value is unknown, is
-    // unknown, so neither its inverted context nor a NOT group over it turns on.
-    val valueUnknown = !rawMatched && if (observation == null) {
-        spec.type != ContextType.EVENT
-    } else {
-        ContextMatchEvaluator.valueUnknown(spec, observation.event.metadata)
-    }
-    val effectiveMatched = sourceCanMatch && if (spec.invert) !rawMatched && observation != null && !valueUnknown else rawMatched
+    // The engine's own rule, so this verdict is the one the profile gets: a state with no reading
+    // yet, or one whose value is unknown, is unknown, so neither its inverted context nor a NOT
+    // group over it turns on. A source that stopped or lost its setup keeps counting its last
+    // value there, so it does here too, and the reason says so.
+    val update = observation?.let { contextMatchUpdate(spec, it.event) }
+        ?: ContextMatchUpdate.initial(pulseContext = spec.type == ContextType.EVENT)
+    val valueUnknown = update.unknown
+    val effectiveMatched = update.matched
     val reason = contextReason(spec, sourceKey, snapshot, observation, rawMatched, effectiveMatched)
 
     return ContextCheck(
@@ -365,12 +367,16 @@ private fun contextReason(
 ): String {
     if (sourceKey == null) return "This context type is not mapped to a runtime source."
     if (snapshot == null || !snapshot.registered) return "No registered runtime source for ${sourceKey.toContextSourceLabel()}."
-    snapshot.error?.let { return "The ${snapshot.label} source stopped with an error: $it" }
+    val lastValueNote = if (observation != null) " Its last value still counts until it reports again." else ""
+    snapshot.error?.let { return "The ${snapshot.label} source stopped with an error: $it$lastValueNote" }
     if (!snapshot.setupReady) {
-        return snapshot.setupDetail ?: "${snapshot.label} needs setup before it can report values."
+        return (snapshot.setupDetail ?: "${snapshot.label} needs setup before it can report values.") + lastValueNote
     }
     if (spec.type == ContextType.EVENT) {
         spec.config["event"]?.lowercase(Locale.ROOT)?.let(snapshot.eventSetupGaps::get)?.let { return it }
+    }
+    if (observation == null && spec.type == ContextType.PLUGIN && snapshot.lastObservation != null) {
+        return "Waiting for this plugin's first result. The latest one was for another plugin or setting."
     }
     if (observation == null) return "Waiting for the first ${snapshot.label} event."
     if (observation.event.type != sourceKey) return "Latest event came from ${observation.event.type}, not $sourceKey."

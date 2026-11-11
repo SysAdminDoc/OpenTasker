@@ -226,7 +226,7 @@ class ContextInspectorTest {
     }
 
     @Test
-    fun setupRequiredSourceDoesNotCountAsMatchingProfile() {
+    fun setupRequiredSourceKeepsItsLastValueLikeTheEngine() {
         val profile = Profile(
             id = 4,
             name = "Blocked app",
@@ -248,9 +248,11 @@ class ContextInspectorTest {
 
         val result = inspectProfiles(listOf(profile), listOf(source)).single()
 
-        assertFalse(result.matching)
-        assertFalse(result.contexts.single().effectiveMatched)
-        assertEquals("Usage access is missing.", result.summary)
+        // The engine keeps counting the last event a source sent after it loses its setup, so the
+        // Inspector does too, and the context's reason names the gap.
+        assertTrue(result.matching)
+        assertTrue(result.contexts.single().effectiveMatched)
+        assertEquals("Usage access is missing. Its last value still counts until it reports again.", result.contexts.single().reason)
     }
 
     @Test
