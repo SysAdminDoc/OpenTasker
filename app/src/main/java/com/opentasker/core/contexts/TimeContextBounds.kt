@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.map
 /**
  * A Time context's start or end can name a global, as Tasker's From and To can (`%Sunrise`). The
  * engine reads the global's current value into the time event under [START_VALUE] and [END_VALUE],
- * so the window moves as soon as a task changes it, and a global holding no time keeps the
- * context off, which is what Tasker does.
+ * so the window moves once the task that changes it finishes (globals are saved when a task ends),
+ * and a global holding no time keeps the context off, which is what Tasker does.
  */
 object TimeContextBounds {
     const val START_VALUE = "start.value"
