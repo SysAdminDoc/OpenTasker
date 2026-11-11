@@ -21,6 +21,7 @@ object ActionFieldPolicy {
         BODY_NOT_ALLOWED,
         INVALID_DEFINITION,
         INVALID_TIME,
+        TIME_VARIABLE_NOT_GLOBAL,
         INVALID_COMPONENT,
     }
 

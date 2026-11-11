@@ -1488,6 +1488,7 @@
     <string name="action_field_error_invalid_task">Choose an existing task.</string>
     <string name="action_field_error_invalid_app">Enter or choose a valid app package.</string>
     <string name="action_field_error_invalid_time">Use a 24-hour time such as 07:30.</string>
+    <string name="action_field_error_time_variable_not_global">A context can\'t read a local variable. Use a global, which has a capital letter in its name, like %Sunrise.</string>
     <string name="action_field_error_invalid_component">Use an activity name such as com.example.app.PlayerActivity, or end it with * to match a group.</string>
     <string name="action_field_error_invalid_file">Enter or choose a valid file path.</string>
     <string name="action_field_error_conflicting_value">This field cannot be combined with the other selected input.</string>

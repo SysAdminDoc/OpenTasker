@@ -439,6 +439,10 @@ internal fun contextInvalidFields(type: ContextType, config: Map<String, String>
     fun checkClock(key: String) {
         val raw = config[key]?.trim().orEmpty()
         if (raw.isBlank() || TimeContextBounds.variableName(raw) != null) return
+        if (TimeContextBounds.isVariable(raw)) {
+            issues[key] = ActionFieldPolicy.Issue(ActionFieldPolicy.Error.TIME_VARIABLE_NOT_GLOBAL)
+            return
+        }
         val parts = raw.split(":")
         val hour = parts.getOrNull(0)?.toIntOrNull()
         val minute = parts.getOrNull(1)?.toIntOrNull()

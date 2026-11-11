@@ -41,6 +41,18 @@ class ContextValidationTest {
     }
 
     @Test
+    fun aLocalTimeBoundSaysAGlobalIsNeeded() {
+        assertEquals(
+            mapOf("start" to ActionFieldPolicy.Issue(ActionFieldPolicy.Error.TIME_VARIABLE_NOT_GLOBAL)),
+            contextInvalidFields(ContextType.TIME, mapOf("start" to "%sunrise", "end" to "%Sunset")),
+        )
+        assertEquals(
+            mapOf("end" to ActionFieldPolicy.Issue(ActionFieldPolicy.Error.INVALID_TIME)),
+            contextInvalidFields(ContextType.TIME, mapOf("start" to "%Sunrise", "end" to "25:00")),
+        )
+    }
+
+    @Test
     fun blankTimeIsNotFlaggedHere() {
         // Required-but-blank is handled by the missingRequired gate, not this one.
         assertFalse(contextHasInvalidValues(ContextType.TIME, emptyMap()))
