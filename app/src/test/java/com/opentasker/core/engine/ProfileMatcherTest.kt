@@ -1,10 +1,13 @@
 package com.opentasker.core.engine
 
 import com.opentasker.core.contexts.ContextEvent
+import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.ContextBooleanOperator
 import com.opentasker.core.model.ContextExpressionNode
+import com.opentasker.core.model.Profile
+import java.io.IOException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
@@ -252,5 +255,42 @@ class ProfileMatcherTest {
         assertTrue(evaluateContextExpression(arrayOf(match(false), match(false), match(false)), specs, expression))
         assertFalse(evaluateContextExpression(arrayOf(match(false), match(false), match(true)), specs, expression))
         assertFalse(evaluateWithOrGroups(arrayOf(match(true), match(false)), specs.take(2)))
+    }
+
+    @Test
+    fun aTimeWindowReadsTheGlobalsOfItsOwnProject() = runBlocking {
+        val globalsByProject = mapOf(1L to mapOf("Sunrise" to "5.00"), 7L to mapOf("Sunrise" to "6.42"))
+        val sun = ContextSpec(ContextType.TIME, mapOf("start" to "%Sunrise", "end" to "18:00"))
+        val tick = ContextEvent("time", true, mapOf("time" to "12:00"))
+        val read = mutableListOf<Long>()
+
+        val events = timeBoundedEvents(Profile(id = 3, name = "Daylight", enterTaskId = 1, projectId = 7L), sun, flowOf(tick)) { projectId ->
+            read += projectId
+            flowOf(globalsByProject[projectId].orEmpty())
+        }.toList()
+
+        assertEquals(listOf(7L), read)
+        assertEquals("06:42", events.single().metadata[TimeContextBounds.START_VALUE])
+        val clockOnly = ContextSpec(ContextType.TIME, mapOf("start" to "06:00", "end" to "18:00"))
+        assertEquals(listOf(tick), timeBoundedEvents(Profile(id = 4, name = "Day", enterTaskId = 1), clockOnly, flowOf(tick)) { error("read globals") }.toList())
+    }
+
+    @Test
+    fun aFailedGlobalsReadIsRetriedWithoutEmittingAnEmptyMap() = runBlocking {
+        var reads = 0
+        val values = retryingGlobalValues(pauseMs = { 1L }) {
+            reads++
+            when (reads) {
+                1 -> throw IllegalStateException("database not open")
+                2 -> flow {
+                    emit(mapOf("Sunrise" to "6.42"))
+                    throw IOException("cursor closed")
+                }
+                else -> flowOf(mapOf("Sunrise" to "7.00"))
+            }
+        }.toList()
+
+        assertEquals(listOf(mapOf("Sunrise" to "6.42"), mapOf("Sunrise" to "7.00")), values)
+        assertEquals(3, reads)
     }
 }

@@ -23,16 +23,17 @@ import com.opentasker.core.storage.VariableRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.scan
 
 /**
@@ -90,12 +91,7 @@ internal class ProfileMatcher(
                     if (isPulseContext) markPulseContextSubscribed(index, pulseContextCount)
                     source.events(app)
                 }
-                val boundedEvents = if (TimeContextBounds.variableBounds(spec).isEmpty()) {
-                    sourceEvents
-                } else {
-                    TimeContextBounds.resolving(spec, sourceEvents, globalValues(profile.projectId))
-                }
-                boundedEvents.scan(
+                timeBoundedEvents(profile, spec, sourceEvents, globalValues).scan(
                     ContextMatchUpdate.initial(
                         pulseContext = isPulseContext,
                         pulseSequence = if (isPulseContext) pulseContinuity.currentSequence() else 0L,
@@ -300,13 +296,36 @@ internal fun pulseSequenceAfterObservation(
     previousSequence: Long,
 ): Long = if (matched) observedSequence ?: 0L else previousSequence
 
-private fun savedGlobalValues(projectId: Long): Flow<Map<String, String>> =
+/** [events] for [spec], carrying the times of the globals it's bounded by, read from [profile]'s own project. */
+internal fun timeBoundedEvents(
+    profile: Profile,
+    spec: ContextSpec,
+    events: Flow<ContextEvent>,
+    globalValues: (projectId: Long) -> Flow<Map<String, String>>,
+): Flow<ContextEvent> = if (TimeContextBounds.variableBounds(spec).isEmpty()) {
+    events
+} else {
+    TimeContextBounds.resolving(spec, events, globalValues(profile.projectId))
+}
+
+/**
+ * [source], read again after a pause whenever it fails. Nothing is emitted meanwhile, so a Time
+ * context keeps the last globals it read instead of switching off until the profiles reload, and
+ * stays off before the first read.
+ */
+internal fun retryingGlobalValues(
+    pauseMs: (attempt: Long) -> Long = { attempt -> minOf(60_000L, 1_000L shl attempt.coerceAtMost(6L).toInt()) },
+    source: () -> Flow<Map<String, String>>,
+): Flow<Map<String, String>> = flow { emitAll(source()) }.retryWhen { error, attempt ->
+    AppLogger.error("ProfileMatcher", "Could not read the globals a Time context is bounded by", error)
+    delay(pauseMs(attempt))
+    true
+}
+
+private fun savedGlobalValues(projectId: Long): Flow<Map<String, String>> = retryingGlobalValues {
     VariableRepository(OpenTaskerApp_NoHilt.db.variableDao()).observeGlobals(projectId)
         .map { variables -> TimeContextBounds.valuesByProject(variables)[projectId].orEmpty() }
-        .catch { error ->
-            AppLogger.error("ProfileMatcher", "Could not read the globals a Time context is bounded by", error)
-            emit(emptyMap())
-        }
+}
 
 internal data class ProfileMatchSnapshot(
     val allMatched: Boolean,
