@@ -110,6 +110,7 @@ internal fun filterActionPickerItems(
 
 internal const val ACTION_CONTINUE_ON_ERROR_TAG = "action_continue_on_error"
 internal const val ACTION_VARIABLE_PICKER_TAG = "action_variable_picker"
+private val LOCALE_PLUGIN_ACTION_IDS = setOf("plugin.locale.fire", "plugin.locale.query")
 
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall")
@@ -521,6 +522,17 @@ internal fun ActionConfigDialog(
                             notificationTaskBindingIssueText(issue),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    if (field.key == "package" && state.metadata.id in LOCALE_PLUGIN_ACTION_IDS) {
+                        LocalePluginConfigureButton(
+                            packageName = values["package"].orEmpty(),
+                            condition = state.metadata.id == "plugin.locale.query",
+                            bundleJson = values["bundleJson"].orEmpty(),
+                            blurb = values["blurb"].orEmpty(),
+                            onConfigured = { bundleJson, blurb ->
+                                values = values + ("bundleJson" to bundleJson) + ("blurb" to blurb)
+                            },
                         )
                     }
                 }

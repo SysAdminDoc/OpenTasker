@@ -138,7 +138,7 @@ Variable names follow Tasker's scope rule: an all-lowercase name is local to the
 
 ### Interoperability
 
-- **Locale/Tasker plugin host**. Setting dispatch, condition queries, configuration parsing, request-query events, bundle validation, and last-known-state fallback
+- **Locale/Tasker plugin host**. Setting dispatch, condition queries, configuration parsing, request-query events, bundle validation, and last-known-state fallback. `Set up in the plugin` opens the plugin's own settings screen and saves what it returns. Bundle values keep their types, so a plugin that reads an int or a boolean gets one: plain JSON values are sent as strings, and a typed value looks like `{"int":3}`, `{"boolean":true}`, `{"long":5}`, `{"double":0.5}`, `{"stringArray":["a","b"]}` or `{"null":true}`
 - **Locale/Tasker condition plugin target**. Third-party hosts can configure OpenTasker profile-active, context-satisfied, and non-secret variable-comparison conditions. The exported ordered query receiver returns satisfied, unsatisfied, or unknown with bounded, typed bundles
 - **Locale/Tasker condition context**. Condition plugins as first-class profile predicates polled every 30 seconds
 - **External automation target**. Signature-scoped intents to run tasks, toggle profiles, query status, and pass variables. Task runs are asynchronous (protocol v2): the receiver validates and enqueues, then returns an execution ID that callers poll with `QUERY_EXECUTION`, because a broadcast cannot stay open for a task that may wait minutes. Callers must send `PROTOCOL_VERSION=2`. See [docs/EXTERNAL_INTENTS.md](docs/EXTERNAL_INTENTS.md)

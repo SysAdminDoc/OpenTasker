@@ -229,7 +229,7 @@
     <string name="catalog_action_plugin_locale_fire_field_package_label" formatted="false">Plugin package</string>
     <string name="catalog_action_plugin_locale_fire_field_package_hint" formatted="false">com.example.plugin</string>
     <string name="catalog_action_plugin_locale_fire_field_bundlejson_label" formatted="false">Bundle JSON</string>
-    <string name="catalog_action_plugin_locale_fire_field_bundlejson_hint" formatted="false">{&quot;key&quot;:&quot;value&quot;}</string>
+    <string name="catalog_action_plugin_locale_fire_field_bundlejson_hint" formatted="false">{&quot;key&quot;:&quot;value&quot;,&quot;count&quot;:{&quot;int&quot;:3}}</string>
     <string name="catalog_action_plugin_locale_fire_field_blurb_label" formatted="false">Blurb</string>
     <string name="catalog_action_plugin_locale_fire_field_blurb_hint" formatted="false">Short user-visible summary</string>
     <string name="catalog_action_plugin_locale_fire_field_timeoutms_label" formatted="false">Timeout ms</string>
@@ -239,7 +239,7 @@
     <string name="catalog_action_plugin_locale_query_field_package_label" formatted="false">Plugin package</string>
     <string name="catalog_action_plugin_locale_query_field_package_hint" formatted="false">com.example.plugin</string>
     <string name="catalog_action_plugin_locale_query_field_bundlejson_label" formatted="false">Bundle JSON</string>
-    <string name="catalog_action_plugin_locale_query_field_bundlejson_hint" formatted="false">{&quot;key&quot;:&quot;value&quot;}</string>
+    <string name="catalog_action_plugin_locale_query_field_bundlejson_hint" formatted="false">{&quot;key&quot;:&quot;value&quot;,&quot;count&quot;:{&quot;int&quot;:3}}</string>
     <string name="catalog_action_plugin_locale_query_field_blurb_label" formatted="false">Blurb</string>
     <string name="catalog_action_plugin_locale_query_field_blurb_hint" formatted="false">Short user-visible summary</string>
     <string name="catalog_action_plugin_locale_query_field_timeoutms_label" formatted="false">Timeout ms</string>

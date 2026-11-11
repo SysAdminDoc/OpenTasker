@@ -92,7 +92,10 @@
     <string name="context_field_plugin_package_label" formatted="false">Plugin package</string>
     <string name="context_field_plugin_package_hint" formatted="false">com.example.plugin</string>
     <string name="context_field_plugin_bundle_label" formatted="false">Plugin config JSON</string>
-    <string name="context_field_plugin_bundle_hint" formatted="false">{&quot;key&quot;:&quot;value&quot;}</string>
+    <string name="context_field_plugin_bundle_hint" formatted="false">{&quot;key&quot;:&quot;value&quot;,&quot;count&quot;:{&quot;int&quot;:3}}</string>
+    <string name="locale_plugin_configure">Set up in the plugin</string>
+    <string name="locale_plugin_configure_missing">That app doesn\'t have a plugin settings screen OpenTasker can open.</string>
+    <string name="locale_plugin_configure_failed">The plugin\'s settings couldn\'t be saved: %1$s</string>
     <string name="context_field_plugin_blurb_label" formatted="false">Description</string>
     <string name="context_field_plugin_blurb_hint" formatted="false">Optional label from plugin config</string>
     <string name="context_field_plugin_timeout_label" formatted="false">Query timeout ms</string>

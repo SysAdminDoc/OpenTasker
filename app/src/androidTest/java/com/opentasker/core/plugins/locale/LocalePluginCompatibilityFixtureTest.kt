@@ -124,6 +124,55 @@ class LocalePluginCompatibilityFixtureTest {
         assertEquals(LocalePluginConditionState.Unknown, LocalePluginConditionResultParser.parse(999, packageName).state)
     }
 
+    @Test
+    fun typedPluginSettingsSurviveConfigurationEditAndFire() = runBlocking {
+        // The shape Termux:Tasker saves: an int version code, a boolean and a null argument string.
+        val configResult = LocalePluginConfigurationResultParser.parse(
+            Activity.RESULT_OK,
+            Intent()
+                .putExtra(
+                    LocalePluginContract.EXTRA_BUNDLE,
+                    Bundle().apply {
+                        putInt("version", 1002)
+                        putString("executable", "hello.sh")
+                        putString("arguments", null)
+                        putBoolean("terminal", false)
+                    },
+                )
+                .putExtra(LocalePluginContract.EXTRA_BLURB, "hello.sh"),
+        )
+        assertEquals(
+            "{\"arguments\":{\"null\":true},\"executable\":\"hello.sh\",\"terminal\":{\"boolean\":false},\"version\":{\"int\":1002}}",
+            configResult.bundleJson,
+        )
+
+        val edit = host.configurationIntent(packageName, condition = false, configResult.bundleJson, configResult.blurb)
+        assertTrue(edit.success)
+        assertEquals(settingActivity, edit.intent?.component)
+        val reopened = edit.intent?.getBundleExtra(LocalePluginContract.EXTRA_BUNDLE)
+        assertEquals(1002, reopened?.getInt("version", -1))
+        assertEquals("hello.sh", edit.intent?.getStringExtra(LocalePluginContract.EXTRA_BLURB))
+
+        val recorder = RecordingLocalePlugin()
+        val recordingHost = LocalePluginHost(
+            componentResolver = SyntheticLocalePluginResolver(
+                packageName = packageName,
+                settingActivity = settingActivity,
+                conditionActivity = conditionActivity,
+                settingReceiver = settingReceiver,
+                conditionReceiver = conditionReceiver,
+            ),
+            transport = recorder,
+        )
+        assertTrue(recordingHost.fireSetting(LocalePluginRequest(packageName, configResult.bundleJson, configResult.blurb)).success)
+        val fired = recorder.lastSettingIntent?.getBundleExtra(LocalePluginContract.EXTRA_BUNDLE)
+        assertEquals(1002, fired?.getInt("version", -1))
+        assertEquals(false, fired?.getBoolean("terminal", true))
+        assertTrue(fired?.containsKey("arguments") == true)
+        assertEquals(null, fired?.getString("arguments"))
+        assertEquals("hello.sh", fired?.getString("executable"))
+    }
+
     private class SyntheticLocalePluginResolver(
         private val packageName: String,
         private val settingActivity: ComponentName,
@@ -179,5 +228,16 @@ class LocalePluginCompatibilityFixtureTest {
             }
             return lastQueryResultCode
         }
+    }
+
+    /** Keeps the raw intent, so a test can read the exact types a plugin would receive. */
+    private class RecordingLocalePlugin : LocalePluginTransport {
+        var lastSettingIntent: Intent? = null
+
+        override suspend fun sendSetting(intent: Intent) {
+            lastSettingIntent = intent
+        }
+
+        override suspend fun queryCondition(intent: Intent): Int = LocalePluginContract.RESULT_CONDITION_UNKNOWN
     }
 }

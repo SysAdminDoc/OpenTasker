@@ -16,6 +16,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -188,12 +190,50 @@ private class AndroidLocalePluginTransport(
     }
 }
 
+/**
+ * A bundle value with the type a plugin reads it back as. Plugins call `getInt`, `getBoolean` and
+ * so on, which return the default when the stored value has another type, so a version code sent
+ * as the string "1002" reads as 0 and the plugin rejects the whole bundle.
+ */
+sealed interface LocaleBundleValue {
+    data class Text(val value: String) : LocaleBundleValue
+    data class Flag(val value: Boolean) : LocaleBundleValue
+    data class IntNumber(val value: Int) : LocaleBundleValue
+    data class LongNumber(val value: Long) : LocaleBundleValue
+    data class FloatNumber(val value: Float) : LocaleBundleValue
+    data class DoubleNumber(val value: Double) : LocaleBundleValue
+
+    /** A `String[]`, from `putStringArray`. */
+    data class TextArray(val values: List<String>) : LocaleBundleValue
+
+    /** An `ArrayList<String>`, from `putStringArrayList`, which `getStringArray` won't read. */
+    data class TextList(val values: List<String>) : LocaleBundleValue
+
+    /** A key present with no value, as `putString(key, null)` leaves it; `containsKey` still sees it. */
+    data object Null : LocaleBundleValue
+}
+
 object LocalePluginBundleCodec {
+    private const val TAG_STRING = "string"
+    private const val TAG_BOOLEAN = "boolean"
+    private const val TAG_INT = "int"
+    private const val TAG_LONG = "long"
+    private const val TAG_FLOAT = "float"
+    private const val TAG_DOUBLE = "double"
+    private const val TAG_STRING_ARRAY = "stringArray"
+    private const val TAG_STRING_LIST = "stringList"
+    private const val TAG_NULL = "null"
+
     fun validatePackageName(packageName: String) {
         require(PackageNamePolicy.isValid(packageName)) { "Invalid plugin package name." }
     }
 
-    fun decodeStringBundle(bundleJson: String): Map<String, String> {
+    /**
+     * Reads bundle JSON as typed values. A plain JSON value is sent as a string, as it always was,
+     * so older bundles keep working. A typed value is an object with one tag, like `{"int":1002}`,
+     * `{"boolean":true}` or `{"stringArray":["a","b"]}`.
+     */
+    fun decodeBundle(bundleJson: String): Map<String, LocaleBundleValue> {
         val trimmed = bundleJson.trim().ifBlank { "{}" }
         require(trimmed.toByteArray(Charsets.UTF_8).size <= LocalePluginContract.MAX_BUNDLE_JSON_BYTES) {
             "Plugin bundle JSON exceeds ${LocalePluginContract.MAX_BUNDLE_JSON_BYTES} bytes."
@@ -204,23 +244,155 @@ object LocalePluginBundleCodec {
             "Plugin bundle contains too many entries."
         }
         return obj.entries.associate { (key, value) ->
-            require(key.isNotBlank()) { "Plugin bundle keys must not be blank." }
-            require(key.toByteArray(Charsets.UTF_8).size <= LocalePluginContract.MAX_BUNDLE_KEY_BYTES) {
-                "Plugin bundle key is too large."
+            requireValidKey(key)
+            val decoded = when (value) {
+                is JsonPrimitive -> LocaleBundleValue.Text(plainText(value))
+                is JsonObject -> typedValue(key, value)
+                else -> error("Plugin bundle value for $key must be a string, number, boolean or typed value.")
             }
-            val primitive = value as? JsonPrimitive ?: error("Plugin bundle values must be primitive strings, numbers, or booleans.")
-            val stringValue = primitive.contentOrNull
-                ?: primitive.booleanOrNull?.toString()
-                ?: primitive.longOrNull?.toString()
-                ?: primitive.intOrNull?.toString()
-                ?: primitive.doubleOrNull?.toString()
-                ?: error("Plugin bundle values must not be null.")
-            require(stringValue.toByteArray(Charsets.UTF_8).size <= LocalePluginContract.MAX_BUNDLE_JSON_BYTES) {
-                "Plugin bundle value is too large."
-            }
-            key to stringValue
+            requireValueSize(decoded)
+            key to decoded
         }
     }
+
+    /** The bundle as the strings it used to send, for callers that only compare or display it. */
+    fun decodeStringBundle(bundleJson: String): Map<String, String> =
+        decodeBundle(bundleJson).mapValues { (_, value) -> displayText(value) }
+
+    private fun plainText(primitive: JsonPrimitive): String =
+        primitive.contentOrNull
+            ?: primitive.booleanOrNull?.toString()
+            ?: primitive.longOrNull?.toString()
+            ?: primitive.intOrNull?.toString()
+            ?: primitive.doubleOrNull?.toString()
+            ?: error("Plugin bundle values must not be null.")
+
+    private fun typedValue(key: String, obj: JsonObject): LocaleBundleValue {
+        val (tag, raw) = obj.entries.singleOrNull()
+            ?: error("Typed plugin bundle value for $key must have exactly one type, like {\"int\":3}.")
+        fun primitive(): JsonPrimitive = raw as? JsonPrimitive
+            ?: error("Plugin bundle value for $key must be a single $tag.")
+        // Quoted numbers and booleans are accepted too, since a variable inside quotes ends up that way.
+        fun content(): String = primitive().contentOrNull?.trim()
+            ?: error("Plugin bundle value for $key must not be null; use {\"null\":true}.")
+        fun strings(): List<String> = (raw as? JsonArray ?: error("Plugin bundle value for $key must be a JSON array."))
+            .map { item -> (item as? JsonPrimitive)?.contentOrNull ?: error("Plugin bundle $tag for $key must hold strings.") }
+        fun invalid(): Nothing = error("Plugin bundle value for $key isn't a valid $tag.")
+        return when (tag) {
+            TAG_STRING -> LocaleBundleValue.Text(primitive().contentOrNull ?: invalid())
+            TAG_BOOLEAN -> LocaleBundleValue.Flag(content().toBooleanStrictOrNull() ?: invalid())
+            TAG_INT -> LocaleBundleValue.IntNumber(content().toIntOrNull() ?: invalid())
+            TAG_LONG -> LocaleBundleValue.LongNumber(content().toLongOrNull() ?: invalid())
+            TAG_FLOAT -> LocaleBundleValue.FloatNumber(content().toFloatOrNull()?.takeIf { it.isFinite() } ?: invalid())
+            TAG_DOUBLE -> LocaleBundleValue.DoubleNumber(content().toDoubleOrNull()?.takeIf { it.isFinite() } ?: invalid())
+            TAG_STRING_ARRAY -> LocaleBundleValue.TextArray(strings())
+            TAG_STRING_LIST -> LocaleBundleValue.TextList(strings())
+            TAG_NULL -> LocaleBundleValue.Null
+            else -> error("Plugin bundle value for $key has an unknown type \"$tag\".")
+        }
+    }
+
+    private fun displayText(value: LocaleBundleValue): String = when (value) {
+        is LocaleBundleValue.Text -> value.value
+        is LocaleBundleValue.Flag -> value.value.toString()
+        is LocaleBundleValue.IntNumber -> value.value.toString()
+        is LocaleBundleValue.LongNumber -> value.value.toString()
+        is LocaleBundleValue.FloatNumber -> value.value.toString()
+        is LocaleBundleValue.DoubleNumber -> value.value.toString()
+        is LocaleBundleValue.TextArray -> value.values.joinToString(",")
+        is LocaleBundleValue.TextList -> value.values.joinToString(",")
+        LocaleBundleValue.Null -> ""
+    }
+
+    private fun requireValidKey(key: String) {
+        require(key.isNotBlank()) { "Plugin bundle keys must not be blank." }
+        require(key.toByteArray(Charsets.UTF_8).size <= LocalePluginContract.MAX_BUNDLE_KEY_BYTES) {
+            "Plugin bundle key is too large."
+        }
+    }
+
+    private fun requireValueSize(value: LocaleBundleValue) {
+        require(encodeValue(value).toString().toByteArray(Charsets.UTF_8).size <= LocalePluginContract.MAX_BUNDLE_JSON_BYTES) {
+            "Plugin bundle value is too large."
+        }
+    }
+
+    /** Each value in its canonical JSON form, so a string "3" and an int 3 stay different keys. */
+    fun canonicalValues(values: Map<String, LocaleBundleValue>): Map<String, String> =
+        values.toSortedMap().mapValues { (_, value) -> encodeValue(value).toString() }
+
+    /** Writes [values] back as bundle JSON: strings plain, everything else tagged with its type. */
+    fun encodeBundle(values: Map<String, LocaleBundleValue>): String =
+        JsonObject(values.toSortedMap().mapValues { (_, value) -> encodeValue(value) }).toString()
+
+    private fun encodeValue(value: LocaleBundleValue): JsonElement = when (value) {
+        is LocaleBundleValue.Text -> JsonPrimitive(value.value)
+        is LocaleBundleValue.Flag -> tagged(TAG_BOOLEAN, JsonPrimitive(value.value))
+        is LocaleBundleValue.IntNumber -> tagged(TAG_INT, JsonPrimitive(value.value))
+        is LocaleBundleValue.LongNumber -> tagged(TAG_LONG, JsonPrimitive(value.value))
+        is LocaleBundleValue.FloatNumber -> tagged(TAG_FLOAT, JsonPrimitive(value.value))
+        is LocaleBundleValue.DoubleNumber -> tagged(TAG_DOUBLE, JsonPrimitive(value.value))
+        is LocaleBundleValue.TextArray -> tagged(TAG_STRING_ARRAY, JsonArray(value.values.map { JsonPrimitive(it) }))
+        is LocaleBundleValue.TextList -> tagged(TAG_STRING_LIST, JsonArray(value.values.map { JsonPrimitive(it) }))
+        LocaleBundleValue.Null -> tagged(TAG_NULL, JsonPrimitive(true))
+    }
+
+    private fun tagged(tag: String, value: JsonElement) = JsonObject(mapOf(tag to value))
+
+    fun toTypedBundle(values: Map<String, LocaleBundleValue>): Bundle = Bundle().apply {
+        values.toSortedMap().forEach { (key, value) ->
+            when (value) {
+                is LocaleBundleValue.Text -> putString(key, value.value)
+                is LocaleBundleValue.Flag -> putBoolean(key, value.value)
+                is LocaleBundleValue.IntNumber -> putInt(key, value.value)
+                is LocaleBundleValue.LongNumber -> putLong(key, value.value)
+                is LocaleBundleValue.FloatNumber -> putFloat(key, value.value)
+                is LocaleBundleValue.DoubleNumber -> putDouble(key, value.value)
+                is LocaleBundleValue.TextArray -> putStringArray(key, value.values.toTypedArray())
+                is LocaleBundleValue.TextList -> putStringArrayList(key, ArrayList(value.values))
+                LocaleBundleValue.Null -> putString(key, null)
+            }
+        }
+    }
+
+    /** A plugin's saved configuration with its types kept, so firing it sends what the plugin wrote. */
+    @Suppress("DEPRECATION")
+    fun fromBundleTyped(bundle: Bundle): Map<String, LocaleBundleValue> =
+        sanitizeTypedValues(bundle.keySet().associateWith { key -> bundle.get(key) })
+
+    /**
+     * Keeps the value types a bundle JSON can carry. Nested bundles, parcelables and anything else
+     * are refused, naming the key, rather than dropped, since a plugin may need the missing key.
+     */
+    fun sanitizeTypedValues(values: Map<String, Any?>): Map<String, LocaleBundleValue> {
+        require(values.size <= LocalePluginContract.MAX_BUNDLE_ENTRIES) {
+            "Plugin bundle contains too many entries."
+        }
+        val typed = values.entries.associate { (key, value) ->
+            requireValidKey(key)
+            val converted = when (value) {
+                null -> LocaleBundleValue.Null
+                is String -> LocaleBundleValue.Text(value)
+                is Boolean -> LocaleBundleValue.Flag(value)
+                is Int -> LocaleBundleValue.IntNumber(value)
+                is Long -> LocaleBundleValue.LongNumber(value)
+                is Float -> LocaleBundleValue.FloatNumber(value)
+                is Double -> LocaleBundleValue.DoubleNumber(value)
+                is Array<*> -> LocaleBundleValue.TextArray(stringItems(key, value.asList()))
+                is ArrayList<*> -> LocaleBundleValue.TextList(stringItems(key, value))
+                else -> error("Plugin bundle value for $key is a ${value.javaClass.simpleName}, which OpenTasker can't store.")
+            }
+            requireValueSize(converted)
+            key to converted
+        }
+        require(encodeBundle(typed).toByteArray(Charsets.UTF_8).size <= LocalePluginContract.MAX_BUNDLE_JSON_BYTES) {
+            "Plugin bundle JSON exceeds ${LocalePluginContract.MAX_BUNDLE_JSON_BYTES} bytes."
+        }
+        return typed
+    }
+
+    private fun stringItems(key: String, items: List<*>): List<String> =
+        items.map { item -> item as? String ?: error("Plugin bundle list for $key must hold only strings.") }
 
     fun toBundle(values: Map<String, String>): Bundle = Bundle().apply {
         sanitizeBundleValues(values).entries.sortedBy { it.key }.forEach { (key, value) ->
@@ -305,9 +477,9 @@ object LocalePluginConfigurationResultParser {
         val resultIntent = requireNotNull(data) { "Locale plugin configuration returned no result intent." }
         val bundle = resultIntent.getBundleExtra(LocalePluginContract.EXTRA_BUNDLE)
             ?: error("Locale plugin configuration returned no bundle.")
-        val values = LocalePluginBundleCodec.fromBundle(bundle)
+        val values = LocalePluginBundleCodec.fromBundleTyped(bundle)
         return LocalePluginConfigurationResult(
-            bundleJson = LocalePluginBundleCodec.encodeStringBundle(values),
+            bundleJson = LocalePluginBundleCodec.encodeBundle(values),
             blurb = resultIntent.getStringExtra(LocalePluginContract.EXTRA_BLURB).orEmpty().take(120),
         )
     }
@@ -404,13 +576,40 @@ class LocalePluginHost private constructor(
     fun buildEditConditionIntent(packageName: String): LocalePluginEditIntentResult =
         buildEditIntent(packageName, LocalePluginContract.ACTION_EDIT_CONDITION, "condition")
 
+    /**
+     * The plugin's own settings screen, opened on what's saved now so it can show it. The saved
+     * bundle can hold secrets, so a plugin whose signer changed gets nothing, and a bundle that
+     * doesn't decode is left off so the plugin starts blank.
+     */
+    fun configurationIntent(
+        packageName: String,
+        condition: Boolean,
+        bundleJson: String,
+        blurb: String,
+    ): LocalePluginEditIntentResult {
+        val edit = if (condition) buildEditConditionIntent(packageName) else buildEditSettingIntent(packageName)
+        val intent = edit.intent ?: return edit
+        signerRefusal(packageName)?.let { refusal -> return LocalePluginEditIntentResult(false, message = refusal) }
+        val saved = try {
+            LocalePluginBundleCodec.decodeBundle(bundleJson)
+        } catch (_: IllegalArgumentException) {
+            emptyMap()
+        } catch (_: IllegalStateException) {
+            emptyMap()
+        }
+        if (saved.isNotEmpty()) intent.putExtra(LocalePluginContract.EXTRA_BUNDLE, LocalePluginBundleCodec.toTypedBundle(saved))
+        if (blurb.isNotBlank()) intent.putExtra(LocalePluginContract.EXTRA_BLURB, blurb.take(120))
+        intent.putExtra(LocalePluginContract.EXTRA_STRING_BREADCRUMB, "OpenTasker")
+        return edit
+    }
+
     suspend fun fireSetting(request: LocalePluginRequest): LocalePluginResult {
         LocalePluginBundleCodec.validatePackageName(request.packageName)
         require(request.timeoutMs in 1_000..30_000) { "Plugin timeout must be between 1000 and 30000 ms." }
 
-        val bundleValues = LocalePluginBundleCodec.decodeStringBundle(request.bundleJson)
+        val bundleValues = LocalePluginBundleCodec.decodeBundle(request.bundleJson)
         signerRefusal(request.packageName)?.let { refusal -> return LocalePluginResult(false, refusal) }
-        val pluginBundle = LocalePluginBundleCodec.toBundle(bundleValues)
+        val pluginBundle = LocalePluginBundleCodec.toTypedBundle(bundleValues)
         val target = resolveBroadcastTarget(request.packageName, LocalePluginContract.ACTION_FIRE_SETTING)
         val component = target.component ?: return LocalePluginResult(false, target.message)
         val intent = pluginBroadcastIntent(
@@ -434,15 +633,15 @@ class LocalePluginHost private constructor(
         LocalePluginBundleCodec.validatePackageName(request.packageName)
         require(request.timeoutMs in 1_000..30_000) { "Plugin timeout must be between 1000 and 30000 ms." }
 
-        val bundleValues = LocalePluginBundleCodec.decodeStringBundle(request.bundleJson)
+        val bundleValues = LocalePluginBundleCodec.decodeBundle(request.bundleJson)
         // Straight back as Unknown, not through the cache: a last known answer would hide the refusal.
         signerRefusal(request.packageName)?.let { refusal ->
             return LocalePluginConditionResult(state = LocalePluginConditionState.Unknown, message = refusal)
         }
-        val pluginBundle = LocalePluginBundleCodec.toBundle(bundleValues)
+        val pluginBundle = LocalePluginBundleCodec.toTypedBundle(bundleValues)
         val cacheKey = LocalePluginConditionCacheKey(
             packageName = request.packageName,
-            bundleValues = bundleValues.toSortedMap(),
+            bundleValues = LocalePluginBundleCodec.canonicalValues(bundleValues),
         )
         val target = resolveBroadcastTarget(request.packageName, LocalePluginContract.ACTION_QUERY_CONDITION)
         val component = target.component ?: return LocalePluginConditionResult(

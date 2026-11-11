@@ -91,7 +91,10 @@
     <string name="context_field_plugin_package_label" formatted="false">插件包</string>
     <string name="context_field_plugin_package_hint" formatted="false">com.example.plugin</string>
     <string name="context_field_plugin_bundle_label" formatted="false">插件配置JSON</string>
-    <string name="context_field_plugin_bundle_hint" formatted="false">{&quot;key&quot;:&quot;value&quot;}</string>
+    <string name="context_field_plugin_bundle_hint" formatted="false">{&quot;key&quot;:&quot;value&quot;,&quot;count&quot;:{&quot;int&quot;:3}}</string>
+    <string name="locale_plugin_configure">在插件中设置</string>
+    <string name="locale_plugin_configure_missing">该应用没有 OpenTasker 可以打开的插件设置界面。</string>
+    <string name="locale_plugin_configure_failed">无法保存插件设置：%1$s</string>
     <string name="context_field_plugin_blurb_label" formatted="false">描述</string>
     <string name="context_field_plugin_blurb_hint" formatted="false">来自插件配置的可选标签</string>
     <string name="context_field_plugin_timeout_label" formatted="false">查询超时毫秒</string>

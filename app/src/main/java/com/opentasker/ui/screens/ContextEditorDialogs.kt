@@ -281,6 +281,17 @@ internal fun ContextConfigDialog(
                             },
                             allowMultiplePackages = state.type == ContextType.APPLICATION && field.key == "package",
                         )
+                        if (state.type == ContextType.PLUGIN && field.key == "package") {
+                            LocalePluginConfigureButton(
+                                packageName = config["package"].orEmpty(),
+                                condition = true,
+                                bundleJson = config["bundleJson"].orEmpty(),
+                                blurb = config["blurb"].orEmpty(),
+                                onConfigured = { bundleJson, blurb ->
+                                    config = config + ("bundleJson" to bundleJson) + ("blurb" to blurb)
+                                },
+                            )
+                        }
                     }
                     if (state.type == ContextType.STATE) {
                         item("state-presets") {
