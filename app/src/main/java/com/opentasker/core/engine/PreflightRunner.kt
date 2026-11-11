@@ -12,6 +12,7 @@ import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.capabilities.CapabilityLevel
 import com.opentasker.core.capabilities.SetupRequirement
 import com.opentasker.core.capabilities.SetupRequirementResolver
+import com.opentasker.core.diagnostics.ExportRedactionPolicy
 import com.opentasker.core.expressions.InertTemplateText
 import com.opentasker.core.expressions.TemplateExpansionResult
 import com.opentasker.core.expressions.TemplateExpressionEngine
@@ -542,7 +543,11 @@ object PreflightRunner {
                 val expansion = expandArguments(spec, variables, input)
                 val target = FlowControl.gotoTarget(actions, expansion.rawValues, spec.args)
                 val unresolved = FlowControl.emptiedGotoArgument(expansion.rawValues, spec.args)
-                val landing = target.index
+                // A label that is still empty here wins over the step number once a run sets it.
+                val labelUnknown = !spec.args["label"].isNullOrBlank() && expansion.rawValues["label"].isNullOrBlank()
+                val landing = target.index.takeUnless { labelUnknown }
+                // A step number or label read from a secret stays out of the preview, like its value.
+                fun hidden(text: String) = ExportRedactionPolicy.redactText(text, expansion.secretValues, ActionArgumentSensitivity.REDACTED)
                 val problem = when {
                     // Preflight doesn't play every write a run makes, so a target that is still a
                     // variable here may well be set by then.
@@ -571,7 +576,7 @@ object PreflightRunner {
                             expandedArguments = expansion.values,
                             branchDecision = "goto fails",
                             intendedEffect = PreflightActionRegistry.intendedEffect(spec.type),
-                            warnings = expansion.warnings + "The run stops here: $problem.",
+                            warnings = expansion.warnings + hidden("The run stops here: $problem."),
                         ),
                         nextPc = index + 1,
                         halt = true,
@@ -592,7 +597,7 @@ object PreflightRunner {
                         nextPc = index + 1,
                         halt = true,
                     )
-                    else -> step("goto -> step ${landing + 1}", landing)
+                    else -> step(hidden("goto -> step ${landing + 1}"), landing)
                 }
             }
             else -> step(spec.type, index + 1)
@@ -626,6 +631,8 @@ object PreflightRunner {
         val failure: String? = null,
         /** An Array Push or Pop position that came out empty, as written, with the run's reason. */
         val unsetPosition: Pair<String, String>? = null,
+        /** Expanded values that came from a secret, which [values] shows redacted. */
+        val secretValues: Set<String> = emptySet(),
     )
 
     private fun expandArguments(spec: ActionSpec, variables: VariableStore, input: PreflightInputs): Expansion {
@@ -655,7 +662,9 @@ object PreflightRunner {
             if (secret) ActionArgumentSensitivity.REDACTED
             else ActionArgumentSensitivity.maskValue(spec.type, key, expansion.value, rawValues.mapValues { it.value.value })
         }
-        return Expansion(display, rawValues.mapValues { it.value.value }, warnings.distinct(), failure, unsetPosition)
+        val secretValues = rawValues.values.filter { expansion -> expansion.traces.any { it.isSecretDerived } }
+            .mapNotNullTo(mutableSetOf()) { it.value.takeIf(String::isNotBlank) }
+        return Expansion(display, rawValues.mapValues { it.value.value }, warnings.distinct(), failure, unsetPosition, secretValues)
     }
 
     /**

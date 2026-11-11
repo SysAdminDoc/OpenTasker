@@ -1,6 +1,7 @@
 package com.opentasker.core.engine
 
 import android.content.ContextWrapper
+import com.opentasker.core.actions.ActionArgumentSensitivity
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.Task
 import kotlinx.coroutines.runBlocking
@@ -153,6 +154,20 @@ class TaskRunnerGotoTest {
             assertTrue(report.failures().toString(), report.failures().any { message in it })
             assertTrue(recorded.isEmpty())
         }
+    }
+
+    @Test
+    fun aStepNumberFromASecretStaysOutOfTheErrorAndTheTrace() {
+        val missed = run(VariableStore().apply { set("pin", "1234", sensitive = true) }, goto(step = "%pin"), record("after"))
+        assertFalse(missed.success)
+        val texts = missed.failures() + missed.traces.map { it.message } + missed.structuredError.toString()
+        assertTrue(texts.toString(), texts.none { "1234" in it })
+        assertTrue(missed.failures().toString(), missed.failures().any { "has no step ${ActionArgumentSensitivity.REDACTED}" in it })
+
+        val landed = run(VariableStore().apply { set("pin", "3", sensitive = true) }, goto(step = "%pin"), record("skipped"), record("three"))
+        assertTrue(landed.failures().toString(), landed.success)
+        assertEquals(listOf("three"), recorded)
+        assertEquals("goto -> step ${ActionArgumentSensitivity.REDACTED}", landed.traces.first().message)
     }
 
     @Test

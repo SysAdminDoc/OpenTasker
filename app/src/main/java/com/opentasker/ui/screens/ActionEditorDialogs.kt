@@ -552,7 +552,10 @@ internal fun ActionConfigDialog(
                         ActionSpec(
                             id = state.existing?.id ?: 0,
                             type = state.metadata.id,
-                            label = label.trim().takeUnless { it.isBlank() || it == metadataName },
+                            // An Anchor is there to carry a label, so the name it shows counts as one.
+                            label = label.trim().takeUnless {
+                                it.isBlank() || (it == metadataName && state.metadata.id != FlowControl.ANCHOR)
+                            },
                             args = mergeActionArguments(
                                 existing = state.existing?.args.orEmpty(),
                                 fields = state.metadata.fields,

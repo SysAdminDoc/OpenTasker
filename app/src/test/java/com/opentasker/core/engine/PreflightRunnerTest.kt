@@ -5,6 +5,7 @@ import com.opentasker.core.actions.registerActionMetadata
 import com.opentasker.core.capabilities.CapabilityLevel
 import com.opentasker.core.capabilities.SetupRequirement
 import com.opentasker.core.actions.ActiveTransport
+import com.opentasker.core.actions.ActionArgumentSensitivity
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -191,6 +192,31 @@ class PreflightRunnerTest {
         assertEquals(PreflightStepStatus.SIMULATED, unfollowed.status)
         assertTrue(unfollowed.warnings.toString(), unfollowed.warnings.any { "can't follow this goto" in it })
         assertEquals(PreflightStepStatus.SKIPPED, afterUnfollowed.status)
+    }
+
+    @Test
+    fun preflightDoesntGuessAGotoLabelItHasNoValueForOrShowASecretTarget() {
+        fun set(name: String) = ActionSpec(type = "var.set", args = mapOf("name" to name, "value" to "1"))
+        fun goto(args: Map<String, String>) = ActionSpec(type = FlowControl.GOTO, args = args)
+        fun preview(inputs: PreflightInputs, vararg actions: ActionSpec) =
+            PreflightRunner.preflightTask(Task(id = 4, name = "Jumps", actions = actions.toList()), inputs = inputs)
+
+        // Once a run sets %where, the label wins over step 3, so following step 3 here would be a guess.
+        val (unfollowed, skipped) = preview(PreflightInputs(), goto(mapOf("label" to "%where", "step" to "3")), set("a"), set("b"))
+            .tasks.single().steps
+        assertEquals(PreflightStepStatus.SIMULATED, unfollowed.status)
+        assertTrue(unfollowed.warnings.toString(), unfollowed.warnings.any { "%where is empty here" in it })
+        assertEquals(PreflightStepStatus.SKIPPED, skipped.status)
+
+        val pin = { value: String -> PreflightInputs(globalVariables = mapOf("PIN" to value), secretGlobalNames = setOf("PIN")) }
+        val blocked = preview(pin("1234"), goto(mapOf("step" to "%PIN")), set("a")).tasks.single().steps.first()
+        assertEquals(PreflightStepStatus.BLOCKED, blocked.status)
+        assertTrue(blocked.warnings.toString(), blocked.warnings.none { "1234" in it })
+        assertTrue(blocked.warnings.toString(), blocked.warnings.any { "has no step ${ActionArgumentSensitivity.REDACTED}" in it })
+
+        val landed = preview(pin("3"), goto(mapOf("step" to "%PIN")), set("a"), set("b")).tasks.single().steps
+        assertEquals("goto -> step ${ActionArgumentSensitivity.REDACTED}", landed.first().branchDecision)
+        assertEquals(PreflightStepStatus.SIMULATED, landed[2].status)
     }
 
     @Test

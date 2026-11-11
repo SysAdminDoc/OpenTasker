@@ -85,6 +85,30 @@ class TaskerExportLayoutTest {
     }
 
     @Test
+    fun stepsAreNumberedWithoutGapsAndOnlyTheStepAGotoLandsOnKeepsItsLabel() {
+        val dropped = export(
+            ActionSpec(type = "future.unclassified", label = "L"),
+            ActionSpec(type = "var.set", label = "L", args = mapOf("name" to "%a", "value" to "1")),
+            ActionSpec(type = "flow.goto", args = mapOf("label" to "L")),
+        )
+        // The goto lands on the step Tasker doesn't get, so the second step can't claim its label.
+        assertFalse(dropped.xml, "<label>L</label>" in dropped.xml)
+        assertHas(dropped.xml, """<Action sr="act0" ve="7">""", """<Action sr="act1" ve="7">""")
+        assertFalse(dropped.xml, "act2" in dropped.xml)
+
+        val fromVariable = export(
+            ActionSpec(type = "flow.anchor", label = "One"),
+            ActionSpec(type = "flow.anchor", label = "Two"),
+            ActionSpec(type = "flow.goto", args = mapOf("label" to "%where")),
+            ActionSpec(type = "flow.goto"),
+        )
+        // A label read from a variable could be either one.
+        assertHas(fromVariable.xml, "<label>One</label>", "<label>Two</label>")
+        assertFalse(fromVariable.warnings.toString(), fromVariable.warnings.any { "%where" in it })
+        assertTrue(fromVariable.warnings.toString(), fromVariable.warnings.any { "no step number or label went out empty" in it })
+    }
+
+    @Test
     fun forWritesTheVariableFirstAndAnArrayItemsField() {
         assertHas(
             xml("flow.foreach", "list" to "input", "var" to "pair"),

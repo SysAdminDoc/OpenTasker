@@ -468,11 +468,12 @@ class TaskRunner(
             FlowControl.GOTO -> if (!guardMet()) {
                 skipped("goto skipped: condition ($guard) -> false", pc + 1)
             } else {
-                val args = expandArgs(spec.type, spec.args).args
-                val target = FlowControl.gotoTarget(actions, args, spec.args)
+                val expansion = expandArgs(spec.type, spec.args)
+                val target = FlowControl.gotoTarget(actions, expansion.args, spec.args)
                 val index = target.index
+                // A step number or label read from a secret stays out of the trace and the error.
                 if (index == null) {
-                    val failure = ActionResult.Failure(target.error ?: "goto has no target")
+                    val failure = ActionResult.Failure(expansion.redactSensitiveValues(target.error ?: "goto has no target"))
                     ControlOutcome(failure, markerTrace(pc, spec, failure, ActionTraceStatus.FAILURE), pc + 1, halt = true)
                 } else {
                     // Leaving a loop or try ends it, along with any block it holds. Jumping back
@@ -485,10 +486,12 @@ class TaskRunner(
                     }
                     val unopened = structure.unopenedBlockAt(index, loopStack.map { it.foreachIndex }, tryStack.map { it.tryIndex })
                     if (unopened != null) {
-                        val failure = ActionResult.Failure("goto step ${index + 1} lands inside the block that opens at step ${unopened + 1}, which isn't running")
+                        val failure = ActionResult.Failure(
+                            expansion.redactSensitiveValues("goto step ${index + 1} lands inside the block that opens at step ${unopened + 1}, which isn't running"),
+                        )
                         ControlOutcome(failure, markerTrace(pc, spec, failure, ActionTraceStatus.FAILURE), pc + 1, halt = true)
                     } else {
-                        outcome("goto -> step ${index + 1}", index)
+                        outcome(expansion.redactSensitiveValues("goto -> step ${index + 1}"), index)
                     }
                 }
             }

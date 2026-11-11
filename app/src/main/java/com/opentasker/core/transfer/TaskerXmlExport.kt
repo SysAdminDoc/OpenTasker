@@ -183,6 +183,10 @@ object TaskerXmlExporter {
         sb.appendLine("    <nme>${escapeXml(task.name)}</nme>")
         sb.appendLine("    <pri>${task.priority}</pri>")
 
+        val firstLabelled = task.actions.withIndex()
+            .mapNotNull { (index, action) -> action.label?.trim()?.takeIf(String::isNotEmpty)?.let { it to index } }
+            .distinctBy { it.first }
+            .toMap()
         val labels = task.actions.filter { it.type == "flow.goto" }
             .mapNotNullTo(mutableSetOf()) { it.args["label"]?.trim()?.takeIf(String::isNotEmpty) }
         val layout = GotoLayout(
@@ -190,10 +194,9 @@ object TaskerXmlExporter {
             taskerSteps = task.actions.indices.filter { taskerCodeFor(task.actions[it]) != null }
                 .withIndex().associate { (taskerIndex, index) -> index to taskerIndex + 1 },
             stepCount = task.actions.size,
-            labels = labels,
-            labelledSteps = labels.mapNotNull { name ->
-                task.actions.indexOfFirst { it.label?.trim() == name }.takeIf { it >= 0 }?.let { name to it }
-            }.toMap(),
+            // A label read from a variable could be any of them.
+            labels = if (labels.any { VARIABLE_REFERENCE.containsMatchIn(it) }) firstLabelled.keys else labels,
+            firstLabelled = firstLabelled,
         )
         task.actions.forEachIndexed { index, action ->
             val taskerCode = taskerCodeFor(action)
@@ -224,10 +227,13 @@ object TaskerXmlExporter {
         val sanitized = ExportRedactionPolicy.sanitizeActionArguments(action.type, action.args, redactionContext)
         sanitized.redactedFields.forEach { field -> redactedActionFields += "${action.type}.$field" }
         val args = sanitized.args
-        sb.appendLine("""    <Action sr="act$index" ve="7">""")
+        // Numbered without gaps, the way Tasker writes them, so the step numbers gotos use line up.
+        sb.appendLine("""    <Action sr="act${layout.taskerSteps.getValue(index) - 1}" ve="7">""")
         sb.appendLine("      <code>$code</code>")
-        // Only a label a goto jumps to goes out. The rest are mostly the names an import gave each step.
-        action.label?.trim()?.takeIf { it in layout.labels }?.let { sb.appendLine("      <label>${escapeXml(it)}</label>") }
+        // Only a label a goto lands on goes out, on the first step with it, which is where it lands.
+        // The rest are mostly the names an import gave each step.
+        action.label?.trim()?.takeIf { it in layout.labels && layout.firstLabelled[it] == index }
+            ?.let { sb.appendLine("      <label>${escapeXml(it)}</label>") }
 
         when (action.type) {
             "notify.show", "notify.cancel" -> {
@@ -464,21 +470,22 @@ object TaskerXmlExporter {
 
     /**
      * What a task's gotos need: each exported step's Tasker number, the labels they jump to and
-     * the first step carrying each of those labels.
+     * the first step carrying each label.
      */
     private data class GotoLayout(
         val taskerSteps: Map<Int, Int>,
         val stepCount: Int,
         val labels: Set<String>,
-        val labelledSteps: Map<String, Int>,
+        val firstLabelled: Map<String, Int>,
     )
 
     /** Tasker's Goto: arg0 0 jumps to the step number in arg1, 1 to the label in arg2. */
     private fun appendGoto(sb: StringBuilder, args: Map<String, String>, layout: GotoLayout, warnings: MutableList<String>) {
         val label = args["label"]?.trim().orEmpty()
         if (label.isNotEmpty()) {
-            val target = layout.labelledSteps[label]
+            val target = layout.firstLabelled[label]
             when {
+                VARIABLE_REFERENCE.containsMatchIn(label) -> Unit
                 target == null -> warnings += "A goto to the label '$label' has no step with that label to land on."
                 target !in layout.taskerSteps -> warnings += "A goto to the label '$label' lands on a step Tasker didn't get, so Tasker won't find it."
             }
@@ -492,7 +499,10 @@ object TaskerXmlExporter {
         val shifted = layout.taskerSteps.size < layout.stepCount
         val step = when {
             number == null -> {
-                if (shifted) warnings += "A goto to step '$raw' kept its number, but some steps in that task have no Tasker match, so Tasker counts them differently."
+                when {
+                    raw.isEmpty() -> warnings += "A goto with no step number or label went out empty, so Tasker won't know where to jump."
+                    shifted -> warnings += "A goto to step '$raw' kept its number, but some steps in that task have no Tasker match, so Tasker counts them differently."
+                }
                 raw
             }
             number !in 1..layout.stepCount -> {
@@ -1007,6 +1017,8 @@ object TaskerXmlExporter {
     private val TEMPLATE_ARRAY = Regex("""\{\{\s*array\.([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")
 
     private val BARE_ARRAY = Regex("""%?([A-Za-z][A-Za-z0-9_]*)(?:\(\))?""")
+
+    private val VARIABLE_REFERENCE = Regex("""%[A-Za-z]""")
 
     private fun taskerCodeFor(action: ActionSpec): String? {
         if (action.type == "volume.set") {
