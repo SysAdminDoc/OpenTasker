@@ -203,7 +203,9 @@ class VariableExpander {
         if (numValue != null) {
             val result = when {
                 op == "//" -> floor(numValue)
-                op == "/round" -> numValue.roundToLong().toDouble()
+                // roundToLong throws on NaN, so a value that isn't finite comes out the way the
+                // other operations leave it.
+                op == "/round" -> if (numValue.isFinite()) numValue.roundToLong().toDouble() else numValue
                 op.startsWith("+") -> numValue + (op.substring(1).toDoubleOrNull() ?: 0.0)
                 op.startsWith("-") -> numValue - (op.substring(1).toDoubleOrNull() ?: 0.0)
                 op.startsWith("*") -> numValue * (op.substring(1).toDoubleOrNull() ?: 1.0)
