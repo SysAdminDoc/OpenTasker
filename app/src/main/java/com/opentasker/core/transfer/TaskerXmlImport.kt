@@ -1135,21 +1135,38 @@ object TaskerXmlImporter {
         )
     }
 
-    /** True when [pattern] has a `$` that isn't escaped or inside a character class. */
+    /**
+     * True when [pattern] has a `$` that isn't escaped, quoted in `\Q...\E` or inside a character
+     * class, read the way Java and RE2 both read it: a `]` straight after `[` or `[^` is a literal.
+     * An inline `(?m)` already makes `$` match at every line end, so the pattern behaves the same.
+     */
     private fun hasEndAnchor(pattern: String): Boolean {
-        var escaped = false
+        if (INLINE_MULTILINE_FLAG.containsMatchIn(pattern)) return false
+        var index = 0
         var inClass = false
-        for (char in pattern) {
+        while (index < pattern.length) {
+            val char = pattern[index]
             when {
-                escaped -> escaped = false
-                char == '\\' -> escaped = true
+                char == '\\' && pattern.startsWith("Q", index + 1) -> {
+                    val end = pattern.indexOf("\\E", index + 2)
+                    if (end < 0) return false
+                    index = end + 1
+                }
+                char == '\\' -> index++
                 inClass -> if (char == ']') inClass = false
-                char == '[' -> inClass = true
+                char == '[' -> {
+                    inClass = true
+                    if (pattern.startsWith("^", index + 1)) index++
+                    if (pattern.startsWith("]", index + 1)) index++
+                }
                 char == '$' -> return true
             }
+            index++
         }
         return false
     }
+
+    private val INLINE_MULTILINE_FLAG = Regex("""\(\?[A-Za-z]*m[A-Za-z-]*[):]""")
 
     /** Tasker's Interrupt Mode numbers its modes from the most silent. Custom and the read-only query have no match here. */
     private fun taskerInterruptMode(
