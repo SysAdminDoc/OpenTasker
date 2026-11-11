@@ -107,6 +107,20 @@ class SyntheticTriggerSimulationTest {
     }
 
     @Test
+    fun aRunWithNothingPinnedNeverSummarizesAsPinned() {
+        val window = ContextSpec(ContextType.TIME, mapOf("start" to "09:00", "end" to "17:00"))
+        val plain = SyntheticTriggerSimulator.simulate(Profile(id = 12L, name = "Plain", enterTaskId = 16L, contexts = listOf(window)), nowMs = 1_000_000L)
+        val graced = SyntheticTriggerSimulator.simulate(
+            Profile(id = 13L, name = "Graced", enterTaskId = 17L, contexts = listOf(window), gracePeriodSec = 30),
+            nowMs = 1_000_000L,
+        )
+
+        assertEquals("All context predicates pass the configured context logic.", plain.profileReason)
+        assertFalse(graced.profileReason, "pinned" in graced.profileReason)
+        assertTrue(graced.profileReason, graced.profileReason.startsWith("All context predicates pass"))
+    }
+
+    @Test
     fun malformedTemplatesAreVisibleAsBlockedPredicates() {
         val simulation = SyntheticTriggerSimulator.simulate(
             Profile(

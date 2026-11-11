@@ -1918,7 +1918,7 @@
     <string name="preflight_no_values">无</string>
     <string name="synthetic_trigger_title">触发器模拟</string>
     <string name="synthetic_trigger_loading">正在准备模拟…</string>
-    <string name="synthetic_trigger_notice">仅预览：固定的事件在内存中匹配。不会创建任何任务、副作用或生产运行日志行。</string>
+    <string name="synthetic_trigger_notice">仅预览：合成事件在内存中匹配。不会创建任何任务、副作用或生产运行日志行。</string>
     <string name="synthetic_trigger_profile_match">配置文件谓词</string>
     <string name="synthetic_trigger_passed">会匹配</string>
     <string name="synthetic_trigger_blocked">已阻止</string>

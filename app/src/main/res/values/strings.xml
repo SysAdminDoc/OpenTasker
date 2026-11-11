@@ -1964,7 +1964,7 @@
     <string name="preflight_no_values">none</string>
     <string name="synthetic_trigger_title">Trigger simulation</string>
     <string name="synthetic_trigger_loading">Preparing the simulation…</string>
-    <string name="synthetic_trigger_notice">Preview only: pinned events are matched in memory. No task, side effect, or production run-log row will be created.</string>
+    <string name="synthetic_trigger_notice">Preview only: synthetic events are matched in memory. No task, side effect, or production run-log row will be created.</string>
     <string name="synthetic_trigger_profile_match">Profile predicate</string>
     <string name="synthetic_trigger_passed">Would match</string>
     <string name="synthetic_trigger_blocked">Blocked</string>

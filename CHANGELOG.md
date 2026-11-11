@@ -61,7 +61,7 @@
 - The Locale condition picker no longer freezes for up to 30 seconds when it's opened right after a backup restore. If the database still isn't back by then, the condition and task pickers close instead of crashing.
 - After Split Text or Match Text, `%parts(#)` counts the parts again and `%parts(2)` or `%parts(%i)` reads one of them. Both actions also set `%parts` to the first part, and that made every one of those forms give the first part instead. A range like `%parts(0:1)` joins those parts with commas, and an index held in a variable with a stray space still reads its part. These arrays count from 0, unlike Tasker's, so `%parts(1)` is the second part (that's what lets Match Text's `%var(1)` be the first group). Writing the variable as `%parts` in the step's field now stores the same array as `parts`, where it used to keep it somewhere `%parts(#)` couldn't see. And once a Tasker Variable Split has made `%parts1`, `%parts2` and so on, those win even after the split deletes `%parts` itself.
 - A task run with no parameters doesn't see its caller's `%par1` and `%par2` as its own `%par` array anymore. `%par(#)` there used to count the caller's parameters, and an Array Pop on `%par` would take them away from the caller.
-- A trigger simulation calls an event pinned only when you pinned it. The ones it builds from the context itself used to be called pinned too.
+- A trigger simulation no longer calls its events pinned. It builds each one from the context itself, but its notice, its per-context results and its summary all said pinned.
 
 ## v0.2.96 - 2026-11-09 (unreleased)
 

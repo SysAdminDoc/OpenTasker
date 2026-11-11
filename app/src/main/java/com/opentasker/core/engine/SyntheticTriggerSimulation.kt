@@ -142,8 +142,8 @@ object SyntheticTriggerSimulator {
             !aggregateMatch -> results.firstOrNull { !it.effectiveMatched }?.let {
                 "Context ${it.index + 1} blocks the profile: ${it.explanation}"
             } ?: "The configured context expression is invalid or did not match."
-            profile.gracePeriodSec > 0 -> "All pinned predicates pass; the ${profile.gracePeriodSec}s activation/deactivation grace period still applies."
-            else -> "All pinned predicates pass the configured context logic."
+            profile.gracePeriodSec > 0 -> "All context predicates pass; the ${profile.gracePeriodSec}s activation/deactivation grace period still applies."
+            else -> "All context predicates pass the configured context logic."
         }
         return SyntheticTriggerSimulation(
             profileId = profile.id,
