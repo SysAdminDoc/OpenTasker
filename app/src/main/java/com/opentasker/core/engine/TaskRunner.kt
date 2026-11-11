@@ -1,6 +1,7 @@
 package com.opentasker.core.engine
 
 import com.opentasker.core.actions.ActionArgumentSensitivity
+import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.capabilities.AutomationSensitivityRegistry
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.diagnostics.ExportRedactionPolicy
@@ -804,10 +805,12 @@ class TaskRunner(
 
         val templateScope = ctx.variables.toTemplateScope(ctx.eventVariables)
         val expansions = mutableListOf<ActionArgumentExpansionTrace>()
+        val outputNames = OutputNameArguments(actionType)
         val expandedArgs = args.mapValues { (name, rawValue) ->
             arrayReferenceName(actionType, name, rawValue)?.let { arrayName ->
                 return@mapValues arrayName
             }
+            if (outputNames.keepsAsWritten(name, rawValue)) return@mapValues rawValue
             val legacy = ctx.variables.expandTracked(rawValue)
             if (!legacy.value.contains("{{")) {
                 if (legacy.isSecretDerived) {
@@ -878,6 +881,22 @@ class TaskRunner(
         // initializer, the failure was an ExceptionInInitializerError that made TaskRunner
         // unusable on device - every task execution, not only ones using array references.
         val ARRAY_REFERENCE = Regex("\\{\\{\\s*array\\.([A-Za-z][A-Za-z0-9_-]*)\\s*\\}\\}")
+    }
+}
+
+/**
+ * "%count" in an argument that names an action's output is the variable to write, the way the
+ * editor reads it. Expanded like other text, it named whatever count held, so a second run wrote
+ * to a different variable. A name built from parts, like "item_%slot", still expands.
+ */
+internal class OutputNameArguments(actionType: String) {
+    private val keys = declaredActionOutputs(actionType).flatMapTo(hashSetOf()) { it.nameArgumentKeys }
+
+    fun keepsAsWritten(argumentName: String, rawValue: String): Boolean =
+        argumentName in keys && SINGLE_VARIABLE.matches(rawValue.trim())
+
+    private companion object {
+        val SINGLE_VARIABLE = Regex("%[A-Za-z][A-Za-z0-9_]*")
     }
 }
 

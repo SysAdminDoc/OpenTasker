@@ -526,7 +526,11 @@ object PreflightRunner {
     )
 
     private fun expandArguments(spec: ActionSpec, variables: VariableStore, input: PreflightInputs): Expansion {
-        val rawValues = spec.args.mapValues { (_, raw) -> expand(raw, variables, input) }
+        val outputNames = OutputNameArguments(spec.type)
+        val rawValues = spec.args.mapValues { (key, raw) ->
+            if (outputNames.keepsAsWritten(key, raw)) TemplateExpansionResult(raw, emptyList(), emptyList())
+            else expand(raw, variables, input)
+        }
         val warnings = rawValues.values.flatMap { it.warnings }
         val display = rawValues.mapValues { (key, expansion) ->
             val secret = expansion.traces.any { it.isSecretDerived }
