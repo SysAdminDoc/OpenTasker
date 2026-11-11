@@ -339,8 +339,8 @@ object SyntheticTriggerSimulator {
         val date = Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
         val elevationRaw = first(spec.config, "elevation")
         val elevation = SunEventCalculator.elevationDegrees(elevationRaw)
-        val baseMinute = if (latitude != null && longitude != null && elevation != null) {
-            SunEventCalculator.eventMinuteOfDay(date, latitude, longitude, expectedEvent, zone, elevation)
+        val crossing = if (latitude != null && longitude != null && elevation != null) {
+            SunEventCalculator.eventLocalDateTime(date, latitude, longitude, expectedEvent, zone, elevation)
         } else {
             null
         }
@@ -348,18 +348,19 @@ object SyntheticTriggerSimulator {
         val windowRaw = first(spec.config, "windowMinutes", "window")
         val offset = offsetRaw.toIntOrNull() ?: 0
         val window = (windowRaw.toIntOrNull() ?: 1).coerceIn(1, 180)
-        val minute = Math.floorMod((baseMinute ?: 12 * 60) + offset, 24 * 60)
+        // The tick carries the date the window opens on, which is the next date for a dusk past midnight.
+        val at = (crossing ?: date.atTime(12, 0)).plusMinutes(offset.toLong())
         val metadata = mapOf(
             "event" to "sun_tick",
-            "date" to date.toString(),
-            "time" to formatClock(minute),
+            "date" to at.toLocalDate().toString(),
+            "time" to formatClock(at.hour * 60 + at.minute),
             "zone" to zone.id,
         )
         val issue = when {
             latitude == null || longitude == null -> "Sun event needs valid latitude and longitude."
             latitude !in -90.0..90.0 || longitude !in -180.0..180.0 -> "Sun event coordinates are out of range."
             elevation == null -> "Sun elevation must be civil, nautical, astronomical, or degrees from -90 to 90, not '$elevationRaw'."
-            baseMinute == null -> "The configured sun event is unavailable at these coordinates."
+            crossing == null -> "The configured sun event is unavailable at these coordinates."
             offsetRaw.isNotBlank() && offsetRaw.toIntOrNull() == null -> "Sun event offset must be numeric."
             windowRaw.isNotBlank() && windowRaw.toIntOrNull() == null -> "Sun event window must be numeric."
             else -> null

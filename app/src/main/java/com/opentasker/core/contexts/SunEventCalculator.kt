@@ -1,15 +1,15 @@
 package com.opentasker.core.contexts
 
 import java.time.LocalDate
-import java.time.LocalTime
+import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.ZonedDateTime
+import java.time.ZoneOffset
 import java.util.Locale
 import kotlin.math.acos
 import kotlin.math.asin
 import kotlin.math.atan
 import kotlin.math.cos
-import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 import kotlin.math.sin
 import kotlin.math.tan
 
@@ -43,7 +43,23 @@ object SunEventCalculator {
         event: String,
         zone: ZoneId = ZoneId.systemDefault(),
         elevationDegrees: Double = OFFICIAL_ELEVATION_DEGREES,
-    ): Int? {
+    ): Int? = eventLocalDateTime(date, latitude, longitude, event, zone, elevationDegrees)
+        ?.let { it.hour * MINUTES_PER_HOUR + it.minute }
+
+    /**
+     * When the sun rises past, or sets below, [elevationDegrees] for [date]'s almanac day, as a
+     * local time in [zone]. That's usually on [date], but a late dusk far west in its time zone
+     * lands after midnight on the next date, and an early sunrise far east can fall on the date
+     * before. Null when it never crosses that elevation there that day.
+     */
+    fun eventLocalDateTime(
+        date: LocalDate,
+        latitude: Double,
+        longitude: Double,
+        event: String,
+        zone: ZoneId = ZoneId.systemDefault(),
+        elevationDegrees: Double = OFFICIAL_ELEVATION_DEGREES,
+    ): LocalDateTime? {
         if (latitude !in -90.0..90.0 || longitude !in -180.0..180.0) return null
         val sunrise = event.equals("sunrise", ignoreCase = true)
         val sunset = event.equals("sunset", ignoreCase = true)
@@ -76,12 +92,15 @@ object SunEventCalculator {
             radToDeg(acos(cosHour))
         } / 15.0
         val localMeanTime = hourAngle + rightAscension - 0.06571 * approximateTime - 6.622
-        val utcHour = normalizeHours(localMeanTime - lngHour)
-        val approxLocalHour = normalizeHours(utcHour + ZonedDateTime.of(date, LocalTime.NOON, zone).offset.totalSeconds / 3600.0)
-        val approxTime = LocalTime.of(approxLocalHour.toInt().coerceIn(0, 23), 0)
-        val offsetHours = ZonedDateTime.of(date, approxTime, zone).offset.totalSeconds / 3600.0
-        val localHour = normalizeHours(utcHour + offsetHours)
-        return Math.floorMod((localHour * MINUTES_PER_HOUR).roundToInt(), MINUTES_PER_DAY)
+        // The almanac answers in hours of the day, so a dusk just past midnight comes out as 00:02
+        // and would read as that same morning. The crossing is always within 12 hours of the 06:00
+        // or 18:00 local mean time the almanac started from, which pins it to the right day.
+        val nominalUtcHour = (if (sunrise) 6.0 else 18.0) - lngHour
+        val utcHour = nominalUtcHour + normalizeHours(localMeanTime - lngHour - nominalUtcHour + 12.0) - 12.0
+        return date.atStartOfDay(ZoneOffset.UTC)
+            .plusMinutes((utcHour * MINUTES_PER_HOUR).roundToLong())
+            .withZoneSameInstant(zone)
+            .toLocalDateTime()
     }
 
     private fun normalizeDegrees(value: Double): Double = ((value % 360.0) + 360.0) % 360.0
@@ -92,5 +111,4 @@ object SunEventCalculator {
     private fun radToDeg(value: Double): Double = Math.toDegrees(value)
 
     private const val MINUTES_PER_HOUR = 60
-    private const val MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR
 }

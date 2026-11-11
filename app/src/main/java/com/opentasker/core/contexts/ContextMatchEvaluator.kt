@@ -314,21 +314,29 @@ object ContextMatchEvaluator {
             ?: ZoneId.systemDefault()
         val currentMinute = event.metadata["time"]?.let(::parseClockMinutes) ?: currentMinuteOfDay()
         val elevation = SunEventCalculator.elevationDegrees(firstConfig(spec, "elevation")) ?: return null
-        val baseMinute = SunEventCalculator.eventMinuteOfDay(date, latitude, longitude, expectedEvent, zone, elevation) ?: return null
         val offset = firstConfig(spec, "offsetMinutes", "offset").toIntOrNull() ?: 0
         val windowMinutes = (firstConfig(spec, "windowMinutes", "window").toIntOrNull() ?: 1).coerceIn(1, 180)
-        val start = Math.floorMod(baseMinute + offset, MINUTES_PER_DAY)
-        val end = Math.floorMod(start + windowMinutes - 1, MINUTES_PER_DAY)
-        if (!minuteInWindow(currentMinute, start, end)) return null
-        // A window that wraps midnight still belongs to the evening's occurrence. Ticks after
-        // 00:00 carry the next calendar date, so identity uses the date of the window start.
-        val occurrenceDate = if (start > end && currentMinute <= end) date.minusDays(1) else date
-        return SunWindow(
-            event = expectedEvent.lowercase(Locale.US),
-            date = occurrenceDate.toString(),
-            start = start,
-            end = end,
-        )
+        val tick = date.atStartOfDay().plusMinutes(currentMinute.toLong())
+        // A late dusk can cross after midnight, and an offset or a window can carry a day's
+        // occurrence into the next date, so the tick is checked against the crossings of the dates
+        // around it. Identity uses the crossing's own date, which keeps ticks either side of
+        // midnight on one occurrence.
+        val around = tick.minusMinutes(offset.toLong()).toLocalDate()
+        for (days in -SOLAR_DATE_REACH..SOLAR_DATE_REACH) {
+            val solarDate = around.plusDays(days)
+            val crossing = SunEventCalculator.eventLocalDateTime(solarDate, latitude, longitude, expectedEvent, zone, elevation)
+                ?: continue
+            val start = crossing.plusMinutes(offset.toLong())
+            val end = start.plusMinutes(windowMinutes - 1L)
+            if (tick < start || tick > end) continue
+            return SunWindow(
+                event = expectedEvent.lowercase(Locale.US),
+                date = solarDate.toString(),
+                start = start.hour * 60 + start.minute,
+                end = end.hour * 60 + end.minute,
+            )
+        }
+        return null
     }
 
     private data class SunWindow(
@@ -376,7 +384,9 @@ object ContextMatchEvaluator {
 
     private const val MAX_REGEX_PATTERN_CHARS = 160
     private const val MAX_REGEX_INPUT_CHARS = 1_000
-    private const val MINUTES_PER_DAY = 24 * 60
+
+    /** A crossing's local time, plus its window, stays within two dates of its own date for any coordinates and zone. */
+    private const val SOLAR_DATE_REACH = 2L
 }
 
 private fun String.isSunEvent(): Boolean =
