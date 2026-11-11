@@ -9,6 +9,7 @@ import com.opentasker.core.platform.AndroidAudioHardening
 import com.opentasker.core.platform.AudioOutputStream
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -86,7 +87,8 @@ class BeepAction : DeclaredAction(ActionCatalog.require("sound.beep")) {
             return ActionResult.Failure("could not open an audio track: ${ex.message}", ex)
         }
         try {
-            if (track.state != AudioTrack.STATE_INITIALIZED || track.write(samples, 0, samples.size) != samples.size) {
+            // A static track waits in STATE_NO_STATIC_DATA until its samples are written.
+            if (track.write(samples, 0, samples.size) != samples.size || track.state != AudioTrack.STATE_INITIALIZED) {
                 return ActionResult.Failure("could not load the tone into an audio track")
             }
             track.play()
@@ -97,6 +99,8 @@ class BeepAction : DeclaredAction(ActionCatalog.require("sound.beep")) {
                 while (track.playbackHeadPosition < samples.size) delay(10)
             }
             return ActionResult.Success
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (ex: IllegalStateException) {
             return ActionResult.Failure("the audio track would not play: ${ex.message}", ex)
         } finally {
