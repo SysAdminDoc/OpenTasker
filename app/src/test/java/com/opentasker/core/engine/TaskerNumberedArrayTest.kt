@@ -127,6 +127,36 @@ class TaskerNumberedArrayTest {
     }
 
     @Test
+    fun aPopOnASubTasksParLeavesItsCallersParAlone() {
+        fun record(text: String) = ActionSpec(type = "test.array.record", args = mapOf("v" to text))
+        val inner = Task(
+            id = 3,
+            name = "Inner",
+            actions = listOf(
+                ActionSpec(type = "array.pop", args = mapOf("array" to "%par", "position" to "1", "to_var" to "got")),
+                record("inner got %got, left %par(#) as %par1"),
+            ),
+        )
+        val middle = Task(
+            id = 2,
+            name = "Middle",
+            actions = listOf(
+                ActionSpec(type = "task.run", args = mapOf("task" to "Inner", "par1" to "x", "par2" to "y")),
+                record("middle still has %par1 and %par2, %par(#) in all"),
+            ),
+        )
+        val outer = Task(id = 1, name = "Outer", actions = listOf(ActionSpec(type = "task.run", args = mapOf("task" to "Middle", "par1" to "p", "par2" to "q"))))
+        val tasks = listOf(outer, middle, inner).associateBy(Task::name)
+
+        val report = runBlocking {
+            TaskRunner(ActionContext(ContextWrapper(null), VariableStore()), resolveTask = { ref -> tasks[ref] }).run(outer)
+        }
+
+        assertTrue(report.success)
+        assertEquals(listOf("inner got x, left 1 as y", "middle still has p and q, 2 in all"), recorded)
+    }
+
+    @Test
     fun preflightBlocksAnUnsetPositionOnlyWhenNothingCouldSetIt() {
         fun pop(position: String) = ActionSpec(type = "array.pop", args = mapOf("array" to "%arr", "position" to position, "to_var" to "got"))
         fun stepFor(report: PreflightReport, taskName: String) = report.tasks.single { it.taskName == taskName }.steps.last()

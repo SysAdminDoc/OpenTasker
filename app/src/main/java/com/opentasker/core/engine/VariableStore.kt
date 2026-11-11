@@ -48,20 +48,27 @@ class VariableStore {
     private val declaredSecretGlobals = ConcurrentHashMap.newKeySet<String>()
     private val rootLocalSensitiveNames = ConcurrentHashMap.newKeySet<String>()
     private val localSensitiveStack = java.util.Collections.synchronizedList(mutableListOf<MutableSet<String>>())
+    /** Parallel to [localStack]: true for a scope that holds a sub-task's inputs. */
+    private val inputScopes = java.util.Collections.synchronizedList(mutableListOf<Boolean>())
     private val sensitiveArrayNames = ConcurrentHashMap.newKeySet<String>()
     private val sensitiveWriteDepth = AtomicInteger(0)
     private val expander = VariableExpander()
     private val arrayStore = ArrayStore()
 
-    fun pushScope() {
-        localStack.add(java.util.concurrent.ConcurrentHashMap())
-        localSensitiveStack.add(ConcurrentHashMap.newKeySet())
+    /** [holdsInputs] marks the scope Perform Task puts a sub-task's inputs (`%par1`, ...) in. */
+    fun pushScope(holdsInputs: Boolean = false) {
+        synchronized(localStack) {
+            localStack.add(java.util.concurrent.ConcurrentHashMap())
+            localSensitiveStack.add(ConcurrentHashMap.newKeySet())
+            inputScopes.add(holdsInputs)
+        }
     }
     fun popScope() {
         synchronized(localStack) {
             if (localStack.isNotEmpty()) {
                 localStack.removeAt(localStack.size - 1)
                 localSensitiveStack.removeAt(localSensitiveStack.size - 1)
+                inputScopes.removeAt(inputScopes.size - 1)
             }
         }
     }
@@ -133,7 +140,7 @@ class VariableStore {
         val names = if (VariableNamePolicy.isGlobal(normalizedBase)) {
             globals.keys.toSet()
         } else {
-            synchronized(localStack) { rootLocals.keys + localStack.flatMap { it.keys } }
+            synchronized(localStack) { arrayScopes(normalizedBase).flatMapTo(mutableSetOf()) { (values, _) -> values.keys } }
         }
         names.forEach { name ->
             val index = numberedIndex(normalizedBase, name) ?: return@forEach
@@ -144,10 +151,11 @@ class VariableStore {
 
     /**
      * Replaces [base]'s numbered elements with [items] (index to value and secret flag). The old
-     * elements are unset in every local scope, so none left in a caller's scope shows through
-     * after a sub-task set one of its own, and the new ones go into the outermost scope that held
-     * an element, else the one [set] writes to. A sub-task changing its caller's array changes it
-     * there, instead of writing the new elements into its own scope, gone when it returns.
+     * elements are unset in every local scope [arrayScopes] covers, so none left in a caller's
+     * scope shows through after a sub-task set one of its own, and the new ones go into the
+     * outermost of those scopes that held an element, else the one [set] writes to. A sub-task
+     * changing its caller's array changes it there, instead of writing the new elements into its
+     * own scope, gone when it returns.
      */
     fun replaceNumberedItems(base: String, items: Map<Int, Pair<String, Boolean>>) {
         val normalizedBase = VariableNamePolicy.normalize(base) ?: return
@@ -158,8 +166,7 @@ class VariableStore {
         }
         val tainted = sensitiveWriteDepth.get() > 0
         synchronized(localStack) {
-            val scopes = listOf<Pair<MutableMap<String, String>, MutableSet<String>>>(rootLocals to rootLocalSensitiveNames) +
-                localStack.zip(localSensitiveStack)
+            val scopes = arrayScopes(normalizedBase)
             val (values, sensitiveNames) = scopes.firstOrNull { (values, _) ->
                 values.keys.any { numberedIndex(normalizedBase, it) != null }
             } ?: scopes.last()
@@ -184,8 +191,23 @@ class VariableStore {
             return globalSensitiveNames.any { numberedIndex(normalizedBase, it) != null }
         }
         return synchronized(localStack) {
-            (rootLocalSensitiveNames + localSensitiveStack.flatten()).any { numberedIndex(normalizedBase, it) != null }
+            arrayScopes(normalizedBase).any { (_, sensitiveNames) -> sensitiveNames.any { numberedIndex(normalizedBase, it) != null } }
         }
+    }
+
+    /**
+     * The local scopes, outermost first, that hold the local array [base]: every one, unless a
+     * sub-task was handed elements of it as inputs. Then the array starts at the innermost such
+     * input scope, so a sub-task's `%par` is its own and a Pop on it leaves its caller's `%par1`
+     * and `%par2` alone. Call it holding the [localStack] lock.
+     */
+    private fun arrayScopes(base: String): List<Pair<MutableMap<String, String>, MutableSet<String>>> {
+        val scopes = listOf<Pair<MutableMap<String, String>, MutableSet<String>>>(rootLocals to rootLocalSensitiveNames) +
+            localStack.zip(localSensitiveStack)
+        val inputs = localStack.indices.lastOrNull { index ->
+            inputScopes[index] && localStack[index].keys.any { numberedIndex(base, it) != null }
+        } ?: return scopes
+        return scopes.drop(inputs + 1)
     }
 
     private fun numberedIndex(base: String, name: String): Int? {

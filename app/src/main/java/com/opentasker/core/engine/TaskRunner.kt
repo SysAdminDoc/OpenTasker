@@ -705,7 +705,7 @@ class TaskRunner(
             originatingProfileName = originatingProfileName,
             now = now,
         )
-        ctx.variables.pushScope()
+        ctx.variables.pushScope(holdsInputs = true)
         val report = try {
             args.forEach { (key, value) ->
                 if (key !in SUB_TASK_REF_KEYS) {
