@@ -97,16 +97,14 @@ object SyntheticTriggerSimulator {
             // Same rule as the engine: an inverted context whose value is unknown stays off.
             val unknown = ContextMatchEvaluator.valueUnknown(spec, template.event.metadata)
             val effectiveMatched = if (spec.invert) !rawMatched && !unknown else rawMatched
+            val event = if (index in pinnedEvents) "The pinned event" else "The synthetic event"
             val explanation = when {
                 template.issue != null -> template.issue
-                spec.invert && unknown ->
-                    "The pinned synthetic event has no value for this context, so the inverted context stays off."
-                spec.invert && effectiveMatched ->
-                    "The pinned synthetic event fails the raw predicate, so inversion passes it."
-                spec.invert && rawMatched ->
-                    "The pinned synthetic event satisfies the raw predicate, so inversion blocks it."
-                effectiveMatched -> "The pinned synthetic event satisfies this predicate."
-                else -> "The pinned synthetic event does not satisfy this predicate."
+                spec.invert && unknown -> "$event has no value for this context, so the inverted context stays off."
+                spec.invert && effectiveMatched -> "$event fails the raw predicate, so inversion passes it."
+                spec.invert && rawMatched -> "$event satisfies the raw predicate, so inversion blocks it."
+                effectiveMatched -> "$event satisfies this predicate."
+                else -> "$event does not satisfy this predicate."
             }
             SyntheticContextResult(
                 index = index,

@@ -85,6 +85,28 @@ class SyntheticTriggerSimulationTest {
     }
 
     @Test
+    fun onlyAnEventYouPinnedIsCalledPinned() {
+        val profile = Profile(
+            id = 11L,
+            name = "Two windows",
+            enterTaskId = 15L,
+            contexts = listOf(
+                ContextSpec(ContextType.TIME, mapOf("start" to "09:00", "end" to "17:00")),
+                ContextSpec(ContextType.TIME, mapOf("start" to "09:00", "end" to "17:00")),
+            ),
+        )
+
+        val (fromTemplate, pinned) = SyntheticTriggerSimulator.simulate(
+            profile,
+            nowMs = 1_000_000L,
+            pinnedEvents = mapOf(1 to ContextEvent("time", true, mapOf("time" to "22:00"))),
+        ).contexts
+
+        assertEquals("The synthetic event satisfies this predicate.", fromTemplate.explanation)
+        assertEquals("The pinned event does not satisfy this predicate.", pinned.explanation)
+    }
+
+    @Test
     fun malformedTemplatesAreVisibleAsBlockedPredicates() {
         val simulation = SyntheticTriggerSimulator.simulate(
             Profile(
