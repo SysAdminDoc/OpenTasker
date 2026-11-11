@@ -1130,7 +1130,7 @@ object TaskerXmlImporter {
                 "Tasker Search Replace writes \\% for a plain percent sign, and here a variable with that name is still filled in"
                     .takeIf { "\\%" in search || "\\%" in replaceWith },
                 "Tasker Search Replace's $ also matches just before a final line break, and here it matches only at the very end"
-                    .takeIf { 'm' !in flags && hasEndAnchor(search) },
+                    .takeIf { hasEndAnchor(search, multilineFlag = 'm' in flags) },
             ),
         )
     }
@@ -1139,11 +1139,14 @@ object TaskerXmlImporter {
      * True when [pattern] has a `$` that isn't escaped, quoted in `\Q...\E` or inside a character
      * class, read the way Java and RE2 both read it: a `]` straight after `[` or `[^` is a literal.
      * A `$` under an inline `m` flag already matches at every line end, so the pattern behaves the
-     * same. The flag holds from a `(?m)` to the end of its group, or inside a `(?m:...)` group.
+     * same. The flag holds from a `(?m)` to the end of its group, or inside a `(?m:...)` group, and
+     * Multi-Line ([multilineFlag]) sets it for the whole pattern until a `(?-m)` turns it off. A
+     * `[:name:]` inside a class is a POSIX class to RE2 and a nested class to Java, so its `]`
+     * doesn't end the outer one.
      */
-    private fun hasEndAnchor(pattern: String): Boolean {
+    private fun hasEndAnchor(pattern: String, multilineFlag: Boolean): Boolean {
         val outerMultiline = ArrayDeque<Boolean>()
-        var multiline = false
+        var multiline = multilineFlag
         var index = 0
         var inClass = false
         while (index < pattern.length) {
@@ -1155,6 +1158,10 @@ object TaskerXmlImporter {
                     index = end + 1
                 }
                 char == '\\' -> index++
+                inClass && char == '[' && pattern.startsWith(":", index + 1) -> {
+                    val end = pattern.indexOf(":]", index + 2)
+                    if (end >= 0) index = end + 1
+                }
                 inClass -> if (char == ']') inClass = false
                 char == '[' -> {
                     inClass = true

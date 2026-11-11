@@ -6,9 +6,9 @@ import org.junit.Test
 
 /** Tasker Search Replace's `$` warning reads an inline `m` flag only where the regex engines apply it. */
 class SearchReplaceInlineFlagScopeTest {
-    private fun warnsOfTheAnchor(pattern: String): Boolean {
+    private fun warnsOfTheAnchor(pattern: String, multiLine: Boolean = false): Boolean {
         val xml = """<code>598</code><Str sr="arg0" ve="3">%stdout</Str><Str sr="arg1" ve="3">$pattern</Str>""" +
-            """<Int sr="arg2" val="0"/><Int sr="arg3" val="0"/><Int sr="arg4" val="0"/><Str sr="arg5" ve="3"/>""" +
+            """<Int sr="arg2" val="0"/><Int sr="arg3" val="${if (multiLine) 1 else 0}"/><Int sr="arg4" val="0"/><Str sr="arg5" ve="3"/>""" +
             """<Int sr="arg6" val="1"/><Str sr="arg7" ve="3"/>"""
         val result = TaskerXmlImporter.parse(
             rawXml = "<TaskerData><Task sr=\"task1\"><id>1</id><nme>Imported</nme><Action sr=\"act0\">$xml</Action></Task></TaskerData>",
@@ -41,5 +41,19 @@ class SearchReplaceInlineFlagScopeTest {
         assertFalse(warnsOfTheAnchor("""(?-m)a(?m)b$"""))
         // A $ before the flag is still an end anchor.
         assertTrue(warnsOfTheAnchor("""a$|(?m)b"""))
+    }
+
+    @Test
+    fun aPosixClassInsideAClassKeepsItsOwnBrackets() {
+        // The ( and ) here sit inside the class, so neither opens nor closes a group.
+        assertTrue(warnsOfTheAnchor("""((?m)[[:space:](])$"""))
+        assertFalse(warnsOfTheAnchor("""((?m)[[:alpha:])]x$)"""))
+    }
+
+    @Test
+    fun multiLineCoversTheAnchorUntilAnInlineFlagTurnsItOff() {
+        assertFalse(warnsOfTheAnchor("""\d+$""", multiLine = true))
+        assertTrue(warnsOfTheAnchor("""(?-m)\d+$""", multiLine = true))
+        assertFalse(warnsOfTheAnchor("""(?-m:a)b$""", multiLine = true))
     }
 }
