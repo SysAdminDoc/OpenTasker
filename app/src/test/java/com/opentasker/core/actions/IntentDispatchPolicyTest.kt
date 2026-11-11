@@ -94,4 +94,25 @@ class IntentDispatchPolicyTest {
 
         assertEquals("res", (result as IntentDispatchParseResult.Valid).plan.resultVariable)
     }
+
+    @Test
+    fun aResultVariableTheStoreCouldNotKeepStopsTheStep() {
+        fun parse(name: String) = IntentDispatchPolicy.parse(
+            mapOf(
+                "package" to "com.example.target",
+                "component" to ".EventReceiver",
+                "mode" to "broadcast",
+                "action" to "com.example.EVENT",
+                "result_variable" to name,
+            ),
+        )
+
+        // A bare % used to read as no result variable at all, and _res parsed but was never stored.
+        listOf("%", " % ", "%_res", "1res").forEach { name ->
+            assertEquals(name, IntentDispatchParseResult.Invalid("invalid result variable"), parse(name))
+        }
+        assertEquals("res", (parse("res") as IntentDispatchParseResult.Valid).plan.resultVariable)
+        assertEquals("res-x", (parse("%res-x") as IntentDispatchParseResult.Valid).plan.resultVariable)
+        assertEquals(null, (parse("  ") as IntentDispatchParseResult.Valid).plan.resultVariable)
+    }
 }

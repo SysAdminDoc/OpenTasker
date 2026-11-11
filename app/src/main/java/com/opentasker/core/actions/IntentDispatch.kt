@@ -1,5 +1,7 @@
 package com.opentasker.core.actions
 
+import com.opentasker.core.model.VariableNamePolicy
+
 private const val MAX_PACKAGE_LENGTH = 255
 private const val MAX_ACTION_LENGTH = 256
 private const val MAX_CATEGORY_LENGTH = 256
@@ -61,7 +63,6 @@ internal object IntentDispatchPolicy {
     private val packagePattern = Regex("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*")
     private val componentPattern = Regex("[A-Za-z_$][A-Za-z0-9_$.]*")
     private val extraKeyPattern = Regex("[A-Za-z_][A-Za-z0-9_.-]*")
-    private val variablePattern = Regex("[A-Za-z_][A-Za-z0-9_]*")
     private val allowedUriSchemes = setOf("http", "https", "content", "geo", "mailto", "tel", "package")
     private val allowedFlags = mapOf(
         "activity_new_task" to IntentDispatchFlag.ACTIVITY_NEW_TASK,
@@ -102,14 +103,13 @@ internal object IntentDispatchPolicy {
         IntentUriGrantPolicy.violation(uriValue, flagsValue)?.let { return invalid(it) }
         val extras = parseExtras(args)
         if (extras is ExtrasResult.Invalid) return invalid(extras.message)
-        // Output names reach the action unexpanded, so "%res" names res, as it does for every other output.
-        val resultVariable = args["result_variable"]?.trim()?.removePrefix("%")?.takeIf(String::isNotBlank)
-        if (resultVariable != null && resultVariable.length > MAX_EXTRA_KEY_LENGTH) {
+        // Output names reach the action unexpanded, so "%res" names res, as it does for every other
+        // output. A bare "%" names nothing, and the name must be one the variable store keeps.
+        val rawResultVariable = args["result_variable"]?.trim()?.takeIf(String::isNotEmpty)
+        if (rawResultVariable != null && rawResultVariable.removePrefix("%").length > MAX_EXTRA_KEY_LENGTH) {
             return invalid("result variable exceeds $MAX_EXTRA_KEY_LENGTH characters")
         }
-        if (resultVariable != null && !variablePattern.matches(resultVariable)) {
-            return invalid("invalid result variable")
-        }
+        val resultVariable = rawResultVariable?.let { VariableNamePolicy.normalize(it) ?: return invalid("invalid result variable") }
         if (resultVariable != null && mode != IntentDispatchMode.BROADCAST) {
             return invalid("result variable is supported only for broadcasts")
         }
