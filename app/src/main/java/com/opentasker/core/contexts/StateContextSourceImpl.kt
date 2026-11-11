@@ -49,7 +49,7 @@ internal fun screenStatePatch(on: Boolean, keyguardLocked: Boolean?): Map<String
  *
  * Matches predicates like:
  *   - "battery_level>=80" (battery percentage)
- *   - "charging=true" (is device charging)
+ *   - "charging=true" (a charger is connected, even one holding the battery below full)
  *   - "headphones=connected" or "headphones=true" (headphones plugged in)
  *   - "screen=on" (display state)
  */
@@ -74,10 +74,10 @@ class StateContextSourceImpl : StateDemandContextSource {
                     Intent.ACTION_BATTERY_CHANGED -> {
                         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
                         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
-                        val isCharging = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1).let {
-                            it == BatteryManager.BATTERY_STATUS_CHARGING ||
-                            it == BatteryManager.BATTERY_STATUS_FULL
-                        }
+                        val isCharging = batteryPluggedIn(
+                            plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1),
+                            status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1),
+                        )
                         batteryPercent(level, scale)?.let { statePatch["battery_level"] = it.toString() }
                         statePatch["charging"] = isCharging.toString()
                     }
@@ -240,15 +240,28 @@ internal fun seedInitialState(app: Context): Map<String, String> {
     if (batteryIntent != null) {
         val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
-        val isCharging = batteryIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1).let {
-            it == BatteryManager.BATTERY_STATUS_CHARGING || it == BatteryManager.BATTERY_STATUS_FULL
-        }
+        val isCharging = batteryPluggedIn(
+            plugged = batteryIntent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1),
+            status = batteryIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1),
+        )
         batteryPercent(level, scale)?.let { seed["battery_level"] = it.toString() }
         seed["charging"] = isCharging.toString()
     }
 
     return seed
 }
+
+/**
+ * "charging" means a charger is connected, the way Tasker's Power state reads it. A phone holding
+ * its charge at a battery-protect limit reports NOT_CHARGING while plugged in, and still counts.
+ * The status is only a fallback for a broadcast that leaves out EXTRA_PLUGGED.
+ */
+internal fun batteryPluggedIn(plugged: Int, status: Int): Boolean =
+    if (plugged >= 0) {
+        plugged != 0
+    } else {
+        status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+    }
 
 @Suppress("DEPRECATION")
 private fun isAirplaneModeOn(context: Context): Boolean =

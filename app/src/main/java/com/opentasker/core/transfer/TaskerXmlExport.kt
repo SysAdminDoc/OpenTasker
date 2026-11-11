@@ -601,8 +601,8 @@ object TaskerXmlExporter {
         }
         if (operator != "=") return null
         return when (key) {
-            // Power and Headset Plugged with their source left at Any. Power also counts a phone
-            // that's plugged in but holding its charge, which "charging" doesn't (A-398).
+            // Power and Headset Plugged with their source left at Any. Power and "charging" both
+            // count a phone that's plugged in but holding its charge.
             "charging", "headphones" -> {
                 val expected = normalizeStateExpectedValue(key, value) ?: return null
                 TaskerContextCode(if (key == "charging") 10 else 30, listOf("""<Int sr="arg0" val="0"/>"""), negated = expected == "false")

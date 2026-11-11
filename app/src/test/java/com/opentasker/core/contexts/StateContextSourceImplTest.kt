@@ -1,5 +1,6 @@
 package com.opentasker.core.contexts
 
+import android.os.BatteryManager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
@@ -27,6 +28,17 @@ class StateContextSourceImplTest {
         // Lock after 30 seconds: still open as the screen goes off, closed when it comes back.
         assertEquals(mapOf("screen" to "off", "unlocked" to "true"), screenStatePatch(on = false, keyguardLocked = false))
         assertEquals(mapOf("screen" to "on", "unlocked" to "false"), screenStatePatch(on = true, keyguardLocked = true))
+    }
+
+    @Test
+    fun aChargerHoldingTheBatteryBelowFullStillCountsAsCharging() {
+        // A battery-protect limit reports NOT_CHARGING while plugged in; Tasker's Power counts it.
+        assertTrue(batteryPluggedIn(BatteryManager.BATTERY_PLUGGED_AC, BatteryManager.BATTERY_STATUS_NOT_CHARGING))
+        assertTrue(batteryPluggedIn(BatteryManager.BATTERY_PLUGGED_WIRELESS, BatteryManager.BATTERY_STATUS_FULL))
+        assertFalse(batteryPluggedIn(0, BatteryManager.BATTERY_STATUS_DISCHARGING))
+        assertFalse("full but unplugged", batteryPluggedIn(0, BatteryManager.BATTERY_STATUS_FULL))
+        assertTrue("no plug extra falls back to the status", batteryPluggedIn(-1, BatteryManager.BATTERY_STATUS_CHARGING))
+        assertFalse(batteryPluggedIn(-1, BatteryManager.BATTERY_STATUS_NOT_CHARGING))
     }
 
     @Test
