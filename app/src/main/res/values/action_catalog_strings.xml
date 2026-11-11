@@ -152,6 +152,11 @@
     <string name="catalog_action_text_substring_field_end_hint" formatted="false">exclusive; omit for end of string</string>
     <string name="catalog_action_text_substring_field_var_label" formatted="false">Output variable</string>
     <string name="catalog_action_text_substring_field_var_hint" formatted="false">default: substring</string>
+    <string name="catalog_action_text_length_name" formatted="false">Text Length</string>
+    <string name="catalog_action_text_length_description" formatted="false">Count the characters in some text</string>
+    <string name="catalog_action_text_length_field_source_label" formatted="false">Text</string>
+    <string name="catalog_action_text_length_field_var_label" formatted="false">Output variable</string>
+    <string name="catalog_action_text_length_field_var_hint" formatted="false">default: length</string>
     <string name="catalog_action_var_split_name" formatted="false">Variable Split</string>
     <string name="catalog_action_var_split_description" formatted="false">Split a variable into numbered elements, the way Tasker does (%text1, %text2, …)</string>
     <string name="catalog_action_var_split_field_name_label" formatted="false">Name</string>

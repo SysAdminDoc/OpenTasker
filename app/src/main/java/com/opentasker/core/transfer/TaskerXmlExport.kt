@@ -118,6 +118,7 @@ object TaskerXmlExporter {
         "array.clear" to "357",
         "array.process" to "369",
         "var.convert" to "596",
+        "text.length" to "345",
     )
 
     fun export(
@@ -425,6 +426,11 @@ object TaskerXmlExporter {
                 appendInt(sb, 1, ordinal?.toString() ?: function)
                 appendStr(sb, 2, args["var"]?.ifBlank { null }?.let { taskerVariableName(it, it) }.orEmpty())
                 appendInt(sb, 3, taskerFlag(args["url_safe"]))
+            }
+            "text.length" -> {
+                appendInt(sb, 0, "0")
+                appendStr(sb, 1, args["source"].orEmpty())
+                appendStr(sb, 2, taskerVariableName(args["var"] ?: args["variable"], "length"))
             }
         }
 

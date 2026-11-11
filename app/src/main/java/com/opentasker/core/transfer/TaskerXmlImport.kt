@@ -558,6 +558,7 @@ object TaskerXmlImporter {
             "549" -> taskerVariableClear(code, byIndex, intsByIndex)
             "596" -> taskerVariableConvert(code, byIndex, intsByIndex, intVariables)
             "597" -> taskerVariableSection(code, byIndex, intsByIndex, intVariables)
+            "345" -> taskerTestVariable(code, element, byIndex, intsByIndex, intVariables)
             "598" -> taskerSearchReplace(code, element, byIndex, intsByIndex)
             "590", "592", "355", "356", "357", "369" -> taskerArrayAction(code, element, byIndex, intsByIndex, intVariables)
             "30", "wait", "flow.wait" -> {
@@ -1273,6 +1274,35 @@ object TaskerXmlImporter {
         if (refusal != null) return taskerPlaceholder(code, refusal)
         return ActionWithLoss(
             ActionSpec(type = "var.set", label = "Tasker variable clear", args = mapOf("name" to name, "value" to "")),
+        )
+    }
+
+    /**
+     * Test Variable's one type, Length (decompiled 6.7.8, `ro.i`), stores how many characters its
+     * Data has once variables are filled in. Data is read untrimmed, because spaces count.
+     */
+    private fun taskerTestVariable(
+        code: String,
+        element: Element,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
+        val storeIn = byIndex[2].orEmpty()
+        val refusal = when {
+            0 in variables -> "Tasker Test Variable takes its type from ${variables[0]}, and only Length comes over"
+            ints[0] == null -> "Tasker Test Variable has no type"
+            ints[0] != 0 -> "Tasker Test Variable's type ${ints[0]} isn't Length, its only type"
+            !TASKER_PLAIN_VARIABLE.matches(storeIn) -> "Tasker Test Variable stores into ${storeIn.ifEmpty { "nothing" }}, which isn't one plain variable"
+            else -> null
+        }
+        if (refusal != null) return taskerPlaceholder(code, refusal)
+        return ActionWithLoss(
+            ActionSpec(
+                type = "text.length",
+                label = "Tasker test variable",
+                args = mapOf("source" to element.rawActionString(1), "var" to storeIn),
+            ),
         )
     }
 

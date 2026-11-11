@@ -59,6 +59,7 @@ object ActionCatalog {
         define("text.split", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::TextSplitAction),
         define("text.join", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::TextJoinAction),
         define("text.substring", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::TextSubstringAction),
+        define("text.length", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::TextLengthAction),
         // Split and Join can unset their source, and Push and Pop move elements, so a retry
         // doesn't repeat the first try. Clearing twice clears the same elements.
         define("var.split", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::VarSplitAction),

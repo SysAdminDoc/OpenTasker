@@ -110,6 +110,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "text.split",
     "text.join",
     "text.substring",
+    "text.length",
     "var.split",
     "var.join",
     "var.convert",
@@ -476,6 +477,19 @@ fun registerActionMetadata() {
                 ActionField("start", R.string.catalog_action_text_substring_field_start_label, FieldType.NUMBER, required = true, hintRes = R.string.catalog_action_text_substring_field_start_hint, numberRule = integerRule(0)),
                 ActionField("end", R.string.catalog_action_text_substring_field_end_label, FieldType.NUMBER, hintRes = R.string.catalog_action_text_substring_field_end_hint, numberRule = integerRule(0)),
                 ActionField("var", R.string.catalog_action_text_substring_field_var_label, hintRes = R.string.catalog_action_text_substring_field_var_hint),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "text.length",
+            nameRes = R.string.catalog_action_text_length_name,
+            descriptionRes = R.string.catalog_action_text_length_description,
+            categoryRes = R.string.catalog_category_variable,
+            fields = listOf(
+                ActionField("source", R.string.catalog_action_text_length_field_source_label),
+                ActionField("var", R.string.catalog_action_text_length_field_var_label, hintRes = R.string.catalog_action_text_length_field_var_hint),
             )
         )
     )

@@ -98,3 +98,20 @@ class TextSubstringAction : DeclaredAction(ActionCatalog.require("text.substring
         return ActionResult.Success
     }
 }
+
+/**
+ * Character count. Args: `source`, `var`. Counts the text as it reads once variables are filled in,
+ * so an unset `%name`, which stays as written, counts as its own characters, as in Tasker's Test
+ * Variable. Empty text counts 0, and text that is only spaces counts its spaces, so `source` isn't
+ * required.
+ */
+class TextLengthAction : DeclaredAction(ActionCatalog.require("text.length")) {
+
+    override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+        val source = args["source"].orEmpty()
+        val varName = outputVar(args, "length")
+        ctx.variables.set(varName, source.length.toString())
+        ctx.logger("text.length -> \$$varName")
+        return ActionResult.Success
+    }
+}

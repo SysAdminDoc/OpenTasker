@@ -262,6 +262,7 @@ internal fun declaredActionOutputs(actionId: String): List<ActionOutputDefinitio
     )
     "text.join" -> listOf(output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("var", "variable"), defaultName = "joined"))
     "text.substring" -> listOf(output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("var", "variable"), defaultName = "substring"))
+    "text.length" -> listOf(output("value", ActionValueType.NUMBER, nameArgumentKeys = listOf("var", "variable"), defaultName = "length"))
     "var.split" -> listOf(output("array", ActionValueType.ARRAY, nameArgumentKeys = listOf("name")))
     "var.join" -> listOf(output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("name")))
     "var.convert" -> listOf(output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("var", "name")))

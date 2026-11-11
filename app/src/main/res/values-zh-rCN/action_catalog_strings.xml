@@ -146,6 +146,11 @@
     <string name="catalog_action_text_substring_field_end_hint" formatted="false">不含结尾；省略表示到字符串末尾</string>
     <string name="catalog_action_text_substring_field_var_label" formatted="false">输出变量</string>
     <string name="catalog_action_text_substring_field_var_hint" formatted="false">默认：substring</string>
+    <string name="catalog_action_text_length_name" formatted="false">文本长度</string>
+    <string name="catalog_action_text_length_description" formatted="false">统计文本中的字符数</string>
+    <string name="catalog_action_text_length_field_source_label" formatted="false">文本</string>
+    <string name="catalog_action_text_length_field_var_label" formatted="false">输出变量</string>
+    <string name="catalog_action_text_length_field_var_hint" formatted="false">默认：length</string>
     <string name="catalog_action_var_split_name" formatted="false">变量拆分</string>
     <string name="catalog_action_var_split_description" formatted="false">像 Tasker 一样把变量拆分为编号元素（%text1、%text2……）</string>
     <string name="catalog_action_var_split_field_name_label" formatted="false">名称</string>
