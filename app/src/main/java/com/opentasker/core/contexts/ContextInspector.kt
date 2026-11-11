@@ -370,6 +370,7 @@ private fun contextReason(
             ?.takeIf(String::isNotBlank)
             ?.let { return it }
     }
+    timeBoundsGap(spec, observation.event.metadata)?.let { return it }
     if (spec.type == ContextType.EVENT) {
         return when {
             spec.invert && effectiveMatched -> "Latest event does not satisfy the configuration, so the inverted event context can trigger on this pulse."
@@ -379,12 +380,29 @@ private fun contextReason(
         }
     }
 
-    return when {
+    val verdict = when {
         spec.invert && effectiveMatched -> "Latest value does not satisfy the configuration, so the inverted context matches."
         spec.invert && rawMatched -> "Latest value satisfies the configuration, so the inverted context blocks the profile."
         effectiveMatched -> "Latest value satisfies the configuration."
         else -> "Latest value does not satisfy the configuration."
     }
+    return verdict + timeBoundsRead(spec, observation.event.metadata)
+}
+
+/** Why a Time context bounded by a variable can't match yet, naming the variable, or null when every bound holds a time. */
+private fun timeBoundsGap(spec: ContextSpec, metadata: Map<String, String>): String? {
+    val unresolved = TimeContextBounds.unresolvedBounds(spec, metadata).ifEmpty { return null }
+    unresolved.firstOrNull { TimeContextBounds.variableName(it) == null }?.let { local ->
+        return "$local is a local variable, which a context can't read, so this context stays off. A global has a capital letter in its name."
+    }
+    val holds = if (unresolved.size == 1) "doesn't hold" else "don't hold"
+    return "${unresolved.joinToString(" and ")} $holds a time yet, so this context stays off, inverted or not."
+}
+
+/** " Read %Sunrise as 06:42 and %Sunset as 16:51." for a Time context bounded by variables, else empty. */
+private fun timeBoundsRead(spec: ContextSpec, metadata: Map<String, String>): String {
+    val read = TimeContextBounds.boundTimes(spec, metadata).ifEmpty { return "" }
+    return read.joinToString(" and ", prefix = " Read ", postfix = ".") { (name, time) -> "$name as $time" }
 }
 
 fun ContextSourceSnapshot.observationStatus(

@@ -447,6 +447,43 @@ class ContextInspectorTest {
     }
 
     @Test
+    fun aTimeWindowsReasonNamesTheGlobalThatHoldsNoTimeAndShowsTheTimesItRead() {
+        fun reason(start: String, globals: Map<String, String>): String {
+            val profile = Profile(
+                id = 32,
+                name = "Daylight",
+                enterTaskId = 1,
+                enabled = true,
+                contexts = listOf(ContextSpec(ContextType.TIME, mapOf("start" to start, "end" to "%Sunset"))),
+            )
+            val source = ContextSourceSnapshot(
+                key = "time",
+                label = "Time and day",
+                registered = true,
+                lastObservation = ContextEventObservation(ContextEvent("time", true, mapOf("time" to "12:00")), observedAtMs = 1000),
+            )
+            return inspectProfiles(listOf(profile), listOf(source)) { _, _, spec, observation ->
+                observation.copy(event = TimeContextBounds.withVariableValues(spec, observation.event, globals))
+            }.single().contexts.single().reason
+        }
+
+        assertEquals(
+            "%Sunrise doesn't hold a time yet, so this context stays off, inverted or not.",
+            reason("%Sunrise", mapOf("Sunrise" to "soon", "Sunset" to "18.10")),
+        )
+        assertEquals(
+            "%Sunrise and %Sunset don't hold a time yet, so this context stays off, inverted or not.",
+            reason("%Sunrise", emptyMap()),
+        )
+        assertTrue(reason("%sunrise", mapOf("Sunset" to "18.10")).startsWith("%sunrise is a local variable"))
+        assertEquals(
+            "Latest value satisfies the configuration. Read %Sunrise as 06:42 and %Sunset as 18:10.",
+            reason("%Sunrise", mapOf("Sunrise" to "6.42", "Sunset" to "18.10")),
+        )
+        assertEquals("Latest value satisfies the configuration. Read %Sunset as 18:10.", reason("06:00", mapOf("Sunset" to "18.10")))
+    }
+
+    @Test
     fun pluginSourceLabelResolvesCorrectly() {
         assertEquals("Plugin condition", "plugin".toContextSourceLabel())
     }
