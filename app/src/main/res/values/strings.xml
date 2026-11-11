@@ -250,8 +250,10 @@
     <string name="profile_group_helper">Optional. Groups profiles in the list for easier browsing.</string>
     <string name="profile_enable_after_save">Enable after saving</string>
     <string name="profile_enter_task">Enter task</string>
+    <string name="profile_enter_task_none_helper">Nothing runs when the profile\'s contexts match. Pick an exit task below to run when they stop matching.</string>
     <string name="profile_exit_task">Exit task</string>
     <string name="profile_exit_task_helper">Optional cleanup task to run when this profile stops matching.</string>
+    <string name="profile_exit_task_required_helper">Runs when this profile stops matching. A profile with no enter task needs one.</string>
     <string name="profile_fallback_task">Profile fallback task</string>
     <string name="profile_fallback_task_helper">Optional task to run when the profile task fails without a flow.catch.</string>
     <string name="profile_cooldown_label">Cooldown seconds</string>
@@ -280,7 +282,7 @@
     <string name="profile_lifetime_date_title">Until a date</string>
     <string name="profile_lifetime_date_body">Stop matching after the selected calendar date ends.</string>
     <string name="profile_lifetime_once_title">Run once</string>
-    <string name="profile_lifetime_once_body">Disable the profile after its first accepted activation.</string>
+    <string name="profile_lifetime_once_body">Disable the profile after its first accepted activation, or after its exit task runs if it has no enter task.</string>
     <string name="automation_mode_single_title">Ignore while running</string>
     <string name="automation_mode_restart_title">Cancel and restart</string>
     <string name="automation_mode_queued_title">Run again in order</string>
@@ -746,6 +748,8 @@
     <string name="automation_lint_repeated_triggering_title">Repeated triggering</string>
     <string name="automation_lint_repeated_triggering_detail">%1$s has a state context without a cooldown, dwell, or explicit idempotency guard.</string>
     <string name="automation_lint_repeated_triggering_fix">Add a cooldown, a dwell requirement, or an explicit guard condition to the enter task.</string>
+    <string name="automation_lint_repeated_exit_triggering_detail">%1$s has a state context without a grace period, dwell, or explicit idempotency guard.</string>
+    <string name="automation_lint_repeated_exit_triggering_fix">Add a grace period, a dwell requirement, or an explicit guard condition to the exit task.</string>
     <string name="automation_lint_priority_conflict_title">Priority conflict</string>
     <string name="automation_lint_priority_conflict_detail">%1$s and %2$s can both write %3$s while their profile priorities are %4$d and %5$d.</string>
     <string name="automation_lint_priority_conflict_equal_fix">Raise one task priority or make the contexts mutually exclusive.</string>
@@ -1106,6 +1110,7 @@
     <string name="workspace_stored_data_review_body">OpenTasker blocked affected records from execution and editing. %1$s%2$s. Restore a database backup before continuing; the raw stored data remains untouched.</string>
     <string name="workspace_runs_task">Runs: %1$s</string>
     <string name="workspace_missing_task">Missing task #%1$d</string>
+    <string name="workspace_exit_task_only">%1$s, when it stops matching</string>
     <string name="workspace_profile_cannot_match">Profile cannot match yet</string>
     <string name="workspace_profile_cannot_match_body">Add at least one context before relying on this profile.</string>
     <string name="workspace_task_priority">Priority %1$d · %2$s</string>
@@ -1149,6 +1154,7 @@
     <string name="flow_branch">Branch</string>
     <string name="flow_accessibility_summary">%1$s: %2$d context(s), %3$d action(s), enter task %4$s, exit task %5$s, %6$s.</string>
     <string name="flow_no_exit_task">no exit task</string>
+    <string name="flow_no_enter_task">no enter task</string>
 
     <string name="semantic_diff_title">Review what actually changed</string>
     <string name="semantic_diff_summary">%1$s across %2$s</string>

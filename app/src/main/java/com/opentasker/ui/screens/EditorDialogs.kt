@@ -439,6 +439,7 @@ internal fun ProfileEditorDialog(
         enterTaskId = enterTaskId,
         selectedTaskExists = selectedTaskExists,
         selectedExitTaskExists = selectedExitTaskExists,
+        exitTaskId = exitTaskId,
         selectedFallbackTaskExists = selectedFallbackTaskExists,
         cooldown = cooldown,
         parsedCooldown = parsedCooldown,
@@ -525,6 +526,12 @@ internal fun ProfileEditorDialog(
                     }
                 }
                 Text(stringResource(R.string.profile_enter_task), style = MaterialTheme.typography.labelLarge)
+                SelectableOption(
+                    title = stringResource(R.string.label_none),
+                    body = stringResource(R.string.profile_enter_task_none_helper),
+                    selected = enterTaskId <= 0,
+                    onClick = { enterTaskId = 0L },
+                )
                 tasks.forEach { task ->
                     SelectableOption(
                         title = task.name,
@@ -535,7 +542,9 @@ internal fun ProfileEditorDialog(
                 }
                 TaskActionFieldInput(
                     label = stringResource(R.string.profile_exit_task),
-                    hint = stringResource(R.string.profile_exit_task_helper),
+                    hint = stringResource(
+                        if (enterTaskId <= 0) R.string.profile_exit_task_required_helper else R.string.profile_exit_task_helper,
+                    ),
                     value = exitTaskId?.toString().orEmpty(),
                     tasks = tasks,
                     onChange = { exitTaskId = it.toLongOrNull() },
@@ -847,8 +856,10 @@ internal fun profileEditorCanSave(
     burstLimit: String = "",
     parsedBurstLimit: Int? = null,
     selectedFallbackTaskExists: Boolean = true,
+    exitTaskId: Long? = null,
 ): Boolean =
-    name.isNotBlank() && enterTaskId > 0 && selectedTaskExists &&
+    // With no enter task the profile only does something through its exit task.
+    name.isNotBlank() && (if (enterTaskId > 0) selectedTaskExists else exitTaskId != null && exitTaskId > 0) &&
         selectedExitTaskExists && selectedFallbackTaskExists && (cooldown.isBlank() || parsedCooldown != null) &&
         parsedPriority != null && parsedPriority in InputValidation.MIN_PROFILE_PRIORITY..InputValidation.MAX_PROFILE_PRIORITY &&
         parsedGracePeriod != null && parsedGracePeriod in 0..InputValidation.MAX_GRACE_PERIOD_SEC &&

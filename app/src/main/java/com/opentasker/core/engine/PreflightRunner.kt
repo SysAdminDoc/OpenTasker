@@ -26,6 +26,7 @@ import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
 import com.opentasker.core.model.VariableNamePolicy
+import com.opentasker.core.model.enterTaskIdOrNull
 
 /** Synthetic inputs for a side-effect-free task/profile preflight. */
 data class PreflightInputs(
@@ -173,7 +174,7 @@ object PreflightRunner {
         val contexts = profile.contexts.mapIndexed { index, context ->
             PreflightContextReport(index, context.type, context.config)
         }
-        val rootTaskIds = listOfNotNull(profile.enterTaskId, profile.exitTaskId).distinct()
+        val rootTaskIds = listOfNotNull(profile.enterTaskIdOrNull, profile.exitTaskId).distinct()
         rootTaskIds.forEach { taskId ->
             val task = byId[taskId]
             if (task == null) {

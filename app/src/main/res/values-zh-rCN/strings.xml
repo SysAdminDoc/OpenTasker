@@ -245,8 +245,10 @@
     <string name="profile_group_helper">可选。在列表中分组配置文件以便浏览。</string>
     <string name="profile_enable_after_save">保存后启用</string>
     <string name="profile_enter_task">进入任务</string>
+    <string name="profile_enter_task_none_helper">此配置文件匹配时不运行任何任务。请在下方选择一个退出任务，在它停止匹配时运行。</string>
     <string name="profile_exit_task">退出任务</string>
     <string name="profile_exit_task_helper">可选。当此配置文件停止匹配时运行的清理任务。</string>
+    <string name="profile_exit_task_required_helper">当此配置文件停止匹配时运行。没有进入任务的配置文件必须选择一个。</string>
     <string name="profile_fallback_task">配置文件回退任务</string>
     <string name="profile_fallback_task_helper">可选。当配置文件任务在缺少 flow.catch 时失败时运行的任务。</string>
     <string name="profile_cooldown_label">冷却秒数</string>
@@ -275,7 +277,7 @@
     <string name="profile_lifetime_date_title">直到某个日期</string>
     <string name="profile_lifetime_date_body">所选日历日期结束后停止匹配。</string>
     <string name="profile_lifetime_once_title">仅运行一次</string>
-    <string name="profile_lifetime_once_body">在其第一次被接受的激活后禁用配置文件。</string>
+    <string name="profile_lifetime_once_body">在其第一次被接受的激活后禁用配置文件；没有进入任务时，在其退出任务运行后禁用。</string>
     <string name="automation_mode_single_title">运行期间忽略</string>
     <string name="automation_mode_restart_title">取消并重启</string>
     <string name="automation_mode_queued_title">按顺序再次运行</string>
@@ -719,6 +721,8 @@
     <string name="automation_lint_repeated_triggering_title">重复触发</string>
     <string name="automation_lint_repeated_triggering_detail">%1$s 有一个状态上下文，但没有冷却、停留或显式的幂等性保护。</string>
     <string name="automation_lint_repeated_triggering_fix">向进入任务添加冷却、停留要求或显式的保护条件。</string>
+    <string name="automation_lint_repeated_exit_triggering_detail">%1$s 有一个状态上下文，但没有宽限期、停留或显式的幂等性保护。</string>
+    <string name="automation_lint_repeated_exit_triggering_fix">向退出任务添加宽限期、停留要求或显式的保护条件。</string>
     <string name="automation_lint_priority_conflict_title">优先级冲突</string>
     <string name="automation_lint_priority_conflict_detail">%1$s 和 %2$s 都可以写入 %3$s，而它们的配置文件优先级分别为 %4$d 和 %5$d。</string>
     <string name="automation_lint_priority_conflict_equal_fix">提升其中一个任务优先级，或让上下文互斥。</string>
@@ -1070,6 +1074,7 @@
     <string name="workspace_stored_data_review_body">OpenTasker阻止了受影响的记录被执行和编辑。%1$s%2$s。请先恢复数据库备份再继续；原始存储的数据保持不变。</string>
     <string name="workspace_runs_task">运行：%1$s</string>
     <string name="workspace_missing_task">缺失任务 #%1$d</string>
+    <string name="workspace_exit_task_only">%1$s（停止匹配时）</string>
     <string name="workspace_profile_cannot_match">配置文件尚无法匹配</string>
     <string name="workspace_profile_cannot_match_body">在依赖此配置文件前至少添加一个上下文。</string>
     <string name="workspace_task_priority">优先级 %1$d · %2$s</string>
@@ -1113,6 +1118,7 @@
     <string name="flow_branch">分支</string>
     <string name="flow_accessibility_summary">%1$s：%2$d 个上下文、%3$d 个操作、进入任务 %4$s、退出任务 %5$s、%6$s。</string>
     <string name="flow_no_exit_task">无退出任务</string>
+    <string name="flow_no_enter_task">无进入任务</string>
 
     <string name="semantic_diff_title">审阅实际更改的内容</string>
     <string name="semantic_diff_summary">%1$s，涉及 %2$s</string>

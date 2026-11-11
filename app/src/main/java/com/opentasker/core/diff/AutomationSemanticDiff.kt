@@ -9,6 +9,7 @@ import com.opentasker.core.model.Scene
 import com.opentasker.core.model.SceneElement
 import com.opentasker.core.model.Task
 import com.opentasker.core.model.Variable
+import com.opentasker.core.model.enterTaskIdOrNull
 import com.opentasker.core.transfer.OpenTaskerBundle
 
 enum class SemanticDiffEntity {
@@ -124,7 +125,7 @@ object AutomationSemanticDiff {
             else -> {
                 compare(changes, "Name", before.name, after.name)
                 compare(changes, "Enabled", before.enabled, after.enabled)
-                compareReference(changes, "Enter task", before.enterTaskId, after.enterTaskId, beforeTaskNames, afterTaskNames)
+                compareReference(changes, "Enter task", before.enterTaskIdOrNull, after.enterTaskIdOrNull, beforeTaskNames, afterTaskNames)
                 compareReference(changes, "Exit task", before.exitTaskId, after.exitTaskId, beforeTaskNames, afterTaskNames)
                 compare(changes, "Cooldown", before.cooldownSec, after.cooldownSec)
                 compare(changes, "Automation mode", before.automationMode, after.automationMode)
@@ -266,7 +267,7 @@ object AutomationSemanticDiff {
     ) {
         changes += change(kind, "Name", profile.name)
         changes += change(kind, "Enabled", profile.enabled)
-        changes += change(kind, "Enter task", reference(profile.enterTaskId, taskNames))
+        changes += change(kind, "Enter task", profile.enterTaskIdOrNull?.let { reference(it, taskNames) })
         changes += change(kind, "Exit task", profile.exitTaskId?.let { reference(it, taskNames) })
         changes += change(kind, "Cooldown", profile.cooldownSec)
         changes += change(kind, "Automation mode", profile.automationMode)
@@ -629,7 +630,7 @@ object AutomationSemanticDiff {
                 before.exitTaskId != after.exitTaskId ||
                 before.fallbackTaskId != after.fallbackTaskId
             if (referenceChanged) {
-                listOfNotNull(before.enterTaskId, before.exitTaskId, before.fallbackTaskId, after.enterTaskId, after.exitTaskId, after.fallbackTaskId)
+                listOfNotNull(before.enterTaskIdOrNull, before.exitTaskId, before.fallbackTaskId, after.enterTaskIdOrNull, after.exitTaskId, after.fallbackTaskId)
                     .forEach { keys += "task:$it" }
             }
         }

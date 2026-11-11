@@ -93,6 +93,7 @@ import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.RunLogEntry
 import com.opentasker.core.model.Task
+import com.opentasker.core.model.enterTaskIdOrNull
 import com.opentasker.core.plugins.locale.localePluginReceiverInstalled
 import com.opentasker.core.storage.StorageDecodeIssue
 import com.opentasker.ui.theme.DesignSystem
@@ -266,7 +267,18 @@ internal fun ProfilesScreen(
             }
         }
         items(filteredProfiles, key = { it.id }) { profile ->
-            val enterTaskName = allTasks.firstOrNull { it.id == profile.enterTaskId }?.name ?: stringResource(R.string.workspace_missing_task, profile.enterTaskId)
+            val enterTaskId = profile.enterTaskIdOrNull
+            val exitTaskId = profile.exitTaskId
+            fun taskName(id: Long) = allTasks.firstOrNull { it.id == id }?.name
+            val enterTaskName = when {
+                enterTaskId != null -> taskName(enterTaskId) ?: stringResource(R.string.workspace_missing_task, enterTaskId)
+                // A profile with only an exit task.
+                exitTaskId != null -> stringResource(
+                    R.string.workspace_exit_task_only,
+                    taskName(exitTaskId) ?: stringResource(R.string.workspace_missing_task, exitTaskId),
+                )
+                else -> stringResource(R.string.label_none)
+            }
             ProfileCard(
                 profile = profile,
                 enterTaskName = enterTaskName,

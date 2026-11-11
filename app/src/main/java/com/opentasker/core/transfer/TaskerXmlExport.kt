@@ -20,6 +20,7 @@ import com.opentasker.core.model.ProfileLifetime
 import com.opentasker.core.model.ProfileOverflowPolicy
 import com.opentasker.core.model.Task
 import com.opentasker.core.model.Variable
+import com.opentasker.core.model.enterTaskIdOrNull
 import com.opentasker.core.diagnostics.ExportRedactionPolicy
 import com.opentasker.core.engine.SUB_TASK_REF_KEYS
 import kotlin.math.roundToLong
@@ -631,7 +632,8 @@ object TaskerXmlExporter {
         sb.appendLine("    <id>${profile.id}</id>")
         // Tasker's own mark for a profile that's switched off, read as present or not.
         if (!profile.enabled || droppedAny) sb.appendLine("    <limit>true</limit>")
-        sb.appendLine("    <mid0>${profile.enterTaskId}</mid0>")
+        // Like Tasker, a profile with only an exit task has no mid0.
+        profile.enterTaskIdOrNull?.let { sb.appendLine("    <mid0>$it</mid0>") }
         profile.exitTaskId?.let {
             sb.appendLine("    <mid1>$it</mid1>")
         }

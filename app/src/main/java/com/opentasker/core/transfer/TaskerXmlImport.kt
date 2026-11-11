@@ -199,10 +199,23 @@ object TaskerXmlImporter {
         return doc.elementsByTagName("Profile").mapIndexedNotNull { index, element ->
             val id = uniqueId(sourceId(element, index), usedIds)
             val name = element.childText("nme", "name").ifBlank { "Tasker Profile $id" }
-            val enterTaskId = element.childText("mid0", "task", "tid", "enterTaskId").toLongOrNull()
-            if (enterTaskId == null || enterTaskId !in taskIds) {
-                lossyWarnings += "Profile '$name' was skipped because its entry task could not be mapped."
-                return@mapIndexedNotNull null
+            val enterTaskTags = arrayOf("mid0", "task", "tid", "enterTaskId")
+            val sourceEnterTaskId = element.childText(*enterTaskTags).toLongOrNull()
+            val sourceExitTaskId = element.childText("mid1", "exitTaskId").toLongOrNull()
+            val exitTaskId = sourceExitTaskId?.takeIf { it in taskIds }
+            // Tasker writes no mid0 for a profile that only has an exit task. A mid0 that is there
+            // but unreadable is a broken enter task, not a missing one.
+            val hasEnterTaskTag = enterTaskTags.any { element.directChildren(it).isNotEmpty() }
+            val enterTaskId = when {
+                !hasEnterTaskTag && sourceExitTaskId != null -> exitTaskId?.let { 0L } ?: run {
+                    lossyWarnings += "Profile '$name' was skipped because its exit task could not be mapped."
+                    return@mapIndexedNotNull null
+                }
+                sourceEnterTaskId == null || sourceEnterTaskId !in taskIds -> {
+                    lossyWarnings += "Profile '$name' was skipped because its entry task could not be mapped."
+                    return@mapIndexedNotNull null
+                }
+                else -> sourceEnterTaskId
             }
 
             val parsedContexts = parseContexts(element, name, lossyWarnings)
@@ -264,7 +277,7 @@ object TaskerXmlImporter {
                     name = name,
                     enabled = element.isSwitchedOnInTasker() && !parsedContexts.droppedAny,
                     enterTaskId = enterTaskId,
-                    exitTaskId = element.childText("mid1", "exitTaskId").toLongOrNull()?.takeIf { it in taskIds },
+                    exitTaskId = exitTaskId,
                     contexts = contexts,
                     priority = element.childText("priority").toIntOrNull() ?: 0,
                     gracePeriodSec = element.childText("gracePeriodSec", "grace").toIntOrNull() ?: 0,

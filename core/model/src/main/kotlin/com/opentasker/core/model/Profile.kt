@@ -5,7 +5,9 @@ import kotlinx.serialization.Serializable
 /**
  * A Profile binds one or more Contexts to a Task. Legacy profiles use implicit AND semantics;
  * profiles with [contextExpression] evaluate that explicit nested boolean tree instead.
- * Activation runs [enterTaskId]; deactivation runs [exitTaskId] (if set).
+ * Activation runs [enterTaskId]; deactivation runs [exitTaskId] (if set). An [enterTaskId] of 0
+ * means the profile has no enter task, which is valid when it has an exit task: it goes on without
+ * running anything and runs [exitTaskId] when its contexts stop matching.
  */
 @Serializable
 data class Profile(
@@ -39,6 +41,13 @@ data class Profile(
     /** Optional task to run when this profile's task fails without a lexical flow.catch. */
     val fallbackTaskId: Long? = null,
 )
+
+/**
+ * [Profile.enterTaskId], or null when the profile has no enter task. Only 0 means none: a negative
+ * id stays a broken reference to a task that can't exist, as it was before 0 meant none.
+ */
+val Profile.enterTaskIdOrNull: Long?
+    get() = enterTaskId.takeIf { it != 0L }
 
 @Serializable
 enum class ProfileLifetime {

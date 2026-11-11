@@ -62,6 +62,7 @@ import com.opentasker.core.model.ProfileLifetime
 import com.opentasker.core.model.ProfileLifecycleStrings
 import com.opentasker.core.model.ProfileOverflowPolicy
 import com.opentasker.core.model.Task
+import com.opentasker.core.model.enterTaskIdOrNull
 import com.opentasker.core.platform.AudioForegroundServiceEligibility
 import com.opentasker.core.platform.PromotedOngoingNotificationSupport
 import com.opentasker.core.platform.ServiceAudioEligibility
@@ -204,6 +205,11 @@ class AutomationService : Service() {
     private val pulseContinuities = Collections.synchronizedMap(mutableMapOf<Long, PulseEventContinuity>())
     private val matchedProfiles = Collections.synchronizedMap(mutableMapOf<Long, Profile>())
     private val dispatchedProfiles = Collections.synchronizedSet(mutableSetOf<Long>())
+    /**
+     * Of [dispatchedProfiles], the ones that went on with no enter task, guarded by its lock. A one-shot
+     * profile among them is used up when it goes off, even if an edit gave it an enter task meanwhile.
+     */
+    private val dispatchedWithoutEnterTask = mutableSetOf<Long>()
     private val cooldowns = CooldownReservations(persist = { profileId, deadline -> cooldownStore.set(profileId, deadline) })
     private val matcherJobs = Collections.synchronizedMap(mutableMapOf<Long, Job>()) // Track jobs for cleanup
     /** The profiles as last loaded. A matcher a reload kept acts on the edited profile through this. */
@@ -385,7 +391,10 @@ class AutomationService : Service() {
         registeredProfiles.clear()
         matchedProfiles.clear()
         AutomationLiveConditionState.clear()
-        dispatchedProfiles.clear()
+        synchronized(dispatchedProfiles) {
+            dispatchedProfiles.clear()
+            dispatchedWithoutEnterTask.clear()
+        }
         cooldowns.clear()
         ExecutionAdmissionRegistry.detach(executionAdmission)
         profileTaskSlots.clear()
@@ -437,7 +446,10 @@ class AutomationService : Service() {
         }
         // Same lock order as onProfileDeactivated.
         val reload = synchronized(matchedProfiles) {
-            synchronized(dispatchedProfiles) { planMatcherReload(running, profiles, matchedProfiles, dispatchedProfiles) }
+            synchronized(dispatchedProfiles) {
+                planMatcherReload(running, profiles, matchedProfiles, dispatchedProfiles)
+                    .also { dispatchedWithoutEnterTask.retainAll(dispatchedProfiles) }
+            }
         }
         val oldJobs = synchronized(matcherJobs) {
             matcherJobs.filterKeys { it !in reload.kept }.values.toList().also { matcherJobs.keys.retainAll(reload.kept) }
@@ -603,19 +615,28 @@ class AutomationService : Service() {
             return
         }
         AutomationLiveConditionState.updateProfile(profile.id, active = !pulseProfile)
-        if (profile.enterTaskId <= 0) return
+        val enterTaskId = profile.enterTaskIdOrNull
+        // A profile with only an exit task still goes on, with nothing to run yet: it takes part in
+        // priority arbitration like any other and runs that exit task when its contexts stop
+        // matching. An event profile never goes off, so without an enter task it has nothing to do.
+        if (enterTaskId == null && (pulseProfile || profile.exitTaskId == null)) return
 
-        val task = db.taskDao().getById(profile.enterTaskId)
-        if (task == null) {
-            AppLogger.warn(TAG, "Enter task ${profile.enterTaskId} not found for profile ${profile.name}")
-            return
-        }
-        val decoded = task.toDomainDecodeResult()
-        val decodeIssue = decoded.issue
-        if (decodeIssue != null) {
-            AppLogger.error(TAG, "Enter task ${profile.enterTaskId} is corrupt for profile ${profile.name}: ${decodeIssue.message}")
-            logProfileSkippedRun(profile, decoded.value, "Enter task data is corrupt (${decodeIssue.fieldName}); recover it before it can run.")
-            return
+        val enterTask = if (enterTaskId == null) {
+            null
+        } else {
+            val task = db.taskDao().getById(enterTaskId)
+            if (task == null) {
+                AppLogger.warn(TAG, "Enter task $enterTaskId not found for profile ${profile.name}")
+                return
+            }
+            val decoded = task.toDomainDecodeResult()
+            val decodeIssue = decoded.issue
+            if (decodeIssue != null) {
+                AppLogger.error(TAG, "Enter task $enterTaskId is corrupt for profile ${profile.name}: ${decodeIssue.message}")
+                logProfileSkippedRun(profile, decoded.value, "Enter task data is corrupt (${decodeIssue.fieldName}); recover it before it can run.")
+                return
+            }
+            decoded.value
         }
 
         // Read the candidate set once under the lock: the matcher runs a coroutine per profile, so
@@ -629,27 +650,41 @@ class AutomationService : Service() {
             )
         }
         if (suppressedBy != null) {
-            logProfileSkippedRun(profile, decoded.value, suppressedBy)
+            if (enterTask != null) {
+                logProfileSkippedRun(profile, enterTask, suppressedBy)
+            } else {
+                AppLogger.info(TAG, "Profile ${profile.id} held back: $suppressedBy")
+            }
             return
         }
-        if (profile.lifetime == ProfileLifetime.ONCE && !consumeOneShotProfile(profile)) {
+        // A one-shot profile with only an exit task is used up when that exit task runs.
+        if (enterTask != null && profile.lifetime == ProfileLifetime.ONCE && !consumeOneShotProfile(profile)) {
             if (!pulseProfile) synchronized(matchedProfiles) { matchedProfiles.remove(profile.id) }
             return
         }
-        if (!pulseProfile) synchronized(dispatchedProfiles) { dispatchedProfiles += profile.id }
-        dispatchTask(profile, decoded.value, isExit = false, initialVariables = EventTaskVariables.from(event))
+        if (!pulseProfile) {
+            synchronized(dispatchedProfiles) {
+                dispatchedProfiles += profile.id
+                if (enterTask == null) dispatchedWithoutEnterTask += profile.id else dispatchedWithoutEnterTask -= profile.id
+            }
+        }
+        if (enterTask != null) {
+            dispatchTask(profile, enterTask, isExit = false, initialVariables = EventTaskVariables.from(event))
+        }
     }
 
     private suspend fun onProfileDeactivated(profile: com.opentasker.core.model.Profile) {
         AutomationLiveConditionState.updateProfile(profile.id, false)
         val wasDispatched: Boolean
+        val wentOnWithoutEnterTask: Boolean
         // Profiles this one was outranking; they become eligible now that it has deactivated.
         val released: List<Profile>
         synchronized(matchedProfiles) {
             val before = matchedProfiles.values.toList()
             matchedProfiles.remove(profile.id)
-            wasDispatched = synchronized(dispatchedProfiles) {
-                dispatchedProfiles.remove(profile.id)
+            synchronized(dispatchedProfiles) {
+                wentOnWithoutEnterTask = dispatchedWithoutEnterTask.remove(profile.id)
+                wasDispatched = dispatchedProfiles.remove(profile.id)
             }
             val remaining = matchedProfiles.values.toList()
             released = remaining.filter { candidate ->
@@ -677,6 +712,10 @@ class AutomationService : Service() {
         if (decodeIssue != null) {
             AppLogger.error(TAG, "Exit task $exitTaskId is corrupt for profile ${profile.name}: ${decodeIssue.message}")
             logProfileSkippedRun(profile, decoded.value, "Exit task data is corrupt (${decodeIssue.fieldName}); recover it before it can run.")
+            released.forEach { onProfileActivated(it, null) }
+            return
+        }
+        if (wentOnWithoutEnterTask && profile.lifetime == ProfileLifetime.ONCE && !consumeOneShotProfile(profile)) {
             released.forEach { onProfileActivated(it, null) }
             return
         }

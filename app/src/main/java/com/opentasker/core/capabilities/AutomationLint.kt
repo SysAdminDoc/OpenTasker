@@ -10,6 +10,7 @@ import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.ProfileLifetime
 import com.opentasker.core.model.Task
+import com.opentasker.core.model.enterTaskIdOrNull
 import com.opentasker.core.model.isValidForContextCount
 import java.util.Locale
 
@@ -110,7 +111,7 @@ object AutomationLint {
                 )
             }
 
-            unreachableReason(profile, enterTask, nowMs)?.let { reason ->
+            unreachableReason(profile, enterTask, profile.exitTaskId?.let(taskById::get), nowMs)?.let { reason ->
                 val copy = strings.unreachableRule(profile.name, reason)
                 findings += AutomationLintFinding(
                     code = AutomationLintCode.UNREACHABLE_RULE,
@@ -139,8 +140,12 @@ object AutomationLint {
                 )
             }
 
-            if (profile.contexts.any { it.type == ContextType.STATE } && !hasRetriggerGuard(profile, enterTask)) {
-                val copy = strings.repeatedTriggering(profile.name)
+            if (profile.contexts.any { it.type == ContextType.STATE } && !hasRetriggerGuard(profile, enterTask, taskById)) {
+                val copy = if (profile.enterTaskIdOrNull == null) {
+                    strings.repeatedExitTriggering(profile.name)
+                } else {
+                    strings.repeatedTriggering(profile.name)
+                }
                 findings += AutomationLintFinding(
                     code = AutomationLintCode.REPEATED_TRIGGERING,
                     severity = AutomationLintSeverity.WARNING,
@@ -267,12 +272,18 @@ object AutomationLint {
         return AutomationLintReport(findings.toList())
     }
 
-    private fun unreachableReason(profile: Profile, enterTask: Task?, nowMs: Long?): String? {
+    private fun unreachableReason(profile: Profile, enterTask: Task?, exitTask: Task?, nowMs: Long?): String? {
         // Bound locally: contextExpression is a public property of another module now, so it does
         // not smart-cast.
         val contextExpression = profile.contextExpression
         return when {
-            enterTask == null -> "its enter task ${profile.enterTaskId} is missing"
+            profile.enterTaskIdOrNull == null && profile.exitTaskId == null -> "it has no enter or exit task"
+            // A profile with only an exit task runs it when its contexts stop matching.
+            profile.enterTaskIdOrNull == null && exitTask == null -> "its exit task ${profile.exitTaskId} is missing"
+            // An event fires and is over, so the engine never holds such a profile on.
+            profile.enterTaskIdOrNull == null && profile.contexts.any { it.type == ContextType.EVENT } ->
+                "it has no enter task, and an event never stops matching, so its exit task never runs"
+            profile.enterTaskIdOrNull != null && enterTask == null -> "its enter task ${profile.enterTaskId} is missing"
             contextExpression != null && !contextExpression.isValidForContextCount(profile.contexts.size) ->
                 "its context expression is invalid"
             profile.contexts.size > 1 && profile.contexts.indices.any { leftIndex ->
@@ -302,8 +313,10 @@ object AutomationLint {
         return profile.contexts.none { context -> !contextPairMayOverlap(context, guard) }
     }
 
-    private fun hasRetriggerGuard(profile: Profile, enterTask: Task?): Boolean {
-        if (profile.cooldownSec > 0) return true
+    private fun hasRetriggerGuard(profile: Profile, enterTask: Task?, taskById: Map<Long, Task>): Boolean {
+        // With no enter task only the exit task runs, and a cooldown never holds that back.
+        val guardedTask = if (profile.enterTaskIdOrNull == null) profile.exitTaskId?.let(taskById::get) else enterTask
+        if (profile.enterTaskIdOrNull != null && profile.cooldownSec > 0) return true
         if (profile.gracePeriodSec > 0) return true
         if (profile.contexts.any { spec ->
                 val dwell = listOf("dwellMillis", "dwellMs", "dwellSeconds", "dwellSec")
@@ -311,7 +324,7 @@ object AutomationLint {
                 dwell != null && dwell > 0L
             }
         ) return true
-        return enterTask?.actions.orEmpty().any { action ->
+        return guardedTask?.actions.orEmpty().any { action ->
             action.enabled && (
                 action.condition?.trim()?.isNotEmpty() == true ||
                     action.args["idempotent"].equals("true", ignoreCase = true) ||

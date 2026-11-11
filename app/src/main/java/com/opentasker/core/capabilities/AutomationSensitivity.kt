@@ -3,6 +3,7 @@ package com.opentasker.core.capabilities
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
+import com.opentasker.core.model.enterTaskIdOrNull
 import kotlinx.serialization.Serializable
 
 /** User-reviewable powers that an action can exercise under OpenTasker's app-wide grants. */
@@ -319,7 +320,7 @@ object ImportedProfileEnablePolicy {
             .filterNot { ActionCapabilityRegistry.get(it).canAdd }
             .toSortedSet()
         val taskIds = tasks.mapTo(hashSetOf(), Task::id)
-        val missingTaskIds = listOfNotNull(profile.enterTaskId, profile.exitTaskId)
+        val missingTaskIds = listOfNotNull(profile.enterTaskIdOrNull, profile.exitTaskId)
             .filterNot(taskIds::contains)
             .toSortedSet()
         return ImportedProfileEnableReview(

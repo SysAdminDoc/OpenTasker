@@ -13,6 +13,7 @@ import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
+import com.opentasker.core.model.enterTaskIdOrNull
 
 data class AutomationFlowGraph(
     val profileId: Long,
@@ -22,6 +23,7 @@ data class AutomationFlowGraph(
     val warnings: List<String> = emptyList(),
     val strings: AutomationFlowStrings = AutomationFlowStrings.English,
     val lintFindings: List<AutomationLintFinding> = emptyList(),
+    val hasEnterTask: Boolean = true,
 ) {
     val contextNodes: List<AutomationFlowNode>
         get() = nodes.filter { it.kind == AutomationFlowNodeKind.CONTEXT }
@@ -50,7 +52,7 @@ data class AutomationFlowGraph(
 
     fun accessibilitySummary(): String {
         val actionCount = nodes.count { it.kind == AutomationFlowNodeKind.ACTION }
-        val enterTask = enterTaskNode?.title ?: strings.missingTaskTitle("enter")
+        val enterTask = enterTaskNode?.title ?: if (hasEnterTask) strings.missingTaskTitle("enter") else strings.noEnterTask()
         val exitTask = exitTaskNode?.title ?: strings.noExitTask()
         val warningText = if (warnings.isEmpty()) "no warnings" else "${warnings.size} warning${plural(warnings.size)}"
         return strings.accessibilitySummary(title, contextNodes.size, actionCount, enterTask, exitTask, warningText)
@@ -164,23 +166,26 @@ object AutomationFlowGraphBuilder {
             )
         }
 
-        val enterTaskNodeId = addTaskLane(
-            nodes = nodes,
-            edges = edges,
-            warnings = warnings,
-            sourceNodeId = profileNodeId,
-            profileId = profile.id,
-            profileName = profile.name,
-            taskId = profile.enterTaskId,
-            task = tasksById[profile.enterTaskId],
-            kind = AutomationFlowNodeKind.ENTER_TASK,
-            edgeLabel = "enter",
-            strings = strings,
-            changedNodeKeys = changedNodeKeys,
-        )
+        // A profile with only an exit task has no enter lane to draw.
+        profile.enterTaskIdOrNull?.let { enterTaskId ->
+            val enterTaskNodeId = addTaskLane(
+                nodes = nodes,
+                edges = edges,
+                warnings = warnings,
+                sourceNodeId = profileNodeId,
+                profileId = profile.id,
+                profileName = profile.name,
+                taskId = enterTaskId,
+                task = tasksById[enterTaskId],
+                kind = AutomationFlowNodeKind.ENTER_TASK,
+                edgeLabel = "enter",
+                strings = strings,
+                changedNodeKeys = changedNodeKeys,
+            )
 
-        if (enterTaskNodeId == null) {
-            warnings += strings.missingTaskWarning("enter", profile.enterTaskId)
+            if (enterTaskNodeId == null) {
+                warnings += strings.missingTaskWarning("enter", enterTaskId)
+            }
         }
 
         profile.exitTaskId?.let { exitTaskId ->
@@ -210,6 +215,7 @@ object AutomationFlowGraphBuilder {
             edges = edges,
             warnings = warnings.distinct(),
             strings = strings,
+            hasEnterTask = profile.enterTaskIdOrNull != null,
             lintFindings = AutomationLint.analyze(
                 profile,
                 tasksById.values.toList(),

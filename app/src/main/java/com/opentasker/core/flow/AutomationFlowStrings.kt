@@ -17,6 +17,7 @@ interface AutomationFlowStrings {
 
     fun accessibilitySummary(title: String, contextCount: Int, actionCount: Int, enterTask: String, exitTask: String, warningText: String): String
     fun noExitTask(): String
+    fun noEnterTask(): String
     fun nodeAccessibility(
         kind: String,
         title: String,
@@ -49,6 +50,7 @@ private class ResourceAutomationFlowStrings(
     override fun accessibilitySummary(title: String, contextCount: Int, actionCount: Int, enterTask: String, exitTask: String, warningText: String): String =
         resources.getString(R.string.flow_accessibility_summary, title, contextCount, actionCount, enterTask, exitTask, warningText)
     override fun noExitTask(): String = resources.getString(R.string.flow_no_exit_task)
+    override fun noEnterTask(): String = resources.getString(R.string.flow_no_enter_task)
 
     override fun nodeAccessibility(
         kind: String,
@@ -122,6 +124,7 @@ private object EnglishAutomationFlowStrings : AutomationFlowStrings {
     override fun accessibilitySummary(title: String, contextCount: Int, actionCount: Int, enterTask: String, exitTask: String, warningText: String) =
         "$title: $contextCount context${plural(contextCount)}, $actionCount action${plural(actionCount)}, enter task $enterTask, exit task $exitTask, $warningText."
     override fun noExitTask() = "no exit task"
+    override fun noEnterTask() = "no enter task"
     override fun nodeAccessibility(
         kind: String,
         title: String,

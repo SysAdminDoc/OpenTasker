@@ -13,6 +13,9 @@ data class AutomationLintCopy(
 interface AutomationLintStrings {
     fun missingReversal(profileName: String, writes: String): AutomationLintCopy
     fun repeatedTriggering(profileName: String): AutomationLintCopy
+
+    /** The same finding for a profile with no enter task, where only the exit task can repeat. */
+    fun repeatedExitTriggering(profileName: String): AutomationLintCopy = repeatedTriggering(profileName)
     fun priorityConflict(leftName: String, rightName: String, overlap: String, leftPriority: Int, rightPriority: Int, equalPriority: Boolean): AutomationLintCopy
     fun interProfileLoop(path: String): AutomationLintCopy
     fun shadowedRule(
@@ -66,6 +69,12 @@ private class ResourceAutomationLintStrings(
         title = resources.getString(R.string.automation_lint_repeated_triggering_title),
         detail = resources.getString(R.string.automation_lint_repeated_triggering_detail, profileName),
         suggestedFix = resources.getString(R.string.automation_lint_repeated_triggering_fix),
+    )
+
+    override fun repeatedExitTriggering(profileName: String): AutomationLintCopy = AutomationLintCopy(
+        title = resources.getString(R.string.automation_lint_repeated_triggering_title),
+        detail = resources.getString(R.string.automation_lint_repeated_exit_triggering_detail, profileName),
+        suggestedFix = resources.getString(R.string.automation_lint_repeated_exit_triggering_fix),
     )
 
     override fun priorityConflict(
@@ -157,6 +166,12 @@ private object EnglishAutomationLintStrings : AutomationLintStrings {
         title = "Repeated triggering",
         detail = "$profileName has a state context without a cooldown, dwell, or explicit idempotency guard.",
         suggestedFix = "Add a cooldown, a dwell requirement, or an explicit guard condition to the enter task.",
+    )
+
+    override fun repeatedExitTriggering(profileName: String): AutomationLintCopy = AutomationLintCopy(
+        title = "Repeated triggering",
+        detail = "$profileName has a state context without a grace period, dwell, or explicit idempotency guard.",
+        suggestedFix = "Add a grace period, a dwell requirement, or an explicit guard condition to the exit task.",
     )
 
     override fun priorityConflict(

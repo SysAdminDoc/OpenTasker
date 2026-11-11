@@ -468,12 +468,20 @@ object OpenTaskerBundleCodec {
         val profilesById = bundle.profiles.associateBy { it.id }
         val scenesById = bundle.scenes.associateBy { it.id }
         bundle.profiles.forEach { profile ->
-            if (profile.enterTaskId !in taskIds) {
-                lossyWarnings += "Profile '${profile.name}' references missing enter task ${profile.enterTaskId} and will be skipped."
-            }
+            val enterTaskId = profile.enterTaskId.takeIf { it != 0L }
             val exitTaskId = profile.exitTaskId
-            if (exitTaskId != null && exitTaskId !in taskIds) {
-                lossyWarnings += "Profile '${profile.name}' references missing exit task $exitTaskId; the exit task will be dropped."
+            val exitTaskMissing = exitTaskId != null && exitTaskId !in taskIds
+            if (enterTaskId == null) {
+                if (exitTaskId == null || exitTaskMissing) {
+                    lossyWarnings += "Profile '${profile.name}' has no enter task and no exit task that can be imported, so it will be skipped."
+                }
+            } else {
+                if (enterTaskId !in taskIds) {
+                    lossyWarnings += "Profile '${profile.name}' references missing enter task $enterTaskId and will be skipped."
+                }
+                if (exitTaskMissing) {
+                    lossyWarnings += "Profile '${profile.name}' references missing exit task $exitTaskId; the exit task will be dropped."
+                }
             }
             val fallbackTaskId = profile.fallbackTaskId
             if (fallbackTaskId != null && fallbackTaskId !in taskIds) {
@@ -878,10 +886,19 @@ class OpenTaskerBundleRepository(
                 }
 
                 bundle.profiles.sortedWith(compareBy<Profile> { it.name.lowercase() }.thenBy { it.id }).forEach { profile ->
-                    val enterTaskId = taskIdMap[profile.enterTaskId]
-                    if (enterTaskId == null) {
-                        lossyWarnings += "Skipped profile '${profile.name}' because enter task ${profile.enterTaskId} was not imported."
-                        return@forEach
+                    val exitTaskId = profile.exitTaskId?.let { taskIdMap[it] }
+                    // Only 0 means no enter task. A negative id is a broken reference and skips.
+                    val enterTaskId = when (val sourceEnterTaskId = profile.enterTaskId) {
+                        0L -> if (exitTaskId == null) {
+                            lossyWarnings += "Skipped profile '${profile.name}' because it has no enter task and its exit task was not imported."
+                            return@forEach
+                        } else {
+                            0L
+                        }
+                        else -> taskIdMap[sourceEnterTaskId] ?: run {
+                            lossyWarnings += "Skipped profile '${profile.name}' because enter task $sourceEnterTaskId was not imported."
+                            return@forEach
+                        }
                     }
                     val remappedProfile = profile.copy(
                         id = 0,
@@ -889,7 +906,7 @@ class OpenTaskerBundleRepository(
                         requiresRiskAcknowledgement = true,
                         lifetimeConsumed = false,
                         enterTaskId = enterTaskId,
-                        exitTaskId = profile.exitTaskId?.let { taskIdMap[it] },
+                        exitTaskId = exitTaskId,
                         fallbackTaskId = profile.fallbackTaskId?.let { taskIdMap[it] },
                         projectId = projectIdMap[profile.projectId] ?: DEFAULT_PROJECT_ID,
                     )

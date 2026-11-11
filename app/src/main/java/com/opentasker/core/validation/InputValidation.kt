@@ -33,8 +33,15 @@ object InputValidation {
         if (profile.name.length > MAX_NAME_LENGTH) {
             errors.add(ValidationError("name", "Profile name exceeds $MAX_NAME_LENGTH characters"))
         }
-        if (profile.enterTaskId <= 0) {
-            errors.add(ValidationError("enterTaskId", "Enter task must be set"))
+        val exitTaskId = profile.exitTaskId
+        if (exitTaskId != null && exitTaskId <= 0L) {
+            errors.add(ValidationError("exitTaskId", "Exit task id must be positive"))
+        }
+        // 0 is the one way to say there is no enter task.
+        if (profile.enterTaskId < 0) {
+            errors.add(ValidationError("enterTaskId", "Enter task id must not be negative"))
+        } else if (profile.enterTaskId == 0L && (exitTaskId == null || exitTaskId <= 0L)) {
+            errors.add(ValidationError("enterTaskId", "An enter or exit task must be set"))
         }
         val fallbackTaskId = profile.fallbackTaskId
         if (fallbackTaskId != null && fallbackTaskId <= 0L) {
