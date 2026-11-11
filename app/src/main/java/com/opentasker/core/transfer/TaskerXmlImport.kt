@@ -65,6 +65,26 @@ internal const val TASKER_BEEP_PITCH_DIVISOR = 4L
 private fun taskerAlarmStreamArg(stream: Int?): Map<String, String> =
     if (stream == TASKER_ALARM_STREAM) mapOf("stream" to "alarm") else emptyMap()
 
+/** AudioManager's names for the other stream numbers a Tasker export can hold. */
+private val TASKER_STREAM_NAMES = mapOf(
+    0 to "Call", 1 to "System", 2 to "Ringer", 5 to "Notification", 6 to "Bluetooth", 8 to "Dial tones", 10 to "Accessibility",
+)
+
+/**
+ * Beep, Say, Play Ringtone and Music Play only have Music and Alarm here, so a sound Tasker sends
+ * anywhere else, or to a stream held in a variable, comes over on Music and says so.
+ */
+private fun taskerStreamWarning(actionName: String, stream: Int?, variable: String?, plays: String = "plays"): String? = when {
+    variable?.startsWith("%") == true ->
+        "Tasker $actionName picks its stream from $variable, which this app can't, so it $plays on Music"
+    variable != null -> "Tasker $actionName's stream \"$variable\" isn't a stream number, so it $plays on Music"
+    stream != null && stream != TASKER_MUSIC_STREAM && stream != TASKER_ALARM_STREAM -> {
+        val name = TASKER_STREAM_NAMES[stream]?.let { " ($it)" }.orEmpty()
+        "Tasker $actionName plays on stream $stream$name, which this app doesn't offer, so it $plays on Music"
+    }
+    else -> null
+}
+
 object TaskerXmlImporter {
     fun parse(
         rawXml: String,
@@ -523,6 +543,7 @@ object TaskerXmlImporter {
                     label = "Tasker speech",
                     args = mapOf("text" to strings.getOrElse(0) { "" }) + taskerAlarmStreamArg(intsByIndex[2]),
                 ),
+                lossyWarning = taskerStreamWarning("Say", intsByIndex[2], intVariables[2], plays = "speaks"),
             )
             "61", "vibrate" -> {
                 val duration = taskerDuration(
@@ -615,8 +636,11 @@ object TaskerXmlImporter {
                         label = "Tasker sound",
                         args = mapOf("path" to path) + taskerAlarmStreamArg(intsByIndex[2]),
                     ),
-                    lossyWarning = "Tasker Play Ringtone \"$path\" names a system sound, not a file, so it needs a file here"
-                        .takeIf { '/' !in path && !path.startsWith("%") },
+                    lossyWarning = joinWarnings(
+                        "Tasker Play Ringtone \"$path\" names a system sound, not a file, so it needs a file here"
+                            .takeIf { '/' !in path && !path.startsWith("%") },
+                        taskerStreamWarning("Play Ringtone", intsByIndex[2], intVariables[2]),
+                    ),
                 )
             }
             "445" -> ActionWithLoss(
@@ -625,10 +649,13 @@ object TaskerXmlImporter {
                     label = "Tasker music play",
                     args = mapOf("path" to byIndex[0].orEmpty()) + taskerAlarmStreamArg(intsByIndex[3]),
                 ),
-                lossyWarning = listOfNotNull(
-                    "Start".takeIf { (intsByIndex[1] ?: 0) != 0 },
-                    "Loop".takeIf { (intsByIndex[2] ?: 0) != 0 },
-                ).takeIf { it.isNotEmpty() }?.let { "Tasker Music Play fields not imported: ${it.joinToString(", ")}" },
+                lossyWarning = joinWarnings(
+                    listOfNotNull(
+                        "Start".takeIf { (intsByIndex[1] ?: 0) != 0 },
+                        "Loop".takeIf { (intsByIndex[2] ?: 0) != 0 },
+                    ).takeIf { it.isNotEmpty() }?.let { "Tasker Music Play fields not imported: ${it.joinToString(", ")}" },
+                    taskerStreamWarning("Music Play", intsByIndex[3], intVariables[3]),
+                ),
             )
             "443" -> taskerMediaControl(code, element, intsByIndex, intVariables)
             "449", "sound.stop" -> ActionWithLoss(
@@ -1139,10 +1166,7 @@ object TaskerXmlImporter {
                 frequency?.warning,
                 duration?.warning,
                 amplitude?.warning,
-                "Tasker Beep plays on stream $stream, which this app doesn't offer, so it beeps on Music"
-                    .takeIf { stream != null && stream != TASKER_MUSIC_STREAM && stream != TASKER_ALARM_STREAM },
-                "Tasker Beep picks its stream from ${variables[3]}, which this app can't, so it beeps on Music"
-                    .takeIf { variables[3] != null },
+                taskerStreamWarning("Beep", stream, variables[3], plays = "beeps"),
                 "Tasker Beep's Do At Time $doAt was not imported, so it beeps right away".takeIf { doAt != null },
             ),
         )

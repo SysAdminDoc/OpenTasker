@@ -534,6 +534,18 @@ class TaskerRealExportLayoutTest {
         assertEquals("alarm", action("""<code>192</code><Int sr="arg0" val="1"/><Str sr="arg1" ve="3">/a.ogg</Str><Int sr="arg2" val="4"/>""").args["stream"])
     }
 
+    @Test
+    fun aSoundOnAStreamThisAppLacksSaysItPlaysOnMusic() {
+        assertWarns("""<code>192</code><Int sr="arg0" val="1"/><Str sr="arg1" ve="3">/a.ogg</Str><Int sr="arg2" val="5"/>""", "stream 5 (Notification)")
+        assertWarns("""<code>445</code><Str sr="arg0" ve="3">a.mp3</Str><Int sr="arg3" val="0"/>""", "stream 0 (Call)")
+        assertWarns("""<code>559</code><Str sr="arg0" ve="3">hi</Str><Str sr="arg1" ve="3"/><Int sr="arg2"><var>%where</var></Int>""", "%where")
+        assertEquals(null, action("""<code>559</code><Str sr="arg0" ve="3">hi</Str><Str sr="arg1" ve="3"/><Int sr="arg2"><var>%where</var></Int>""").args["stream"])
+        assertTrue(warnings("""<code>192</code><Int sr="arg0" val="1"/><Str sr="arg1" ve="3">/a.ogg</Str><Int sr="arg2" val="3"/>""").none { "stream" in it })
+        assertTrue(warnings("""<code>559</code><Str sr="arg0" ve="3">hi</Str><Str sr="arg1" ve="3"/><Int sr="arg2" val="4"/>""").none { "stream" in it })
+        val odd = warnings("""<code>171</code><Int sr="arg0" val="1852"/><Int sr="arg1" val="100"/><Int sr="arg3" val="3.0"/>""")
+        assertTrue(odd.toString(), odd.any { "\"3.0\" isn't a stream number" in it } && odd.none { "picks its stream" in it })
+    }
+
     // Beep (171)
 
     @Test
