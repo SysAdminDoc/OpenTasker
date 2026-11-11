@@ -8,7 +8,9 @@ package com.opentasker.core.actions
 internal object ArrayPositionArguments {
     private val actions = setOf("array.push", "array.pop")
 
+    fun isPosition(actionType: String, argumentName: String): Boolean = actionType in actions && argumentName == "position"
+
     fun emptyFailure(actionType: String, argumentName: String, rawValue: String, expanded: String): String? =
         "position ${rawValue.trim()} came out empty, so the step can't tell which element to use"
-            .takeIf { actionType in actions && argumentName == "position" && rawValue.isNotBlank() && expanded.isBlank() }
+            .takeIf { isPosition(actionType, argumentName) && rawValue.isNotBlank() && expanded.isBlank() }
 }

@@ -1,7 +1,6 @@
 package com.opentasker.core.engine
 
 import com.opentasker.core.actions.ActionArgumentSensitivity
-import com.opentasker.core.actions.ActionValueType
 import com.opentasker.core.actions.ActiveTransport
 import com.opentasker.core.actions.ArrayPositionArguments
 import com.opentasker.core.actions.HttpNetworkConstraint
@@ -121,6 +120,10 @@ object PreflightRunner {
     private const val MAX_SUBTASK_DEPTH = 8
     private const val MAX_DISPLAY_VALUE_LENGTH = 256
     private val SINGLE_VARIABLE = Regex("%[A-Za-z][A-Za-z0-9_]*")
+
+    // The actions that write Tasker's numbered elements (%arr1, %arr2, ...). text.split and
+    // text.match keep their parts in a stored array instead, so they never set %Pos1.
+    private val NUMBERED_ELEMENT_WRITERS = setOf("var.split", "array.push", "array.pop", "array.process")
 
     fun preflightTask(
         task: Task,
@@ -329,7 +332,7 @@ object PreflightRunner {
             // Preflight plays Variable Set but not every write a run makes (other actions' outputs,
             // a caller's %par1, event values), so an unset position blocks only when nothing could set it.
             val positionStop = expansion.unsetPosition?.let { (position, reason) ->
-                if (staysUnset(position, spec, task, tasks)) {
+                if (staysUnset(position, task, tasks)) {
                     stepWarnings += "The run stops this step: $reason."
                     reason
                 } else {
@@ -583,18 +586,20 @@ object PreflightRunner {
 
     /**
      * True when [position] is a single global that no step here could write: no step names it in an
-     * argument (an output name, a Variable Set, anything) and no declared output resolves to it.
+     * argument (an output name, a Variable Set, anything but another Push or Pop position, which
+     * only reads it) and no declared output resolves to it, or to an element of it for the actions
+     * that write numbered elements.
      */
-    private fun staysUnset(position: String, step: ActionSpec, task: Task, tasks: List<Task>): Boolean {
+    private fun staysUnset(position: String, task: Task, tasks: List<Task>): Boolean {
         if (!SINGLE_VARIABLE.matches(position) || !VariableNamePolicy.isGlobal(position)) return false
         val name = VariableNamePolicy.normalize(position) ?: return false
         return (tasks.filterNot { it.id == task.id } + task).flatMap(Task::actions).none { action ->
             val named = action.args.any { (key, value) ->
-                !(action === step && key == "position") && VariableNamePolicy.normalize(value) == name
+                !ArrayPositionArguments.isPosition(action.type, key) && VariableNamePolicy.normalize(value) == name
             }
             named || declaredActionOutputs(action.type).any { output ->
                 val written = output.resolveName(action.args) ?: return@any false
-                written == name || (output.type == ActionValueType.ARRAY && name.startsWith(written) &&
+                written == name || (action.type in NUMBERED_ELEMENT_WRITERS && name.startsWith(written) &&
                     name.drop(written.length).let { it.isNotEmpty() && it.all(Char::isDigit) })
             }
         }

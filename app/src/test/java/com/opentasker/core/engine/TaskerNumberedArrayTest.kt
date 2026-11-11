@@ -248,7 +248,8 @@ class TaskerNumberedArrayTest {
             id = 3,
             name = "Split",
             actions = listOf(
-                ActionSpec(type = "text.split", args = mapOf("text" to "2,1", "separator" to ",", "var" to "%Pos")),
+                ActionSpec(type = "var.set", args = mapOf("name" to "%Pos", "value" to "2,1")),
+                ActionSpec(type = "var.split", args = mapOf("name" to "%Pos", "splitter" to ",")),
                 pop("%Pos1"),
             ),
         )
@@ -264,6 +265,22 @@ class TaskerNumberedArrayTest {
         // A global nothing writes really does stop the run's step.
         assertEquals(PreflightStepStatus.BLOCKED, noWriter.status)
         assertTrue(noWriter.warnings.toString(), noWriter.warnings.any { "The run stops this step" in it })
+    }
+
+    @Test
+    fun preflightCountsOnlyRealWritesAsSettingAPosition() {
+        fun pop(position: String) = ActionSpec(type = "array.pop", args = mapOf("array" to "%arr", "position" to position))
+        fun steps(vararg actions: ActionSpec) =
+            PreflightRunner.preflightTask(Task(id = 1, name = "T", actions = actions.toList())).tasks.single().steps
+
+        // text.split keeps its parts in a stored array, so %Pos1 stays unset and the run stops.
+        val textSplit = steps(ActionSpec(type = "text.split", args = mapOf("source" to "2,1", "delimiter" to ",", "var" to "%Pos")), pop("%Pos1")).last()
+        // Two Pops reading the same unset position don't set it for each other.
+        val twoPops = steps(pop("%Idx"), pop("%Idx"))
+
+        assertEquals(PreflightStepStatus.BLOCKED, textSplit.status)
+        assertTrue(textSplit.warnings.toString(), textSplit.warnings.any { "The run stops this step" in it })
+        assertEquals(listOf(PreflightStepStatus.BLOCKED, PreflightStepStatus.BLOCKED), twoPops.map { it.status })
     }
 
     @Test
