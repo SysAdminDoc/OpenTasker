@@ -1968,7 +1968,8 @@ object TaskerXmlImporter {
      * specifically falls back to the old literal-"true" behavior -- but is now reported instead of
      * silently reproduced. Ops 4/5 are Tasker's "Matches Regex"/"Doesn't Match Regex" (verified
      * against Map-Tasker's operator table) and import as `~R`/`!~R`; a pattern RE2 can't compile
-     * is reported the same way.
+     * is reported the same way. Codes from an older Tasker are renumbered first
+     * ([taskerConditionOp]).
      */
     private fun Element.parseImportedCondition(): ImportedCondition {
         val conditionList = directChildren("ConditionList").firstOrNull() ?: return ImportedCondition(null, null)
@@ -1981,7 +1982,7 @@ object TaskerXmlImporter {
         } else {
             null
         }
-        val op = condition.childText("op")
+        val op = condition.taskerConditionOp()
         val expression = when (op) {
             "12" -> "$lhs is_set"
             "13" -> "$lhs not_set"
@@ -2015,6 +2016,30 @@ object TaskerXmlImporter {
                 .joinToString("; ")
                 .ifBlank { null },
         )
+    }
+
+    /**
+     * This condition's `<op>` in today's numbering. Tasker renumbered its comparisons twice and
+     * records the numbering in the Condition's `ve` attribute: it writes ve="3" now, and older
+     * exports carry ve="2", where 4 was a numeric equals and 10 was Matches Regex. Tasker's own
+     * loader (decompiled 6.7.8, t1) maps an older code up the same way. A Condition with no `ve`
+     * is read as current here, where Tasker would read it as version 1, because every Tasker
+     * export seen writes one and hand-written samples without it use today's codes.
+     */
+    private fun Element.taskerConditionOp(): String {
+        val raw = childText("op")
+        val version = getAttribute("ve").trim().toIntOrNull() ?: return raw
+        var code = raw.trim().toIntOrNull() ?: return raw
+        if (version < 2 && code > 0) code -= 1
+        if (version < 3) {
+            code = when {
+                code == 10 -> 4
+                code == 11 -> 5
+                code < 2 -> code + 2
+                else -> code + 4
+            }
+        }
+        return code.toString()
     }
 
     private fun org.w3c.dom.NodeList.asElementList(): List<Element> =
