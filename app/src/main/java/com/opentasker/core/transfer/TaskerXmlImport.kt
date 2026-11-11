@@ -152,7 +152,9 @@ object TaskerXmlImporter {
         return doc.elementsByTagName("Task").mapIndexed { index, element ->
             val id = uniqueId(sourceId(element, index), usedIds)
             val name = element.childText("nme", "name").ifBlank { "Tasker Task $id" }
-            val actions = element.directChildren("Action").mapIndexed { actionIndex, actionElement ->
+            // Tasker writes a task's steps in text order of their sr (act0, act1, act10, act11, act2),
+            // and runs them in number order.
+            val actions = element.directChildren("Action").sortedBy { it.argIndex() }.mapIndexed { actionIndex, actionElement ->
                 val parsed = parseAction(name, actionElement, actionIndex)
                 parsed.mapped?.let(mappedActions::add)
                 parsed.unsupported?.let(unsupportedActions::add)

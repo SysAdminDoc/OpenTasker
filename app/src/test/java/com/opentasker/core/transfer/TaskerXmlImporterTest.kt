@@ -585,4 +585,19 @@ class TaskerXmlImporterTest {
         assertEquals("true", action.args["condition"])
         assertTrue(report.lossyWarnings.any { it.contains("unsupported Tasker comparison (op 99)") })
     }
+
+    @Test
+    fun aTaskOfMoreThanTenStepsImportsInStepOrderNotTheOrderTaskerWritesThem() {
+        // A real export lists act10 and act11 between act1 and act2.
+        val steps = (0..11).map { it.toString() }.sorted().joinToString("") { index ->
+            """<Action sr="act$index"><code>547</code><Str sr="arg0">%step</Str><Str sr="arg1">$index</Str></Action>"""
+        }
+        val report = TaskerXmlImporter.parse(
+            rawXml = """<TaskerData><Task sr="task1"><id>1</id><nme>Long</nme>$steps</Task></TaskerData>""",
+            appVersion = "test",
+            importedAtEpochMs = 123L,
+        )
+
+        assertEquals((0..11).map { it.toString() }, report.bundle.tasks.single().actions.map { it.args["value"] })
+    }
 }
