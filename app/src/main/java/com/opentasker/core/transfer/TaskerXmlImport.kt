@@ -802,6 +802,8 @@ object TaskerXmlImporter {
                 }
             }
             "126" -> taskerReturn(code, byIndex, intsByIndex)
+            "135" -> taskerGoto(code, byIndex, intsByIndex, intVariables)
+            "300" -> ActionWithLoss(ActionSpec(type = "flow.anchor", label = "Tasker anchor"))
             "130", "perform.task", "task.run" -> taskerPerformTask(element, strings, byIndex, intsByIndex)
             "log" -> ActionWithLoss(
                 action = ActionSpec(
@@ -822,7 +824,7 @@ object TaskerXmlImporter {
         // type already has an args["condition"] entry, overwrite it with the real parsed condition
         // instead of dropping it, or the editor shows a blank required field for a working import.
         val (importedCondition, conditionWarning) = element.parseImportedCondition()
-        val action = if (importedCondition != null) {
+        val guarded = if (importedCondition != null) {
             val args = if (actionWithLoss.action.args.containsKey("condition")) {
                 actionWithLoss.action.args + ("condition" to importedCondition)
             } else {
@@ -832,6 +834,8 @@ object TaskerXmlImporter {
         } else {
             actionWithLoss.action
         }
+        // The step's own Tasker label, which a Goto can jump to by name.
+        val action = element.childText("label").orEmptyIfBlank()?.let { guarded.copy(label = it) } ?: guarded
         val unsupported = if (action.type == TASKER_UNSUPPORTED_ACTION_ID) {
             TaskerUnsupportedAction(taskName = taskName, taskerCode = code, actionIndex = actionIndex)
         } else {
@@ -1434,6 +1438,22 @@ object TaskerXmlImporter {
             ),
         )
     }
+
+    /** Tasker's Goto: arg0 is the kind of jump, arg1 a step number, arg2 a label. */
+    private fun taskerGoto(code: String, byIndex: Map<Int, String>, ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss =
+        when (ints[0] ?: 0) {
+            0 -> {
+                val step = variables[1]?.let { taskerNumberField("Goto", it) } ?: ImportedField(ints[1]?.toString().orEmpty())
+                ActionWithLoss(
+                    ActionSpec(type = "flow.goto", label = "Tasker goto", args = mapOf("step" to step.value)),
+                    lossyWarning = step.warning,
+                )
+            }
+            1 -> ActionWithLoss(
+                ActionSpec(type = "flow.goto", label = "Tasker goto", args = mapOf("label" to byIndex[2].orEmpty())),
+            )
+            else -> taskerPlaceholder(code, "Tasker Goto to the top or end of a loop, or past an If, has no match here yet")
+        }
 
     /** A called task already runs on its own here, so stopping it hands control back to the caller. */
     private fun taskerReturn(code: String, byIndex: Map<Int, String>, ints: Map<Int, Int>): ActionWithLoss {

@@ -13,8 +13,12 @@ object FlowControl {
     const val CATCH = "flow.catch"
     const val ENDTRY = "flow.endtry"
     const val STOP = "flow.stop"
+    const val GOTO = "flow.goto"
 
-    val ALL = setOf(IF, ELSE, ENDIF, FOREACH, ENDFOR, TRY, CATCH, ENDTRY, STOP)
+    /** Does nothing. Tasker's Anchor, a step that only exists to carry a label a goto can jump to. */
+    const val ANCHOR = "flow.anchor"
+
+    val ALL = setOf(IF, ELSE, ENDIF, FOREACH, ENDFOR, TRY, CATCH, ENDTRY, STOP, GOTO, ANCHOR)
 
     const val DEFAULT_MAX_ATTEMPTS = 1
     const val MAX_ATTEMPTS = 5
@@ -31,6 +35,49 @@ object FlowControl {
     }
 
     fun isControl(type: String): Boolean = type in ALL
+
+    /** Where a goto lands, or why it can't jump. */
+    data class GotoTarget(val index: Int?, val error: String? = null)
+
+    /**
+     * The step a goto jumps to: the first step labelled [label], or else step [step] counted from
+     * 1. Both arrive expanded, so a step number can come from a variable.
+     */
+    fun gotoTarget(actions: List<ActionSpec>, label: String?, step: String?): GotoTarget {
+        val name = label?.trim().orEmpty()
+        if (name.isNotEmpty()) {
+            val index = actions.indexOfFirst { it.label?.trim() == name }
+            return if (index >= 0) GotoTarget(index) else GotoTarget(null, "goto: no step is labelled \"$name\"")
+        }
+        val raw = step?.trim().orEmpty()
+        if (raw.isEmpty()) return GotoTarget(null, "goto needs a step number or a label")
+        // A sum stored by a maths step can read 3.0.
+        val number = raw.toIntOrNull()
+            ?: raw.toDoubleOrNull()?.takeIf { it % 1.0 == 0.0 && it in Int.MIN_VALUE.toDouble()..Int.MAX_VALUE.toDouble() }?.toInt()
+            ?: return GotoTarget(null, "goto: \"$raw\" isn't a step number")
+        if (number !in 1..actions.size) return GotoTarget(null, "goto: the task has no step $number (it has ${actions.size})")
+        return GotoTarget(number - 1)
+    }
+
+    /**
+     * [gotoTarget] for a goto step's arguments, [expanded] as they read now and [written] as the
+     * step has them. An unset variable expands to nothing, so when that left the goto with no
+     * target the error names the variable.
+     */
+    fun gotoTarget(actions: List<ActionSpec>, expanded: Map<String, String>, written: Map<String, String>): GotoTarget {
+        val target = gotoTarget(actions, expanded["label"], expanded["step"])
+        if (target.index != null || GOTO_KEYS.any { !expanded[it].isNullOrBlank() }) return target
+        val emptied = emptiedGotoArgument(expanded, written) ?: return target
+        return GotoTarget(null, "goto: $emptied is empty, so there's no step to jump to")
+    }
+
+    /** The label or step a goto step was written with, like %later, that expanded to nothing. */
+    fun emptiedGotoArgument(expanded: Map<String, String>, written: Map<String, String>): String? =
+        GOTO_KEYS.firstNotNullOfOrNull { key ->
+            written[key]?.trim()?.takeIf { it.isNotEmpty() && expanded[key].isNullOrBlank() }
+        }
+
+    private val GOTO_KEYS = listOf("label", "step")
 }
 
 data class TryRetryPlan(
@@ -93,6 +140,17 @@ data class FlowStructure(
     val catchToEndtry: Map<Int, Int>,
     val error: String? = null,
 ) {
+    /** flow.else index -> its flow.if index. */
+    fun ifForElse(elseIndex: Int): Int? = ifToElse.entries.firstOrNull { it.value == elseIndex }?.key
+
+    /**
+     * The opening step of a For Each or Try whose body holds [target] while that block isn't
+     * running, or null. A goto can leave a block, but it can't start one halfway through.
+     */
+    fun unopenedBlockAt(target: Int, runningLoops: Collection<Int>, runningTries: Collection<Int>): Int? =
+        foreachToEndfor.entries.firstOrNull { (open, end) -> target in open + 1..end && open !in runningLoops }?.key
+            ?: tryToEndtry.entries.firstOrNull { (open, end) -> target in open + 1..end && open !in runningTries }?.key
+
     companion object {
         fun analyze(actions: List<ActionSpec>): FlowStructure {
             val ifToElse = mutableMapOf<Int, Int>()

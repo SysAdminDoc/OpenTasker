@@ -100,6 +100,8 @@ object TaskerXmlExporter {
         "flow.foreach" to "39",
         "flow.endfor" to "40",
         "flow.stop" to "137",
+        "flow.goto" to "135",
+        "flow.anchor" to "300",
         "task.run" to "130",
         "brightness.set" to "810",
         "screen.timeout" to "812",
@@ -181,10 +183,22 @@ object TaskerXmlExporter {
         sb.appendLine("    <nme>${escapeXml(task.name)}</nme>")
         sb.appendLine("    <pri>${task.priority}</pri>")
 
+        val labels = task.actions.filter { it.type == "flow.goto" }
+            .mapNotNullTo(mutableSetOf()) { it.args["label"]?.trim()?.takeIf(String::isNotEmpty) }
+        val layout = GotoLayout(
+            // Tasker numbers only the steps it gets, so a step left out moves every number after it.
+            taskerSteps = task.actions.indices.filter { taskerCodeFor(task.actions[it]) != null }
+                .withIndex().associate { (taskerIndex, index) -> index to taskerIndex + 1 },
+            stepCount = task.actions.size,
+            labels = labels,
+            labelledSteps = labels.mapNotNull { name ->
+                task.actions.indexOfFirst { it.label?.trim() == name }.takeIf { it >= 0 }?.let { name to it }
+            }.toMap(),
+        )
         task.actions.forEachIndexed { index, action ->
             val taskerCode = taskerCodeFor(action)
             if (taskerCode != null) {
-                appendAction(sb, index, taskerCode, action, redactionContext, redactedActionFields, warnings)
+                appendAction(sb, index, taskerCode, action, layout, redactionContext, redactedActionFields, warnings)
             } else {
                 skipped += SkippedExportAction(
                     taskName = task.name,
@@ -202,6 +216,7 @@ object TaskerXmlExporter {
         index: Int,
         code: String,
         action: ActionSpec,
+        layout: GotoLayout,
         redactionContext: ExportRedactionPolicy.Context,
         redactedActionFields: MutableList<String>,
         warnings: MutableList<String>,
@@ -211,6 +226,8 @@ object TaskerXmlExporter {
         val args = sanitized.args
         sb.appendLine("""    <Action sr="act$index" ve="7">""")
         sb.appendLine("      <code>$code</code>")
+        // Only a label a goto jumps to goes out. The rest are mostly the names an import gave each step.
+        action.label?.trim()?.takeIf { it in layout.labels }?.let { sb.appendLine("      <label>${escapeXml(it)}</label>") }
 
         when (action.type) {
             "notify.show", "notify.cancel" -> {
@@ -303,6 +320,7 @@ object TaskerXmlExporter {
                 appendInt(sb, 1, "0")
             }
             "flow.if" -> appendStr(sb, 0, args["condition"] ?: "true")
+            "flow.goto" -> appendGoto(sb, args, layout, warnings)
             "flow.foreach" -> {
                 val list = args["list"].orEmpty()
                 val items = taskerForItems(list)
@@ -442,6 +460,53 @@ object TaskerXmlExporter {
         sb.appendLine("          <rhs>${escapeXml(condition.rhs)}</rhs>")
         sb.appendLine("        </Condition>")
         sb.appendLine("      </ConditionList>")
+    }
+
+    /**
+     * What a task's gotos need: each exported step's Tasker number, the labels they jump to and
+     * the first step carrying each of those labels.
+     */
+    private data class GotoLayout(
+        val taskerSteps: Map<Int, Int>,
+        val stepCount: Int,
+        val labels: Set<String>,
+        val labelledSteps: Map<String, Int>,
+    )
+
+    /** Tasker's Goto: arg0 0 jumps to the step number in arg1, 1 to the label in arg2. */
+    private fun appendGoto(sb: StringBuilder, args: Map<String, String>, layout: GotoLayout, warnings: MutableList<String>) {
+        val label = args["label"]?.trim().orEmpty()
+        if (label.isNotEmpty()) {
+            val target = layout.labelledSteps[label]
+            when {
+                target == null -> warnings += "A goto to the label '$label' has no step with that label to land on."
+                target !in layout.taskerSteps -> warnings += "A goto to the label '$label' lands on a step Tasker didn't get, so Tasker won't find it."
+            }
+            appendInt(sb, 0, "1")
+            appendInt(sb, 1, "1")
+            appendStr(sb, 2, label)
+            return
+        }
+        val raw = args["step"]?.trim().orEmpty()
+        val number = raw.toIntOrNull()
+        val shifted = layout.taskerSteps.size < layout.stepCount
+        val step = when {
+            number == null -> {
+                if (shifted) warnings += "A goto to step '$raw' kept its number, but some steps in that task have no Tasker match, so Tasker counts them differently."
+                raw
+            }
+            number !in 1..layout.stepCount -> {
+                warnings += "A goto to step $number points outside its task, which has ${layout.stepCount} steps."
+                raw
+            }
+            else -> layout.taskerSteps[number - 1]?.toString() ?: run {
+                warnings += "A goto to step $number lands on a step Tasker didn't get, so it was kept as $number."
+                raw
+            }
+        }
+        appendInt(sb, 0, "0")
+        appendInt(sb, 1, step)
+        appendStr(sb, 2, "")
     }
 
     private data class TaskerCondition(val lhs: String, val op: String, val rhs: String)

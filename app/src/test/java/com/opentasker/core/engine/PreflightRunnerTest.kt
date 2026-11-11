@@ -167,6 +167,33 @@ class PreflightRunnerTest {
     }
 
     @Test
+    fun preflightFollowsAGotoAndStopsAtOneThatCantLand() {
+        fun set(name: String) = ActionSpec(type = "var.set", args = mapOf("name" to name, "value" to "1"))
+        fun preview(vararg actions: ActionSpec) =
+            PreflightRunner.preflightTask(Task(id = 3, name = "Jumps", actions = actions.toList()))
+
+        val forward = preview(set("a"), ActionSpec(type = FlowControl.GOTO, args = mapOf("step" to "4")), set("b"), set("c"))
+        assertTrue(forward.canPreflight)
+        val jumped = forward.tasks.single().steps
+        assertEquals("goto -> step 4", jumped[1].branchDecision)
+        assertEquals("not reached by selected branch", jumped[2].branchDecision)
+        assertEquals(PreflightStepStatus.SIMULATED, jumped[3].status)
+
+        val missing = preview(ActionSpec(type = FlowControl.GOTO, args = mapOf("label" to "nowhere")), set("a"))
+        val (blocked, afterBlocked) = missing.tasks.single().steps
+        assertFalse(missing.canPreflight)
+        assertEquals(PreflightStepStatus.BLOCKED, blocked.status)
+        assertTrue(blocked.warnings.toString(), blocked.warnings.any { "no step is labelled \"nowhere\"" in it })
+        assertEquals(PreflightStepStatus.SKIPPED, afterBlocked.status)
+
+        val unresolved = preview(ActionSpec(type = FlowControl.GOTO, args = mapOf("step" to "%later")), set("a"))
+        val (unfollowed, afterUnfollowed) = unresolved.tasks.single().steps
+        assertEquals(PreflightStepStatus.SIMULATED, unfollowed.status)
+        assertTrue(unfollowed.warnings.toString(), unfollowed.warnings.any { "can't follow this goto" in it })
+        assertEquals(PreflightStepStatus.SKIPPED, afterUnfollowed.status)
+    }
+
+    @Test
     fun preflightBlocksUnknownActionsAndSurfacesSetupRequirements() {
         val task = Task(
             id = 2,

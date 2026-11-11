@@ -101,7 +101,7 @@ object PreflightActionRegistry {
 
     fun intendedEffect(actionId: String): String = when (actionId) {
         FlowControl.IF, FlowControl.ELSE, FlowControl.ENDIF, FlowControl.FOREACH, FlowControl.ENDFOR,
-        FlowControl.STOP -> "Evaluates flow control in memory; no external effect."
+        FlowControl.STOP, FlowControl.GOTO, FlowControl.ANCHOR -> "Evaluates flow control in memory; no external effect."
         SUB_TASK_ACTION_ID -> "Would invoke a referenced sub-task; nested action execution is suppressed."
         "var.set" -> "Updates the preflight variable snapshot only; durable variable writes are suppressed."
         "var.persist" -> "Would promote a variable to global scope; persistence is suppressed."
@@ -272,15 +272,20 @@ object PreflightRunner {
 
         val steps = linkedMapOf<Int, PreflightStep>()
         val loopStack = ArrayDeque<PreflightLoopFrame>()
+        val tryStack = ArrayDeque<Int>()
         val armedElseIndices = mutableSetOf<Int>()
+        val ifResults = mutableMapOf<Int, Boolean>()
         var pc = 0
         var interpretedSteps = 0
         var halted = false
         while (!halted && pc in task.actions.indices && interpretedSteps++ < MAX_STEPS) {
             val spec = task.actions[pc]
             if (FlowControl.isControl(spec.type)) {
-                val control = simulateControl(pc, spec, structure, loopStack, armedElseIndices, variables, input)
+                val control = simulateControl(
+                    pc, spec, task.actions, structure, loopStack, tryStack, armedElseIndices, ifResults, variables, input,
+                )
                 recordStep(steps, control.step.copy(taskPath = taskPath))
+                warnings += control.step.warnings
                 pc = control.nextPc
                 halted = control.halt
                 continue
@@ -429,9 +434,12 @@ object PreflightRunner {
     private fun simulateControl(
         index: Int,
         spec: ActionSpec,
+        actions: List<ActionSpec>,
         structure: FlowStructure,
         loops: ArrayDeque<PreflightLoopFrame>,
+        tries: ArrayDeque<Int>,
         armedElseIndices: MutableSet<Int>,
+        ifResults: MutableMap<Int, Boolean>,
         variables: VariableStore,
         input: PreflightInputs,
     ): ControlSimulation {
@@ -460,6 +468,7 @@ object PreflightRunner {
                 val condition = argCondition ?: guard ?: "true"
                 val distinctGuard = guard != null && argCondition != null && guard != argCondition
                 val evaluated = evaluate(condition, variables, input).value && (!distinctGuard || guardMet())
+                ifResults[index] = evaluated
                 val next = if (evaluated) {
                     index + 1
                 } else {
@@ -469,7 +478,7 @@ object PreflightRunner {
                 }
                 step("$condition -> $evaluated", next)
             }
-            FlowControl.ELSE -> if (armedElseIndices.remove(index)) {
+            FlowControl.ELSE -> if (armedElseIndices.remove(index) || structure.ifForElse(index)?.let(ifResults::get) != true) {
                 if (guardMet()) {
                     step("else branch selected", index + 1)
                 } else {
@@ -515,12 +524,76 @@ object PreflightRunner {
             FlowControl.TRY -> if (!guardMet()) {
                 step("try skipped: condition ($guard) -> false", structure.tryToEndtry.getValue(index) + 1, skipped = true)
             } else {
+                tries.addLast(index)
+                step(spec.type, index + 1)
+            }
+            FlowControl.ENDTRY -> {
+                if (tries.lastOrNull()?.let(structure.tryToEndtry::get) == index) tries.removeLast()
                 step(spec.type, index + 1)
             }
             FlowControl.STOP -> if (!guardMet()) {
                 step("stop skipped: condition ($guard) -> false", index + 1, skipped = true)
             } else {
                 step("stop", index + 1, halt = true)
+            }
+            FlowControl.GOTO -> if (!guardMet()) {
+                step("goto skipped: condition ($guard) -> false", index + 1, skipped = true)
+            } else {
+                val expansion = expandArguments(spec, variables, input)
+                val target = FlowControl.gotoTarget(actions, expansion.rawValues, spec.args)
+                val unresolved = FlowControl.emptiedGotoArgument(expansion.rawValues, spec.args)
+                val landing = target.index
+                val problem = when {
+                    // Preflight doesn't play every write a run makes, so a target that is still a
+                    // variable here may well be set by then.
+                    unresolved != null && landing == null -> null
+                    landing == null -> target.error
+                    else -> {
+                        while (loops.lastOrNull()?.let { landing <= it.foreachIndex || landing > structure.foreachToEndfor.getValue(it.foreachIndex) } == true) {
+                            loops.removeLast()
+                        }
+                        while (tries.lastOrNull()?.let { landing <= it || landing > structure.tryToEndtry.getValue(it) } == true) {
+                            tries.removeLast()
+                        }
+                        structure.unopenedBlockAt(landing, loops.map { it.foreachIndex }, tries)?.let { open ->
+                            "goto step ${landing + 1} lands inside the block that opens at step ${open + 1}, which isn't running"
+                        }
+                    }
+                }
+                when {
+                    problem != null -> ControlSimulation(
+                        step = PreflightStep(
+                            taskPath = "",
+                            actionIndex = index,
+                            actionType = spec.type,
+                            label = spec.label ?: spec.type,
+                            status = PreflightStepStatus.BLOCKED,
+                            expandedArguments = expansion.values,
+                            branchDecision = "goto fails",
+                            intendedEffect = PreflightActionRegistry.intendedEffect(spec.type),
+                            warnings = expansion.warnings + "The run stops here: $problem.",
+                        ),
+                        nextPc = index + 1,
+                        halt = true,
+                    )
+                    landing == null -> ControlSimulation(
+                        step = PreflightStep(
+                            taskPath = "",
+                            actionIndex = index,
+                            actionType = spec.type,
+                            label = spec.label ?: spec.type,
+                            status = PreflightStepStatus.SIMULATED,
+                            expandedArguments = expansion.values,
+                            branchDecision = "goto $unresolved",
+                            intendedEffect = PreflightActionRegistry.intendedEffect(spec.type),
+                            warnings = expansion.warnings +
+                                "$unresolved is empty here, so the preview can't follow this goto. The steps after it weren't checked.",
+                        ),
+                        nextPc = index + 1,
+                        halt = true,
+                    )
+                    else -> step("goto -> step ${landing + 1}", landing)
+                }
             }
             else -> step(spec.type, index + 1)
         }

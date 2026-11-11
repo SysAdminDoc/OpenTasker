@@ -120,6 +120,7 @@ class TaskRunner(
         val loopStack = ArrayDeque<LoopFrame>()
         val tryStack = ArrayDeque<TryFrame>()
         val armedElseIndices = mutableSetOf<Int>()
+        val ifResults = mutableMapOf<Int, Boolean>()
         val handledFailureIndices = mutableSetOf<Int>()
         var unhandledFailure = false
         var structuredFailure: StructuredTaskError? = null
@@ -146,7 +147,7 @@ class TaskRunner(
                 }
                 val spec = task.actions[pc]
                 if (FlowControl.isControl(spec.type)) {
-                    val outcome = stepControl(pc, spec, structure, loopStack, tryStack, armedElseIndices)
+                    val outcome = stepControl(pc, spec, task.actions, structure, loopStack, tryStack, armedElseIndices, ifResults)
                     results += outcome.result
                     traces += outcome.trace
                     if (outcome.halt) {
@@ -284,10 +285,12 @@ class TaskRunner(
     private fun stepControl(
         pc: Int,
         spec: ActionSpec,
+        actions: List<ActionSpec>,
         structure: FlowStructure,
         loopStack: ArrayDeque<LoopFrame>,
         tryStack: ArrayDeque<TryFrame>,
         armedElseIndices: MutableSet<Int>,
+        ifResults: MutableMap<Int, Boolean>,
     ): ControlOutcome {
         fun outcome(message: String, nextPc: Int, halt: Boolean = false) = ControlOutcome(
             result = ActionResult.Success,
@@ -326,6 +329,7 @@ class TaskRunner(
                 val distinctGuard = guard != null && argCondition != null && guard != argCondition
                 val display = if (distinctGuard) "$condition, only if $guard" else condition
                 val matched = evaluateConditionString(condition) && (!distinctGuard || guardMet())
+                ifResults[pc] = matched
                 if (matched) {
                     outcome("if ($display) -> true", pc + 1)
                 } else {
@@ -341,7 +345,10 @@ class TaskRunner(
                 }
             }
             FlowControl.ELSE -> {
-                if (armedElseIndices.remove(pc)) {
+                val openedByIf = armedElseIndices.remove(pc)
+                // Tasker skips an else only when its If was found true, so a goto from outside the
+                // block into the if branch runs on into the else, as it does there.
+                if (openedByIf || structure.ifForElse(pc)?.let(ifResults::get) != true) {
                     // Reached from a false if: this marker opens the else branch. A guard here is
                     // Tasker's "Else If" — unmet means the branch is skipped, not run.
                     if (guardMet()) {
@@ -457,6 +464,33 @@ class TaskRunner(
                 skipped("stop skipped: condition ($guard) -> false", pc + 1)
             } else {
                 outcome("stop", pc + 1, halt = true)
+            }
+            FlowControl.GOTO -> if (!guardMet()) {
+                skipped("goto skipped: condition ($guard) -> false", pc + 1)
+            } else {
+                val args = expandArgs(spec.type, spec.args).args
+                val target = FlowControl.gotoTarget(actions, args, spec.args)
+                val index = target.index
+                if (index == null) {
+                    val failure = ActionResult.Failure(target.error ?: "goto has no target")
+                    ControlOutcome(failure, markerTrace(pc, spec, failure, ActionTraceStatus.FAILURE), pc + 1, halt = true)
+                } else {
+                    // Leaving a loop or try ends it, along with any block it holds. Jumping back
+                    // onto a For Each restarts that loop.
+                    while (loopStack.lastOrNull()?.let { index <= it.foreachIndex || index > structure.foreachToEndfor.getValue(it.foreachIndex) } == true) {
+                        loopStack.removeLast()
+                    }
+                    while (tryStack.lastOrNull()?.let { index <= it.tryIndex || index > it.endIndex } == true) {
+                        tryStack.removeLast()
+                    }
+                    val unopened = structure.unopenedBlockAt(index, loopStack.map { it.foreachIndex }, tryStack.map { it.tryIndex })
+                    if (unopened != null) {
+                        val failure = ActionResult.Failure("goto step ${index + 1} lands inside the block that opens at step ${unopened + 1}, which isn't running")
+                        ControlOutcome(failure, markerTrace(pc, spec, failure, ActionTraceStatus.FAILURE), pc + 1, halt = true)
+                    } else {
+                        outcome("goto -> step ${index + 1}", index)
+                    }
+                }
             }
             else -> outcome(spec.type, pc + 1)
         }

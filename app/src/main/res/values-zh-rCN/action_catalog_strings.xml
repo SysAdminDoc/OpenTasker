@@ -237,6 +237,14 @@
       <string name="catalog_action_flow_catch_description" formatted="false">使用 FLOW_ERROR_* 变量处理失败的“尝试”块</string>
       <string name="catalog_action_flow_endtry_name" formatted="false">结束尝试</string>
       <string name="catalog_action_flow_endtry_description" formatted="false">关闭匹配的“尝试/捕获”块</string>
+      <string name="catalog_action_flow_goto_name" formatted="false">跳转</string>
+      <string name="catalog_action_flow_goto_description" formatted="false">按编号或标签跳转到此任务中的另一步</string>
+      <string name="catalog_action_flow_goto_field_step_label" formatted="false">步骤编号</string>
+      <string name="catalog_action_flow_goto_field_step_hint" formatted="false">从1开始计数。也可以使用 %step 这样的变量。</string>
+      <string name="catalog_action_flow_goto_field_label_label" formatted="false">步骤标签</string>
+      <string name="catalog_action_flow_goto_field_label_hint" formatted="false">跳转到第一个带有此标签的步骤。设置后优先于编号。</string>
+      <string name="catalog_action_flow_anchor_name" formatted="false">锚点</string>
+      <string name="catalog_action_flow_anchor_description" formatted="false">不执行任何操作。给它一个标签，供“跳转”使用。</string>
       <string name="catalog_action_intent_launch_name" formatted="false">启动Intent</string>
     <string name="catalog_action_intent_launch_description" formatted="false">派发一个有界的Activity、广播或服务Intent</string>
     <string name="catalog_category_app" formatted="false">应用</string>

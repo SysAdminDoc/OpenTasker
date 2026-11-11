@@ -4,6 +4,7 @@ import com.opentasker.core.model.ActionSpec
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FlowStructureTest {
@@ -97,5 +98,31 @@ class FlowStructureTest {
 
         assertEquals(listOf("safe.read"), plan.retryableActionIds)
         assertEquals(listOf("unsafe.send"), plan.nonRetryableActionIds)
+    }
+
+    @Test
+    fun gotoTargetReadsALabelFirstThenAWholeStepNumber() {
+        val actions = listOf(a("x"), ActionSpec(type = FlowControl.ANCHOR, label = " Top "), a("y"))
+
+        assertEquals(1, FlowControl.gotoTarget(actions, "Top", "3").index)
+        assertEquals(2, FlowControl.gotoTarget(actions, null, "3").index)
+        assertEquals(2, FlowControl.gotoTarget(actions, " ", " 3.0 ").index)
+        listOf(
+            Triple("top", null, "no step is labelled \"top\""),
+            Triple(null, "4", "has no step 4 (it has 3)"),
+            Triple(null, "-2.0", "has no step -2"),
+            Triple(null, "2.5", "\"2.5\" isn't a step number"),
+            Triple(null, "1e12", "\"1e12\" isn't a step number"),
+            Triple(null, null, "needs a step number or a label"),
+        ).forEach { (label, step, message) ->
+            val target = FlowControl.gotoTarget(actions, label, step)
+            assertNull(target.index)
+            assertNotNull(target.error)
+            assertTrue("$label/$step -> ${target.error}", message in target.error.orEmpty())
+        }
+
+        val emptied = FlowControl.gotoTarget(actions, mapOf("label" to "", "step" to ""), mapOf("label" to "%where", "step" to "%n"))
+        assertEquals("goto: %where is empty, so there's no step to jump to", emptied.error)
+        assertEquals(2, FlowControl.gotoTarget(actions, mapOf("label" to "", "step" to "3"), mapOf("label" to "%where", "step" to "3")).index)
     }
 }

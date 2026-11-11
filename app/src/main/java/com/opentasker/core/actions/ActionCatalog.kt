@@ -152,6 +152,8 @@ object ActionCatalog {
         defineEngine("flow.try", ActionCategory.FLOW),
         defineEngine("flow.catch", ActionCategory.FLOW),
         defineEngine("flow.endtry", ActionCategory.FLOW),
+        defineEngine("flow.goto", ActionCategory.FLOW),
+        defineEngine("flow.anchor", ActionCategory.FLOW),
     )
 
     val allDefinitions: List<ActionDefinition> = all + engineHandled

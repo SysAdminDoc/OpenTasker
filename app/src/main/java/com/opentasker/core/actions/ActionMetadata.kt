@@ -169,6 +169,8 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "flow.try",
     "flow.catch",
     "flow.endtry",
+    "flow.goto",
+    "flow.anchor",
     "state.temporary",
     "ime.info",
     "ime.set",
@@ -1386,6 +1388,28 @@ fun registerActionMetadata() {
             id = "flow.endtry",
             nameRes = R.string.catalog_action_flow_endtry_name,
             descriptionRes = R.string.catalog_action_flow_endtry_description,
+            categoryRes = R.string.catalog_category_flow,
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "flow.goto",
+            nameRes = R.string.catalog_action_flow_goto_name,
+            descriptionRes = R.string.catalog_action_flow_goto_description,
+            categoryRes = R.string.catalog_category_flow,
+            fields = listOf(
+                ActionField("step", R.string.catalog_action_flow_goto_field_step_label, hintRes = R.string.catalog_action_flow_goto_field_step_hint),
+                ActionField("label", R.string.catalog_action_flow_goto_field_label_label, hintRes = R.string.catalog_action_flow_goto_field_label_hint),
+            ),
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "flow.anchor",
+            nameRes = R.string.catalog_action_flow_anchor_name,
+            descriptionRes = R.string.catalog_action_flow_anchor_description,
             categoryRes = R.string.catalog_category_flow,
         )
     )

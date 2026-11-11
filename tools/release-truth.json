@@ -24,7 +24,7 @@
   },
   "capabilities": {
     "registeredActions": 90,
-    "engineHandledActions": 10,
+    "engineHandledActions": 12,
     "contextFamilies": 7,
     "bundleSchemaVersion": 2,
     "bundleSupportedSchemaVersions": "1..2",

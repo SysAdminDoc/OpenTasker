@@ -1,6 +1,7 @@
 package com.opentasker.core.transfer
 
 import com.opentasker.core.actions.registerActionMetadata
+import com.opentasker.core.engine.FlowControl
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.Task
 import org.junit.Assert.assertEquals
@@ -30,6 +31,58 @@ class TaskerExportLayoutTest {
 
     private fun assertHas(xml: String, vararg parts: String) =
         parts.forEach { part -> assertTrue("expected $part in:\n$xml", part in xml) }
+
+    private fun gotos(xml: String): List<String> = xml.split("<Action").filter { "<code>135</code>" in it }
+
+    @Test
+    fun goToByNumberCountsOnlyTheStepsTaskerGets() {
+        val result = export(
+            ActionSpec(type = "var.set", args = mapOf("name" to "%a", "value" to "1")),
+            ActionSpec(type = "future.unclassified"),
+            ActionSpec(type = "var.set", args = mapOf("name" to "%b", "value" to "2")),
+            ActionSpec(type = "flow.goto", args = mapOf("step" to "3")),
+            ActionSpec(type = "flow.goto", args = mapOf("step" to "2")),
+            ActionSpec(type = "flow.goto", args = mapOf("step" to "9")),
+            ActionSpec(type = "flow.goto", args = mapOf("step" to "%back")),
+        )
+        val (moved, unexported, outside, variable) = gotos(result.xml)
+
+        assertHas(moved, """<Int sr="arg0" val="0"/>""", """<Int sr="arg1" val="2"/>""", """<Str sr="arg2" ve="3"></Str>""")
+        assertHas(unexported, """<Int sr="arg1" val="2"/>""")
+        assertHas(outside, """<Int sr="arg1" val="9"/>""")
+        assertHas(variable, """<Int sr="arg1"><var>%back</var></Int>""")
+        listOf("step 2 lands on a step Tasker didn't get", "step 9 points outside its task", "step '%back' kept its number").forEach { text ->
+            assertTrue(result.warnings.toString(), result.warnings.any { text in it })
+        }
+        assertFalse(result.warnings.toString(), result.warnings.any { "step 3" in it })
+    }
+
+    @Test
+    fun goToByLabelWritesTheLabelOnlyOnTheStepItJumpsTo() {
+        val result = export(
+            ActionSpec(type = "flow.anchor", label = "Top"),
+            ActionSpec(type = "var.set", label = "Set a", args = mapOf("name" to "%a", "value" to "1")),
+            ActionSpec(type = "flow.goto", args = mapOf("label" to " Top ")),
+        )
+
+        assertHas(result.xml, "<code>300</code>", "<label>Top</label>")
+        assertFalse(result.xml, "<label>Set a</label>" in result.xml)
+        assertHas(gotos(result.xml).single(), """<Int sr="arg0" val="1"/>""", """<Int sr="arg1" val="1"/>""", """<Str sr="arg2" ve="3">Top</Str>""")
+        assertTrue(result.warnings.toString(), result.warnings.isEmpty())
+
+        val back = TaskerXmlImporter.parse(result.xml, appVersion = "test", importedAtEpochMs = 0L).bundle.tasks.single().actions
+        assertEquals(listOf("flow.anchor", "var.set", "flow.goto"), back.map { it.type })
+        assertEquals(0, FlowControl.gotoTarget(back, back[2].args["label"], back[2].args["step"]).index)
+    }
+
+    @Test
+    fun goToALabelNoExportedStepCarriesWarns() {
+        val missing = export(ActionSpec(type = "flow.goto", args = mapOf("label" to "Nowhere")))
+        val dropped = export(ActionSpec(type = "future.unclassified", label = "Gone"), ActionSpec(type = "flow.goto", args = mapOf("label" to "Gone")))
+
+        assertTrue(missing.warnings.toString(), missing.warnings.any { "'Nowhere' has no step with that label" in it })
+        assertTrue(dropped.warnings.toString(), dropped.warnings.any { "'Gone' lands on a step Tasker didn't get" in it })
+    }
 
     @Test
     fun forWritesTheVariableFirstAndAnArrayItemsField() {

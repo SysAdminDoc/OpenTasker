@@ -6,6 +6,7 @@ import com.opentasker.core.actions.TextReplaceAction
 import com.opentasker.core.actions.TextSubstringAction
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionRegistry
+import com.opentasker.core.engine.FlowControl
 import com.opentasker.core.engine.TaskRunner
 import com.opentasker.core.engine.VariableStore
 import com.opentasker.core.expressions.TemplateExpressionEngine
@@ -1204,5 +1205,42 @@ class TaskerRealExportLayoutTest {
         listOf("101", "123", "129").forEach { code ->
             assertEquals(TaskerXmlImporter.TASKER_UNSUPPORTED_ACTION_ID, action("<code>$code</code>").type)
         }
+    }
+
+    // Goto (135), Anchor (300)
+
+    @Test
+    fun gotoByNumberOrLabelBecomesAGoTo() {
+        val number = action("""<code>135</code><Int sr="arg0" val="0"/><Int sr="arg1" val="24"/><Str sr="arg2" ve="3"/>""")
+        val variable = action("""<code>135</code><Int sr="arg0" val="0"/><Int sr="arg1"><var>%back</var></Int><Str sr="arg2" ve="3"/>""")
+        val label = action("""<code>135</code><Int sr="arg0" val="1"/><Int sr="arg1" val="1"/><Str sr="arg2" ve="3">Wait Loop</Str>""")
+
+        assertEquals("flow.goto", number.type)
+        assertEquals(mapOf("step" to "24"), number.args)
+        assertEquals("flow.goto", variable.type)
+        assertEquals(mapOf("step" to "%back"), variable.args)
+        assertEquals("flow.goto", label.type)
+        assertEquals(mapOf("label" to "Wait Loop"), label.args)
+    }
+
+    @Test
+    fun gotoToTheTopOrEndOfALoopStaysAPlaceholder() {
+        listOf(2, 3, 4).forEach { type ->
+            val goto = action("""<code>135</code><Int sr="arg0" val="$type"/><Int sr="arg1" val="1"/><Str sr="arg2" ve="3"/>""")
+            assertEquals("type $type", placeholder, goto.type)
+        }
+    }
+
+    @Test
+    fun anAnchorAndAStepLabelComeAcrossSoALabelledGotoStillLands() {
+        val task = parse(
+            """<code>300</code><label>Wait Loop</label>""",
+            """<code>547</code><label> Count </label><Str sr="arg0" ve="3">%n</Str><Str sr="arg1" ve="3">1</Str><Int sr="arg2" val="0"/><Int sr="arg3" val="0"/><Int sr="arg4" val="0"/>""",
+            """<code>135</code><Int sr="arg0" val="1"/><Int sr="arg1" val="1"/><Str sr="arg2" ve="3">Wait Loop</Str>""",
+        ).bundle.tasks.single()
+
+        assertEquals(listOf("flow.anchor", "var.set", "flow.goto"), task.actions.map { it.type })
+        assertEquals(listOf("Wait Loop", "Count", "Tasker goto"), task.actions.map { it.label })
+        assertEquals(0, FlowControl.gotoTarget(task.actions, task.actions[2].args["label"], null).index)
     }
 }

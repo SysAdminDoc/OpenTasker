@@ -77,6 +77,8 @@ object ActionCapabilityRegistry {
         "flow.catch",
         "flow.endtry",
         "flow.stop",
+        "flow.goto",
+        "flow.anchor",
         // App and intent dispatch: uses ordinary intent resolution.
         "intent.launch",
         "app.launch",

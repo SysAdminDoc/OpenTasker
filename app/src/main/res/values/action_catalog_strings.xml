@@ -245,6 +245,14 @@
       <string name="catalog_action_flow_catch_description" formatted="false">Handle a failed Try block using FLOW_ERROR_* variables</string>
       <string name="catalog_action_flow_endtry_name" formatted="false">End Try</string>
       <string name="catalog_action_flow_endtry_description" formatted="false">Closes the matching Try/Catch block</string>
+      <string name="catalog_action_flow_goto_name" formatted="false">Go To</string>
+      <string name="catalog_action_flow_goto_description" formatted="false">Jump to another step in this task, by number or by its label</string>
+      <string name="catalog_action_flow_goto_field_step_label" formatted="false">Step number</string>
+      <string name="catalog_action_flow_goto_field_step_hint" formatted="false">Counts from 1. A variable such as %step works too.</string>
+      <string name="catalog_action_flow_goto_field_label_label" formatted="false">Step label</string>
+      <string name="catalog_action_flow_goto_field_label_hint" formatted="false">Jumps to the first step with this label. Used instead of the number when set.</string>
+      <string name="catalog_action_flow_anchor_name" formatted="false">Anchor</string>
+      <string name="catalog_action_flow_anchor_description" formatted="false">Does nothing. Give it a label for Go To to jump to.</string>
       <string name="catalog_action_intent_launch_name" formatted="false">Launch Intent</string>
     <string name="catalog_action_intent_launch_description" formatted="false">Dispatch a bounded activity, broadcast, or service intent</string>
     <string name="catalog_category_app" formatted="false">App</string>
