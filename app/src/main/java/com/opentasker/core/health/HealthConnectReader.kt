@@ -11,6 +11,7 @@ import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.opentasker.core.logging.AppLogger
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
@@ -77,19 +78,20 @@ class HealthConnectReader(private val context: Context) {
     ): HealthReading {
         val (start, end) = HealthPolling.readRange(metric, now, zone)
         val range = TimeRangeFilter.between(start, end)
+        // Session and series records are matched by start time, so those queries reach back further.
+        val recordRange = TimeRangeFilter.between(HealthPolling.queryStart(metric, now, zone), end)
         return try {
             HealthReading.Value(
                 when (metric) {
+                    // No steps or exercise yet today is a real zero.
                     HealthMetric.STEPS ->
                         (client.aggregate(AggregateRequest(setOf(StepsRecord.COUNT_TOTAL), range))[StepsRecord.COUNT_TOTAL] ?: 0L)
                             .toString()
                     HealthMetric.EXERCISE ->
                         (client.aggregate(AggregateRequest(setOf(ExerciseSessionRecord.EXERCISE_DURATION_TOTAL), range))[ExerciseSessionRecord.EXERCISE_DURATION_TOTAL]
                             ?.toMinutes() ?: 0L).toString()
-                    HealthMetric.SLEEP ->
-                        (client.aggregate(AggregateRequest(setOf(SleepSessionRecord.SLEEP_DURATION_TOTAL), range))[SleepSessionRecord.SLEEP_DURATION_TOTAL]
-                            ?.toMinutes() ?: 0L).toString()
-                    HealthMetric.HEART_RATE -> newestHeartRate(client, range, start, end)?.toString().orEmpty()
+                    HealthMetric.SLEEP -> HealthPolling.sleepMinutes(sleepSpans(client, recordRange), start, end)?.toString().orEmpty()
+                    HealthMetric.HEART_RATE -> newestHeartRate(client, recordRange, start, end)?.toString().orEmpty()
                 },
             )
         } catch (e: CancellationException) {
@@ -103,21 +105,50 @@ class HealthConnectReader(private val context: Context) {
         }
     }
 
+    /**
+     * Several sources can write heart rate at once, a watch's long series next to a phone app's
+     * single readings, so the newest sample is picked across every recent record rather than
+     * taken from whichever record started last.
+     */
     private suspend fun newestHeartRate(
         client: HealthConnectClient,
         range: TimeRangeFilter,
         start: Instant,
         end: Instant,
     ): Long? {
-        val newest = client.readRecords(
-            ReadRecordsRequest(HeartRateRecord::class, range, ascendingOrder = false, pageSize = 1),
-        ).records.firstOrNull() ?: return null
-        return newest.samples.filter { !it.time.isBefore(start) && !it.time.isAfter(end) }
-            .maxByOrNull { it.time }
-            ?.beatsPerMinute
+        val records = client.readRecords(
+            ReadRecordsRequest(HeartRateRecord::class, range, ascendingOrder = false, pageSize = HEART_RATE_PAGE_SIZE),
+        ).records
+        return HealthPolling.newestSample(
+            records.flatMap { record -> record.samples.map { it.time to it.beatsPerMinute } },
+            start,
+            end,
+        )
     }
+
+    private suspend fun sleepSpans(client: HealthConnectClient, range: TimeRangeFilter): List<SleepSpan> =
+        client.readRecords(ReadRecordsRequest(SleepSessionRecord::class, range)).records.map { session ->
+            SleepSpan(
+                start = session.startTime,
+                end = session.endTime,
+                awake = session.stages
+                    .filter { it.stage in AWAKE_STAGES }
+                    .fold(Duration.ZERO) { total, stage ->
+                        // Clipped to the session, in case a source writes a stage past its edges.
+                        val from = maxOf(stage.startTime, session.startTime)
+                        val to = minOf(stage.endTime, session.endTime)
+                        if (to.isAfter(from)) total.plus(Duration.between(from, to)) else total
+                    },
+            )
+        }
 
     private companion object {
         const val TAG = "HealthConnectReader"
+        const val HEART_RATE_PAGE_SIZE = 100
+        val AWAKE_STAGES = setOf(
+            SleepSessionRecord.STAGE_TYPE_AWAKE,
+            SleepSessionRecord.STAGE_TYPE_AWAKE_IN_BED,
+            SleepSessionRecord.STAGE_TYPE_OUT_OF_BED,
+        )
     }
 }

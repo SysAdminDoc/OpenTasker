@@ -9,6 +9,7 @@ import com.opentasker.core.contexts.StateDemandContextSource
 import com.opentasker.core.contexts.UNRESOLVED_STATE_KEY
 import com.opentasker.core.contexts.stateContextKey
 import com.opentasker.core.contexts.SubscriptionReadyContextSource
+import com.opentasker.core.health.HealthPolling
 import com.opentasker.core.location.LocationDwellStateStore
 import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.model.ContextSpec
@@ -110,7 +111,13 @@ internal class ProfileMatcher(
                     }
                     if (pulseObservation?.duplicate == true) return@scan previous
                     val matched = ContextMatchEvaluator.matches(spec, identityEvent)
-                    val effectiveMatched = if (spec.invert) !matched else matched
+                    // A health reading that was refused or not read yet is unknown, not false, so
+                    // its inverted context stays off too.
+                    val effectiveMatched = if (spec.invert) {
+                        !matched && !HealthPolling.readingMissing(spec, identityEvent.metadata)
+                    } else {
+                        matched
+                    }
                     ContextMatchUpdate(
                         matched = effectiveMatched,
                         pulseContext = isPulseContext,

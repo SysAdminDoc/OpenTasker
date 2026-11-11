@@ -479,6 +479,7 @@
     <string name="setup_health_install">Get Health Connect</string>
     <string name="setup_health_note_unavailable">Health Connect isn\'t on this phone. Android 14 and later have it built in, and on Android 9 to 13 it\'s an app from Google. It doesn\'t run on Android 8.</string>
     <string name="setup_health_note_update">Health Connect needs an update before OpenTasker can read it in the background.</string>
+    <string name="setup_health_note_system_update">Health Connect is part of Android here and updates with Google Play system updates. Install the latest one so OpenTasker can read it in the background.</string>
     <string name="setup_health_denied">Health Connect didn\'t allow every reading. Tap the row again to open its settings.</string>
     <string name="health_metric_steps">steps</string>
     <string name="health_metric_heart_rate">heart rate</string>
@@ -487,7 +488,7 @@
     <string name="health_setup_denied_detail">Health Connect isn\'t letting OpenTasker read %1$s in the background, so this context can\'t match. Allow it in Setup under Read Health Connect.</string>
     <string name="health_setup_unavailable_detail">Health Connect is missing, needs an update, or can\'t be read in the background on this phone, so this context can\'t match. Setup under Read Health Connect says which.</string>
     <string name="health_rationale_title">OpenTasker and your health data</string>
-    <string name="health_rationale_body">OpenTasker reads Health Connect only for profiles you set up with a health context, like steps today or your latest heart rate.\n\nIt can read steps, heart rate, sleep and exercise, and only the ones your profiles use. Each reading is checked on the schedule set in its context, at most every 15 minutes. That happens in the background, so a profile can run while OpenTasker isn\'t open.\n\nOpenTasker never writes to Health Connect and doesn\'t send your readings anywhere. You can take the access back at any time in Health Connect.</string>
+    <string name="health_rationale_body">OpenTasker reads Health Connect only for profiles you set up with a health context, like steps today or your latest heart rate.\n\nIt can read steps, heart rate, sleep and exercise, and only the ones your profiles use. Readings are checked on the shortest schedule any of your health contexts asks for, at most every 15 minutes. That happens in the background, so a profile can run while OpenTasker isn\'t open.\n\nOpenTasker never writes to Health Connect and doesn\'t send your readings anywhere. You can take the access back at any time in Health Connect.</string>
     <string name="setup_overlay_access_title">Overlay access</string>
     <string name="setup_overlay_access_body">Needed for scene overlays and controls displayed over other apps, and for a trigger to open an app, a link or the home screen while OpenTasker is in the background. Android calls this Display over other apps.</string>
     <string name="setup_overlay_access_required_for">Scenes, overlay UI, opening apps and links from a trigger</string>

@@ -201,9 +201,9 @@ A phone only shows up while it's advertising, and most change their address ever
 
 ### Health Connect
 
-State contexts can compare four Health Connect readings: `health_steps` (steps since midnight), `health_heart_rate` (the newest reading from the last hour), `health_sleep_minutes` (minutes asleep in the last 24 hours) and `health_exercise_minutes` (since midnight). The presets cover the common ones, like 10,000 steps today. OpenTasker reads them in the background on a schedule, every 15 minutes by default, and **Check every (minutes)** on the context stretches that out to as much as a day. It only reads, and never asks for more than 30 days of history.
+State contexts can compare four Health Connect readings: `health_steps` (steps since midnight), `health_heart_rate` (the newest reading from the last hour), `health_sleep_minutes` (minutes asleep in sleep sessions that ended in the last 24 hours) and `health_exercise_minutes` (since midnight). The presets cover the common ones, like 10,000 steps today. OpenTasker reads them in the background on a schedule, every 15 minutes by default, and **Check every (minutes)** on the context stretches that out to as much as a day. With several health contexts, the shortest schedule wins. Steps and exercise get one more read just after midnight, so they start over on time. Heart rate and sleep stay blank when there's nothing recent, so a comparison like `< 60` won't match on an empty reading. It only reads, and never asks for more than 30 days of history.
 
-Allow it under **Read Health Connect** in Setup, which asks for background reading along with the readings your profiles use. Android 14 and later have Health Connect built in. On Android 9 to 13 it's a separate app from Google, and Setup links to it. If Health Connect refuses a reading, the context stays off and the Inspector says which permission is missing.
+Allow it under **Read Health Connect** in Setup, which asks for background reading along with the readings your profiles use. Android 14 and later have Health Connect built in. On Android 9 to 13 it's a separate app from Google, and Setup links to it. If Health Connect refuses a reading, the context stays off (an inverted one too) and the Inspector says which reading it won't share.
 
 ### VPN tunnels
 

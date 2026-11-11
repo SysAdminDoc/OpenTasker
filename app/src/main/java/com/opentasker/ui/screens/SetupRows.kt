@@ -112,6 +112,7 @@ internal fun buildPermissionItems(
     // Null is a check that threw. NOT_APPLICABLE means there's no switch on this phone, so no row.
     val nfcTags = probes.read<NfcTagIntentGate.State?>("NFC tag reading", null) { NfcTagIntentGate.current(context) }
     val health = probes.read<HealthSetupState?>("Health Connect", null) { HealthSetup.read(context) }
+    val healthUpdatesWithSystem = HealthSetup.updatesWithSystem(Build.VERSION.SDK_INT)
     val request = context.getString(R.string.setup_action_request)
     val openSettings = context.getString(R.string.setup_action_open_settings)
     val promotedSupported = PromotedOngoingNotificationSupport.isPlatformSupported()
@@ -243,13 +244,22 @@ internal fun buildPermissionItems(
             body = context.getString(R.string.setup_health_body),
             granted = health == HealthSetupState.GRANTED,
             unavailable = health == null,
-            actionLabel = when (health) {
-                HealthSetupState.UNAVAILABLE, HealthSetupState.NEEDS_UPDATE -> context.getString(R.string.setup_health_install)
+            actionLabel = when {
+                health == HealthSetupState.NEEDS_UPDATE && healthUpdatesWithSystem -> openSettings
+                health == HealthSetupState.UNAVAILABLE || health == HealthSetupState.NEEDS_UPDATE ->
+                    context.getString(R.string.setup_health_install)
                 else -> request
             },
-            action = when (health) {
-                HealthSetupState.MISSING -> PermissionAction.HealthConnectRead(HealthSetup.requestedPermissions())
-                HealthSetupState.UNAVAILABLE, HealthSetupState.NEEDS_UPDATE -> PermissionAction.SettingsIntent(HealthSetup.installIntent())
+            action = when {
+                health == HealthSetupState.MISSING -> PermissionAction.HealthConnectRead(HealthSetup.requestedPermissions())
+                health == HealthSetupState.NEEDS_UPDATE && healthUpdatesWithSystem ->
+                    PermissionAction.SettingsIntent(HealthSetup.systemUpdateIntent())
+                health == HealthSetupState.NEEDS_UPDATE -> PermissionAction.SettingsIntent(HealthSetup.installIntent())
+                // Android 14 and later always have it, so this is Android 8, or a build without
+                // Google's apps, and the store has nothing to install.
+                health == HealthSetupState.UNAVAILABLE && (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || healthUpdatesWithSystem) ->
+                    PermissionAction.None
+                health == HealthSetupState.UNAVAILABLE -> PermissionAction.SettingsIntent(HealthSetup.installIntent())
                 // Couldn't check, or already granted: Health Connect's own page shows what's allowed.
                 else -> PermissionAction.SettingsIntent(HealthSetup.manageIntent(context))
             },
@@ -258,7 +268,9 @@ internal fun buildPermissionItems(
             requirements = setOf(SetupRequirement.HEALTH_CONNECT),
             note = when (health) {
                 HealthSetupState.UNAVAILABLE -> context.getString(R.string.setup_health_note_unavailable)
-                HealthSetupState.NEEDS_UPDATE -> context.getString(R.string.setup_health_note_update)
+                HealthSetupState.NEEDS_UPDATE -> context.getString(
+                    if (healthUpdatesWithSystem) R.string.setup_health_note_system_update else R.string.setup_health_note_update,
+                )
                 else -> null
             },
         ),

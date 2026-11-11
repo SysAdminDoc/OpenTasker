@@ -23,11 +23,21 @@ object HealthStateEvents {
     fun clear() {
         state.value = emptyMap()
     }
+
+    /** Drops readings no enabled profile reads now, so turning one back on doesn't start from them. */
+    fun clear(metrics: Set<HealthMetric>) {
+        if (metrics.isEmpty()) return
+        val keys = metrics.flatMap { listOf(it.stateKey, "_setup_${it.stateKey}") }.toSet()
+        state.update { it - keys }
+    }
 }
 
 /** What one poll got for one metric. */
 sealed interface HealthReading {
-    /** The reading as a STATE value; blank when Health Connect has no data in the window. */
+    /**
+     * The reading as a STATE value. Blank when Health Connect has no heart rate or sleep in the
+     * window; steps and exercise read 0 then, since none yet today is a real count.
+     */
     data class Value(val value: String) : HealthReading
 
     /** Health Connect refused: the metric's read permission, or background reading, isn't granted. */
@@ -36,19 +46,21 @@ sealed interface HealthReading {
     /** Health Connect isn't on this phone, or needs an update first. */
     data object Unavailable : HealthReading
 
-    /** A read that failed for some other reason. The last reading stands until the next poll. */
+    /** A read that failed for some other reason. The last reading stands for one more poll. */
     data object Failed : HealthReading
 }
 
 /**
  * The STATE patch for one poll. A refused or impossible read clears the value, so a profile fails
  * closed instead of acting on an old number, and sets the `_setup_` marker the Inspector explains.
- * A failed read changes nothing.
+ * A failed read changes nothing the first time, so one hiccup doesn't flap a profile, and clears
+ * the value when the read before it, listed in [failedBefore], failed too.
  */
 internal fun healthStatePatch(
     readings: Map<HealthMetric, HealthReading>,
     deniedDetail: (HealthMetric) -> String,
     unavailableDetail: String,
+    failedBefore: Set<HealthMetric> = emptySet(),
 ): Map<String, String> = buildMap {
     readings.forEach { (metric, reading) ->
         val marker = "_setup_${metric.stateKey}"
@@ -65,7 +77,7 @@ internal fun healthStatePatch(
                 put(metric.stateKey, "")
                 put(marker, unavailableDetail)
             }
-            HealthReading.Failed -> Unit
+            HealthReading.Failed -> if (metric in failedBefore) put(metric.stateKey, "")
         }
     }
 }

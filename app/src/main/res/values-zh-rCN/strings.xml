@@ -474,6 +474,7 @@
     <string name="setup_health_install">获取 Health Connect</string>
     <string name="setup_health_note_unavailable">这台手机上没有 Health Connect。Android 14 及更高版本已内置，Android 9 到 13 上它是 Google 提供的应用。Android 8 无法运行。</string>
     <string name="setup_health_note_update">Health Connect 需要更新后，OpenTasker 才能在后台读取。</string>
+    <string name="setup_health_note_system_update">这台手机的 Health Connect 是 Android 的一部分，随 Google Play 系统更新一起更新。请安装最新的系统更新，OpenTasker 才能在后台读取。</string>
     <string name="setup_health_denied">Health Connect 没有允许全部读数。再次点按此行可打开它的设置。</string>
     <string name="health_metric_steps">步数</string>
     <string name="health_metric_heart_rate">心率</string>
@@ -482,7 +483,7 @@
     <string name="health_setup_denied_detail">Health Connect 不允许 OpenTasker 在后台读取%1$s，所以此上下文无法匹配。请在设置向导的“读取 Health Connect”中允许。</string>
     <string name="health_setup_unavailable_detail">这台手机上的 Health Connect 缺失、需要更新或无法在后台读取，所以此上下文无法匹配。设置向导的“读取 Health Connect”会说明原因。</string>
     <string name="health_rationale_title">OpenTasker 与你的健康数据</string>
-    <string name="health_rationale_body">OpenTasker 只为你设置了健康上下文的配置文件读取 Health Connect，例如今天的步数或最近一次心率。\n\n它可以读取步数、心率、睡眠和锻炼，并且只读取你的配置文件用到的项目。每项读数按其上下文中设置的计划检查，最快每 15 分钟一次。读取在后台进行，所以 OpenTasker 未打开时配置文件也能运行。\n\nOpenTasker 从不写入 Health Connect，也不会把你的读数发送到任何地方。你可以随时在 Health Connect 中收回访问权限。</string>
+    <string name="health_rationale_body">OpenTasker 只为你设置了健康上下文的配置文件读取 Health Connect，例如今天的步数或最近一次心率。\n\n它可以读取步数、心率、睡眠和锻炼，并且只读取你的配置文件用到的项目。读数按你的健康上下文中最短的计划检查，最快每 15 分钟一次。读取在后台进行，所以 OpenTasker 未打开时配置文件也能运行。\n\nOpenTasker 从不写入 Health Connect，也不会把你的读数发送到任何地方。你可以随时在 Health Connect 中收回访问权限。</string>
     <string name="setup_overlay_access_title">叠加层访问</string>
     <string name="setup_overlay_access_body">在其他应用之上显示场景叠加层和控件所需；OpenTasker在后台时，触发器打开应用、链接或主屏幕也需要此权限。Android中称为“显示在其他应用的上层”。</string>
     <string name="setup_overlay_access_required_for">场景、叠加层UI、由触发器打开应用和链接</string>

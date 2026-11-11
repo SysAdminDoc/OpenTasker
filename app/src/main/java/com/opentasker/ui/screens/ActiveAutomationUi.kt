@@ -132,6 +132,7 @@ import com.opentasker.core.contexts.contextConfigSummary
 import com.opentasker.core.engine.executeAndLogTask
 import com.opentasker.widget.TaskShortcutHelper
 import com.opentasker.core.flow.AutomationFlowTarget
+import com.opentasker.core.health.HealthSetup
 import com.opentasker.core.location.LocationDwellStateStore
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.AutomationMode
@@ -1178,10 +1179,12 @@ fun ActiveAutomationUi(
                     // A template whose actions need a grant would otherwise land on Profiles and fail
                     // on its first run with nothing explaining why, so send them to Setup scoped to
                     // exactly what this template is waiting on.
+                    val templateContexts = template.contexts.map { ContextSpec(it.type, it.config) }
                     val needed = SetupRequirementResolver.resolveForTemplate(
                         actionTypes = (template.actions + template.exitActions).map { it.type },
-                        contexts = template.contexts.map { ContextSpec(it.type, it.config) },
+                        contexts = templateContexts,
                     )
+                    HealthSetup.noteTemplate(templateContexts)
                     setupFocusRequirements = needed.map(SetupRequirement::name)
                     screenOrdinal = if (needed.isEmpty()) {
                         OpenTaskerScreen.Profiles.ordinal

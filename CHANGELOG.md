@@ -6,7 +6,7 @@
 
 - A Set Wallpaper action changes the home screen, the lock screen or both to an image you pick with Browse. Two new templates put it on the At sunrise and At sunset presets, so the wallpaper can switch between a day image and a night image. They work from the latitude and longitude you type in and don't need location access.
 - Sun contexts can wait for twilight. The presets add civil, nautical and astronomical dawn and dusk, and the new Sun elevation setting takes any angle in degrees, like -4 for the blue hour. The Inspector and profile cards name the twilight. Far enough north in summer the sun never gets that low, and the context just doesn't fire that day.
-- Profiles can react to Health Connect. State contexts read steps and exercise minutes since midnight, the latest heart rate and sleep over the last 24 hours, with presets like 10,000 steps today. OpenTasker checks them in the background every 15 minutes, or less often if you set it on the context, and it only reads. Setup has a Read Health Connect row. When Health Connect refuses a reading the context stays off, and the Inspector says why.
+- Profiles can react to Health Connect. State contexts read steps and exercise minutes since midnight, the latest heart rate and sleep from sessions that ended in the last 24 hours, with presets like 10,000 steps today. OpenTasker checks them in the background every 15 minutes, or less often if you set it on the context, and it only reads. Setup has a Read Health Connect row. When Health Connect refuses a reading the context stays off, inverted or not, and the Inspector says why.
 
 ### Changed
 
