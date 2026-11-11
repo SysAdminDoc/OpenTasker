@@ -10,12 +10,15 @@ import android.os.Build
 import android.os.Bundle
 import com.opentasker.core.apps.TargetSignerGuard
 import com.opentasker.core.apps.TargetSignerMismatchException
+import com.opentasker.core.logging.AppLogger
+import com.opentasker.core.platform.ForeignParcels
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeout
 
 internal object TermuxCommandBroker {
+    private const val TAG = "TermuxCommandBroker"
     private const val RESULT_ACTION = "com.opentasker.action.TERMUX_COMMAND_RESULT"
     private const val EXTRA_REQUEST_ID = "com.opentasker.extra.TERMUX_REQUEST_ID"
     private const val MAX_PENDING_COMMANDS = 32
@@ -86,9 +89,23 @@ internal object TermuxCommandBroker {
     internal fun deliver(intent: Intent) {
         if (intent.action != RESULT_ACTION) return
         val requestId = intent.data?.lastPathSegment ?: return
-        if (intent.getStringExtra(EXTRA_REQUEST_ID) != requestId) return
-        val resultBundle = intent.getBundleExtra(EXTRA_RESULT_BUNDLE)
-        pending.remove(requestId)?.complete(parseResult(resultBundle))
+        val result = readResult(intent, requestId) ?: return
+        pending.remove(requestId)?.complete(result)
+    }
+
+    /**
+     * Termux's answer to [requestId], or null when the intent names another request or can't be
+     * read. One that can't be read is left to time out, the same as a result that never came.
+     */
+    internal fun readResult(intent: Intent, requestId: String): TermuxCommandResult? {
+        ForeignParcels.guard(intent)
+        return ForeignParcels.read({
+            if (intent.getStringExtra(EXTRA_REQUEST_ID) != requestId) return null
+            parseResult(intent.getBundleExtra(EXTRA_RESULT_BUNDLE))
+        }) { e ->
+            AppLogger.warn(TAG, "Discarded a Termux result that couldn't be read", e)
+            null
+        }
     }
 
     internal fun parseResult(bundle: Bundle?): TermuxCommandResult {

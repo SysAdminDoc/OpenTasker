@@ -13,6 +13,7 @@ import com.opentasker.core.engine.AutomationService
 import com.opentasker.core.engine.ExecutionEnvelope
 import com.opentasker.core.engine.ExecutionProducer
 import com.opentasker.core.logging.AppLogger
+import com.opentasker.core.platform.ForeignParcels
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -169,6 +170,7 @@ object AutomationTargetContract {
 
 class AutomationTargetReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        ForeignParcels.guard(intent)
         // Read before goAsync(), which detaches the pending result and makes this read false.
         // Scene buttons, widgets and the tile send plain broadcasts, and setting a result on one
         // logs an error per fire; only ordered senders like the Locale plugin host get the result.

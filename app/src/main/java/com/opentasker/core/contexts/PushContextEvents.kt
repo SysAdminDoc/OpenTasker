@@ -2,6 +2,7 @@ package com.opentasker.core.contexts
 
 import android.content.Intent
 import com.opentasker.core.data.JsonNesting
+import com.opentasker.core.platform.ForeignParcels
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
@@ -238,6 +239,7 @@ object PushContextEvents {
         if (action !in setOf(ACTION_PUSH_EVENT, ACTION_NTFY_USER_ACTION, ACTION_NTFY_MESSAGE_RECEIVED)) {
             return null
         }
+        ForeignParcels.guard(this)
         return PushDelivery(
             token = firstExtraString(EXTRA_TOKEN),
             topic = firstExtraString(EXTRA_TOPIC, NTFY_EXTRA_TOPIC),

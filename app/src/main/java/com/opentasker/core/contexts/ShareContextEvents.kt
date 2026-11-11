@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Parcelable
+import com.opentasker.core.platform.ForeignParcels
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -77,7 +78,8 @@ object ShareContextEvents {
 
     fun parseIntent(intent: Intent, nowMs: Long = System.currentTimeMillis()): ContextEvent? {
         return runCatching {
-            val extras = intent.extras
+            // A share's text and Uris are Android's own types, so nothing a real share sends needs OpenTasker's loader.
+            val extras = ForeignParcels.guard(intent).extras
             parseInput(
                 ShareInput(
                     action = intent.action,

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 import com.opentasker.core.contexts.ContextEvent
+import com.opentasker.core.platform.ForeignParcels
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -49,6 +50,7 @@ object LocalePluginRequestQueryEvents {
 
     fun buildEventFromIntent(intent: Intent): ContextEvent? {
         if (intent.action != LocalePluginContract.ACTION_REQUEST_QUERY) return null
+        ForeignParcels.guard(intent)
         return runCatching {
             val activityClassName = intent
                 .getStringExtra(LocalePluginContract.EXTRA_STRING_ACTIVITY_CLASS_NAME)

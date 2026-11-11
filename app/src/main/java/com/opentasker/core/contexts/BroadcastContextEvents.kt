@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.opentasker.core.logging.AppLogger
+import com.opentasker.core.platform.ForeignParcels
 import java.util.Locale
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -22,9 +23,10 @@ import kotlinx.coroutines.flow.asSharedFlow
  * 1. The receiver is registered for exactly the actions enabled profiles declare, and for nothing
  *    else. `RECEIVER_EXPORTED` is unavoidable (a private receiver could never hear another app),
  *    so the action allowlist is the control.
- * 2. Extras are copied into bounded strings and nothing else. No Parcelable is unparcelled, no
- *    Serializable is deserialised, and anything oversized is dropped with a note rather than
- *    truncated silently, so a task never sees half a value and believes it whole.
+ * 2. Extras are copied into bounded strings and nothing else. They're read with the boot class
+ *    loader, so no Parcelable or Serializable of OpenTasker's own is built from one, and anything
+ *    oversized is dropped with a note rather than truncated silently, so a task never sees half a
+ *    value and believes it whole.
  */
 object BroadcastContextEvents {
     const val EVENT_BROADCAST = "broadcast"
@@ -197,7 +199,8 @@ object BroadcastContextEvents {
         },
     )
 
-    private fun readExtras(intent: Intent): SanitizedExtras {
+    internal fun readExtras(intent: Intent): SanitizedExtras {
+        ForeignParcels.guard(intent)
         val bundle = runCatching { intent.extras }.getOrNull() ?: return SanitizedExtras(emptyMap(), lossy = false)
         val raw = linkedMapOf<String, Any?>()
         // keySet() does not unparcel values; each get() below is guarded by renderExtra's type
