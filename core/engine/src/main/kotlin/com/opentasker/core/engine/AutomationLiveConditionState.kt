@@ -17,9 +17,11 @@ object AutomationLiveConditionState {
         if (active) activeProfiles += profileId else activeProfiles -= profileId
     }
 
+    /** A null [matched] means the context's value can't be told, so a query hears unknown again. */
     @Synchronized
-    fun updateContext(profileId: Long, contextIndex: Int, matched: Boolean) {
-        contextStates[ContextKey(profileId, contextIndex)] = matched
+    fun updateContext(profileId: Long, contextIndex: Int, matched: Boolean?) {
+        val key = ContextKey(profileId, contextIndex)
+        if (matched == null) contextStates.remove(key) else contextStates[key] = matched
     }
 
     @Synchronized

@@ -124,13 +124,13 @@ internal class ProfileMatcher(
                         previousSequence = previous.pulseSequence,
                     )
                 }.onEach { update ->
-                    AutomationLiveConditionState.updateContext(profile.id, index, update.matched)
+                    publishLiveContextState(profile.id, index, update)
                 }
             } else {
                 AppLogger.warn(tag, "No context source registered for ${spec.type}; treating as non-matching")
                 if (spec.type == ContextType.EVENT) markPulseContextSubscribed(index, pulseContextCount)
                 flowOf(ContextMatchUpdate.initial(spec.type == ContextType.EVENT)).onEach { update ->
-                    AutomationLiveConditionState.updateContext(profile.id, index, update.matched)
+                    publishLiveContextState(profile.id, index, update)
                 }
             }
         }
@@ -271,6 +271,14 @@ internal data class ContextMatchUpdate(
         fun initial(pulseContext: Boolean, pulseSequence: Long = 0L): ContextMatchUpdate =
             ContextMatchUpdate(matched = false, pulseContext = pulseContext, pulseSequence = pulseSequence, unknown = !pulseContext)
     }
+}
+
+/**
+ * Shares [update] with Locale hosts querying this context. An unknown value is published as
+ * unknown, not false, so a host that inverts the condition doesn't turn on from it.
+ */
+internal fun publishLiveContextState(profileId: Long, contextIndex: Int, update: ContextMatchUpdate) {
+    AutomationLiveConditionState.updateContext(profileId, contextIndex, update.matched.takeUnless { update.unknown })
 }
 
 /**
