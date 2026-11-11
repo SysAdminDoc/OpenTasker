@@ -3,6 +3,7 @@ package com.opentasker.core.engine
 import com.opentasker.core.actions.ActionArgumentSensitivity
 import com.opentasker.core.actions.ArrayPositionArguments
 import com.opentasker.core.actions.LineListArguments
+import com.opentasker.core.actions.PluginBundleArguments
 import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.capabilities.AutomationSensitivityRegistry
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
@@ -869,19 +870,18 @@ class TaskRunner(
                 val lines = rawValue.lines().map { line -> expandValue(actionType, name, line, templateScope) }
                 val expanded = lines.joinToString("\n") { it.first }
                 LineListArguments.lineBreakFailure(actionType, name, lines.map { it.first })?.let { failure = it }
-                val traces = lines.mapNotNull { it.second }
-                if (traces.isNotEmpty()) {
-                    val isSecretDerived = traces.any { it.isSecretDerived }
-                    expansions += ActionArgumentExpansionTrace(
-                        argName = name,
-                        rawValue = rawValue,
-                        expandedValue = if (isSecretDerived) REDACTED_VALUE else expanded,
-                        expressions = traces.flatMap { it.expressions },
-                        warnings = traces.flatMap { it.warnings },
-                        isSecretDerived = isSecretDerived,
-                    )
-                }
+                combinedTrace(name, rawValue, expanded, lines.mapNotNull { it.second })?.let { expansions += it }
                 return@mapValues expanded
+            }
+            if (PluginBundleArguments.applies(actionType, name)) {
+                val traces = mutableListOf<ActionArgumentExpansionTrace>()
+                val expanded = PluginBundleArguments.expand(rawValue) { text ->
+                    val (value, trace) = expandValue(actionType, name, text, templateScope, conditionals = false)
+                    trace?.let(traces::add)
+                    value
+                }
+                combinedTrace(name, rawValue, expanded ?: rawValue, traces)?.let { expansions += it }
+                return@mapValues expanded ?: rawValue
             }
             val (expanded, trace) = expandValue(actionType, name, rawValue, templateScope)
             trace?.let { expansions += it }
@@ -892,13 +892,33 @@ class TaskRunner(
         return ActionArgumentExpansionReport(expandedArgs, expansions, actionType, failure)
     }
 
+    /** One trace for an argument expanded in pieces, or null when no piece needed one. */
+    private fun combinedTrace(
+        name: String,
+        rawValue: String,
+        expanded: String,
+        traces: List<ActionArgumentExpansionTrace>,
+    ): ActionArgumentExpansionTrace? {
+        if (traces.isEmpty()) return null
+        val isSecretDerived = traces.any { it.isSecretDerived }
+        return ActionArgumentExpansionTrace(
+            argName = name,
+            rawValue = rawValue,
+            expandedValue = if (isSecretDerived) REDACTED_VALUE else expanded,
+            expressions = traces.flatMap { it.expressions },
+            warnings = traces.flatMap { it.warnings },
+            isSecretDerived = isSecretDerived,
+        )
+    }
+
     private fun expandValue(
         actionType: String,
         name: String,
         rawValue: String,
         templateScope: TemplateScope,
+        conditionals: Boolean = true,
     ): Pair<String, ActionArgumentExpansionTrace?> {
-        val legacy = ctx.variables.expandTracked(rawValue)
+        val legacy = ctx.variables.expandTracked(rawValue, conditionals)
         if (!legacy.value.contains("{{")) {
             val trace = if (legacy.isSecretDerived) {
                 ActionArgumentExpansionTrace(

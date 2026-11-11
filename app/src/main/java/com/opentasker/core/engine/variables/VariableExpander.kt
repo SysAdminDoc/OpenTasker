@@ -26,14 +26,16 @@ class VariableExpander {
      * - "%VAR(regex:(\d+):1)" -> extract first digit group from VAR
      * - "%VAR(split:,)" -> split VAR by comma, return array
      */
+    /** [conditionals] false leaves a leading `(cond) ? a : b` as text, for a value that isn't a whole expression. */
     fun expand(
         expr: String,
         variableStore: VariableStore,
         arrayStore: ArrayStore,
         quoteValue: (String) -> String = { it },
+        conditionals: Boolean = true,
     ): String {
         return try {
-            expandInternal(expr, variableStore, arrayStore, quoteValue)
+            expandInternal(expr, variableStore, arrayStore, quoteValue, conditionals)
         } catch (e: Exception) {
             // If evaluation fails, return original expression
             expr
@@ -45,9 +47,10 @@ class VariableExpander {
         variableStore: VariableStore,
         arrayStore: ArrayStore,
         quoteValue: (String) -> String = { it },
+        conditionals: Boolean = true,
     ): String {
         // Handle conditionals: (cond) ? true_val : false_val
-        val ternary = parseTernary(expr)
+        val ternary = if (conditionals) parseTernary(expr) else null
         if (ternary != null) {
             val result = evaluateConditionInternal(ternary.condition) { operand ->
                 expandInternal(operand, variableStore, arrayStore)

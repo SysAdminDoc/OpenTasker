@@ -253,6 +253,27 @@ class LocalePluginBundleCodecTest {
     }
 
     @Test
+    fun aDeeplyNestedBundleIsRefusedBeforeItIsParsed() {
+        val nested = """{"a":""" + "[".repeat(5_000) + "]".repeat(5_000) + "}"
+        // kotlinx reads on after a `]`, so this nests 5400 deep while the brackets balance at one.
+        val chained = """{"a":""" + "[0]".repeat(5_400) + "}"
+        // kotlinx reads a no-break space as a value, so the array goes on after `]` and the comma.
+        val spaced = """{"a":""" + ("[0]" + Char(0xA0) + ",").repeat(2_700) + "0}"
+        listOf(nested, chained, spaced).forEach { deep ->
+            val refused = runCatching { LocalePluginBundleCodec.decodeBundle(deep) }.exceptionOrNull()
+
+            assertTrue(refused.toString(), refused is IllegalArgumentException && refused.message.orEmpty().contains("nests deeper"))
+            assertEquals(emptyMap<String, LocaleBundleValue>(), LocalePluginBundleCodec.decodeBundleForEditing(deep))
+        }
+
+        val brackets = "[".repeat(5_000)
+        assertEquals(
+            mapOf("text" to LocaleBundleValue.Text(brackets), "lines" to LocaleBundleValue.TextArray(listOf("a\"]", "b"))),
+            LocalePluginBundleCodec.decodeBundle("""{"text":"$brackets","lines":{"stringArray":["a\"]","b"]}}"""),
+        )
+    }
+
+    @Test
     fun parsesConditionResultCodes() {
         val satisfied = LocalePluginConditionResultParser.parse(
             LocalePluginContract.RESULT_CONDITION_SATISFIED,

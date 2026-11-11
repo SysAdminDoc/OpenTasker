@@ -6,6 +6,7 @@ import com.opentasker.core.actions.ActiveTransport
 import com.opentasker.core.actions.ArrayPositionArguments
 import com.opentasker.core.actions.HttpNetworkConstraint
 import com.opentasker.core.actions.LineListArguments
+import com.opentasker.core.actions.PluginBundleArguments
 import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.actions.httpNetworkDenial
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
@@ -672,6 +673,12 @@ object PreflightRunner {
                         warnings = lines.flatMap { it.warnings },
                     )
                 }
+                PluginBundleArguments.applies(spec.type, key) -> {
+                    val parts = mutableListOf<TemplateExpansionResult>()
+                    PluginBundleArguments.expand(raw) { text -> expand(text, variables, input, conditionals = false).also(parts::add).value }
+                        ?.let { TemplateExpansionResult(it, parts.flatMap { part -> part.traces }, parts.flatMap { part -> part.warnings }) }
+                        ?: TemplateExpansionResult(raw, emptyList(), listOf(PluginBundleArguments.UNREADABLE_WARNING))
+                }
                 else -> expand(raw, variables, input).also { expansion ->
                     ArrayPositionArguments.emptyFailure(spec.type, key, raw, expansion.value)?.let { unsetPosition = raw.trim() to it }
                 }
@@ -709,8 +716,8 @@ object PreflightRunner {
         }
     }
 
-    private fun expand(raw: String, variables: VariableStore, input: PreflightInputs): TemplateExpansionResult {
-        val legacy = variables.expandTracked(raw)
+    private fun expand(raw: String, variables: VariableStore, input: PreflightInputs, conditionals: Boolean = true): TemplateExpansionResult {
+        val legacy = variables.expandTracked(raw, conditionals)
         val result = TemplateExpressionEngine().expand(
             legacy.value,
             variables.toTemplateScope(input.eventVariables),

@@ -41,12 +41,21 @@ object LocalePluginContract {
     const val EXTRA_STRING_BREADCRUMB = "com.twofortyfouram.locale.intent.extra.BREADCRUMB"
     const val EXTRA_BLURB = EXTRA_STRING_BLURB
     const val EXTRA_ACTIVITY_CLASS_NAME = EXTRA_STRING_ACTIVITY_CLASS_NAME
+
+    /** Tasker's extension: the bundle keys, space-separated, whose values the host fills variables into. */
+    const val EXTRA_VARIABLE_REPLACE_KEYS = "net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS"
+
+    /** Tasker's extension: the variables a plugin sets once it finishes, each as `%name\nLabel\nDescription`. */
+    const val EXTRA_RELEVANT_VARIABLES = "net.dinglisch.android.tasker.RELEVANT_VARIABLES"
     const val RESULT_CONDITION_SATISFIED = 16
     const val RESULT_CONDITION_UNSATISFIED = 17
     const val RESULT_CONDITION_UNKNOWN = 18
     const val MAX_BUNDLE_JSON_BYTES = 16 * 1024
     const val MAX_BUNDLE_ENTRIES = 128
     const val MAX_BUNDLE_KEY_BYTES = 256
+
+    /** The bundle, a typed slot in it, and the array a string array holds. */
+    const val MAX_BUNDLE_DEPTH = 3
 }
 
 data class LocalePluginRequest(
@@ -242,6 +251,9 @@ object LocalePluginBundleCodec {
         require(trimmed.toByteArray(Charsets.UTF_8).size <= LocalePluginContract.MAX_BUNDLE_JSON_BYTES) {
             "Plugin bundle JSON exceeds ${LocalePluginContract.MAX_BUNDLE_JSON_BYTES} bytes."
         }
+        require(jsonNestingDepth(trimmed) <= LocalePluginContract.MAX_BUNDLE_DEPTH) {
+            "Plugin bundle JSON nests deeper than a typed value."
+        }
         val element = Json.parseToJsonElement(trimmed)
         val obj = element as? JsonObject ?: error("Plugin bundle must be a JSON object.")
         require(obj.size <= LocalePluginContract.MAX_BUNDLE_ENTRIES) {
@@ -275,6 +287,8 @@ object LocalePluginBundleCodec {
         }
         if (strict != null) return strict
         if (bundleJson.toByteArray(Charsets.UTF_8).size > LocalePluginContract.MAX_BUNDLE_JSON_BYTES) return emptyMap()
+        // Only to keep the parser off the stack: an entry past MAX_BUNDLE_DEPTH is left out on its own below.
+        if (jsonNestingDepth(bundleJson) > MAX_EDITING_DEPTH) return emptyMap()
         val obj = try {
             Json.parseToJsonElement(bundleJson.trim().ifBlank { "{}" }) as? JsonObject
         } catch (_: IllegalArgumentException) {
@@ -353,6 +367,37 @@ object LocalePluginBundleCodec {
         is LocaleBundleValue.TextArray -> value.values.joinToString(",")
         is LocaleBundleValue.TextList -> value.values.joinToString(",")
         LocaleBundleValue.Null -> ""
+    }
+
+    private const val MAX_EDITING_DEPTH = 64
+
+    /**
+     * How deep `{` and `[` nest outside strings, counted before parsing. kotlinx reads arrays
+     * recursively, so a few thousand `[` under the size limit overflow the stack. kotlinx also keeps
+     * reading values after a `]` or `}`, so `[0][0]` nests while the count stays flat: anything but
+     * `,`, `]` or `}` after a close counts as unlimited depth. Only JSON's own four whitespace
+     * characters are skipped there, since kotlinx reads a Unicode space as the start of a value.
+     */
+    internal fun jsonNestingDepth(text: String): Int {
+        var depth = 0
+        var deepest = 0
+        var inString = false
+        var escaped = false
+        var closed = false
+        for (char in text) {
+            if (closed && !inString && char !in " \t\n\r") {
+                if (char != ',' && char != ']' && char != '}') return Int.MAX_VALUE
+                closed = false
+            }
+            when {
+                escaped -> escaped = false
+                inString -> if (char == '\\') escaped = true else if (char == '"') inString = false
+                char == '"' -> inString = true
+                char == '{' || char == '[' -> deepest = maxOf(deepest, ++depth)
+                char == '}' || char == ']' -> { depth--; closed = true }
+            }
+        }
+        return deepest
     }
 
     private fun requireValidKey(key: String) {

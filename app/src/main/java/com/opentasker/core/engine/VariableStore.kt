@@ -281,9 +281,12 @@ class VariableStore {
         return expander.expand(s, this, arrayStore)
     }
 
-    /** Expands a legacy expression while retaining whether any referenced input was secret. */
-    fun expandTracked(s: String): TrackedExpansion = TrackedExpansion(
-        value = expander.expand(s, this, arrayStore, InertTemplateText::hide),
+    /**
+     * Expands a legacy expression while retaining whether any referenced input was secret.
+     * [conditionals] false keeps a leading `(cond) ? a : b` as text.
+     */
+    fun expandTracked(s: String, conditionals: Boolean = true): TrackedExpansion = TrackedExpansion(
+        value = expander.expand(s, this, arrayStore, InertTemplateText::hide, conditionals),
         isSecretDerived = variableReference.findAll(s).any { match ->
             val name = match.groupValues[1]
             isSensitive(name) || name in sensitiveArrayNames ||
