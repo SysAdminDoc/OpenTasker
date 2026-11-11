@@ -284,10 +284,11 @@ class VariableStore {
 
     /**
      * Expands a legacy expression while retaining whether any referenced input was secret.
-     * [conditionals] false keeps a leading `(cond) ? a : b` as text.
+     * [conditionals] false keeps a leading `(cond) ? a : b` as text. [keepUnset] false fills in an
+     * unset `%name` as nothing instead of leaving it as written.
      */
-    fun expandTracked(s: String, conditionals: Boolean = true): TrackedExpansion = TrackedExpansion(
-        value = expander.expand(s, this, arrayStore, InertTemplateText::hide, conditionals),
+    fun expandTracked(s: String, conditionals: Boolean = true, keepUnset: Boolean = true): TrackedExpansion = TrackedExpansion(
+        value = expander.expand(s, this, arrayStore, InertTemplateText::hide, conditionals, keepUnset),
         isSecretDerived = variableReference.findAll(s).any { match ->
             val name = match.groupValues[1]
             isSensitive(name) || name in sensitiveArrayNames ||
@@ -326,8 +327,8 @@ class VariableStore {
         if (expr.contains("{{") && templates.expand(expandTracked(expr).value, scope).warnings.isNotEmpty()) {
             return false
         }
-        return expander.evaluateCondition(expr, this, arrayStore) { operand ->
-            val legacy = expandTracked(operand)
+        return expander.evaluateCondition(expr, this, arrayStore) { operand, keepUnset ->
+            val legacy = expandTracked(operand, keepUnset = keepUnset)
             if (!legacy.value.contains("{{")) {
                 legacy.text
             } else {

@@ -1,5 +1,6 @@
 package com.opentasker.core.engine
 
+import com.opentasker.core.engine.variables.VariableExpander
 import com.opentasker.core.model.ActionSpec
 
 /** Flow-control action type ids, handled directly by the [TaskRunner] rather than the registry. */
@@ -61,21 +62,28 @@ object FlowControl {
 
     /**
      * [gotoTarget] for a goto step's arguments, [expanded] as they read now and [written] as the
-     * step has them. An unset variable expands to nothing, so when that left the goto with no
-     * target the error names the variable.
+     * step has them. A variable that is empty or unset (an unset one stays as written) names no
+     * target, so when that left the goto with none the error names the variable.
      */
     fun gotoTarget(actions: List<ActionSpec>, expanded: Map<String, String>, written: Map<String, String>): GotoTarget {
-        val target = gotoTarget(actions, expanded["label"], expanded["step"])
-        if (target.index != null || GOTO_KEYS.any { !expanded[it].isNullOrBlank() }) return target
+        val values = valuesRead(expanded, written)
+        val target = gotoTarget(actions, values["label"], values["step"])
+        if (target.index != null || GOTO_KEYS.any { !values[it].isNullOrBlank() }) return target
         val emptied = emptiedGotoArgument(expanded, written) ?: return target
         return GotoTarget(null, "goto: $emptied is empty, so there's no step to jump to")
     }
 
-    /** The label or step a goto step was written with, like %later, that expanded to nothing. */
-    fun emptiedGotoArgument(expanded: Map<String, String>, written: Map<String, String>): String? =
-        GOTO_KEYS.firstNotNullOfOrNull { key ->
-            written[key]?.trim()?.takeIf { it.isNotEmpty() && expanded[key].isNullOrBlank() }
+    /** The label or step a goto step was written with, like %later, that came out empty or unset. */
+    fun emptiedGotoArgument(expanded: Map<String, String>, written: Map<String, String>): String? {
+        val values = valuesRead(expanded, written)
+        return GOTO_KEYS.firstNotNullOfOrNull { key ->
+            written[key]?.trim()?.takeIf { it.isNotEmpty() && values[key].isNullOrBlank() }
         }
+    }
+
+    /** The goto's label and step, with one that's an unset variable kept as written read as empty. */
+    fun valuesRead(expanded: Map<String, String>, written: Map<String, String>): Map<String, String?> =
+        GOTO_KEYS.associateWith { key -> expanded[key]?.takeUnless { VariableExpander.keptUnset(written[key], it) } }
 
     private val GOTO_KEYS = listOf("label", "step")
 }

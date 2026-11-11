@@ -292,6 +292,7 @@ class TaskerNumberedArrayTest {
         val child = Task(id = 2, name = "Child", actions = listOf(pop("%par1")))
         val caller = Task(id = 1, name = "Caller", actions = listOf(ActionSpec(type = "task.run", args = mapOf("task" to "2", "par1" to "2"))))
         val fromCaller = stepFor(PreflightRunner.preflightTask(caller, listOf(caller, child)), "Child")
+        val childAlone = stepFor(PreflightRunner.preflightTask(child, listOf(caller, child)), "Child")
         val earlierOutput = Task(
             id = 3,
             name = "Split",
@@ -304,9 +305,12 @@ class TaskerNumberedArrayTest {
         val fromOutput = stepFor(PreflightRunner.preflightTask(earlierOutput), "Split")
         val noWriter = stepFor(PreflightRunner.preflightTask(Task(id = 4, name = "Alone", actions = listOf(pop("%Pos")))), "Alone")
 
-        // %par1 comes from the caller, which Preflight doesn't pass on, so it warns and goes on.
+        // Previewed through its caller, the child gets the caller's %par1.
         assertEquals(PreflightStepStatus.SIMULATED, fromCaller.status)
-        assertTrue(fromCaller.warnings.toString(), fromCaller.warnings.any { "%par1 is empty here" in it })
+        assertTrue(fromCaller.warnings.toString(), fromCaller.warnings.none { "is empty here" in it })
+        // Previewed alone, %par1 is unset but a caller could pass it, so it warns and goes on.
+        assertEquals(PreflightStepStatus.SIMULATED, childAlone.status)
+        assertTrue(childAlone.warnings.toString(), childAlone.warnings.any { "%par1 is empty here" in it })
         // A global written by an earlier step's output isn't one Preflight plays either.
         assertEquals(PreflightStepStatus.SIMULATED, fromOutput.status)
         assertTrue(fromOutput.warnings.toString(), fromOutput.warnings.any { "%Pos1 is empty here" in it })

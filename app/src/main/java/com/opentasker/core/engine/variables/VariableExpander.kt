@@ -27,16 +27,21 @@ class VariableExpander {
      * - "%VAR(regex:(\d+):1)" -> extract first digit group from VAR
      * - "%VAR(split:,)" -> split VAR by comma, return array
      */
-    /** [conditionals] false leaves a leading `(cond) ? a : b` as text, for a value that isn't a whole expression. */
+    /**
+     * [conditionals] false leaves a leading `(cond) ? a : b` as text, for a value that isn't a whole
+     * expression. [keepUnset] leaves a `%name` with no value as written, as Tasker does; false fills
+     * it in as nothing.
+     */
     fun expand(
         expr: String,
         variableStore: VariableStore,
         arrayStore: ArrayStore,
         quoteValue: (String) -> String = { it },
         conditionals: Boolean = true,
+        keepUnset: Boolean = true,
     ): String {
         return try {
-            expandInternal(expr, variableStore, arrayStore, quoteValue, conditionals)
+            expandInternal(expr, variableStore, arrayStore, quoteValue, conditionals, keepUnset)
         } catch (e: Exception) {
             // If evaluation fails, return original expression
             expr
@@ -49,17 +54,18 @@ class VariableExpander {
         arrayStore: ArrayStore,
         quoteValue: (String) -> String = { it },
         conditionals: Boolean = true,
+        keepUnset: Boolean = true,
     ): String {
         // Handle conditionals: (cond) ? true_val : false_val
         val ternary = if (conditionals) parseTernary(expr) else null
         if (ternary != null) {
-            val result = evaluateConditionInternal(ternary.condition) { operand ->
-                expandInternal(operand, variableStore, arrayStore)
+            val result = evaluateConditionInternal(ternary.condition) { operand, keep ->
+                expandInternal(operand, variableStore, arrayStore, keepUnset = keep)
             }
-            return expandText(if (result) ternary.trueValue else ternary.falseValue, variableStore, arrayStore, quoteValue)
+            return expandText(if (result) ternary.trueValue else ternary.falseValue, variableStore, arrayStore, keepUnset, quoteValue)
         }
 
-        return expandText(expr, variableStore, arrayStore, quoteValue)
+        return expandText(expr, variableStore, arrayStore, keepUnset, quoteValue)
     }
 
     private data class Ternary(val condition: String, val trueValue: String, val falseValue: String)
@@ -93,10 +99,12 @@ class VariableExpander {
         )
     }
 
+    /** [keepUnset] false is for an array index, where an unset `%i` names no element. */
     private fun expandText(
         expr: String,
         variableStore: VariableStore,
         arrayStore: ArrayStore,
+        keepUnset: Boolean = false,
         quoteValue: (String) -> String,
     ): String {
         if ('%' !in expr) return expr
@@ -107,7 +115,9 @@ class VariableExpander {
             val c = expr[i]
             if (c == '%' && i + 1 < expr.length && expr[i + 1].isLetter()) {
                 val token = readVariableToken(expr, i, variableStore, arrayStore)
-                out.append(quoteValue(token.value))
+                // Tasker: "User-variables which have not had a value assigned do not have
+                // replacements carried out." The text kept is the author's, not a value.
+                out.append(if (token.unset && keepUnset) expr.substring(i, token.nextIndex) else quoteValue(token.value))
                 i = token.nextIndex
             } else {
                 out.append(c)
@@ -131,10 +141,8 @@ class VariableExpander {
         if (name == "json" && cursor < expr.length && expr[cursor] == '.') {
             val path = readJsonPath(expr, cursor + 1)
             if (path.value.isNotEmpty()) {
-                return TokenExpansion(
-                    evaluateJsonPath(variableStore.get("json") ?: "{}", path.value),
-                    path.nextIndex,
-                )
+                val json = variableStore.get("json") ?: return TokenExpansion("", path.nextIndex, unset = true)
+                return TokenExpansion(evaluateJsonPath(json, path.value), path.nextIndex)
             }
         }
 
@@ -164,7 +172,7 @@ class VariableExpander {
             separator = name.lastIndexOf('-', separator - 1)
         }
 
-        return TokenExpansion("", cursor)
+        return TokenExpansion("", cursor, unset = true)
     }
 
     private fun findOperatorClose(expr: String, openIndex: Int): Int {
@@ -346,24 +354,27 @@ class VariableExpander {
      * the operand was expanded a second time.
      *
      * [expandOperand] defaults to legacy `%var` expansion. A caller with a template stage passes
-     * its own, and a `{{ ... }}` block in [cond] is kept whole for it.
+     * its own, and a `{{ ... }}` block in [cond] is kept whole for it. Its second argument says
+     * whether an unset `%name` stays as written: it does on either side of a comparison, as in
+     * Tasker, where `%par1 ~ %*` is how a task asks whether it was given anything, and it doesn't
+     * for Is Set and Isn't Set, which ask whether there's a value.
      */
     fun evaluateCondition(
         cond: String,
         variableStore: VariableStore,
         arrayStore: ArrayStore,
-        expandOperand: ((String) -> String)? = null,
+        expandOperand: ((String, Boolean) -> String)? = null,
     ): Boolean =
         try {
             evaluateConditionInternal(
                 cond,
-                expandOperand ?: { operand -> expandInternal(operand, variableStore, arrayStore) },
+                expandOperand ?: { operand, keepUnset -> expandInternal(operand, variableStore, arrayStore, keepUnset = keepUnset) },
             )
         } catch (e: Exception) {
             false
         }
 
-    private fun evaluateConditionInternal(cond: String, expandOperand: (String) -> String): Boolean {
+    private fun evaluateConditionInternal(cond: String, expandOperand: (String, Boolean) -> String): Boolean {
         val normalized = stripOuterParens(cond.trim())
         if (normalized.isEmpty()) return false
 
@@ -385,12 +396,13 @@ class VariableExpander {
         if (comparison == null) {
             unaryExistenceResult(normalized, expandOperand)?.let { return it }
             // A variable on its own, such as `%enabled`, is a boolean once it has its value.
-            return expandOperand(normalized).trim().toBoolean()
+            return expandOperand(normalized, true).trim().toBoolean()
         }
         // Trimmed after expansion: command output and file reads end with a newline, and a value
-        // that came back empty matches nothing, so two unset sides aren't "equal".
-        val left = expandOperand(comparison.left).trim()
-        val right = expandOperand(comparison.right).trim()
+        // that came back empty matches nothing, so two empty sides aren't "equal". An unset side
+        // stays as written, so `%a == %b` is false while both are unset, and `%a == %a` is true.
+        val left = expandOperand(comparison.left, true).trim()
+        val right = expandOperand(comparison.right, true).trim()
 
         return when (comparison.operator) {
             ComparisonOperator.EQ -> left.isNotEmpty() && left == right
@@ -488,16 +500,17 @@ class VariableExpander {
      * fall through to its own default (`normalized.toBoolean()`).
      *
      * `normalized` is the author's text, so the operand still holds its `%variable` and is expanded
-     * here, once. A bare "is_set"/"not_set" with nothing before it means "the value is empty".
+     * here, once, with an unset variable filled in as nothing. A bare "is_set"/"not_set" with
+     * nothing before it means "the value is empty".
      */
-    private fun unaryExistenceResult(normalized: String, expandOperand: (String) -> String): Boolean? {
+    private fun unaryExistenceResult(normalized: String, expandOperand: (String, Boolean) -> String): Boolean? {
         for ((suffix, wantsNonEmpty) in UNARY_EXISTENCE_SUFFIXES) {
             val bareSuffix = suffix.trim()
             if (normalized.equals(bareSuffix, ignoreCase = true)) {
                 return !wantsNonEmpty
             }
             if (normalized.endsWith(suffix, ignoreCase = true)) {
-                val operand = expandOperand(normalized.dropLast(suffix.length).trim()).trim()
+                val operand = expandOperand(normalized.dropLast(suffix.length).trim(), false).trim()
                 return if (wantsNonEmpty) operand.isNotEmpty() else operand.isEmpty()
             }
         }
@@ -648,13 +661,13 @@ class VariableExpander {
         }
     }
 
-    private fun isVariableNameChar(c: Char): Boolean = c.isLetterOrDigit() || c == '_' || c == '-'
-
     private fun isJsonPathSegmentChar(c: Char): Boolean = c.isLetterOrDigit() || c == '_' || c == '-'
 
+    /** [unset] marks a plain `%name` that has no value, which [value] fills in as nothing. */
     private data class TokenExpansion(
         val value: String,
         val nextIndex: Int,
+        val unset: Boolean = false,
     )
 
     private data class ConditionComparison(
@@ -696,6 +709,19 @@ class VariableExpander {
         private const val MAX_REGEX_INPUT_LENGTH = 10_000
         private val TASKER_ARRAY_FORM = Regex("""#[<>]?|[<>]|\d*(?::\d*)?""")
         private val STORED_ARRAY_FORM = Regex("""#|\d*(?::\d*)?""")
+
+        private fun isVariableNameChar(c: Char): Boolean = c.isLetterOrDigit() || c == '_' || c == '-'
+
+        /**
+         * True when [written] is a lone `%name` and [expanded] is that same text, which is how an
+         * unset variable comes back. A caller that needs a value, such as an array position or a
+         * goto target, treats it as empty. A variable holding its own name reads the same.
+         */
+        fun keptUnset(written: String?, expanded: String?): Boolean {
+            val text = written?.trim().orEmpty()
+            return text.length > 1 && text[0] == '%' && text[1].isLetter() &&
+                text.drop(1).all(::isVariableNameChar) && expanded?.trim() == text
+        }
 
         private fun compileLinearRegex(pattern: String): Re2Pattern? {
             return try {

@@ -343,7 +343,8 @@ object PreflightRunner {
             if (networkBlock != null) stepWarnings += networkBlock
             expansion.failure?.let { stepWarnings += "The run stops this step: $it." }
             // Preflight plays Variable Set but not every write a run makes (other actions' outputs,
-            // a caller's %par1, event values), so an unset position blocks only when nothing could set it.
+            // a %par1 when the task is previewed on its own, event values), so an unset position
+            // blocks only when nothing could set it.
             val positionStop = expansion.unsetPosition?.let { (position, reason) ->
                 if (staysUnset(position, task, tasks)) {
                     stepWarnings += "The run stops this step: $reason."
@@ -384,17 +385,27 @@ object PreflightRunner {
                         target == null -> addWarning(steps, pc, "Sub-task not found: $reference")
                         target.id in activeTaskIds -> addWarning(steps, pc, "Sub-task recursion detected for ${target.name}.")
                         else -> {
-                            val child = simulateTask(
-                                task = target,
-                                tasks = tasks,
-                                variables = variables,
-                                input = input,
-                                taskPath = "$taskPath / ${target.name}",
-                                depth = depth + 1,
-                                activeTaskIds = activeTaskIds + target.id,
-                                reports = reports,
-                                warnings = warnings,
-                            )
+                            // The same input scope the run gives the sub-task, so its %par1 checks
+                            // read what this caller passes.
+                            variables.pushScope(holdsInputs = true)
+                            val child = try {
+                                expansion.rawValues.forEach { (key, value) ->
+                                    if (key !in SUB_TASK_REF_KEYS) variables.set(key, value, sensitive = key in expansion.secretKeys)
+                                }
+                                simulateTask(
+                                    task = target,
+                                    tasks = tasks,
+                                    variables = variables,
+                                    input = input,
+                                    taskPath = "$taskPath / ${target.name}",
+                                    depth = depth + 1,
+                                    activeTaskIds = activeTaskIds + target.id,
+                                    reports = reports,
+                                    warnings = warnings,
+                                )
+                            } finally {
+                                variables.popScope()
+                            }
                             reports += child
                         }
                     }
@@ -566,7 +577,7 @@ object PreflightRunner {
                 val target = FlowControl.gotoTarget(actions, expansion.rawValues, spec.args)
                 val unresolved = FlowControl.emptiedGotoArgument(expansion.rawValues, spec.args)
                 // A label that is still empty here wins over the step number once a run sets it.
-                val labelUnknown = !spec.args["label"].isNullOrBlank() && expansion.rawValues["label"].isNullOrBlank()
+                val labelUnknown = !spec.args["label"].isNullOrBlank() && FlowControl.valuesRead(expansion.rawValues, spec.args)["label"].isNullOrBlank()
                 val landing = target.index.takeUnless { labelUnknown }
                 // A step number or label read from a secret stays out of the preview, like its value.
                 fun hidden(text: String) = ExportRedactionPolicy.redactText(text, expansion.secretValues, ActionArgumentSensitivity.REDACTED)
@@ -655,6 +666,8 @@ object PreflightRunner {
         val unsetPosition: Pair<String, String>? = null,
         /** Expanded values that came from a secret, which [values] shows redacted. */
         val secretValues: Set<String> = emptySet(),
+        /** Arguments whose expanded value came from a secret. */
+        val secretKeys: Set<String> = emptySet(),
     )
 
     private fun expandArguments(spec: ActionSpec, variables: VariableStore, input: PreflightInputs): Expansion {
@@ -690,9 +703,9 @@ object PreflightRunner {
             if (secret) ActionArgumentSensitivity.REDACTED
             else ActionArgumentSensitivity.maskValue(spec.type, key, expansion.value, rawValues.mapValues { it.value.value })
         }
-        val secretValues = rawValues.values.filter { expansion -> expansion.traces.any { it.isSecretDerived } }
-            .mapNotNullTo(mutableSetOf()) { it.value.takeIf(String::isNotBlank) }
-        return Expansion(display, rawValues.mapValues { it.value.value }, warnings.distinct(), failure, unsetPosition, secretValues)
+        val secretKeys = rawValues.filterValues { expansion -> expansion.traces.any { it.isSecretDerived } }.keys
+        val secretValues = secretKeys.mapNotNullTo(mutableSetOf()) { rawValues.getValue(it).value.takeIf(String::isNotBlank) }
+        return Expansion(display, rawValues.mapValues { it.value.value }, warnings.distinct(), failure, unsetPosition, secretValues, secretKeys)
     }
 
     /**
