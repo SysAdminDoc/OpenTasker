@@ -554,7 +554,8 @@ object TaskerXmlImporter {
                 lossyWarning = "flash styling was represented as a standard notification",
             )
             "547", "var.set", "variable.set" -> taskerVariableSet(strings, intsByIndex)
-            "888" -> taskerVariableAdd(code, byIndex, intsByIndex, intVariables)
+            "888" -> taskerVariableAddOrSubtract(code, subtract = false, byIndex, intsByIndex, intVariables)
+            "890" -> taskerVariableAddOrSubtract(code, subtract = true, byIndex, intsByIndex, intVariables)
             "549" -> taskerVariableClear(code, byIndex, intsByIndex)
             "596" -> taskerVariableConvert(code, byIndex, intsByIndex, intVariables)
             "597" -> taskerVariableSection(code, byIndex, intsByIndex, intVariables)
@@ -1237,26 +1238,34 @@ object TaskerXmlImporter {
         )
     }
 
-    /** Variable Add counts from 0 when the variable isn't set yet, the way Tasker's does. */
-    private fun taskerVariableAdd(
+    /**
+     * Variable Add and Subtract count from 0 when the variable isn't set yet, and round a decimal
+     * value to a whole number before they add or subtract, the way Tasker's do.
+     */
+    private fun taskerVariableAddOrSubtract(
         code: String,
+        subtract: Boolean,
         byIndex: Map<Int, String>,
         ints: Map<Int, Int>,
         variables: Map<Int, String>,
     ): ActionWithLoss {
+        val action = if (subtract) "Subtract" else "Add"
+        val verb = if (subtract) "subtracts" else "adds"
         val name = byIndex[0].orEmpty()
         val refusal = when {
-            !TASKER_PLAIN_VARIABLE.matches(name) -> "Tasker Variable Add's name $name isn't one plain variable"
-            1 in variables -> "Tasker Variable Add adds ${variables[1]}, and this app only adds a fixed number"
-            2 in variables || (ints[2] ?: 0) != 0 -> "Tasker Variable Add's Wrap Around has no match here"
+            name.isEmpty() -> "Tasker Variable $action names no variable"
+            !TASKER_PLAIN_VARIABLE.matches(name) -> "Tasker Variable $action's name $name isn't one plain variable"
+            1 in variables -> "Tasker Variable $action $verb ${variables[1]}, and this app only $verb a fixed number"
+            2 in variables || (ints[2] ?: 0) != 0 -> "Tasker Variable $action's Wrap Around has no match here"
             else -> null
         }
         if (refusal != null) return taskerPlaceholder(code, refusal)
+        val filter = if (subtract) "sub" else "add"
         return ActionWithLoss(
             ActionSpec(
                 type = "var.set",
-                label = "Tasker variable add",
-                args = mapOf("name" to name, "value" to "{{ ${name.removePrefix("%")} | default:0 | add:${ints[1] ?: 1} }}"),
+                label = "Tasker variable ${action.lowercase()}",
+                args = mapOf("name" to name, "value" to "{{ ${name.removePrefix("%")} | default:0 | round | $filter:${ints[1] ?: 1} }}"),
             ),
         )
     }

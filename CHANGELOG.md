@@ -4,6 +4,7 @@
 
 ### Added
 
+- Tasker's Variable Subtract imports as a real step now. Like Variable Add, it counts from 0 when the variable isn't set, and one that subtracts another variable or wraps around stays a placeholder that says so.
 - A Text Length action counts the characters in some text and stores the number. Tasker's Test Variable, whose one type is Length, now imports as this step instead of a placeholder, and exports back out as Test Variable. As in Tasker, the count is taken after variables are filled in, so a `%name` that was never set counts as the 5 characters it's written with. One that a Variable Clear emptied counts 0 here, where Tasker still counts 5.
 - A Set Wallpaper action changes the home screen, the lock screen or both to an image you pick with Browse. Two new templates put it on the At sunrise and At sunset presets, so the wallpaper can switch between a day image and a night image. They work from the latitude and longitude you type in and don't need location access.
 - Sun contexts can wait for twilight. The presets add civil, nautical and astronomical dawn and dusk, and the new Sun elevation setting takes any angle in degrees, like -4 for the blue hour. The Inspector and profile cards name the twilight. Far enough north in summer the sun never gets that low, and the context just doesn't fire that day.
@@ -46,6 +47,7 @@
 
 ### Fixed
 
+- An imported Tasker Variable Add or Subtract now rounds a value like 2.5 to a whole number before it adds or subtracts, the way Tasker does. Variable Add used to add to the decimal as it was, so 2.5 plus 1 came out 3.5 here and 4 in Tasker.
 - The `round` template function stopped a whole task when the value was the text "NaN". It leaves the value empty now, like the other number functions do.
 - A Tasker "If" or "Run only if" that used Is Even or Is Odd was dropped on import. Now those come in as `is_even` and `is_odd`, which also work in conditions you write yourself, and export writes them back out as Tasker's. As in Tasker, a value that's empty or isn't a number is neither, and 2.5 counts as odd. Tasker also works the value out as math first, so `%ind+1` or an unset variable (which it reads as 0) still gets an answer there. Here the value has to be a plain number already, the same as the other number checks, so both of those are neither.
 - A Tasker "If" or "Run only if" with several conditions joined by And or Or came in as just its first condition. Now the conditions come in together, grouped the way Tasker reads them (Or2 and And2 bind tighter than Or and And), and exporting writes them back out with their joiners. Tasker stops reading a list at a missing joiner or condition number, and the import stops there too, with a note. A list that uses Xor, or a condition that can't be joined here without changing its meaning (one holding && or ||, a {{ }} template or a bracket it doesn't close), is dropped with a note, and that step runs without a condition until you give it one. Export also reads a comparison the way tasks run it, so `%x ~ (a == b)` keeps `(a == b)` as its pattern instead of being split at the `==`.
