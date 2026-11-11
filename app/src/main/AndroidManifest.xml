@@ -92,6 +92,14 @@
     <!-- Lets a profile bring a WireGuard tunnel up or down. WireGuard declares this as a runtime
          permission, and Setup only asks for it when WireGuard is installed. -->
     <uses-permission android:name="com.wireguard.android.permission.CONTROL_TUNNELS" />
+    <!-- Health Connect reads for health STATE contexts, asked for from Setup only when a profile
+         uses one. Read-only: OpenTasker never writes health data. The background permission is
+         what lets the poll worker read while OpenTasker isn't on screen. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
 
     <uses-feature
         android:name="android.hardware.telephony"
@@ -124,6 +132,8 @@
         <package android:name="moe.shizuku.privileged.api" />
         <package android:name="com.wireguard.android" />
         <package android:name="com.tailscale.ipn" />
+        <!-- Health Connect's app on Android 9 to 13; 14 and later have it built in. -->
+        <package android:name="com.google.android.apps.healthdata" />
         <!-- Scoped visibility for the shared installed-app picker; QUERY_ALL_PACKAGES is forbidden. -->
         <intent>
             <action android:name="android.intent.action.MAIN" />
@@ -502,6 +512,30 @@
                 <action android:name="com.opentasker.action.QUERY_EXECUTION" />
             </intent-filter>
         </receiver>
+
+        <!-- Health Connect won't show its permission dialog for an app without a privacy page. It
+             opens this one from the dialog on Android 13 and earlier, and through the alias below
+             from its settings on Android 14 and later. -->
+        <activity
+            android:name="com.opentasker.core.health.HealthPermissionsRationaleActivity"
+            android:exported="true"
+            android:label="@string/health_rationale_title"
+            android:theme="@style/Theme.OpenTasker">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <activity-alias
+            android:name="com.opentasker.core.health.ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity="com.opentasker.core.health.HealthPermissionsRationaleActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
         <activity
             android:name="com.opentasker.core.plugins.locale.LocaleSettingEditActivity"

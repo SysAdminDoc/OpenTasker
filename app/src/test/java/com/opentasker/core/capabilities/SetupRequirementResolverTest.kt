@@ -45,6 +45,20 @@ class SetupRequirementResolverTest {
     }
 
     @Test
+    fun aHealthContextAsksForHealthConnectAndNotForActivityRecognition() {
+        listOf("health_steps", "health_heart_rate", "health_sleep_minutes", "health_exercise_minutes").forEach { key ->
+            assertEquals(
+                key,
+                setOf(SetupRequirement.HEALTH_CONNECT),
+                SetupRequirementResolver.resolveForTemplate(
+                    actionTypes = emptyList(),
+                    contexts = listOf(ContextSpec(ContextType.STATE, mapOf("key" to key, "operator" to ">=", "value" to "30"))),
+                ),
+            )
+        }
+    }
+
+    @Test
     fun openingAScreenFromAProfileNeedsDisplayOverOtherApps() {
         listOf("url.open", "app.launch", "home.go", "intent.launch").forEach { type ->
             assertEquals(

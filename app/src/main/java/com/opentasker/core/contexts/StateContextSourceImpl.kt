@@ -12,6 +12,8 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.view.Display
 import androidx.core.content.ContextCompat
+import com.opentasker.core.health.HealthMetric
+import com.opentasker.core.health.HealthStateEvents
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import kotlinx.coroutines.channels.awaitClose
@@ -132,10 +134,17 @@ class StateContextSourceImpl : StateDemandContextSource {
         val sensorJob = launch {
             StateSensorEvents.events(app, requestedStateKey).collect(::publishPatch)
         }
+        // The poll worker does the reading; this only merges what it last published.
+        val healthJob = if (requestedStateKey == null || HealthMetric.forStateKey(requestedStateKey) != null) {
+            launch { HealthStateEvents.events.collect(::publishPatch) }
+        } else {
+            null
+        }
 
         awaitClose {
             deviceStateJob.cancel()
             mediaPlaybackJob?.cancel()
+            healthJob?.cancel()
             sensorJob.cancel()
             runCatching { app.unregisterReceiver(receiver) }
         }

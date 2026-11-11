@@ -63,7 +63,7 @@
 - **MacroDroid migration**. Import full `.mdr` backups, password-protected `.emdr` exports or single `.macro` shares into disabled profiles, with bounded decoding and an exact mapped, unsupported, and lossy review
 
 - Time/day schedules with presets, aliases, and ranges
-- Device state (battery, charging, headphones, screen, media playback, airplane, power save, Wi-Fi SSID, orientation, proximity, physical activity, speed, roaming, tethering, phone-call state, and Bluetooth devices nearby). Sensor/GPS/phone callbacks are demand-gated per profile
+- Device state (battery, charging, headphones, screen, media playback, airplane, power save, Wi-Fi SSID, orientation, proximity, physical activity, speed, roaming, tethering, phone-call state, Bluetooth devices nearby, and Health Connect steps, heart rate, sleep and exercise). Sensor/GPS/phone callbacks are demand-gated per profile
 - App foreground detection via UsageStats, with optional exact/glob Activity component matching and explicit unavailable-component reporting
 - Wi-Fi and data/internet connectivity via NetworkCallback
 - Notification listener with package/title/body filters. A matching notification hands the task `{{ event.notification_package }}`, `{{ event.notification_title }}` and `{{ event.notification_body }}`
@@ -126,7 +126,7 @@ Variable names follow Tasker's scope rule: an all-lowercase name is local to the
 
 - OEM battery-killer detection with per-vendor remediation (Samsung, Xiaomi, OnePlus, Oppo, Realme, Vivo, Huawei, etc.)
 - Alarm-backed time/day reevaluation through Doze, with a persisted engine heartbeat and periodic WorkManager watchdog that re-arms dropped ticks and foreground-service timeout recovery
-- Setup checklist covering notifications, exact alarms, battery optimization, usage access, overlays, location, physical activity, Bluetooth, SMS, phone state, call log, DND, modify system settings, Shizuku, and Termux
+- Setup checklist covering notifications, exact alarms, battery optimization, usage access, overlays, location, physical activity, Bluetooth, SMS, phone state, call log, DND, modify system settings, Health Connect, Shizuku, and Termux
 - Optional Android 16+ promoted ongoing notifications for active tasks, with standard foreground-notification fallback when promotion is unavailable or denied
 - Context inspector with live source health, latest values, per-profile match explanations, and
   Loading/Ready/Stale/Error observation status with age-aware reporting
@@ -198,6 +198,12 @@ On Android 17 the original Shizuku app may not start, and it hasn't been updated
 Add a state context with the **Bluetooth device nearby** preset and type the device's name or address. OpenTasker looks for it about once a minute, and it can take a few minutes after a device leaves for the context to turn off. Open the Inspector to see what's around and how each device names itself.
 
 A phone only shows up while it's advertising, and most change their address every few minutes. Pairing the phone once fixes that, because Android can then recognize it under its paired name. Anyone can give a device any name, so don't use this to unlock or disarm anything.
+
+### Health Connect
+
+State contexts can compare four Health Connect readings: `health_steps` (steps since midnight), `health_heart_rate` (the newest reading from the last hour), `health_sleep_minutes` (minutes asleep in the last 24 hours) and `health_exercise_minutes` (since midnight). The presets cover the common ones, like 10,000 steps today. OpenTasker reads them in the background on a schedule, every 15 minutes by default, and **Check every (minutes)** on the context stretches that out to as much as a day. It only reads, and never asks for more than 30 days of history.
+
+Allow it under **Read Health Connect** in Setup, which asks for background reading along with the readings your profiles use. Android 14 and later have Health Connect built in. On Android 9 to 13 it's a separate app from Google, and Setup links to it. If Health Connect refuses a reading, the context stays off and the Inspector says which permission is missing.
 
 ### VPN tunnels
 

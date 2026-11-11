@@ -71,6 +71,7 @@ internal fun setupRequirementLabelRes(requirement: SetupRequirement): Int = when
     SetupRequirement.POST_NOTIFICATIONS -> R.string.setup_notifications_card_title
     SetupRequirement.SECURE_SETTINGS -> R.string.setup_secure_settings_title
     SetupRequirement.NFC_TAGS -> R.string.setup_nfc_tags_title
+    SetupRequirement.HEALTH_CONNECT -> R.string.setup_health_title
 }
 
 @StringRes

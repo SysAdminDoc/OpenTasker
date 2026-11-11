@@ -42,6 +42,7 @@ class ScheduledJobDiagnosticsContractTest {
             "CONFIGURATION_SNAPSHOT" to "com/opentasker/core/storage/ConfigurationSnapshotWorker.kt",
             "UPDATE_CHECK" to "com/opentasker/core/updates/UpdateCheckWorker.kt",
             "TEMPORARY_STATE_REVERT" to "com/opentasker/core/actions/TemporaryStateAction.kt",
+            "HEALTH_CONNECT_POLL" to "com/opentasker/core/health/HealthConnectPollWorker.kt",
         )
 
         workerSources.forEach { (worker, path) ->

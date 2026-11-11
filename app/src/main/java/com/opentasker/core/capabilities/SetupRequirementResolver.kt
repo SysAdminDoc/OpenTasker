@@ -3,6 +3,7 @@ package com.opentasker.core.capabilities
 import com.opentasker.core.contexts.BT_NEAR_STATE_KEY
 import com.opentasker.core.contexts.stateContextKey
 import com.opentasker.core.contexts.stateSpecReadsWifiSsid
+import com.opentasker.core.health.HealthMetric
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -41,6 +42,7 @@ enum class SetupRequirement {
     POST_NOTIFICATIONS,
     SECURE_SETTINGS,
     NFC_TAGS,
+    HEALTH_CONNECT,
 }
 
 object SetupRequirementResolver {
@@ -138,6 +140,12 @@ object SetupRequirementResolver {
                     if (stateContextKey(context) == BT_NEAR_STATE_KEY) {
                         add(SetupRequirement.BLUETOOTH)
                         add(SetupRequirement.BLUETOOTH_SCAN)
+                        return@buildSet
+                    }
+                    // Health Connect has its own permissions, and "health_exercise_minutes" shouldn't
+                    // read as a physical activity context below.
+                    if (HealthMetric.forStateKey(stateContextKey(context)) != null) {
+                        add(SetupRequirement.HEALTH_CONNECT)
                         return@buildSet
                     }
                     if (tokens.containsAny("wifi", "ssid", "network")) add(SetupRequirement.NEARBY_WIFI)

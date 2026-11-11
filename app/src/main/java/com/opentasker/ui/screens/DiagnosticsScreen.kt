@@ -528,6 +528,7 @@ private fun scheduledWorkerLabel(worker: ScheduledWorkerId): Int = when (worker)
     ScheduledWorkerId.CONFIGURATION_SNAPSHOT -> R.string.diagnostics_worker_configuration_snapshot
     ScheduledWorkerId.UPDATE_CHECK -> R.string.diagnostics_worker_update_check
     ScheduledWorkerId.TEMPORARY_STATE_REVERT -> R.string.diagnostics_worker_temporary_state_revert
+    ScheduledWorkerId.HEALTH_CONNECT_POLL -> R.string.diagnostics_worker_health_connect_poll
 }
 
 @StringRes

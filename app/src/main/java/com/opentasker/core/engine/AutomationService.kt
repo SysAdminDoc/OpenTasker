@@ -39,6 +39,8 @@ import com.opentasker.core.contexts.BluetoothContextEvents
 import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.BluetoothNearTargets
 import com.opentasker.core.contexts.CallContextEvents
+import com.opentasker.core.health.HealthConnectPollWorker
+import com.opentasker.core.health.HealthPolling
 import com.opentasker.core.contexts.bluetoothNearTargets
 import com.opentasker.core.contexts.systemAppReceiverFlags
 import com.opentasker.core.contexts.CameraMicContextEvents
@@ -387,6 +389,7 @@ class AutomationService : Service() {
         logContextMonitorTransition(contextMonitorLifecycle.stopAll())
         BroadcastContextEvents.sync(this, emptySet())
         CallContextEvents.sync(this, false)
+        HealthConnectPollWorker.sync(this, null)
         super.onDestroy()
     }
 
@@ -514,6 +517,8 @@ class AutomationService : Service() {
         // stopping. sync() is a no-op when the set is unchanged and unregisters on an empty set.
         BroadcastContextEvents.sync(this, declaredBroadcastActions(profiles.flatMap { it.contexts }))
         CallContextEvents.sync(this, declaresIncomingCall(profiles.flatMap { it.contexts }))
+        // Health Connect has no broadcasts to listen for, so its readings come from scheduled reads.
+        HealthConnectPollWorker.sync(this, HealthPolling.plan(profiles.flatMap { it.contexts }))
         engineLoaded = true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && engineStartTraceOpen.compareAndSet(true, false)) {
             Trace.endAsyncSection(ENGINE_START_TRACE_SECTION, ENGINE_START_TRACE_COOKIE)

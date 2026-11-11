@@ -114,6 +114,9 @@ import com.opentasker.core.actions.hasWriteSecureSettings
 import com.opentasker.core.actions.secureSettingsGrantCommand
 import com.opentasker.core.permissions.OemBatteryGuidance
 import com.opentasker.core.diagnostics.AdvancedProtectionReader
+import com.opentasker.core.health.HealthConnectPollWorker
+import com.opentasker.core.health.HealthSetup
+import androidx.health.connect.client.PermissionController
 import com.opentasker.core.permissions.RuntimePermissionOutcome
 import com.opentasker.core.permissions.RuntimePermissionRequestHistory
 import com.opentasker.ui.theme.ThemeMode
@@ -257,6 +260,9 @@ internal sealed interface PermissionAction {
      */
     data class CopyText(val label: String, val text: String) : PermissionAction
     data class ShizukuKillSwitch(val enabled: Boolean) : PermissionAction
+
+    /** Health Connect's own dialog for [permissions]; its page instead once a request has been refused. */
+    data class HealthConnectRead(val permissions: Set<String>) : PermissionAction
 
     /** Trust the signing certificate [packageName] is installed with now, so dispatch to it resumes. */
     data class ReapproveTargetSigner(val packageName: String) : PermissionAction
@@ -533,6 +539,27 @@ fun PermissionOnboardingScreen(
         pendingPermission = null
         setupViewModel.refresh()
     }
+    val healthDeniedMessage = stringResource(R.string.setup_health_denied)
+    // Health Connect stops showing its dialog after repeated refusals and then answers at once with
+    // nothing granted, which looks the same as a refusal. After one, the row opens its page instead.
+    var healthRequestDenied by rememberSaveable { mutableStateOf(false) }
+    var healthRequested by rememberSaveable { mutableStateOf<String?>(null) }
+    val healthLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract(),
+    ) { granted ->
+        val requested = healthRequested?.split('\n').orEmpty()
+        if (requested.isNotEmpty() && granted.containsAll(requested)) {
+            healthRequestDenied = false
+            onMessage(permissionGrantedMessage)
+            // Clears the Setup gap on the trigger now rather than at the next poll.
+            HealthConnectPollWorker.readNow(context)
+        } else {
+            healthRequestDenied = true
+            onMessage(healthDeniedMessage)
+        }
+        healthRequested = null
+        setupViewModel.refresh()
+    }
 
     LaunchedEffect(Unit) {
         ShizukuPowerBackend.permissionResults.collect { granted ->
@@ -759,6 +786,17 @@ fun PermissionOnboardingScreen(
                             permissionLauncher.launch((listOf(action.permission) + action.requestedWith).toTypedArray())
                         }
                         is PermissionAction.SettingsIntent -> openSettingsIntent(context, action.intent, onMessage)
+                        is PermissionAction.HealthConnectRead -> if (healthRequestDenied) {
+                            openSettingsIntent(context, HealthSetup.manageIntent(context), onMessage)
+                        } else {
+                            healthRequested = action.permissions.joinToString("\n")
+                            try {
+                                healthLauncher.launch(action.permissions)
+                            } catch (e: ActivityNotFoundException) {
+                                healthRequested = null
+                                openSettingsIntent(context, HealthSetup.manageIntent(context), onMessage)
+                            }
+                        }
                         is PermissionAction.OemSettings -> openOemSettings(context, action, onMessage)
                         PermissionAction.ShizukuPermission -> {
                             val requested = ShizukuPowerBackend.requestPermission(SHIZUKU_PERMISSION_REQUEST_CODE)

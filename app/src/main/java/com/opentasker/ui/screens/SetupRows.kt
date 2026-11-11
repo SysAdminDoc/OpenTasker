@@ -22,6 +22,8 @@ import com.opentasker.core.apps.TargetSignerGuard
 import com.opentasker.core.apps.TargetSignerState
 import com.opentasker.core.contexts.NfcTagIntentGate
 import com.opentasker.core.contexts.bluetoothScanPermission
+import com.opentasker.core.health.HealthSetup
+import com.opentasker.core.health.HealthSetupState
 import com.opentasker.core.actions.VpnClient
 import com.opentasker.core.actions.VpnTunnelPolicy
 import com.opentasker.core.actions.hasWriteSecureSettings
@@ -109,6 +111,7 @@ internal fun buildPermissionItems(
     val secureSettings = probes.granted("secure settings") { hasWriteSecureSettings(context) }
     // Null is a check that threw. NOT_APPLICABLE means there's no switch on this phone, so no row.
     val nfcTags = probes.read<NfcTagIntentGate.State?>("NFC tag reading", null) { NfcTagIntentGate.current(context) }
+    val health = probes.read<HealthSetupState?>("Health Connect", null) { HealthSetup.read(context) }
     val request = context.getString(R.string.setup_action_request)
     val openSettings = context.getString(R.string.setup_action_open_settings)
     val promotedSupported = PromotedOngoingNotificationSupport.isPlatformSupported()
@@ -235,6 +238,30 @@ internal fun buildPermissionItems(
             section = SetupSection.NEEDED,
             requirements = setOf(SetupRequirement.NFC_TAGS),
         ) else null,
+        PermissionSetupItem(
+            title = context.getString(R.string.setup_health_title),
+            body = context.getString(R.string.setup_health_body),
+            granted = health == HealthSetupState.GRANTED,
+            unavailable = health == null,
+            actionLabel = when (health) {
+                HealthSetupState.UNAVAILABLE, HealthSetupState.NEEDS_UPDATE -> context.getString(R.string.setup_health_install)
+                else -> request
+            },
+            action = when (health) {
+                HealthSetupState.MISSING -> PermissionAction.HealthConnectRead(HealthSetup.requestedPermissions())
+                HealthSetupState.UNAVAILABLE, HealthSetupState.NEEDS_UPDATE -> PermissionAction.SettingsIntent(HealthSetup.installIntent())
+                // Couldn't check, or already granted: Health Connect's own page shows what's allowed.
+                else -> PermissionAction.SettingsIntent(HealthSetup.manageIntent(context))
+            },
+            requiredFor = context.getString(R.string.setup_health_required_for),
+            section = SetupSection.NEEDED,
+            requirements = setOf(SetupRequirement.HEALTH_CONNECT),
+            note = when (health) {
+                HealthSetupState.UNAVAILABLE -> context.getString(R.string.setup_health_note_unavailable)
+                HealthSetupState.NEEDS_UPDATE -> context.getString(R.string.setup_health_note_update)
+                else -> null
+            },
+        ),
         PermissionSetupItem(
             title = context.getString(R.string.setup_overlay_access_title),
             body = context.getString(R.string.setup_overlay_access_body),

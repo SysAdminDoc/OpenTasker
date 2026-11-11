@@ -73,6 +73,8 @@ import com.opentasker.core.contexts.NfcTagWriteSession
 import com.opentasker.core.contexts.ScreenRecordingEventPresets
 import com.opentasker.core.contexts.SunEventCalculator
 import com.opentasker.core.contexts.BT_NEAR_STATE_KEY
+import com.opentasker.core.health.HealthMetric
+import com.opentasker.core.health.HealthPolling
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.apps.PackageNamePolicy
@@ -186,7 +188,9 @@ internal fun ContextConfigDialog(
         mutableStateOf(defaultContextConfig(state.type) + canonicalContextConfig(state.type, state.existing?.config ?: emptyMap()))
     }
     var nfcWriteMessage by rememberSaveable(state.profile.id, state.index, state.type) { mutableStateOf<String?>(null) }
+    // How often to read only means something for a Health Connect reading; every other key is live.
     val fields = contextFields(state.type)
+        .filter { it.key != HealthPolling.POLL_MINUTES_FIELD || HealthMetric.forStateKey(config["key"]) != null }
     val saveConfig = contextConfigForSave(state.type, config)
     val missingRequired = fields.any { it.required && config[it.key].isNullOrBlank() } ||
         (state.type == ContextType.DAY && saveConfig["days"].isNullOrBlank())
@@ -480,6 +484,13 @@ internal fun contextInvalidFields(type: ContextType, config: Map<String, String>
                 }
             }
         }
+        ContextType.STATE -> if (HealthMetric.forStateKey(config["key"]) != null) {
+            checkRange(
+                HealthPolling.POLL_MINUTES_FIELD,
+                HealthPolling.MIN_INTERVAL_MINUTES.toDouble(),
+                HealthPolling.MAX_INTERVAL_MINUTES.toDouble(),
+            )
+        }
         else -> Unit
     }
     return issues
@@ -507,6 +518,7 @@ private fun contextFields(type: ContextType): List<ActionField> = when (type) {
         ActionField("key", R.string.context_field_state_key_label, required = true, hintRes = R.string.context_field_state_key_hint),
         ActionField("operator", R.string.context_field_state_operator_label, hintRes = R.string.context_field_state_operator_hint),
         ActionField("value", R.string.context_field_state_value_label, required = true, hintRes = R.string.context_field_state_value_hint),
+        ActionField(HealthPolling.POLL_MINUTES_FIELD, R.string.context_field_state_poll_minutes_label, FieldType.NUMBER, hintRes = R.string.context_field_state_poll_minutes_hint),
     )
     ContextType.EVENT -> listOf(
         ActionField("event", R.string.context_field_event_type_label, required = true, hintRes = R.string.context_field_event_type_hint),
@@ -565,6 +577,10 @@ private fun contextConfigForSave(type: ContextType, config: Map<String, String>)
             result.remove("timeoutMs")
         }
         return result
+    }
+    // Left over from a health preset the user then changed away from.
+    if (type == ContextType.STATE && HealthMetric.forStateKey(config["key"]) == null) {
+        return nonBlank - HealthPolling.POLL_MINUTES_FIELD
     }
     return nonBlank
 }
@@ -766,6 +782,10 @@ internal object StateContextPresets {
             if (phoneStateAvailable) {
                 add(StateContextPreset("call", R.string.context_state_preset_call, mapOf("key" to "call_state", "operator" to "=", "value" to "ringing")))
             }
+            add(StateContextPreset("health_steps", R.string.context_state_preset_health_steps, mapOf("key" to HealthMetric.STEPS.stateKey, "operator" to ">=", "value" to "10000")))
+            add(StateContextPreset("health_heart_rate", R.string.context_state_preset_health_heart_rate, mapOf("key" to HealthMetric.HEART_RATE.stateKey, "operator" to ">", "value" to "100")))
+            add(StateContextPreset("health_sleep", R.string.context_state_preset_health_sleep, mapOf("key" to HealthMetric.SLEEP.stateKey, "operator" to "<", "value" to "360")))
+            add(StateContextPreset("health_exercise", R.string.context_state_preset_health_exercise, mapOf("key" to HealthMetric.EXERCISE.stateKey, "operator" to ">=", "value" to "30")))
         }
 
     fun apply(current: Map<String, String>, preset: StateContextPreset): Map<String, String> =

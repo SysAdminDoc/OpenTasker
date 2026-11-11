@@ -51,6 +51,7 @@
             <trusting group="androidx.core" />
             <trusting group="androidx.databinding" />
             <trusting group="androidx.dynamicanimation" name="dynamicanimation" version="1.1.0" />
+            <trusting group="androidx.health.connect" />
             <trusting group="androidx.lifecycle" />
             <trusting group="androidx.navigationevent" />
             <trusting group="androidx.room" />
@@ -157,6 +158,7 @@
          <trusted-key id="D233B6C6E7EDC0866D486C166054D87C226DFDC2" group="com.code-intelligence" />
          <trusted-key id="D477D51812E692011DB11E66A6EA2E2BF22E0543" group="io.github.java-diff-utils" />
          <trusted-key id="DBD744ACE7ADE6AA50DD591F66B50994442D2D40" group="com.squareup" />
+         <trusted-key id="E77417AC194160A3FABD04969A259C7EE636C5ED" group="com.google.errorprone" />
          <trusted-key id="E7DC75FC24FB3C8DFE8086AD3D5839A2262CBBFB" group="org.jetbrains.kotlinx" />
          <trusted-key id="EB1B3DE71713C9EC2E87CC26EE92349AD86DE446" group="com.google.j2objc" name="j2objc-annotations" version="2.8" />
          <trusted-key id="EE0CA873074092F806F59B65D364ABAA39A47320" group="com.google.errorprone" />
@@ -2023,6 +2025,30 @@
          </artifact>
          <artifact name="graphics-path-1.0.1.module">
             <sha256 value="3f6fc7e96f8a1fd21045da7f2e332aef528aa1f56b6455fb8f25043aafa0e1b8" origin="OpenTasker: Google Maven published .sha256" />
+         </artifact>
+      </component>
+      <component group="androidx.health.connect" name="connect-client" version="1.1.0">
+         <artifact name="connect-client-1.1.0.aar">
+            <sha256 value="ce1601af0ef671ec6a76b0f29d2af22acc578e408c7107d08ea23067d3822593" origin="OpenTasker: Google Maven published .sha256" />
+         </artifact>
+         <artifact name="connect-client-1.1.0.module">
+            <sha256 value="5ebbc6bb5b06963427c069505334fc339890f88c84823de9834b666f320966b4" origin="OpenTasker: Google Maven published .sha256" />
+         </artifact>
+      </component>
+      <component group="androidx.health.connect" name="connect-client-external-protobuf" version="1.1.0">
+         <artifact name="connect-client-external-protobuf-1.1.0.jar">
+            <sha256 value="6f5418471228a80f16ba7de9c3e8f8c42c58238c0f49fd70d4b43ab187fce502" origin="OpenTasker: Google Maven published .sha256" />
+         </artifact>
+         <artifact name="connect-client-external-protobuf-1.1.0.module">
+            <sha256 value="1f8c3d87346654130e405254d382b4867dcfbc8e6859d297b5c32c454906045f" origin="OpenTasker: Google Maven published .sha256" />
+         </artifact>
+      </component>
+      <component group="androidx.health.connect" name="connect-client-proto" version="1.1.0">
+         <artifact name="connect-client-proto-1.1.0.jar">
+            <sha256 value="291137e68e47521ae996e6c0fac3d6437f794274f10b0e4d4616763225b1d218" origin="OpenTasker: Google Maven published .sha256" />
+         </artifact>
+         <artifact name="connect-client-proto-1.1.0.module">
+            <sha256 value="d57dd99d2cd7e1a5212b73fe53961900aeaddaa2741099c4aca2a22c90a0f45c" origin="OpenTasker: Google Maven published .sha256" />
          </artifact>
       </component>
       <component group="androidx.interpolator" name="interpolator" version="1.0.0">
@@ -4508,6 +4534,11 @@
             <sha256 value="a1a16684e6446bbe5cbeacb40f99c98f40003269e1a0bd0c970a9b8526ecd9a8" origin="OpenTasker: Maven Central published .sha256" />
          </artifact>
       </component>
+      <component group="com.google.errorprone" name="error_prone_annotations" version="2.11.0">
+         <artifact name="error_prone_annotations-2.11.0.pom">
+            <sha256 value="0261ca01f2d2e9ac2ae2ece75d42c56323b385fb294b6bc943f62ef4e92ddf08" origin="OpenTasker: Maven Central published .asc + artifact SHA-256" />
+         </artifact>
+      </component>
       <component group="com.google.errorprone" name="error_prone_annotations" version="2.18.0">
          <artifact name="error_prone_annotations-2.18.0.pom">
             <sha256 value="920135797dcca5917b5a5c017642a58d340a4cd1bcd12f56f892a5663bd7bddc" origin="OpenTasker: Maven Central published .asc + artifact SHA-256" />
@@ -4577,6 +4608,11 @@
          </artifact>
          <artifact name="error_prone_annotations-2.41.0.pom">
             <sha256 value="a151df1e2e0b48618d8b06a180748a29b3abb39b1b2396f6a1c879a727488c6e" origin="OpenTasker: Maven Central published .sha256" />
+         </artifact>
+      </component>
+      <component group="com.google.errorprone" name="error_prone_parent" version="2.11.0">
+         <artifact name="error_prone_parent-2.11.0.pom">
+            <sha256 value="8283f0cb44c624a79d330b6fd80b8b8a715a68b3685c9a951c3de837d4540551" origin="OpenTasker: Maven Central published .asc + artifact SHA-256" />
          </artifact>
       </component>
       <component group="com.google.errorprone" name="error_prone_parent" version="2.18.0">

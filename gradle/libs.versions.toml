@@ -27,6 +27,7 @@ shizuku = "13.1.5"
 unifiedPush = "3.3.4"
 tracing = "2.0.5"
 work = "2.12.0"
+healthConnect = "1.1.0"
 bouncycastle = "1.86"
 jazzer = "0.30.0"
 screenshot = "0.0.1-alpha16"
@@ -73,6 +74,7 @@ shizuku-provider = { module = "dev.rikka.shizuku:provider", version.ref = "shizu
 unifiedpush-connector = { module = "org.unifiedpush.android:connector", version.ref = "unifiedPush" }
 work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
 work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
+health-connect-client = { module = "androidx.health.connect:connect-client", version.ref = "healthConnect" }
 bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
 jazzer = { module = "com.code-intelligence:jazzer", version.ref = "jazzer" }
 screenshot-validation-api = { module = "com.android.tools.screenshot:screenshot-validation-api", version.ref = "screenshot" }

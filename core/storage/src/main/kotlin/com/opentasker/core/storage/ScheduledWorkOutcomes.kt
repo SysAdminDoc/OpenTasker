@@ -20,6 +20,7 @@ enum class ScheduledWorkerId(val key: String) {
     CONFIGURATION_SNAPSHOT("configuration_snapshot"),
     UPDATE_CHECK("update_check"),
     TEMPORARY_STATE_REVERT("temporary_state_revert"),
+    HEALTH_CONNECT_POLL("health_connect_poll"),
     ;
 
     companion object {
