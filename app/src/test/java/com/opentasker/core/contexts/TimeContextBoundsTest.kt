@@ -2,6 +2,7 @@ package com.opentasker.core.contexts
 
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
+import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Variable
 import java.util.TimeZone
 import kotlinx.coroutines.flow.flow
@@ -92,5 +93,27 @@ class TimeContextBoundsTest {
         )
 
         assertEquals(mapOf(1L to mapOf("Sunrise" to "6.42"), 2L to mapOf("Sunrise" to "7.10")), values)
+    }
+
+    @Test
+    fun theInspectorReadsOnlyTheGlobalsATimeWindowIsBoundedBy() {
+        val profiles = listOf(
+            Profile(id = 1, name = "Daylight", enterTaskId = 1, contexts = listOf(sun)),
+            Profile(id = 2, name = "Work", enterTaskId = 1, contexts = listOf(ContextSpec(ContextType.TIME, mapOf("start" to "09:00", "end" to "%Quit")))),
+            Profile(id = 3, name = "Weekdays", enterTaskId = 1, contexts = listOf(ContextSpec(ContextType.DAY, mapOf("days" to "MON")))),
+        )
+        val names = TimeContextBounds.boundGlobals(profiles)
+
+        assertEquals(setOf("Sunrise", "Sunset", "Quit"), names)
+        assertEquals(
+            mapOf(1L to mapOf("Sunrise" to "6.42")),
+            TimeContextBounds.valuesByProject(
+                listOf(
+                    Variable(name = "Sunrise", value = "6.42", isGlobal = true, projectId = 1L),
+                    Variable(name = "Battery", value = "80", isGlobal = true, projectId = 1L),
+                ),
+                names,
+            ),
+        )
     }
 }

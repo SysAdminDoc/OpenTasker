@@ -2,6 +2,7 @@ package com.opentasker.core.contexts
 
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
+import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Variable
 import com.opentasker.core.model.VariableNamePolicy
 import java.util.Calendar
@@ -96,10 +97,15 @@ object TimeContextBounds {
         return combine(events, boundValues) { event, values -> withVariableValues(spec, event, values) }
     }
 
-    fun valuesByProject(variables: List<Variable>): Map<Long, Map<String, String>> =
-        variables.filter { it.isGlobal }
+    /** Each global's value by project, only the ones named in [names] when given. */
+    fun valuesByProject(variables: List<Variable>, names: Set<String>? = null): Map<Long, Map<String, String>> =
+        variables.filter { it.isGlobal && (names == null || it.name in names) }
             .groupBy { it.projectId }
             .mapValues { (_, globals) -> globals.associate { it.name to it.value } }
+
+    /** The globals any Time context of [profiles] is bounded by. */
+    fun boundGlobals(profiles: List<Profile>): Set<String> =
+        profiles.flatMapTo(mutableSetOf()) { profile -> profile.contexts.flatMap { variableBounds(it).values } }
 
     private fun configured(spec: ContextSpec, vararg keys: String): String =
         keys.firstNotNullOfOrNull { key -> spec.config[key]?.takeIf { it.isNotBlank() } }.orEmpty()

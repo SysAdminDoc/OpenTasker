@@ -106,6 +106,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -201,10 +202,15 @@ class ContextInspectorViewModel(
         .map { results -> results.orEmpty().mapNotNull { it.issue } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Saved globals by project, so a Time context bounded by one (%Sunrise) reads what the engine reads. */
-    private val globalsByProject: StateFlow<Map<Long, Map<String, String>>> = VariableRepository(db.variableDao())
-        .observeGlobals(null)
-        .map(TimeContextBounds::valuesByProject)
+    /**
+     * The saved globals that bound a Time context (%Sunrise), by project, so the Inspector reads what
+     * the engine reads and redraws only when one of them changes.
+     */
+    private val globalsByProject: StateFlow<Map<Long, Map<String, String>>> = combine(
+        loadedProfiles.map { profiles -> TimeContextBounds.boundGlobals(profiles.orEmpty()) }.distinctUntilChanged(),
+        VariableRepository(db.variableDao()).observeGlobals(null),
+    ) { names, variables -> TimeContextBounds.valuesByProject(variables, names) }
+        .distinctUntilChanged()
         .catch { error ->
             AppLogger.warn("ContextInspector", "Could not read globals for Time context bounds", error)
             emit(emptyMap())
