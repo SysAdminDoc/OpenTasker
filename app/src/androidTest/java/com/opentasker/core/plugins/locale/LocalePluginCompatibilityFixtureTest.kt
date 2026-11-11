@@ -175,6 +175,48 @@ class LocalePluginCompatibilityFixtureTest {
     }
 
     @Test
+    fun theBundleAlsoRidesOnTheIntentAsTaskerSendsIt() = runBlocking {
+        var setting: Intent? = null
+        var query: Intent? = null
+        val sent = LocalePluginHost(
+            componentResolver = SyntheticLocalePluginResolver(
+                packageName = packageName,
+                settingActivity = settingActivity,
+                conditionActivity = conditionActivity,
+                settingReceiver = settingReceiver,
+                conditionReceiver = conditionReceiver,
+            ),
+            transport = object : LocalePluginTransport {
+                override suspend fun sendSetting(intent: Intent) {
+                    setting = intent
+                }
+
+                override suspend fun queryCondition(intent: Intent): Int {
+                    query = intent
+                    return LocalePluginContract.RESULT_CONDITION_UNKNOWN
+                }
+            },
+        )
+        // Termux:Tasker reads the executable and the terminal flag off the intent, not the bundle.
+        val request = LocalePluginRequest(
+            packageName = packageName,
+            bundleJson = "{\"executable\":\"hello.sh\",\"terminal\":{\"boolean\":false}," +
+                "\"${LocalePluginContract.EXTRA_BLURB}\":\"from the bundle\"}",
+            blurb = "Run hello.sh",
+        )
+
+        assertTrue(sent.fireSetting(request).success)
+        sent.queryCondition(request)
+
+        for (intent in listOf(setting, query)) {
+            assertEquals("hello.sh", intent?.getStringExtra("executable"))
+            assertEquals(false, intent?.getBooleanExtra("terminal", true))
+            assertEquals("Run hello.sh", intent?.getStringExtra(LocalePluginContract.EXTRA_BLURB))
+            assertEquals("hello.sh", intent?.getBundleExtra(LocalePluginContract.EXTRA_BUNDLE)?.getString("executable"))
+        }
+    }
+
+    @Test
     fun aVariableInATypedSlotStillReopensThePluginFilledIn() {
         val edit = host.configurationIntent(
             packageName,

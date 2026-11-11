@@ -738,6 +738,11 @@ class LocalePluginHost private constructor(
     private fun signerRefusal(packageName: String): String? =
         (signerGuard?.check(packageName) as? TargetSignerCheck.Mismatch)?.message
 
+    /**
+     * The bundle goes in [LocalePluginContract.EXTRA_BUNDLE] and, as Tasker sends it, on the intent
+     * itself too: plugins written against Tasker, Termux:Tasker among them, read some settings with
+     * `intent.getStringExtra`. The host's own extras go on last so a bundle key can't replace them.
+     */
     private fun pluginBroadcastIntent(
         action: String,
         request: LocalePluginRequest,
@@ -745,6 +750,7 @@ class LocalePluginHost private constructor(
         target: ComponentName,
     ): Intent = Intent(action)
         .setComponent(target)
+        .putExtras(pluginBundle)
         .putExtra(LocalePluginContract.EXTRA_BUNDLE, pluginBundle)
         .putExtra(LocalePluginContract.EXTRA_BLURB, request.blurb.take(120))
 
