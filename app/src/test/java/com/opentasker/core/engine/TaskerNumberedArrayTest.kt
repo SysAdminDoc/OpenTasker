@@ -65,6 +65,29 @@ class TaskerNumberedArrayTest {
     }
 
     @Test
+    fun aSubTaskThatShadowedOneElementStillChangesTheWholeArray() {
+        fun shadowed() = store("arr1" to "a", "arr2" to "b", "arr3" to "c").apply {
+            pushScope()
+            set("arr1", "h")
+        }
+        val cleared = shadowed()
+        val popped = shadowed()
+        val split = shadowed().apply { set("arr", "x,y") }
+
+        act(cleared, "array.clear", "array" to "arr")
+        act(popped, "array.pop", "array" to "arr", "position" to "1", "to_var" to "got")
+        act(split, "var.split", "name" to "arr", "splitter" to ",")
+
+        assertEquals("0", cleared.expand("%arr(#)"))
+        assertEquals("h", popped.get("got"))
+        assertEquals(mapOf(1 to "b", 2 to "c"), popped.elements("arr"))
+        listOf(cleared, popped, split).forEach(VariableStore::popScope)
+        assertTrue(cleared.elements("arr").isEmpty())
+        assertEquals(mapOf(1 to "b", 2 to "c"), popped.elements("arr"))
+        assertEquals(mapOf(1 to "x", 2 to "y"), split.elements("arr"))
+    }
+
+    @Test
     fun arrayFormsReadTheNumberedElements() {
         val variables = store("arr1" to "a", "arr2" to "b", "arr3" to "c", "i" to "2")
 

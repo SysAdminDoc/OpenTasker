@@ -143,10 +143,11 @@ class VariableStore {
     }
 
     /**
-     * Replaces [base]'s numbered elements with [items] (index to value and secret flag) in the
-     * scope the array lives in: the innermost one holding an element, else the one [set] writes
-     * to. A sub-task changing its caller's array changes it there, instead of unsetting elements
-     * in the caller and writing the new ones into its own scope.
+     * Replaces [base]'s numbered elements with [items] (index to value and secret flag). The old
+     * elements are unset in every local scope, so none left in a caller's scope shows through
+     * after a sub-task set one of its own, and the new ones go into the outermost scope that held
+     * an element, else the one [set] writes to. A sub-task changing its caller's array changes it
+     * there, instead of writing the new elements into its own scope, gone when it returns.
      */
     fun replaceNumberedItems(base: String, items: Map<Int, Pair<String, Boolean>>) {
         val normalizedBase = VariableNamePolicy.normalize(base) ?: return
@@ -159,12 +160,14 @@ class VariableStore {
         synchronized(localStack) {
             val scopes = listOf<Pair<MutableMap<String, String>, MutableSet<String>>>(rootLocals to rootLocalSensitiveNames) +
                 localStack.zip(localSensitiveStack)
-            val (values, sensitiveNames) = scopes.lastOrNull { (values, _) ->
+            val (values, sensitiveNames) = scopes.firstOrNull { (values, _) ->
                 values.keys.any { numberedIndex(normalizedBase, it) != null }
             } ?: scopes.last()
-            values.keys.filter { numberedIndex(normalizedBase, it) != null }.forEach { name ->
-                values.remove(name)
-                sensitiveNames -= name
+            scopes.forEach { (scopeValues, scopeSensitiveNames) ->
+                scopeValues.keys.filter { numberedIndex(normalizedBase, it) != null }.forEach { name ->
+                    scopeValues.remove(name)
+                    scopeSensitiveNames -= name
+                }
             }
             items.forEach { (index, item) ->
                 val name = VariableNamePolicy.normalize("$normalizedBase$index") ?: return@forEach
