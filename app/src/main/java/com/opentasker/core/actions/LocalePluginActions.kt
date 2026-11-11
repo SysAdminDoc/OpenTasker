@@ -2,9 +2,13 @@ package com.opentasker.core.actions
 
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
+import com.opentasker.core.engine.VariableStore
 import com.opentasker.core.plugins.locale.LocalePluginConditionState
+import com.opentasker.core.plugins.locale.LocalePluginContract
 import com.opentasker.core.plugins.locale.LocalePluginHost
 import com.opentasker.core.plugins.locale.LocalePluginRequest
+import com.opentasker.core.plugins.locale.LocalePluginResult
+import kotlinx.coroutines.CancellationException
 
 /**
  * Outcome decisions for the two Locale host actions, kept free of Android types so the run-log
@@ -55,6 +59,38 @@ internal object LocalePluginActionPolicy {
      */
     fun settingDispatchTrace(message: String): String =
         "$message Delivery is unconfirmed: the Locale setting protocol sends no acknowledgement."
+
+    /**
+     * A plugin that answered the synchronous protocol confirmed its own outcome, so only a step that
+     * didn't wait, or a plugin that never touched the result code, keeps the unconfirmed note.
+     */
+    fun settingTrace(result: LocalePluginResult): String =
+        if (result.resultCode == null || result.resultCode == LocalePluginContract.RESULT_CODE_UNKNOWN) {
+            settingDispatchTrace(result.message)
+        } else {
+            result.message
+        }
+
+    /**
+     * Stores what a plugin sent back as task locals the way Tasker does: text as plain variables,
+     * lists as arrays. A failure the plugin reported also puts its result code in %err, unless the
+     * plugin sent its own. Returns the run-log line naming what was left out, or null.
+     */
+    fun storeReturned(result: LocalePluginResult, variables: VariableStore): String? {
+        val returned = result.variables
+        returned.values.forEach { (name, value) -> variables.set(name, value) }
+        returned.arrays.forEach { (name, items) -> variables.setArray(name, items) }
+        val code = result.resultCode
+        if (!result.success && code != null && code != LocalePluginContract.RESULT_CODE_PENDING &&
+            ERROR_VARIABLE !in returned.values
+        ) {
+            variables.set(ERROR_VARIABLE, code.toString())
+        }
+        return returned.refused.takeIf { it.isNotEmpty() }
+            ?.let { "Left out plugin variables: ${it.joinToString()}." }
+    }
+
+    private const val ERROR_VARIABLE = "err"
 }
 
 class LocalePluginSettingAction : DeclaredAction(ActionCatalog.require("plugin.locale.fire")) {
@@ -75,12 +111,17 @@ class LocalePluginSettingAction : DeclaredAction(ActionCatalog.require("plugin.l
                     timeoutMs = timeoutMs,
                 )
             )
+            // Stored before the outcome is decided so a failed step still leaves %err and %errmsg.
+            LocalePluginActionPolicy.storeReturned(result, ctx.variables)?.let(ctx.logger)
             if (result.success) {
-                ctx.logger(LocalePluginActionPolicy.settingDispatchTrace(result.message))
+                ctx.logger(LocalePluginActionPolicy.settingTrace(result))
                 ActionResult.Success
             } else {
                 ActionResult.Failure(result.message)
             }
+        } catch (cancelled: CancellationException) {
+            // Stop during a wait of up to 30 minutes ends the step as stopped, not as a plugin failure.
+            throw cancelled
         } catch (ex: Exception) {
             ActionResult.Failure("Locale plugin failed: ${ex.message}", ex)
         }
@@ -114,6 +155,8 @@ class LocalePluginConditionQueryAction : DeclaredAction(ActionCatalog.require("p
             }
             ctx.logger(LocalePluginActionPolicy.conditionTrace(result.state, result.message))
             LocalePluginActionPolicy.conditionResult(result.state, requireSatisfied, result.message)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (ex: Exception) {
             ActionResult.Failure("Locale plugin condition query failed: ${ex.message}", ex)
         }

@@ -5,16 +5,21 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Bundle
+import androidx.core.content.ContextCompat
 import com.opentasker.core.apps.PackageNamePolicy
 import com.opentasker.core.apps.TargetSignerCheck
 import com.opentasker.core.apps.TargetSignerGuard
+import com.opentasker.core.model.VariableNamePolicy
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -25,6 +30,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.longOrNull
+import java.security.SecureRandom
 import java.util.LinkedHashMap
 import kotlin.coroutines.resume
 
@@ -47,6 +53,39 @@ object LocalePluginContract {
 
     /** Tasker's extension: the variables a plugin sets once it finishes, each as `%name\nLabel\nDescription`. */
     const val EXTRA_RELEVANT_VARIABLES = "net.dinglisch.android.tasker.RELEVANT_VARIABLES"
+
+    /**
+     * Tasker's synchronous setting protocol. The host says what it supports in HOST_CAPABILITIES on
+     * the edit and fire intents. A plugin that waits for something answers the ordered fire broadcast
+     * with RESULT_CODE_PENDING and later sends the COMPLETION_INTENT back with its RESULT_CODE and a
+     * VARIABLES bundle; one that finishes at once sets both on the ordered broadcast's result.
+     */
+    const val EXTRA_HOST_CAPABILITIES = "net.dinglisch.android.tasker.extras.HOST_CAPABILITIES"
+    const val EXTRA_REQUESTED_TIMEOUT = "net.dinglisch.android.tasker.extras.REQUESTED_TIMEOUT"
+    const val EXTRA_COMPLETION_INTENT = "net.dinglisch.android.tasker.extras.COMPLETION_INTENT"
+    const val EXTRA_RESULT_CODE = "net.dinglisch.android.tasker.extras.RESULT_CODE"
+    const val EXTRA_VARIABLES = "net.dinglisch.android.tasker.extras.VARIABLES"
+    const val EXTRA_HINTS = "net.dinglisch.android.tasker.extras.HINTS"
+    const val HINT_TIMEOUT_MS = ".hints.TIMEOUT"
+
+    /** Variables returned from a setting, `%var` replacement in VARIABLE_REPLACE_KEYS, and the wait. */
+    const val HOST_CAPABILITIES = 2 or 8 or 32
+    const val RESULT_CODE_OK = Activity.RESULT_OK
+    const val RESULT_CODE_OK_MINOR_FAILURES = 1
+    const val RESULT_CODE_FAILED = 2
+    const val RESULT_CODE_PENDING = 3
+    const val RESULT_CODE_UNKNOWN = 4
+
+    /** Tasker's "wait forever"; the longest wait here is [MAX_SETTING_WAIT_MS], as long as a Wait step. */
+    const val REQUESTED_TIMEOUT_NEVER = 3_600_000
+    const val MAX_SETTING_WAIT_MS = 1_800_000L
+    const val MAX_RETURNED_VARIABLES = 64
+    const val MAX_RETURNED_TEXT_CHARS = 256 * 1024
+
+    /** How long a plugin step waits when its plugin asked for [requested] ms on its settings screen. */
+    fun waitForRequestedTimeout(requested: Int): Long? =
+        requested.takeIf { it >= 0 }?.toLong()?.coerceAtMost(MAX_SETTING_WAIT_MS)
+
     const val RESULT_CONDITION_SATISFIED = 16
     const val RESULT_CONDITION_UNSATISFIED = 17
     const val RESULT_CONDITION_UNKNOWN = 18
@@ -68,7 +107,77 @@ data class LocalePluginRequest(
 data class LocalePluginResult(
     val success: Boolean,
     val message: String,
+    /** What the plugin answered, or null when it was sent its settings without a wait. */
+    val resultCode: Int? = null,
+    val variables: LocalePluginReturnedVariables = LocalePluginReturnedVariables(),
 )
+
+/** What a plugin's answer to a fire broadcast or its completion intent carried. */
+data class LocalePluginSettingReply(
+    val resultCode: Int,
+    val variables: LocalePluginReturnedVariables = LocalePluginReturnedVariables(),
+)
+
+/**
+ * The variables a plugin sent back, kept to what Tasker accepts: local names (`%name`, all lower
+ * case), a String, a String[] or an ArrayList<String> each, and no more than the caps below in
+ * all. Anything else is left out and named in [refused] for the run log.
+ */
+data class LocalePluginReturnedVariables(
+    val values: Map<String, String> = emptyMap(),
+    val arrays: Map<String, List<String>> = emptyMap(),
+    val refused: List<String> = emptyList(),
+) {
+    val errorMessage: String? get() = values["errmsg"]
+
+    companion object {
+        fun from(raw: Map<String, Any?>): LocalePluginReturnedVariables {
+            val values = linkedMapOf<String, String>()
+            val arrays = linkedMapOf<String, List<String>>()
+            val refused = mutableListOf<String>()
+            var unnamed = 0
+            var chars = 0
+            for ((key, value) in raw) {
+                val name = localName(key)
+                val items: List<String>? = when (value) {
+                    is String -> listOf(value)
+                    is Array<*> -> value.takeIf { it.isArrayOf<String>() }?.map { it as String? ?: "" }
+                    is List<*> -> value.takeIf { list -> list.all { it is String? } }?.map { it as String? ?: "" }
+                    else -> null
+                }
+                // Each array item costs one more, so a list of a million empty strings isn't free.
+                val size = when (value) {
+                    is String -> value.length
+                    else -> items?.sumOf { it.length + 1 } ?: 0
+                }
+                val reason = when {
+                    name == null -> "not a local variable name"
+                    items == null -> "not text or a list of text"
+                    values.size + arrays.size >= LocalePluginContract.MAX_RETURNED_VARIABLES -> "too many variables"
+                    chars + size > LocalePluginContract.MAX_RETURNED_TEXT_CHARS -> "too much text"
+                    else -> null
+                }
+                if (reason != null || name == null || items == null) {
+                    if (refused.size < MAX_REFUSED_NAMED) refused += "${key.take(64)} ($reason)" else unnamed++
+                    continue
+                }
+                chars += size
+                if (value is String) values[name] = value else arrays[name] = items
+            }
+            if (unnamed > 0) refused += "$unnamed more"
+            return LocalePluginReturnedVariables(values, arrays, refused)
+        }
+
+        /** The run-log line names this many left-out keys and counts the rest. */
+        private const val MAX_REFUSED_NAMED = 16
+
+        /** Tasker sends `%name`; a global name or one without its `%` isn't the plugin's to set. */
+        private fun localName(key: String): String? =
+            key.takeIf { it.startsWith('%') }
+                ?.let(VariableNamePolicy::normalize)
+                ?.takeUnless(VariableNamePolicy::isGlobal)
+    }
+}
 
 data class LocalePluginEditIntentResult(
     val success: Boolean,
@@ -81,6 +190,8 @@ data class LocalePluginEditIntentResult(
 data class LocalePluginConfigurationResult(
     val bundleJson: String,
     val blurb: String,
+    /** How long the plugin asked the host to wait for it, already within what a step allows. */
+    val requestedTimeoutMs: Long? = null,
 )
 
 enum class LocalePluginConditionState(val resultCode: Int, val serializedName: String) {
@@ -135,6 +246,16 @@ interface LocalePluginComponentResolver {
 interface LocalePluginTransport {
     suspend fun sendSetting(intent: Intent)
     suspend fun queryCondition(intent: Intent): Int
+
+    /**
+     * Fires a setting the way Tasker does when it waits: an ordered broadcast carrying a completion
+     * intent, then the plugin's answer, or null when none came within [timeoutMs]. A transport with
+     * no plugin behind it sends it plainly and reports no answer, which reads as a plain Locale plugin.
+     */
+    suspend fun fireSettingAndWait(intent: Intent, timeoutMs: Long): LocalePluginSettingReply? {
+        sendSetting(intent)
+        return LocalePluginSettingReply(LocalePluginContract.RESULT_CODE_UNKNOWN)
+    }
 }
 
 private class AndroidLocalePluginComponentResolver(
@@ -162,6 +283,79 @@ private class AndroidLocalePluginTransport(
             appContext.sendBroadcast(intent)
         }
     }
+
+    /**
+     * The completion intent is an action only this fire knows, with a random token in it, sent to
+     * OpenTasker's package, so a receiver registered for just this wait gets it and nothing else
+     * can answer for the plugin. The receiver goes away when the wait ends either way.
+     */
+    override suspend fun fireSettingAndWait(intent: Intent, timeoutMs: Long): LocalePluginSettingReply? =
+        withContext(dispatcher) {
+            requireDeliverable(intent)
+            val completionAction = "${appContext.packageName}.PLUGIN_FINISHED.${LocalePluginCompletion.newToken()}"
+            val completion = CompletableDeferred<LocalePluginSettingReply>()
+            val completionReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context, received: Intent) {
+                    if (received.action != completionAction) return
+                    completion.complete(
+                        LocalePluginCompletion.reply(
+                            { received.getIntExtra(LocalePluginContract.EXTRA_RESULT_CODE, LocalePluginContract.RESULT_CODE_UNKNOWN) },
+                            { received.getBundleExtra(LocalePluginContract.EXTRA_VARIABLES) },
+                        ),
+                    )
+                }
+            }
+            ContextCompat.registerReceiver(
+                appContext,
+                completionReceiver,
+                IntentFilter(completionAction),
+                ContextCompat.RECEIVER_EXPORTED,
+            )
+            try {
+                // A step waits on it, so it goes in the foreground queue rather than behind
+                // background broadcasts while a cold plugin starts.
+                intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                val completionIntent = Intent(completionAction).setPackage(appContext.packageName)
+                intent.putExtra(LocalePluginContract.EXTRA_COMPLETION_INTENT, completionIntent.toUri(Intent.URI_INTENT_SCHEME))
+                intent.putExtra(
+                    LocalePluginContract.EXTRA_HINTS,
+                    Bundle().apply { putInt(LocalePluginContract.HINT_TIMEOUT_MS, timeoutMs.toInt()) },
+                )
+                withTimeoutOrNull(timeoutMs) {
+                    val ordered = suspendCancellableCoroutine { continuation ->
+                        val resultReceiver = object : BroadcastReceiver() {
+                            override fun onReceive(context: Context, ignored: Intent?) {
+                                if (!continuation.isActive) return
+                                val code = resultCode
+                                continuation.resume(
+                                    LocalePluginCompletion.reply(
+                                        { code },
+                                        { getResultExtras(false)?.getBundle(LocalePluginContract.EXTRA_VARIABLES) },
+                                    ),
+                                )
+                            }
+                        }
+                        appContext.sendOrderedBroadcast(
+                            intent,
+                            null,
+                            resultReceiver,
+                            null,
+                            LocalePluginContract.RESULT_CODE_UNKNOWN,
+                            null,
+                            null,
+                        )
+                    }
+                    // Some plugins send their answer before letting the broadcast go, without saying PENDING.
+                    if (completion.isCompleted || ordered.resultCode == LocalePluginContract.RESULT_CODE_PENDING) {
+                        completion.await()
+                    } else {
+                        ordered
+                    }
+                }
+            } finally {
+                runCatching { appContext.unregisterReceiver(completionReceiver) }
+            }
+        }
 
     override suspend fun queryCondition(intent: Intent): Int = withContext(dispatcher) {
         requireDeliverable(intent)
@@ -198,6 +392,59 @@ private class AndroidLocalePluginTransport(
         if (!LocaleSettingDispatch.allowed(permission, holds)) {
             throw SecurityException(LocaleSettingDispatch.missingPermissionMessage(permission.orEmpty()))
         }
+    }
+}
+
+/** The token in a waited-for fire's completion action, and reading what came back. */
+internal object LocalePluginCompletion {
+    private val random = SecureRandom()
+
+    fun newToken(): String = ByteArray(16).also(random::nextBytes).joinToString("") { "%02x".format(it) }
+
+    /**
+     * Reading what a plugin sent unparcels it, which throws for a class this process doesn't have,
+     * so an answer that can't be read is a failure with nothing returned.
+     */
+    @Suppress("DEPRECATION")
+    fun reply(readCode: () -> Int, readVariables: () -> Bundle?): LocalePluginSettingReply = try {
+        val code = readCode()
+        val variables = readVariables()?.let { bundle -> bundle.keySet().associateWith { key -> bundle.get(key) } }
+        LocalePluginSettingReply(code, variables?.let(LocalePluginReturnedVariables::from) ?: LocalePluginReturnedVariables())
+    } catch (e: RuntimeException) {
+        LocalePluginSettingReply(
+            LocalePluginContract.RESULT_CODE_FAILED,
+            LocalePluginReturnedVariables(refused = listOf("the plugin's answer couldn't be read (${e.javaClass.simpleName})")),
+        )
+    }
+}
+
+/**
+ * What a waited-for fire means for the step, by Tasker's result codes: OK and OK with minor
+ * failures finish it, UNKNOWN is a plugin that never touched the code (a plain Locale plugin, sent
+ * its settings and done), and anything else is the plugin saying it failed, with `%errmsg` if it
+ * sent one. No answer within the wait is a failure too, as Tasker times a plugin step out.
+ */
+internal object LocalePluginSettingOutcome {
+    fun of(reply: LocalePluginSettingReply?, target: String, timeoutMs: Long): LocalePluginResult {
+        if (reply == null) {
+            return LocalePluginResult(
+                success = false,
+                message = "Plugin $target didn't finish within $timeoutMs ms.",
+                resultCode = LocalePluginContract.RESULT_CODE_PENDING,
+            )
+        }
+        val code = reply.resultCode
+        val (success, message) = when (code) {
+            LocalePluginContract.RESULT_CODE_OK -> true to "Plugin $target finished."
+            LocalePluginContract.RESULT_CODE_OK_MINOR_FAILURES -> true to "Plugin $target finished with minor failures."
+            LocalePluginContract.RESULT_CODE_UNKNOWN -> true to "Locale plugin setting dispatched to $target."
+            else -> false to buildString {
+                append("Plugin $target failed (result code $code)")
+                reply.variables.errorMessage?.takeIf(String::isNotBlank)?.let { append(": ").append(it.take(500)) }
+                append('.')
+            }
+        }
+        return LocalePluginResult(success, message, code, reply.variables)
     }
 }
 
@@ -580,6 +827,10 @@ object LocalePluginConfigurationResultParser {
         return LocalePluginConfigurationResult(
             bundleJson = LocalePluginBundleCodec.encodeBundle(values),
             blurb = readingPluginData { resultIntent.getStringExtra(LocalePluginContract.EXTRA_BLURB) }.orEmpty().take(120),
+            requestedTimeoutMs = readingPluginData {
+                resultIntent.takeIf { it.hasExtra(LocalePluginContract.EXTRA_REQUESTED_TIMEOUT) }
+                    ?.getIntExtra(LocalePluginContract.EXTRA_REQUESTED_TIMEOUT, -1)
+            }?.let(LocalePluginContract::waitForRequestedTimeout),
         )
     }
 
@@ -707,12 +958,22 @@ class LocalePluginHost private constructor(
         if (saved.isNotEmpty()) intent.putExtra(LocalePluginContract.EXTRA_BUNDLE, LocalePluginBundleCodec.toTypedBundle(saved))
         if (blurb.isNotBlank()) intent.putExtra(LocalePluginContract.EXTRA_BLURB, blurb.take(120))
         intent.putExtra(LocalePluginContract.EXTRA_STRING_BREADCRUMB, "OpenTasker")
+        // Tells a Tasker plugin it may ask for a wait and return variables, as it would with Tasker.
+        if (!condition) intent.putExtra(LocalePluginContract.EXTRA_HOST_CAPABILITIES, LocalePluginContract.HOST_CAPABILITIES)
         return edit
     }
 
+    /**
+     * Sends the plugin its settings and, unless [LocalePluginRequest.timeoutMs] is 0, waits up to
+     * that long for it to finish, by Tasker's synchronous protocol. 0 sends and goes on, as Tasker
+     * does for a plugin step with no timeout; a plugin that needs the wait, like iBeacon Tasker,
+     * refuses that.
+     */
     suspend fun fireSetting(request: LocalePluginRequest): LocalePluginResult {
         LocalePluginBundleCodec.validatePackageName(request.packageName)
-        require(request.timeoutMs in 1_000..30_000) { "Plugin timeout must be between 1000 and 30000 ms." }
+        require(request.timeoutMs in 0..LocalePluginContract.MAX_SETTING_WAIT_MS) {
+            "Plugin wait must be between 0 and ${LocalePluginContract.MAX_SETTING_WAIT_MS} ms."
+        }
 
         val bundleValues = LocalePluginBundleCodec.decodeBundle(request.bundleJson)
         signerRefusal(request.packageName)?.let { refusal -> return LocalePluginResult(false, refusal) }
@@ -724,15 +985,20 @@ class LocalePluginHost private constructor(
             request = request,
             pluginBundle = pluginBundle,
             target = component,
-        )
+        ).putExtra(LocalePluginContract.EXTRA_HOST_CAPABILITIES, LocalePluginContract.HOST_CAPABILITIES)
 
-        return withTimeout(request.timeoutMs) {
-            try {
-                transport.sendSetting(intent)
-                LocalePluginResult(true, "Locale plugin setting dispatched to ${component.flattenToShortString()}.")
-            } catch (error: SecurityException) {
-                LocalePluginResult(false, error.message ?: "Locale plugin setting was not deliverable.")
+        val receiverName = component.flattenToShortString()
+        return try {
+            if (request.timeoutMs == 0L) {
+                withTimeoutOrNull(SETTING_DISPATCH_TIMEOUT_MS) { transport.sendSetting(intent) }
+                    ?: return LocalePluginResult(false, "Locale plugin setting couldn't be sent to $receiverName within $SETTING_DISPATCH_TIMEOUT_MS ms.")
+                LocalePluginResult(true, "Locale plugin setting dispatched to $receiverName.")
+            } else {
+                val reply = transport.fireSettingAndWait(intent, request.timeoutMs)
+                LocalePluginSettingOutcome.of(reply, receiverName, request.timeoutMs)
             }
+        } catch (error: SecurityException) {
+            LocalePluginResult(false, error.message ?: "Locale plugin setting was not deliverable.")
         }
     }
 
@@ -899,6 +1165,9 @@ class LocalePluginDiscovery(
     }
 
 }
+
+/** A step with no wait still gets this long for the broadcast to leave. */
+private const val SETTING_DISPATCH_TIMEOUT_MS = 5_000L
 
 private data class LocaleBroadcastReceiverTarget(
     val component: ComponentName,

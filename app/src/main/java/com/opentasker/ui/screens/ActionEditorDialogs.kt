@@ -533,6 +533,12 @@ internal fun ActionConfigDialog(
                             onConfigured = { bundleJson, blurb ->
                                 values = values + ("bundleJson" to bundleJson) + ("blurb" to blurb)
                             },
+                            // Only a setting waits for its plugin; a condition query keeps its own limit.
+                            onRequestedTimeout = { timeoutMs ->
+                                if (state.metadata.id == "plugin.locale.fire") {
+                                    values = values + ("timeoutMs" to timeoutMs.toString())
+                                }
+                            },
                         )
                     }
                 }

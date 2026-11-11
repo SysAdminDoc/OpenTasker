@@ -39,6 +39,8 @@ internal fun LocalePluginConfigureButton(
     bundleJson: String,
     blurb: String,
     onConfigured: (bundleJson: String, blurb: String) -> Unit,
+    /** Called when the plugin asked the host to wait for it, with that wait in ms. */
+    onRequestedTimeout: (Long) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -51,6 +53,7 @@ internal fun LocalePluginConfigureButton(
         problem = try {
             val configured = LocalePluginConfigurationResultParser.parse(result.resultCode, result.data)
             onConfigured(configured.bundleJson, configured.blurb)
+            configured.requestedTimeoutMs?.let(onRequestedTimeout)
             null
         } catch (e: IllegalArgumentException) {
             failedTemplate.format(e.message.orEmpty())

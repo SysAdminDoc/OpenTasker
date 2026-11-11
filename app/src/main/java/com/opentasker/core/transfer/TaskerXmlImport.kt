@@ -1027,8 +1027,8 @@ object TaskerXmlImporter {
      * `<key>-type` element naming its Java type, with the plugin's package in arg1, its settings
      * screen in arg2 and how long Tasker waits for it in arg3. No built-in action has a package in
      * arg1, which is what tells a plugin step apart, whatever its code. Here it fires through the
-     * Locale host, which sends the settings and goes on without waiting for an answer, so the
-     * variables the plugin would set stay unset and the import says which.
+     * Locale host, which waits for the plugin the way Tasker does, so arg3 carries over as the
+     * step's wait (0 sends the settings and goes on) and the plugin's variables come back.
      */
     private fun taskerPluginAction(
         code: String,
@@ -1049,11 +1049,8 @@ object TaskerXmlImporter {
             return taskerPlaceholder(code, "Tasker plugin $packageName: ${error.message}")
         }
         val blurb = (values[LocalePluginContract.EXTRA_BLURB] as? LocaleBundleValue.Text)?.value.orEmpty()
-        val outputs = (values[LocalePluginContract.EXTRA_RELEVANT_VARIABLES] as? LocaleBundleValue.TextArray)
-            ?.values
-            ?.mapNotNull { item -> item.lineSequence().first().trim().takeIf { it.startsWith("%") } }
-            .orEmpty()
-        val waitSeconds = ints[3]?.takeIf { it > 0 }
+        val waitSeconds = ints[3]?.takeIf { it >= 0 }
+        val waitMs = waitSeconds?.let { (it * 1_000L).coerceAtMost(LocalePluginContract.MAX_SETTING_WAIT_MS) }
         return ActionWithLoss(
             ActionSpec(
                 type = "plugin.locale.fire",
@@ -1062,16 +1059,12 @@ object TaskerXmlImporter {
                     put("package", packageName)
                     put("bundleJson", LocalePluginBundleCodec.encodeBundle(values - LocalePluginContract.EXTRA_BLURB))
                     if (blurb.isNotBlank()) put("blurb", blurb.take(120))
+                    waitMs?.let { put("timeoutMs", it.toString()) }
                 },
             ),
-            lossyWarning = joinWarnings(
-                outputs.takeIf { it.isNotEmpty() }?.let {
-                    "Tasker plugin $packageName sets ${it.joinToString(", ")} when it finishes; here it's sent its settings without waiting for an answer, so those stay unset"
-                },
-                waitSeconds?.let {
-                    "Tasker waits up to $it seconds for plugin $packageName to finish before the next step; here the next step starts right after the plugin is sent its settings"
-                },
-            ),
+            lossyWarning = waitSeconds?.takeIf { it * 1_000L > LocalePluginContract.MAX_SETTING_WAIT_MS }?.let {
+                "Tasker waits up to $it seconds for plugin $packageName to finish; a plugin step here waits at most 30 minutes"
+            },
         )
     }
 

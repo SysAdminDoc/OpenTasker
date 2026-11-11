@@ -92,13 +92,14 @@ class TaskerPluginActionImportTest {
             ),
             json(action.args.getValue("bundleJson")),
         )
+        assertEquals("0", action.args["timeoutMs"])
         assertEquals(listOf("plugin.locale.fire"), report.mappedActions.map { it.openTaskerActionId })
         assertTrue(report.unsupportedActions.isEmpty())
         assertTrue(report.lossyWarnings.toString(), report.lossyWarnings.none { "org.kustom.widget" in it })
     }
 
     @Test
-    fun anAutoInputStepKeepsItsNullsAndSaysWhatStaysUnsetAndWaitedFor() {
+    fun anAutoInputStepKeepsItsNullsAndItsWait() {
         val report = import(
             """
             <Action sr="act0" ve="7">
@@ -145,9 +146,9 @@ class TaskerPluginActionImportTest {
             bundle,
         )
         assertFalse(action.args.containsKey("blurb"))
-        val warning = report.lossyWarnings.single { "com.joaomgcd.autoinput" in it }
-        assertTrue(warning, "%aiscreen, %err" in warning)
-        assertTrue(warning, "4 seconds" in warning)
+        // The step waits the 4 seconds Tasker would and gets %aiscreen and %err back, so nothing is lost.
+        assertEquals("4000", action.args["timeoutMs"])
+        assertTrue(report.lossyWarnings.toString(), report.lossyWarnings.none { "com.joaomgcd.autoinput" in it })
     }
 
     @Test

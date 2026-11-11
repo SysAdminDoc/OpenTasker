@@ -2,6 +2,7 @@ package com.opentasker.core.actions
 
 import androidx.annotation.StringRes
 import com.opentasker.app.R
+import com.opentasker.core.plugins.locale.LocalePluginContract
 
 /**
  * Metadata describing the arguments required/optional for an Action.
@@ -789,7 +790,7 @@ fun registerActionMetadata() {
                 ActionField("package", R.string.catalog_action_plugin_locale_fire_field_package_label, FieldType.APP, required = true, hintRes = R.string.catalog_action_plugin_locale_fire_field_package_hint),
                 ActionField("bundleJson", R.string.catalog_action_plugin_locale_fire_field_bundlejson_label, FieldType.MULTILINE, hintRes = R.string.catalog_action_plugin_locale_fire_field_bundlejson_hint, sensitive = true),
                 ActionField("blurb", R.string.catalog_action_plugin_locale_fire_field_blurb_label, hintRes = R.string.catalog_action_plugin_locale_fire_field_blurb_hint),
-                ActionField("timeoutMs", R.string.catalog_action_plugin_locale_fire_field_timeoutms_label, FieldType.NUMBER, hintRes = R.string.catalog_action_plugin_locale_fire_field_timeoutms_hint, numberRule = integerRule(1_000, 30_000)),
+                ActionField("timeoutMs", R.string.catalog_action_plugin_locale_fire_field_timeoutms_label, FieldType.NUMBER, hintRes = R.string.catalog_action_plugin_locale_fire_field_timeoutms_hint, numberRule = integerRule(0, LocalePluginContract.MAX_SETTING_WAIT_MS)),
             )
         )
     )

@@ -1043,6 +1043,9 @@ internal suspend fun runStepWithinLimit(timeoutMs: Long, step: suspend () -> Act
 
 internal fun actionTimeoutMs(actionType: String): Long = when {
     actionType == "flow.wait" -> MAX_WAIT_TIMEOUT_MS
+    // A plugin step waits for its plugin's answer up to LocalePluginContract.MAX_SETTING_WAIT_MS,
+    // the same 30 minutes, and reports its own timeout.
+    actionType == "plugin.locale.fire" -> MAX_WAIT_TIMEOUT_MS
     // MQTT allows a 30 s connect plus three 30 s reads, so the 60 s default silently truncated
     // work the user configured and reported a timeout instead.
     actionType.startsWith("http.") || actionType == "download" || actionType == "ping" ||

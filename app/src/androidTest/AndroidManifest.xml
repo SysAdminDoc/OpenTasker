@@ -5,4 +5,15 @@
         revocation does not kill the OpenTasker process that hosts instrumentation.
     -->
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
+    <application>
+        <!-- LocalePluginSyncTransportTest's plugin, found through the same FIRE_SETTING query as a real one. -->
+        <receiver
+            android:name="com.opentasker.core.plugins.locale.SyncSettingFixtureReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />
+            </intent-filter>
+        </receiver>
+    </application>
 </manifest>
