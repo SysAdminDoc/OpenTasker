@@ -191,6 +191,27 @@ class LocalePluginBundleCodecTest {
     }
 
     @Test
+    fun onlyAVariableInATypedSlotGoesAsText() {
+        val longKey = "k".repeat(LocalePluginContract.MAX_BUNDLE_KEY_BYTES + 1)
+        val values = LocalePluginBundleCodec.decodeBundleForEditing(
+            """{"count":{"long":"{{ n }}"},"":{"int":"%x"},"$longKey":{"int":"%x"},""" +
+                """"word":{"int":"abc"},"half":{"int":1.5},"odd":{"bogus":1},"list":{"stringArray":"%x"}}"""
+        )
+
+        // A blank or oversized key, a value that isn't a variable, and an unknown or list type all stay out.
+        assertEquals(mapOf("count" to LocaleBundleValue.Text("{{ n }}")), values)
+    }
+
+    @Test
+    fun ofSeveralSettingsScreensTheDefaultOneIsPicked() {
+        assertEquals(listOf("b"), preferSingle(listOf("a", "b"), listOf("b")))
+        // Nothing to go on, or still more than one, stays ambiguous.
+        assertEquals(listOf("a", "b"), preferSingle(listOf("a", "b"), emptyList()))
+        assertEquals(listOf("a", "b"), preferSingle(listOf("a", "b"), listOf("a", "b")))
+        assertEquals(listOf("a", "b"), preferSingle(listOf("a", "b"), listOf("c")))
+    }
+
+    @Test
     fun configurationResultsKeepTheirTypes() {
         val values = LocalePluginBundleCodec.sanitizeTypedValues(
             mapOf(

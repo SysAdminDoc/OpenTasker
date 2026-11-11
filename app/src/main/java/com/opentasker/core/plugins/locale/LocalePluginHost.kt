@@ -225,6 +225,8 @@ object LocalePluginBundleCodec {
     private const val TAG_STRING_ARRAY = "stringArray"
     private const val TAG_STRING_LIST = "stringList"
     private const val TAG_NULL = "null"
+    private val VARIABLE_TYPED_TAGS = setOf(TAG_BOOLEAN, TAG_INT, TAG_LONG, TAG_FLOAT, TAG_DOUBLE)
+    private val VARIABLE_IN_TEXT = Regex("""%[A-Za-z]|\{\{""")
 
     fun validatePackageName(packageName: String) {
         require(PackageNamePolicy.isValid(packageName)) { "Invalid plugin package name." }
@@ -272,26 +274,37 @@ object LocalePluginBundleCodec {
             null
         }
         if (strict != null) return strict
+        if (bundleJson.toByteArray(Charsets.UTF_8).size > LocalePluginContract.MAX_BUNDLE_JSON_BYTES) return emptyMap()
         val obj = try {
             Json.parseToJsonElement(bundleJson.trim().ifBlank { "{}" }) as? JsonObject
         } catch (_: IllegalArgumentException) {
             null
         } ?: return emptyMap()
         if (obj.size > LocalePluginContract.MAX_BUNDLE_ENTRIES) return emptyMap()
-        if (bundleJson.toByteArray(Charsets.UTF_8).size > LocalePluginContract.MAX_BUNDLE_JSON_BYTES) return emptyMap()
         return obj.entries.mapNotNull { (key, value) ->
             try {
                 decodeBundle(JsonObject(mapOf(key to value)).toString()).entries.single().toPair()
             } catch (_: IllegalArgumentException) {
-                verbatimText(value)?.let { key to it }
+                variableInTypedSlot(key, value)?.let { key to it }
             } catch (_: IllegalStateException) {
-                verbatimText(value)?.let { key to it }
+                variableInTypedSlot(key, value)?.let { key to it }
             }
         }.toMap()
     }
 
-    private fun verbatimText(value: JsonElement): LocaleBundleValue.Text? =
-        ((value as? JsonObject)?.values?.singleOrNull() as? JsonPrimitive)?.contentOrNull?.let(LocaleBundleValue::Text)
+    /** `{"int":"%count"}` as its text, under a key [decodeBundle] would take. Any other failure stays out. */
+    private fun variableInTypedSlot(key: String, value: JsonElement): LocaleBundleValue.Text? {
+        val (tag, raw) = (value as? JsonObject)?.entries?.singleOrNull() ?: return null
+        if (tag !in VARIABLE_TYPED_TAGS) return null
+        val text = (raw as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return null
+        if (!VARIABLE_IN_TEXT.containsMatchIn(text)) return null
+        return try {
+            requireValidKey(key)
+            LocaleBundleValue.Text(text).also(::requireValueSize)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+    }
 
     /** The bundle as the strings it used to send, for callers that only compare or display it. */
     fun decodeStringBundle(bundleJson: String): Map<String, String> =
@@ -863,10 +876,26 @@ private fun queryEditActivities(
     pm: PackageManager,
     packageName: String,
     action: String,
-): List<ComponentName> =
+): List<ComponentName> {
     // No MATCH_DEFAULT_ONLY: the Locale spec's edit activities often don't declare CATEGORY_DEFAULT,
     // and they're opened by explicit component, which doesn't need it.
-    pm.queryIntentActivities(Intent(action).setPackage(packageName), 0)
+    val all = editActivityComponents(pm, packageName, action, flags = 0)
+    if (all.size < 2) return all
+    // Of several, the one that declares CATEGORY_DEFAULT is the one this app always opened.
+    return preferSingle(all, editActivityComponents(pm, packageName, action, PackageManager.MATCH_DEFAULT_ONLY))
+}
+
+/** [all] narrowed to the one entry of [preferred] it holds, or [all] when that isn't exactly one. */
+internal fun <T> preferSingle(all: List<T>, preferred: List<T>): List<T> =
+    preferred.filter { it in all }.singleOrNull()?.let(::listOf) ?: all
+
+private fun editActivityComponents(
+    pm: PackageManager,
+    packageName: String,
+    action: String,
+    flags: Int,
+): List<ComponentName> =
+    pm.queryIntentActivities(Intent(action).setPackage(packageName), flags)
         .mapNotNull { resolveInfo ->
             val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
             if (activityInfo.packageName != packageName) return@mapNotNull null
