@@ -861,7 +861,8 @@ object TaskerXmlImporter {
                     args = mapOf("message" to strings.getOrElse(0) { "Imported Tasker log action" }),
                 ),
             )
-            else -> taskerPluginAction(code, element, byIndex, intsByIndex) ?: ActionWithLoss(unsupportedAction(code))
+            else -> taskerPluginAction(code, element, byIndex, intsByIndex)
+                ?: ActionWithLoss(unsupportedAction(code, TASKER_KEPT_PLACEHOLDER_REASONS[code]))
         }
         // Real Tasker exports carry a "Run only if" guard as a sibling <ConditionList>, not as
         // <Str> action args -- this applies to any action type, not just flow-control If/Else If.
@@ -2317,6 +2318,26 @@ object TaskerXmlImporter {
     private val TASKER_INTERRUPT_MODE_NAMES = mapOf(4 to "Custom", 5 to "Query")
 
     private val TASKER_SOUND_MODES = mapOf(0 to "silent", 1 to "vibrate", 2 to "normal")
+
+    // Codes kept as placeholders on purpose, with the reason the placeholder's import note gives.
+    // Scene codes are Tasker's Scene and Scene v2 categories in its action table.
+    private val TASKER_KEPT_PLACEHOLDER_REASONS: Map<String, String> =
+        listOf(
+            "46", "47", "48", "49", "50", "51", "53", "54", "55", "56", "57", "58", "60", "63", "64", "65",
+            "66", "67", "68", "69", "71", "73", "143", "194", "195", "479", "480", "481", "482", "483", "484",
+            "485", "612", "991",
+        ).associateWith { "Tasker scenes aren't imported, so there's no scene here for this step to work on" } +
+            listOf("474", "664", "665").associateWith {
+                "Tasker's Java steps run Java code inside Tasker, and OpenTasker doesn't run code that comes in with an import"
+            } +
+            listOf("129", "131").associateWith { "OpenTasker has no JavaScript engine to run Tasker's JavaScript steps" } +
+            mapOf(
+                "101" to "OpenTasker has no camera step, so Tasker's Take Photo can't run here",
+                "123" to "Tasker's Run Shell runs the command typed into the step, often as root. OpenTasker only runs " +
+                    "script files you've approved in Settings. Saved as a script, the command can run through Run " +
+                    "Shizuku Script, though as the shell user rather than root",
+                "328" to "Tasker's Keyboard types into other apps through Tasker's own keyboard, which OpenTasker doesn't have",
+            )
 
     private val TASKER_INTENT_TARGETS = mapOf(0 to "broadcast", 1 to "activity", 2 to "service")
 
