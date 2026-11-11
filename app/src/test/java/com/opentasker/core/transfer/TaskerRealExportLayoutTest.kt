@@ -626,6 +626,13 @@ class TaskerRealExportLayoutTest {
     }
 
     @Test
+    fun variableAddThatWrapsAtAVariableStaysAPlaceholder() {
+        val add = action("""<code>888</code><Str sr="arg0" ve="3">%n</Str><Int sr="arg1" val="1"/><Int sr="arg2"><var>%max</var></Int>""")
+
+        assertEquals(placeholder, add.type)
+    }
+
+    @Test
     fun variableClearEmptiesOneVariable() {
         val clear = action("""<code>549</code><Str sr="arg0" ve="3">%Recording</Str><Int sr="arg1" val="0"/>""")
 

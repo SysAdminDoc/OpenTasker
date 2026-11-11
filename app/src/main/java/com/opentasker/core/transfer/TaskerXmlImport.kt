@@ -1020,7 +1020,7 @@ object TaskerXmlImporter {
         val refusal = when {
             !TASKER_PLAIN_VARIABLE.matches(name) -> "Tasker Variable Add's name $name isn't one plain variable"
             1 in variables -> "Tasker Variable Add adds ${variables[1]}, and this app only adds a fixed number"
-            (ints[2] ?: 0) != 0 -> "Tasker Variable Add's Wrap Around has no match here"
+            2 in variables || (ints[2] ?: 0) != 0 -> "Tasker Variable Add's Wrap Around has no match here"
             else -> null
         }
         if (refusal != null) return taskerPlaceholder(code, refusal)
