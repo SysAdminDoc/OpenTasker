@@ -98,6 +98,23 @@ class PreflightRunnerTest {
     private val dimTask = Task(id = 4, name = "Dim", actions = listOf(ActionSpec(type = "brightness.set", args = mapOf("level" to "40"))))
 
     @Test
+    fun aPersistedVariableGetsTheGlobalNameTheRunGivesIt() {
+        val task = Task(
+            id = 5,
+            name = "Keep mode",
+            actions = listOf(
+                ActionSpec(type = "var.set", args = mapOf("name" to "mode", "value" to "night")),
+                ActionSpec(type = "var.persist", args = mapOf("name" to "mode")),
+                ActionSpec(type = "var.set", args = mapOf("name" to "check", "value" to "%Mode")),
+            ),
+        )
+
+        val steps = PreflightRunner.preflightTask(task = task).tasks.single().steps
+
+        assertEquals("night", steps[2].expandedArguments["value"])
+    }
+
+    @Test
     fun preflightExpandsSyntheticEventsAndReportsSelectedBranchWithoutRunningActions() {
         val task = Task(
             id = 1,

@@ -18,6 +18,7 @@ import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
+import com.opentasker.core.model.VariableNamePolicy
 
 /** Synthetic inputs for a side-effect-free task/profile preflight. */
 data class PreflightInputs(
@@ -586,9 +587,10 @@ object PreflightRunner {
             }
             "var.persist" -> {
                 val source = values["name"]?.trim().orEmpty()
-                val target = values["global_name"]?.trim().orEmpty().ifBlank { source }
+                // The same promotion the run uses, so "mode" becomes "Mode" here too, not "MODE".
+                val target = VariableNamePolicy.promoteToGlobal(values["global_name"]?.trim().orEmpty().ifBlank { source })
                 val value = variables.get(source)
-                if (value != null && target.isNotBlank()) variables.set(target.uppercase(), value, sensitive = variables.isSensitive(source))
+                if (value != null && target != null) variables.set(target, value, sensitive = variables.isSensitive(source))
             }
         }
     }

@@ -41,6 +41,7 @@
 - When an imported file can't be opened, the reason stays on screen until you dismiss it or something else needs the spot, like the next message or a deleted task's Undo. If the Undo comes up before the reason ever showed, the reason follows it. A damaged or cut-off Tasker or MacroDroid file says so, and the catch-all message points to Diagnostics, where the details are logged.
 - Pasting something too long for the paste box now says the end was cut off and points to the file import, instead of sending the cut text on to fail as damaged.
 - Preflight's missing setup line now reads the live grants, so it stops listing what Setup already shows as done.
+- Preflight names a variable that Persist Variable made global the way a run does, so `mode` becomes `Mode` there too. It used to become `MODE`, and a later step reading `%Mode` showed it empty.
 - Tapping an action's Needs setup pill opens Setup on the access it's missing. Setup only lists access for enabled profiles, so a task you run by hand used to point at a row you couldn't find.
 - Play Sound opens a file with a # or ? in its name. The path used to stop there, so the sound never played.
 - On Android 17, Setup's Shizuku row explains that the original Shizuku may not start there, names the thedjchi fork that supports it, and says to turn wireless debugging back on after a reboot, since OpenTasker can't. The README says the same.
