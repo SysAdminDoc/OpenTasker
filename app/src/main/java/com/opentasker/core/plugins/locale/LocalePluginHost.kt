@@ -1208,12 +1208,22 @@ private const val SETTING_DISPATCH_TIMEOUT_MS = 5_000L
  * main thread.
  */
 fun localePluginReceiverInstalled(context: Context, packageName: String, condition: Boolean): Boolean =
+    localePluginReceiverResolves(AndroidLocalePluginComponentResolver(context.packageManager), packageName, condition)
+
+/**
+ * A step saves only its package, and firing or querying it refuses a package with no receiver for
+ * the step's action or more than one, so the pill asks for exactly one too.
+ */
+internal fun localePluginReceiverResolves(
+    resolver: LocalePluginComponentResolver,
+    packageName: String,
+    condition: Boolean,
+): Boolean =
     PackageNamePolicy.isValid(packageName) &&
-        queryBroadcastReceivers(
-            context.packageManager,
+        resolver.broadcastReceivers(
             packageName,
             if (condition) LocalePluginContract.ACTION_QUERY_CONDITION else LocalePluginContract.ACTION_FIRE_SETTING,
-        ).isNotEmpty()
+        ).size == 1
 
 private data class LocaleBroadcastReceiverTarget(
     val component: ComponentName,
