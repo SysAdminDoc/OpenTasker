@@ -33,19 +33,13 @@ class HttpNetworkConstraintTransferTest {
         assertEquals("wifi", decoded.tasks.single().actions.single().args["network"])
     }
 
-    /**
-     * The item asked for an export warning saying Tasker has no equivalent field. It turns out no
-     * warning is needed and none should be added: Tasker has no equivalent for the whole HTTP
-     * Request action, so the exporter already drops the action and reports it as skipped. A
-     * warning about one lost field on an action that is itself lost would be misleading.
-     */
+    /** Tasker's HTTP Request (339) carries the request, and has no field for the restriction. */
     @Test
-    fun `exporting to Tasker drops the whole request, restriction included`() {
+    fun `exporting to Tasker keeps the request and says the restriction stays behind`() {
         val result = TaskerXmlExporter.export(profiles = emptyList(), tasks = listOf(restricted))
 
-        val skipped = result.skippedActions.single()
-        assertEquals("http.request", skipped.actionType)
-        assertTrue(skipped.reason, "No Tasker equivalent" in skipped.reason)
-        assertTrue("the action must not reach the XML", "http.request" !in result.xml)
+        assertTrue(result.skippedActions.toString(), result.skippedActions.isEmpty())
+        assertTrue("<code>339</code>" in result.xml)
+        assertTrue(result.warnings.toString(), result.warnings.any { "only over Wi-Fi" in it })
     }
 }

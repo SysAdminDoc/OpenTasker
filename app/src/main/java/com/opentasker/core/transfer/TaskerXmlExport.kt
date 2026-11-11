@@ -1,5 +1,6 @@
 package com.opentasker.core.transfer
 
+import com.opentasker.core.actions.HttpNetworkConstraint
 import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.DaySchedule
 import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
@@ -96,6 +97,9 @@ object TaskerXmlExporter {
         "task.run" to "130",
         "brightness.set" to "810",
         "screen.timeout" to "812",
+        "http.request" to "339",
+        "http.get" to "339",
+        "http.post" to "339",
     )
 
     fun export(
@@ -311,6 +315,22 @@ object TaskerXmlExporter {
                 }
             }
             "screen.timeout" -> appendDisplayTimeout(sb, args["millis"].orEmpty(), warnings)
+            "http.request" -> appendHttpRequest(sb, args, warnings)
+            // The older actions run as a GET or a POST through http.request, so they export the same way.
+            "http.get" -> appendHttpRequest(
+                sb,
+                args + mapOf("method" to "GET", "response_var" to (args["var"] ?: args["variable"] ?: "result")),
+                warnings,
+            )
+            "http.post" -> appendHttpRequest(
+                sb,
+                args + mapOf(
+                    "method" to "POST",
+                    "body" to (args["data"] ?: args["body"].orEmpty()),
+                    "response_var" to (args["var"] ?: args["variable"] ?: "result"),
+                ),
+                warnings,
+            )
         }
 
         appendConditionList(sb, action, redactionContext, warnings)
@@ -708,6 +728,68 @@ object TaskerXmlExporter {
         appendInt(sb, 2, (seconds / 3600).toString())
     }
 
+    /**
+     * HTTP Request in the fields the Tasker import reads back. Tasker always answers in %http_data,
+     * %http_response_code and %http_headers(), and has no setting for the network to wait for.
+     */
+    private fun appendHttpRequest(sb: StringBuilder, args: Map<String, String>, warnings: MutableList<String>) {
+        val method = args["method"].orEmpty().trim().ifBlank { "GET" }.uppercase()
+        val methodIndex = TASKER_HTTP_METHOD_INDEXES[method]
+        if (methodIndex == null) {
+            warnings += "Tasker's HTTP Request has no '$method' method, so it went out as a GET."
+        }
+        val headers = buildList {
+            addAll(args["headers"].orEmpty().lines().map(String::trim).filter(String::isNotEmpty))
+            val contentType = args["content_type"]?.trim().orEmpty()
+            if (contentType.isNotEmpty() && none { it.startsWith("content-type:", ignoreCase = true) }) {
+                add("Content-Type: $contentType")
+            }
+            args["authorization"]?.trim()?.takeIf(String::isNotEmpty)?.let { add("Authorization: $it") }
+        }
+        val query = args["query"].orEmpty().lines().map(String::trim).filter(String::isNotEmpty)
+        val followsRedirects = args["redirects"]?.trim().equals("same_origin", ignoreCase = true)
+
+        appendInt(sb, 1, (methodIndex ?: 0).toString())
+        appendStr(sb, 2, args["url"].orEmpty())
+        appendStr(sb, 3, headers.joinToString("\n"))
+        appendStr(sb, 4, query.joinToString("\n") { it.replaceFirst("=", ":") })
+        appendStr(sb, 5, args["body"].orEmpty())
+        appendStr(sb, 6, "")
+        appendStr(sb, 7, "")
+        appendInt(sb, 8, args["timeout_sec"]?.trim()?.ifBlank { null } ?: "30")
+        appendInt(sb, 9, "0")
+        appendInt(sb, 10, if (followsRedirects) "1" else "0")
+        appendInt(sb, 11, "0")
+
+        val network = when (HttpNetworkConstraint.parse(args["network"])) {
+            HttpNetworkConstraint.ANY -> null
+            HttpNetworkConstraint.WIFI -> "Wi-Fi"
+            HttpNetworkConstraint.CELLULAR -> "mobile data"
+            HttpNetworkConstraint.UNMETERED -> "an unmetered network"
+        }
+        if (network != null) {
+            warnings += "Tasker's HTTP Request has no setting to send only over $network, so Tasker sends it over whatever connection the phone has."
+        }
+        if (followsRedirects) {
+            warnings += "Tasker's HTTP Request follows a redirect to any site, where this one only followed redirects that stayed on the same site."
+        }
+        val responseVariable = args["response_var"]?.trim()?.takeIf(String::isNotEmpty)
+            ?: "result".takeIf { args["output_file"].isNullOrBlank() }
+        val moved = listOfNotNull(
+            responseVariable?.let { taskerVariableName(it, it) }?.takeIf { it != "%http_data" }?.let { "the response from $it to %http_data" },
+            args["status_var"]?.trim()?.takeIf(String::isNotEmpty)?.let { taskerVariableName(it, it) }
+                ?.takeIf { it != "%http_response_code" }?.let { "the status from $it to %http_response_code" },
+            args["headers_var"]?.trim()?.takeIf(String::isNotEmpty)?.let { "the headers from ${taskerVariableName(it, it)} to %http_headers()" },
+        )
+        if (moved.isNotEmpty()) {
+            warnings += "Tasker's HTTP Request puts its results in its own variables, so steps that read them need changing: ${moved.joinToString(", ")}."
+        }
+        val leftOut = HTTP_ARGS_TASKER_CANNOT_HOLD.filter { !args[it].isNullOrBlank() }
+        if (leftOut.isNotEmpty()) {
+            warnings += "Tasker's HTTP Request has no place for these, so they were left out: ${leftOut.joinToString(", ")}"
+        }
+    }
+
     private fun appendSetField(sb: StringBuilder, type: String, state: String, warnings: MutableList<String>) {
         val value = TASKER_SET_VALUES[state.trim().lowercase()]
         if (value == null) {
@@ -729,6 +811,28 @@ object TaskerXmlExporter {
     }
 
     private val TASKER_SET_VALUES = mapOf("off" to "0", "on" to "1", "toggle" to "2")
+
+    /** Tasker's HTTP Request method spinner, the reverse of the import's table. */
+    private val TASKER_HTTP_METHOD_INDEXES = mapOf(
+        "GET" to 0,
+        "POST" to 1,
+        "HEAD" to 2,
+        "PUT" to 3,
+        "PATCH" to 4,
+        "DELETE" to 5,
+        "OPTIONS" to 6,
+    )
+
+    /** Tasker's file fields take a path anywhere on the phone, where these are inside OpenTasker's own files. */
+    private val HTTP_ARGS_TASKER_CANNOT_HOLD = listOf(
+        "body_file",
+        "output_file",
+        "max_response_bytes",
+        "call_timeout_sec",
+        "connect_timeout_sec",
+        "read_timeout_sec",
+        "write_timeout_sec",
+    )
 
     private val TASKER_SETTING_TABLE_INDEXES = mapOf("global" to "0", "secure" to "1", "system" to "2")
 
