@@ -70,6 +70,7 @@ import com.opentasker.core.contexts.ContextSourceSnapshot
 import com.opentasker.core.contexts.ContextSourceStatus
 import com.opentasker.core.contexts.NfcTagIntentGate
 import com.opentasker.core.contexts.ProfileInspection
+import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.contexts.inspectProfiles
 import com.opentasker.core.contexts.observationStatus
 import com.opentasker.core.capabilities.AutomationLint
@@ -95,6 +96,7 @@ import com.opentasker.core.scheduling.ExactAlarmSupport
 import com.opentasker.core.storage.AppDatabase
 import com.opentasker.core.storage.StorageDecodeIssue
 import com.opentasker.core.storage.StorageDecodeResult
+import com.opentasker.core.storage.VariableRepository
 import com.opentasker.ui.utils.expandCollapseToggle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
@@ -199,14 +201,24 @@ class ContextInspectorViewModel(
         .map { results -> results.orEmpty().mapNotNull { it.issue } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Saved globals by project, so a Time context bounded by one (%Sunrise) reads what the engine reads. */
+    private val globalsByProject: StateFlow<Map<Long, Map<String, String>>> = VariableRepository(db.variableDao())
+        .observeGlobals(null)
+        .map(TimeContextBounds::valuesByProject)
+        .catch { error ->
+            AppLogger.warn("ContextInspector", "Could not read globals for Time context bounds", error)
+            emit(emptyMap())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     /** Null until the profiles have loaded, so the screen can tell "still reading" from "none". */
     val snapshot: StateFlow<ContextInspectionSnapshot?> = combine(
         loadedProfiles,
         latestEvents,
         sourceErrors,
         refreshTick,
-        CausalLoopDiagnostics.latest,
-    ) { profiles, observations, errors, now, causalLoop ->
+        combine(CausalLoopDiagnostics.latest, globalsByProject, ::Pair),
+    ) { profiles, observations, errors, now, (causalLoop, globals) ->
         if (profiles == null) return@combine null
         val sources = buildContextSourceSnapshots(appContext, profiles, observations, errors)
         ContextInspectionSnapshot(
@@ -216,12 +228,15 @@ class ContextInspectorViewModel(
                 profiles = profiles,
                 sourceSnapshots = sources,
                 observationTransformer = { profile, index, spec, observation ->
-                    if (spec.type == ContextType.LOCATION) {
+                    when (spec.type) {
                         // observe() is read-only: the Inspector must never persist or clear the
                         // engine's dwell timers from its own independent location stream.
-                        observation.copy(event = locationDwellStateStore.observe(profile.id, index, spec, observation.event))
-                    } else {
-                        observation
+                        ContextType.LOCATION ->
+                            observation.copy(event = locationDwellStateStore.observe(profile.id, index, spec, observation.event))
+                        ContextType.TIME -> observation.copy(
+                            event = TimeContextBounds.withVariableValues(spec, observation.event, globals[profile.projectId].orEmpty()),
+                        )
+                        else -> observation
                     }
                 },
                 nowMs = now,

@@ -64,6 +64,18 @@ class ContextMatchEvaluatorTest {
     }
 
     @Test
+    fun timeContextBoundedByGlobalsUsesTheValuesTheEngineRead() {
+        val sun = ContextSpec(ContextType.TIME, config = mapOf("start" to "%Sunrise", "end" to "%Sunset"))
+        fun at(time: String, vararg bounds: Pair<String, String>) = ContextEvent("time", true, mapOf("time" to time) + bounds)
+        val read = arrayOf(TimeContextBounds.START_VALUE to "06:42", TimeContextBounds.END_VALUE to "16:51")
+
+        assertTrue(ContextMatchEvaluator.matches(sun, at("12:00", *read)))
+        assertFalse(ContextMatchEvaluator.matches(sun, at("17:30", *read)))
+        assertFalse("a global holding no time keeps it off", ContextMatchEvaluator.matches(sun, at("12:00")))
+        assertFalse(ContextMatchEvaluator.matches(sun, at("12:00", TimeContextBounds.START_VALUE to "06:42")))
+    }
+
+    @Test
     fun locationContextUsesFossGeofenceAccuracyAndDwell() {
         val spec = ContextSpec(
             type = ContextType.LOCATION,

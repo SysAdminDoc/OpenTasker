@@ -21,9 +21,9 @@
     <string name="context_field_application_component_label" formatted="false">Foreground component (optional)</string>
     <string name="context_field_application_component_hint" formatted="false">com.example.app.PlayerActivity or com.example.app.*</string>
     <string name="context_field_time_start_label" formatted="false">Start HH:mm</string>
-    <string name="context_field_time_start_hint" formatted="false">09:00</string>
+    <string name="context_field_time_start_hint" formatted="false">09:00, or a global like %Sunrise</string>
     <string name="context_field_time_end_label" formatted="false">End HH:mm</string>
-    <string name="context_field_time_end_hint" formatted="false">17:00</string>
+    <string name="context_field_time_end_hint" formatted="false">17:00, or a global like %Sunset</string>
     <string name="context_field_day_days_label" formatted="false">Days</string>
     <string name="context_field_day_days_hint" formatted="false">weekdays, weekends, MON-FRI</string>
     <string name="context_field_location_latitude_label" formatted="false">Latitude</string>

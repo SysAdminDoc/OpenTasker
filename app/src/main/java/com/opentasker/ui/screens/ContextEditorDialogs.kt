@@ -72,6 +72,7 @@ import com.opentasker.core.contexts.EventContextPreset
 import com.opentasker.core.contexts.NfcTagWriteSession
 import com.opentasker.core.contexts.ScreenRecordingEventPresets
 import com.opentasker.core.contexts.SunEventCalculator
+import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.contexts.BT_NEAR_STATE_KEY
 import com.opentasker.core.health.HealthMetric
 import com.opentasker.core.health.HealthPolling
@@ -437,7 +438,7 @@ internal fun contextInvalidFields(type: ContextType, config: Map<String, String>
     val issues = linkedMapOf<String, ActionFieldPolicy.Issue>()
     fun checkClock(key: String) {
         val raw = config[key]?.trim().orEmpty()
-        if (raw.isBlank()) return
+        if (raw.isBlank() || TimeContextBounds.variableName(raw) != null) return
         val parts = raw.split(":")
         val hour = parts.getOrNull(0)?.toIntOrNull()
         val minute = parts.getOrNull(1)?.toIntOrNull()

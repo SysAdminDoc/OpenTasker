@@ -21,9 +21,9 @@
     <string name="context_field_application_component_label" formatted="false">前台组件（可选）</string>
     <string name="context_field_application_component_hint" formatted="false">com.example.app.PlayerActivity 或 com.example.app.*</string>
     <string name="context_field_time_start_label" formatted="false">开始 HH:mm</string>
-    <string name="context_field_time_start_hint" formatted="false">09:00</string>
+    <string name="context_field_time_start_hint" formatted="false">09:00，或全局变量如 %Sunrise</string>
     <string name="context_field_time_end_label" formatted="false">结束 HH:mm</string>
-    <string name="context_field_time_end_hint" formatted="false">17:00</string>
+    <string name="context_field_time_end_hint" formatted="false">17:00，或全局变量如 %Sunset</string>
     <string name="context_field_day_days_label" formatted="false">日期</string>
     <string name="context_field_day_days_hint" formatted="false">工作日、周末、周一至周五</string>
     <string name="context_field_location_latitude_label" formatted="false">纬度</string>

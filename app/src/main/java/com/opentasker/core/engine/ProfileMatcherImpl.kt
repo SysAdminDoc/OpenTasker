@@ -1,6 +1,7 @@
 package com.opentasker.core.engine
 
 import android.content.Context
+import com.opentasker.app.OpenTaskerApp_NoHilt
 import com.opentasker.core.contexts.ContextMatchEvaluator
 import com.opentasker.core.contexts.ContextEvent
 import com.opentasker.core.contexts.ContextSourceRegistry
@@ -9,6 +10,7 @@ import com.opentasker.core.contexts.StateDemandContextSource
 import com.opentasker.core.contexts.UNRESOLVED_STATE_KEY
 import com.opentasker.core.contexts.stateContextKey
 import com.opentasker.core.contexts.SubscriptionReadyContextSource
+import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.health.HealthPolling
 import com.opentasker.core.location.LocationDwellStateStore
 import com.opentasker.core.logging.AppLogger
@@ -18,9 +20,11 @@ import com.opentasker.core.model.Profile
 import com.opentasker.core.model.ContextExpressionNode
 import com.opentasker.core.model.isValidForContextCount
 import com.opentasker.core.model.ProfileLifecyclePolicy
+import com.opentasker.core.storage.VariableRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -44,6 +48,8 @@ internal class ProfileMatcher(
     private val profile: Profile,
     private val pulseContinuity: PulseEventContinuity = PulseEventContinuity(),
     private val clock: () -> Long = { System.currentTimeMillis() },
+    /** A project's saved globals by name, read only for a Time context bounded by one. */
+    private val globalValues: (projectId: Long) -> Flow<Map<String, String>> = ::savedGlobalValues,
 ) {
     private val tag = "ProfileMatcher[${profile.name}]"
     private val performanceThresholdMs = 1000L // Warn if evaluation takes > 1 second
@@ -85,7 +91,12 @@ internal class ProfileMatcher(
                     if (isPulseContext) markPulseContextSubscribed(index, pulseContextCount)
                     source.events(app)
                 }
-                sourceEvents.scan(
+                val boundedEvents = if (TimeContextBounds.variableBounds(spec).isEmpty()) {
+                    sourceEvents
+                } else {
+                    TimeContextBounds.resolving(spec, sourceEvents, globalValues(profile.projectId))
+                }
+                boundedEvents.scan(
                     ContextMatchUpdate.initial(
                         pulseContext = isPulseContext,
                         pulseSequence = if (isPulseContext) pulseContinuity.currentSequence() else 0L,
@@ -289,6 +300,14 @@ internal fun pulseSequenceAfterObservation(
     observedSequence: Long?,
     previousSequence: Long,
 ): Long = if (matched) observedSequence ?: 0L else previousSequence
+
+private fun savedGlobalValues(projectId: Long): Flow<Map<String, String>> =
+    VariableRepository(OpenTaskerApp_NoHilt.db.variableDao()).observeGlobals(projectId)
+        .map { variables -> TimeContextBounds.valuesByProject(variables)[projectId].orEmpty() }
+        .catch { error ->
+            AppLogger.error("ProfileMatcher", "Could not read the globals a Time context is bounded by", error)
+            emit(emptyMap())
+        }
 
 internal data class ProfileMatchSnapshot(
     val allMatched: Boolean,

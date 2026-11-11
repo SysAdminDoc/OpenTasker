@@ -4,6 +4,7 @@ import com.opentasker.core.actions.IntentDispatchParseResult
 import com.opentasker.core.actions.IntentDispatchPolicy
 import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.DaySchedule
+import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
 import com.opentasker.core.contexts.WIFI_DISCONNECTED_WORDS
 import com.opentasker.core.data.TextOps
@@ -335,12 +336,25 @@ object TaskerXmlImporter {
         profileName: String,
         lossyWarnings: MutableList<String>,
     ): ContextSpec? {
-        val start = element.childText("from", "start").ifBlank {
-            clockFromParts(element.childText("fh").toIntOrNull(), element.childText("fm").toIntOrNull())
+        // Tasker writes a From or To that names a variable (%Sunrise) as fromvar/tovar. Only a
+        // global can bound a context, since a profile has no task to hold a local.
+        val startVariable = element.childText("fromvar")
+        val endVariable = element.childText("tovar")
+        val invalidVariable = listOf(startVariable, endVariable)
+            .firstOrNull { it.isNotBlank() && TimeContextBounds.variableName(it) == null }
+        if (invalidVariable != null) {
+            lossyWarnings += "Profile '$profileName' has a Tasker Time context bounded by $invalidVariable, " +
+                "which isn't a global variable."
+            return null
         }
-        val end = element.childText("to", "end").ifBlank {
-            clockFromParts(element.childText("th").toIntOrNull(), element.childText("tm").toIntOrNull())
-        }
+        val start = TimeContextBounds.variableName(startVariable)?.let { "%$it" }
+            ?: element.childText("from", "start").ifBlank {
+                clockFromParts(element.childText("fh").toIntOrNull(), element.childText("fm").toIntOrNull())
+            }
+        val end = TimeContextBounds.variableName(endVariable)?.let { "%$it" }
+            ?: element.childText("to", "end").ifBlank {
+                clockFromParts(element.childText("th").toIntOrNull(), element.childText("tm").toIntOrNull())
+            }
         if (start.isBlank() || end.isBlank()) {
             lossyWarnings += "Profile '$profileName' has a Tasker Time context without a supported start/end window."
             return null

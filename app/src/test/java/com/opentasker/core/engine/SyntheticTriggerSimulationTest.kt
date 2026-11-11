@@ -47,6 +47,25 @@ class SyntheticTriggerSimulationTest {
     }
 
     @Test
+    fun aTimeWindowBetweenGlobalsSimulatesWithStandInValues() {
+        val simulation = SyntheticTriggerSimulator.simulate(
+            Profile(
+                id = 9L,
+                name = "Daylight",
+                enterTaskId = 13L,
+                contexts = listOf(ContextSpec(ContextType.TIME, mapOf("start" to "%Sunrise", "end" to "%Sunset"))),
+            ),
+            nowMs = 1_000_000L,
+        )
+        val context = simulation.contexts.single()
+
+        assertEquals(null, context.template.issue)
+        assertEquals("12:00", context.template.event.metadata["time"])
+        assertTrue(context.template.description, context.template.description.contains("%Sunrise as 06:00"))
+        assertTrue(context.effectiveMatched)
+    }
+
+    @Test
     fun malformedTemplatesAreVisibleAsBlockedPredicates() {
         val simulation = SyntheticTriggerSimulator.simulate(
             Profile(

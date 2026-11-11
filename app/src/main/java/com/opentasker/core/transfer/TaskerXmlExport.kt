@@ -3,6 +3,7 @@ package com.opentasker.core.transfer
 import com.opentasker.core.actions.HttpNetworkConstraint
 import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.DaySchedule
+import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
 import com.opentasker.core.contexts.WIFI_DISCONNECTED_WORDS
 import com.opentasker.core.contexts.normalizeStateExpectedValue
@@ -554,16 +555,12 @@ object TaskerXmlExporter {
             // Tasker's Time has no invert, so an inverted window stays out.
             ContextType.TIME -> {
                 if (context.invert) return null
-                val start = context.config["start"] ?: return null
-                val end = context.config["end"] ?: return null
-                val (fh, fm) = parseClockParts(start) ?: return null
-                val (th, tm) = parseClockParts(end) ?: return null
+                val start = timeBoundXml(context.config["start"], "fh", "fm", "fromvar") ?: return null
+                val end = timeBoundXml(context.config["end"], "th", "tm", "tovar") ?: return null
                 buildString {
                     appendLine("""    <Time sr="con$index">""")
-                    appendLine("      <fh>$fh</fh>")
-                    appendLine("      <fm>$fm</fm>")
-                    appendLine("      <th>$th</th>")
-                    appendLine("      <tm>$tm</tm>")
+                    start.forEach { appendLine("      $it") }
+                    end.forEach { appendLine("      $it") }
                     append("    </Time>")
                 }
             }
@@ -896,6 +893,14 @@ object TaskerXmlExporter {
             return TASKER_VOLUME_CODES[(action.args["stream"] ?: "music").lowercase()]
         }
         return REVERSE_ACTION_MAP[action.type]
+    }
+
+    /** One end of a Time window as Tasker writes it: hour and minute fields, or the global it reads (`fromvar`). */
+    private fun timeBoundXml(raw: String?, hourTag: String, minuteTag: String, variableTag: String): List<String>? {
+        if (raw == null) return null
+        TimeContextBounds.variableName(raw)?.let { name -> return listOf("<$variableTag>%$name</$variableTag>") }
+        val (hour, minute) = parseClockParts(raw) ?: return null
+        return listOf("<$hourTag>$hour</$hourTag>", "<$minuteTag>$minute</$minuteTag>")
     }
 
     private fun parseClockParts(clock: String): Pair<Int, Int>? {

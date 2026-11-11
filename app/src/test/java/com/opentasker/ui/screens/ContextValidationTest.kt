@@ -31,6 +31,16 @@ class ContextValidationTest {
     }
 
     @Test
+    fun aGlobalCanBoundATimeWindowButALocalCant() {
+        assertFalse(contextHasInvalidValues(ContextType.TIME, mapOf("start" to "%Sunrise", "end" to "%Sunset")))
+        assertFalse(contextHasInvalidValues(ContextType.TIME, mapOf("start" to "%Wake", "end" to "17:00")))
+        assertEquals(
+            setOf("start"),
+            contextInvalidFields(ContextType.TIME, mapOf("start" to "%sunrise", "end" to "%Sunset")).keys,
+        )
+    }
+
+    @Test
     fun blankTimeIsNotFlaggedHere() {
         // Required-but-blank is handled by the missingRequired gate, not this one.
         assertFalse(contextHasInvalidValues(ContextType.TIME, emptyMap()))

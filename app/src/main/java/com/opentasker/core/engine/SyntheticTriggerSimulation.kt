@@ -5,6 +5,7 @@ import com.opentasker.core.contexts.ContextEvent
 import com.opentasker.core.contexts.ContextMatchEvaluator
 import com.opentasker.core.contexts.DaySchedule
 import com.opentasker.core.contexts.SunEventCalculator
+import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.Profile
@@ -73,6 +74,9 @@ data class SyntheticTriggerSimulation(
  * constructing a report therefore cannot write run-log state or fire an action.
  */
 object SyntheticTriggerSimulator {
+    private const val ASSUMED_GLOBAL_START = 6 * 60
+    private const val ASSUMED_GLOBAL_END = 18 * 60
+
     fun simulate(
         profile: Profile,
         nowMs: Long = System.currentTimeMillis(),
@@ -188,12 +192,27 @@ object SyntheticTriggerSimulator {
     private fun timeTemplate(spec: ContextSpec, nowMs: Long): SyntheticContextTemplate {
         val startRaw = first(spec.config, "start", "from")
         val endRaw = first(spec.config, "end", "to")
-        val start = parseClock(startRaw)
-        val end = parseClock(endRaw)
+        // A bound that reads a global (%Sunrise) has no value here, so it stands in as 06:00 or 18:00.
+        val startGlobal = TimeContextBounds.variableName(startRaw)
+        val endGlobal = TimeContextBounds.variableName(endRaw)
+        val start = if (startGlobal != null) ASSUMED_GLOBAL_START else parseClock(startRaw)
+        val end = if (endGlobal != null) ASSUMED_GLOBAL_END else parseClock(endRaw)
         val minute = if (start != null && end != null) midpoint(start, end) else 12 * 60
+        val assumed = buildMap {
+            if (startGlobal != null) put(TimeContextBounds.START_VALUE, formatClock(ASSUMED_GLOBAL_START))
+            if (endGlobal != null) put(TimeContextBounds.END_VALUE, formatClock(ASSUMED_GLOBAL_END))
+        }
+        val assumptions = listOfNotNull(
+            startGlobal?.let { "%$it as ${formatClock(ASSUMED_GLOBAL_START)}" },
+            endGlobal?.let { "%$it as ${formatClock(ASSUMED_GLOBAL_END)}" },
+        )
         return template(
-            event = ContextEvent("time", true, mapOf("time" to formatClock(minute), "epochMs" to nowMs.toString())),
-            description = "Midpoint of the configured time window",
+            event = ContextEvent("time", true, mapOf("time" to formatClock(minute), "epochMs" to nowMs.toString()) + assumed),
+            description = if (assumptions.isEmpty()) {
+                "Midpoint of the configured time window"
+            } else {
+                "Midpoint of the time window, taking ${assumptions.joinToString(" and ")}"
+            },
             issue = when {
                 startRaw.isBlank() || endRaw.isBlank() -> "Time context needs both a start and end time."
                 start == null || end == null -> "Time context contains an invalid clock value."

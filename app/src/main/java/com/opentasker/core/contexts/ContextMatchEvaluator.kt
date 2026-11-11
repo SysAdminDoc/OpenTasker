@@ -59,12 +59,17 @@ object ContextMatchEvaluator {
     }
 
     private fun matchesTime(spec: ContextSpec, event: ContextEvent): Boolean {
-        val start = firstConfig(spec, "start", "from").takeIf { it.isNotBlank() } ?: return false
-        val end = firstConfig(spec, "end", "to").takeIf { it.isNotBlank() } ?: return false
+        val startMinutes = timeBoundMinutes(firstConfig(spec, "start", "from"), event, TimeContextBounds.START_VALUE) ?: return false
+        val endMinutes = timeBoundMinutes(firstConfig(spec, "end", "to"), event, TimeContextBounds.END_VALUE) ?: return false
         val current = event.metadata["time"]?.let(::parseClockMinutes) ?: currentMinuteOfDay()
-        val startMinutes = parseClockMinutes(start) ?: return false
-        val endMinutes = parseClockMinutes(end) ?: return false
         return minuteInWindow(current, startMinutes, endMinutes)
+    }
+
+    /** A bound naming a global takes the clock time the engine read from it into [event]; without one it never matches. */
+    private fun timeBoundMinutes(configured: String, event: ContextEvent, valueKey: String): Int? {
+        if (configured.isBlank()) return null
+        val clock = if (TimeContextBounds.isVariable(configured)) event.metadata[valueKey] ?: return null else configured
+        return parseClockMinutes(clock)
     }
 
     private fun matchesDay(spec: ContextSpec, event: ContextEvent): Boolean {

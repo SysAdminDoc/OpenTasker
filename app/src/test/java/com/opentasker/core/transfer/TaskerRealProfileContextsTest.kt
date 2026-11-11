@@ -176,6 +176,32 @@ class TaskerRealProfileContextsTest {
     }
 
     @Test
+    fun aTimeWindowBetweenTwoGlobalsKeepsThem() {
+        // From Tasker 6.6.0-beta's "Sunrise/Sunset Examples" project: a midnight profile stores
+        // %Sunrise and %Sunset, and this Time context reads them.
+        val sun = """<Time sr="con0"><fromvar>%Sunrise</fromvar><tovar>%Sunset</tovar></Time>"""
+
+        val report = import(sun)
+        val imported = report.bundle.profiles.single()
+
+        assertEquals(mapOf("start" to "%Sunrise", "end" to "%Sunset"), imported.contexts.single().config)
+        assertTrue(imported.enabled)
+        assertFalse(report.lossyWarnings.toString(), report.lossyWarnings.any { it.contains("Time context") })
+    }
+
+    @Test
+    fun aTimeWindowBoundedByALocalCantBeRead() {
+        val local = """<Time sr="con0"><fromvar>%sunrise</fromvar><th>23</th><tm>0</tm></Time>"""
+        val day = """<Day sr="con1"><wday0>2</wday0></Day>"""
+
+        val report = import(local, day)
+
+        assertEquals(listOf(ContextType.DAY), report.bundle.profiles.single().contexts.map { it.type })
+        assertFalse(report.bundle.profiles.single().enabled)
+        assertTrue(report.lossyWarnings.toString(), report.lossyWarnings.any { it.contains("%sunrise") })
+    }
+
+    @Test
     fun fieldsThatArentContextsDontCountAsLostOnes() {
         val report = import(time)
 

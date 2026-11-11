@@ -319,4 +319,18 @@ class TaskerContextExportTest {
         assertEquals(mapOf("event" to "notification", "package" to "com.a"), oneApp.config)
         assertTrue(oneApp.invert)
     }
+
+    @Test
+    fun aTimeWindowBoundedByGlobalsGoesOutAsTaskerWritesIt() {
+        val sun = ContextSpec(ContextType.TIME, mapOf("start" to "%Sunrise", "end" to "%Sunset"))
+        val wakeToClock = ContextSpec(ContextType.TIME, mapOf("start" to "%Wake", "end" to "17:30"))
+        val xml = export(sun).xml
+
+        // Tasker 6.6 wrote <Time sr="con0"><fromvar>%Sunrise</fromvar><tovar>%Sunset</tovar></Time>.
+        assertTrue(xml, xml.contains("<fromvar>%Sunrise</fromvar>"))
+        assertTrue(xml, xml.contains("<tovar>%Sunset</tovar>"))
+        assertFalse(xml, xml.contains("<fh>"))
+        assertEquals(sun.config, roundTrip(sun).config)
+        assertEquals(wakeToClock.config, roundTrip(wakeToClock).config)
+    }
 }
