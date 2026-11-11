@@ -258,8 +258,9 @@ class VariableExpander {
      * `#>` and `#<` give the first and last index, `>` and `<` the first and last value, a number
      * one element, and an empty, `:` or `a:b` form joins the elements set in that range with commas,
      * backwards when a is past b. A variable inside the parentheses is filled in first, so
-     * `%arr(%i)` works as it does in Tasker. Returns null when [op] is none of these, or when [name]
-     * is a plain variable with no elements, so its own operators still apply.
+     * `%arr(%i)` works as it does in Tasker, and gives empty when `%i` is. Returns null when [op]
+     * is none of these, or when [name] is a plain variable with no elements, so its own operators
+     * still apply.
      */
     private fun taskerArrayValue(
         name: String,
@@ -272,6 +273,9 @@ class VariableExpander {
         if (!TASKER_ARRAY_FORM.matches(form)) return null
         val items = store.numberedItems(name)
         if (items.isEmpty() && baseValue != null) return null
+        // An index variable that came out empty names no element, so it isn't the empty form
+        // that joins them all.
+        if (form.isEmpty() && '%' in op) return ""
         val lastIndex = if (items.isEmpty()) 0 else items.lastKey()
         return when (form) {
             "#" -> items.size.toString()

@@ -88,6 +88,15 @@ class TaskerNumberedArrayTest {
     }
 
     @Test
+    fun anIndexVariableThatIsUnsetNamesNoElement() {
+        val variables = store("arr1" to "a", "arr2" to "b", "blank" to "")
+
+        assertEquals("", variables.expand("%arr(%i)"))
+        assertEquals("", variables.expand("%arr(%blank)"))
+        assertEquals("a,b", variables.expand("%arr()"))
+    }
+
+    @Test
     fun aPositionVariableThatIsUnsetStopsTheStepInsteadOfUsingTheFirstElement() {
         fun pop(position: String) = Task(
             name = "T",
