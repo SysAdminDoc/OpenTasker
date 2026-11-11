@@ -79,4 +79,19 @@ class IntentDispatchPolicyTest {
         assertTrue((missingGrant as IntentDispatchParseResult.Invalid).message.contains("explicit"))
         assertTrue(explicitRead is IntentDispatchParseResult.Valid)
     }
+
+    @Test
+    fun aResultVariableWrittenAsPercentNameNamesThatVariable() {
+        val result = IntentDispatchPolicy.parse(
+            mapOf(
+                "package" to "com.example.target",
+                "component" to ".EventReceiver",
+                "mode" to "broadcast",
+                "action" to "com.example.EVENT",
+                "result_variable" to " %res ",
+            ),
+        )
+
+        assertEquals("res", (result as IntentDispatchParseResult.Valid).plan.resultVariable)
+    }
 }

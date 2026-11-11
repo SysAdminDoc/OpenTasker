@@ -102,7 +102,8 @@ internal object IntentDispatchPolicy {
         IntentUriGrantPolicy.violation(uriValue, flagsValue)?.let { return invalid(it) }
         val extras = parseExtras(args)
         if (extras is ExtrasResult.Invalid) return invalid(extras.message)
-        val resultVariable = args["result_variable"]?.trim()?.takeIf(String::isNotBlank)
+        // Output names reach the action unexpanded, so "%res" names res, as it does for every other output.
+        val resultVariable = args["result_variable"]?.trim()?.removePrefix("%")?.takeIf(String::isNotBlank)
         if (resultVariable != null && resultVariable.length > MAX_EXTRA_KEY_LENGTH) {
             return invalid("result variable exceeds $MAX_EXTRA_KEY_LENGTH characters")
         }
