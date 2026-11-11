@@ -1195,18 +1195,15 @@ object TaskerXmlImporter {
 
     /**
      * True when [pattern] has a `$` that isn't escaped, quoted in `\Q...\E` or inside a character
-     * class, read the way Java and RE2 both read it: a `]` straight after `[` or `[^` is a literal.
-     * A `$` under an inline `m` flag already matches at every line end, so the pattern behaves the
-     * same. The flag holds from a `(?m)` to the end of its group, or inside a `(?m:...)` group, and
-     * Multi-Line ([multilineFlag]) sets it for the whole pattern until a `(?-m)` turns it off. A
-     * `[:name:]` inside a class is a POSIX class to RE2 and a nested class to Java, so its `]`
-     * doesn't end the outer one.
+     * class (see [classEnd]). A `$` under an inline `m` flag already matches at every line end, so
+     * the pattern behaves the same. The flag holds from a `(?m)` to the end of its group, or inside
+     * a `(?m:...)` group, and Multi-Line ([multilineFlag]) sets it for the whole pattern until a
+     * `(?-m)` turns it off.
      */
     private fun hasEndAnchor(pattern: String, multilineFlag: Boolean): Boolean {
         val outerMultiline = ArrayDeque<Boolean>()
         var multiline = multilineFlag
         var index = 0
-        var inClass = false
         while (index < pattern.length) {
             val char = pattern[index]
             when {
@@ -1216,16 +1213,7 @@ object TaskerXmlImporter {
                     index = end + 1
                 }
                 char == '\\' -> index++
-                inClass && char == '[' && pattern.startsWith(":", index + 1) -> {
-                    val end = pattern.indexOf(":]", index + 2)
-                    if (end >= 0) index = end + 1
-                }
-                inClass -> if (char == ']') inClass = false
-                char == '[' -> {
-                    inClass = true
-                    if (pattern.startsWith("^", index + 1)) index++
-                    if (pattern.startsWith("]", index + 1)) index++
-                }
+                char == '[' -> index = classEnd(pattern, index)
                 char == '(' -> {
                     val flags = INLINE_FLAGS.find(pattern, index)?.takeIf { it.range.first == index }
                     // A bare (?m) changes the group it sits in. Any other ( opens a group of its own.
@@ -1244,6 +1232,52 @@ object TaskerXmlImporter {
         }
         return false
     }
+
+    /**
+     * The index of the `]` that closes the class opening at [open], or the pattern's length, with
+     * the class read item by item the way RE2 (which runs the step) reads it. A `]` first, after
+     * `[` or `[^`, is a literal. A `[:name:]` that starts an item is a POSIX class, so its `]`
+     * doesn't end the outer class. The character after a range's `-` ends that range even when
+     * it's a `[`, so in `[!-[:alpha:]$]` the first `]` closes the class and the `$` is an anchor.
+     */
+    private fun classEnd(pattern: String, open: Int): Int {
+        var index = open + 1
+        if (pattern.startsWith("^", index)) index++
+        var first = true
+        while (index < pattern.length && (pattern[index] != ']' || first)) {
+            first = false
+            if (pattern.startsWith("[:", index)) {
+                val end = pattern.indexOf(":]", index + 2)
+                if (end >= 0) {
+                    index = end + 2
+                    continue
+                }
+            }
+            if (pattern.startsWith("\\Q", index)) {
+                val end = pattern.indexOf("\\E", index + 2)
+                if (end < 0) return pattern.length
+                index = end + 2
+                continue
+            }
+            // \d, \s, \w and \p{...} are classes of their own, so a - after one starts no range.
+            val rangeable = pattern[index] != '\\' || pattern.getOrNull(index + 1) !in CLASS_ESCAPES
+            index = classItemEnd(pattern, index)
+            if (rangeable && pattern.startsWith("-", index) && index + 1 < pattern.length && pattern[index + 1] != ']') {
+                index = classItemEnd(pattern, index + 1)
+            }
+        }
+        return index
+    }
+
+    private fun classItemEnd(pattern: String, index: Int): Int = when {
+        pattern[index] != '\\' -> index + 1
+        pattern.getOrNull(index + 1) in UNICODE_CLASS_ESCAPES && pattern.startsWith("{", index + 2) ->
+            pattern.indexOf('}', index + 3).let { if (it < 0) pattern.length else it + 1 }
+        else -> index + 2
+    }
+
+    private val CLASS_ESCAPES = setOf('d', 'D', 's', 'S', 'w', 'W', 'p', 'P')
+    private val UNICODE_CLASS_ESCAPES = setOf('p', 'P')
 
     private val INLINE_FLAGS = Regex("""\(\?([A-Za-z]*)(?:-([A-Za-z]*))?[):]""")
 

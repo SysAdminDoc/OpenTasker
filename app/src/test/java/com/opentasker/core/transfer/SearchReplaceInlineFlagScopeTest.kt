@@ -51,6 +51,16 @@ class SearchReplaceInlineFlagScopeTest {
     }
 
     @Test
+    fun aBracketThatEndsARangeOpensNoPosixClass() {
+        // RE2 runs the step. The [ after !- ends that range, so the first ] closes the class.
+        assertTrue(warnsOfTheAnchor("""[!-[:alpha:]$]"""))
+        // A [: that starts an item is still a POSIX class, after a lone - or a \d too.
+        assertFalse(warnsOfTheAnchor("""[-[:alpha:]$]"""))
+        assertFalse(warnsOfTheAnchor("""[a-z-[:alpha:]$]"""))
+        assertFalse(warnsOfTheAnchor("""[\d-[:alpha:]$]"""))
+    }
+
+    @Test
     fun multiLineCoversTheAnchorUntilAnInlineFlagTurnsItOff() {
         assertFalse(warnsOfTheAnchor("""\d+$""", multiLine = true))
         assertTrue(warnsOfTheAnchor("""(?-m)\d+$""", multiLine = true))
