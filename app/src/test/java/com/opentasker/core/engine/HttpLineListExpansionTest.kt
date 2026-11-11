@@ -1,6 +1,7 @@
 package com.opentasker.core.engine
 
 import android.content.ContextWrapper
+import com.opentasker.core.actions.DownloadAction
 import com.opentasker.core.actions.HttpGetAction
 import com.opentasker.core.actions.HttpRequestAction
 import com.opentasker.core.actions.LineListArguments
@@ -26,7 +27,7 @@ class HttpLineListExpansionTest {
     fun setUp() {
         registerActionMetadata()
         received.clear()
-        listOf(HttpRequestAction.ID, "http.get").forEach { actionId ->
+        listOf(HttpRequestAction.ID, "http.get", "download").forEach { actionId ->
             ActionRegistry.register(object : Action {
                 override val id = actionId
                 override val category = ActionCategory.NET
@@ -42,6 +43,7 @@ class HttpLineListExpansionTest {
     fun tearDown() {
         ActionRegistry.register(HttpRequestAction())
         ActionRegistry.register(HttpGetAction())
+        ActionRegistry.register(DownloadAction())
     }
 
     private fun request(type: String, args: Map<String, String>) = Task(
@@ -109,6 +111,19 @@ class HttpLineListExpansionTest {
 
         assertEquals(PreflightStepStatus.BLOCKED, step.status)
         assertTrue(step.warnings.toString(), step.warnings.any { LineListArguments.HEADER_LINE_BREAK_FAILURE in it })
+    }
+
+    @Test
+    fun aDownloadIsHeldToTheSameHeaderLines() {
+        val args = mapOf("path" to "f.bin", "headers" to "X-Title: %NTITLE")
+        val variables = mapOf("NTITLE" to "hi\nAuthorization: Bearer stolen")
+
+        val report = run("download", args, variables)
+        val step = preflight("download", args, variables)
+
+        assertTrue(received.isEmpty())
+        assertEquals(LineListArguments.HEADER_LINE_BREAK_FAILURE, (report.results.single() as ActionResult.Failure).message)
+        assertEquals(PreflightStepStatus.BLOCKED, step.status)
     }
 
     @Test

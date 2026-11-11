@@ -13,10 +13,11 @@ internal object LineListArguments {
     private val httpFields = mapOf("headers" to HEADER_LINE_BREAK_FAILURE, "query" to QUERY_LINE_BREAK_FAILURE)
     private val fields = mapOf(
         "intent.launch" to mapOf("extras" to IntentExtrasLines.LINE_BREAK_FAILURE),
-        // http.get and http.post hand their arguments to http.request unchanged.
+        // http.get, http.post and download hand their headers and query to http.request unchanged.
         HttpRequestAction.ID to httpFields,
         "http.get" to httpFields,
         "http.post" to httpFields,
+        "download" to httpFields,
     )
 
     fun applies(actionType: String, argumentName: String): Boolean =
