@@ -39,7 +39,7 @@
 - **Profiles, contexts, tasks, actions**. A complete Room-backed automation pipeline with a Compose UI
 - **Companion presence triggers**. User-confirmed CompanionDeviceManager associations emit low-power present/absent events without a scanning loop, with setup-time revocation
 - **7 context families**. Application, Time, Day, Location, State, Event, and Plugin (Locale/Tasker condition)
-- **82 built-in actions** plus engine-handled flow control (`task.run` with named inputs, `if`/`else`/`end if`, `for each`/`end for`, `try`/`catch`/`end try`, `stop`)
+- **87 built-in actions** plus engine-handled flow control (`task.run` with named inputs, `if`/`else`/`end if`, `for each`/`end for`, `try`/`catch`/`end try`, `stop`)
 - **USB device contexts**. Attach/detach event pulses expose bounded device, vendor, product, and class fields for local input-device automations
 - **Template expressions**. Bounded `{{ ... }}` expansion with scoped variables, arrays, JSON paths, string/math/date functions, traces, and strict regex policy
 - **Side-effect-free preflight reviews**. Preview a task or profile with synthetic event variables, expanded inputs, branch decisions, setup gaps, intended effects, and explicit blockers before any action runs
@@ -83,7 +83,7 @@
 - Locale/Tasker condition plugins, polled as first-class context predicates with last-known-state caching
 - Home Assistant bridge proof of concept, with bounded outbound JSON webhooks, HTTPS by default, redacted webhook secrets and retries with backoff
 
-### Actions (82 registered + 10 engine-handled)
+### Actions (87 registered + 10 engine-handled)
 
 | Category | Count | Examples |
 |----------|------:|---------|
@@ -94,7 +94,7 @@
 | Media | 6 | play, stop, pause, next, previous, mute |
 | System | 7 | vibrate, clipboard set, reboot, lock, screen off, wake, log |
 | Notification | 4 | notify/toast, progress, cancel, TTS speak |
-| Variable | 13 | set variable, clipboard get, contacts lookup, read data (JSON/CSV/XML/HTML), date-time (format/parse/add), text (match/replace/split/join/substring) |
+| Variable | 18 | set variable, clipboard get, contacts lookup, read data (JSON/CSV/XML/HTML), date-time (format/parse/add), text (match/replace/split/join/substring), Tasker's numbered arrays (variable split/join, array push/pop/clear) |
 | Flow | 1+10 | wait; engine: task.run, if/else/end if, for each/end for, try/catch/end try, stop |
 | Plugin | 2 | Locale setting dispatch, Locale condition query |
 | Script | 2 | SHA-256-pinned Termux `RUN_COMMAND` and Shizuku shell scripts, both with bounded result capture |

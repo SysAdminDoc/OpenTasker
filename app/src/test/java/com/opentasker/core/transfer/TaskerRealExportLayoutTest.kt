@@ -11,6 +11,7 @@ import com.opentasker.core.engine.VariableStore
 import com.opentasker.core.expressions.TemplateExpressionEngine
 import com.opentasker.core.expressions.TemplateScope
 import com.opentasker.core.model.ActionSpec
+import com.opentasker.core.registerCoreRuntime
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -792,6 +793,96 @@ class TaskerRealExportLayoutTest {
         assertEquals("a~lt~b~lt~c", variables.get("Html"))
         assertEquals("26", variables.get("Part"))
         assertTrue(variables.get("Gone").isNullOrEmpty())
+    }
+
+    // Variable Split (590), Variable Join (592), Array Push (355), Array Pop (356), Array Clear (357)
+
+    @Test
+    fun variableSplitKeepsItsSplitterAsWritten() {
+        val dot = action("""<code>590</code><Str sr="arg0" ve="3">%TIME</Str><Str sr="arg1" ve="3">.</Str><Int sr="arg2" val="0"/>""")
+        val spaced = action(
+            """<code>590</code><Str sr="arg0" ve="3">%line</Str><Str sr="arg1" ve="3"> </Str><Int sr="arg2" val="1"/><Int sr="arg3" val="0"/>""",
+        )
+        val byVariable = action("""<code>590</code><Str sr="arg0" ve="3">%pair</Str><Str sr="arg1" ve="3">%equals_sign</Str><Int sr="arg2" val="0"/>""")
+
+        assertEquals("var.split", dot.type)
+        assertEquals(mapOf("name" to "%TIME", "splitter" to ".", "delete_base" to "false", "regex" to "false"), dot.args)
+        assertEquals(mapOf("name" to "%line", "splitter" to " ", "delete_base" to "true", "regex" to "false"), spaced.args)
+        assertEquals("%equals_sign", byVariable.args["splitter"])
+    }
+
+    @Test
+    fun variableSplitWithARegexThisAppCannotRunStaysAPlaceholder() {
+        val base = """<code>590</code><Str sr="arg0" ve="3">%s</Str><Str sr="arg1" ve="3">PATTERN</Str><Int sr="arg2" val="0"/><Int sr="arg3" val="1"/>"""
+
+        assertEquals("true", action(base.replace("PATTERN", "[,;]")).args["regex"])
+        assertEquals("var.split", action(base.replace("PATTERN", "%sep(?=x)")).type)
+        assertEquals(placeholder, action(base.replace("PATTERN", ",(?=x)")).type)
+        assertEquals("var.split", action(base.replace("PATTERN", ",(?=x)").replace("""<Int sr="arg3" val="1"/>""", """<Int sr="arg3" val="0"/>""")).type)
+    }
+
+    @Test
+    fun variableJoinKeepsItsJoinerAndPartsFlag() {
+        val join = action("""<code>592</code><Str sr="arg0" ve="3">%aicoordinates</Str><Str sr="arg1" ve="3">|||</Str><Int sr="arg2" val="0"/>""")
+        val bare = action("""<code>592</code><Str sr="arg0" ve="3">%words</Str><Str sr="arg1" ve="3"/><Int sr="arg2" val="1"/>""")
+
+        assertEquals("var.join", join.type)
+        assertEquals(mapOf("name" to "%aicoordinates", "joiner" to "|||", "delete_parts" to "false"), join.args)
+        assertEquals(mapOf("name" to "%words", "joiner" to "", "delete_parts" to "true"), bare.args)
+    }
+
+    @Test
+    fun arrayPushPopAndClearNameTheirArray() {
+        val push = action(
+            """<code>355</code><Str sr="arg0" ve="3">%Postpones_log</Str><Int sr="arg1" val="99"/>""" +
+                """<Str sr="arg2" ve="3">%Postpones</Str><Int sr="arg3" val="0"/>""",
+        )
+        val pushFirst = action(
+            """<code>355</code><Str sr="arg0" ve="3">%twitalldate</Str><Int sr="arg1"><var>1</var></Int>""" +
+                """<Str sr="arg2" ve="3">%twitfromdateu(1)</Str><Int sr="arg3" val="0"/>""",
+        )
+        val pop = action("""<code>356</code><Str sr="arg0" ve="3">%SS_TimedTimes</Str><Int sr="arg1"><var>%pos</var></Int><Str sr="arg2" ve="3"/>""")
+        val popInto = action("""<code>356</code><Str sr="arg0" ve="3">%task_names</Str><Int sr="arg1" val="1"/><Str sr="arg2" ve="3">%first</Str>""")
+        val clear = action("""<code>357</code><Str sr="arg0" ve="3">%SS_TimedTimes</Str>""")
+
+        assertEquals("array.push", push.type)
+        assertEquals(mapOf("array" to "%Postpones_log", "position" to "99", "value" to "%Postpones", "fill_spaces" to "false"), push.args)
+        assertEquals(mapOf("array" to "%twitalldate", "position" to "1", "value" to "%twitfromdateu(1)", "fill_spaces" to "false"), pushFirst.args)
+        assertEquals("array.pop", pop.type)
+        assertEquals(mapOf("array" to "%SS_TimedTimes", "position" to "%pos"), pop.args)
+        assertEquals(mapOf("array" to "%task_names", "position" to "1", "to_var" to "%first"), popInto.args)
+        assertEquals("array.clear", clear.type)
+        assertEquals(mapOf("array" to "%SS_TimedTimes"), clear.args)
+    }
+
+    @Test
+    fun anArrayNamedThroughAnotherVariableStaysAPlaceholder() {
+        listOf(
+            """<code>357</code><Str sr="arg0" ve="3">%%array</Str>""",
+            """<code>590</code><Str sr="arg0" ve="3">%%name</Str><Str sr="arg1" ve="3">,</Str><Int sr="arg2" val="0"/>""",
+            """<code>355</code><Str sr="arg0" ve="3">%list</Str><Int sr="arg1"><var>%i+1</var></Int><Str sr="arg2" ve="3">x</Str><Int sr="arg3" val="0"/>""",
+            """<code>356</code><Str sr="arg0" ve="3">%list</Str><Int sr="arg1" val="1"/><Str sr="arg2" ve="3">%out%n</Str>""",
+        ).forEach { assertEquals(it, placeholder, action(it).type) }
+    }
+
+    @Test
+    fun importedArrayStepsRunTheWayTaskersDo() {
+        registerCoreRuntime()
+        val task = parse(
+            """<code>590</code><Str sr="arg0" ve="3">%names</Str><Str sr="arg1" ve="3">,</Str><Int sr="arg2" val="0"/>""",
+            """<code>355</code><Str sr="arg0" ve="3">%names</Str><Int sr="arg1" val="1"/><Str sr="arg2" ve="3">zero</Str><Int sr="arg3" val="0"/>""",
+            """<code>356</code><Str sr="arg0" ve="3">%names</Str><Int sr="arg1" val="99"/><Str sr="arg2" ve="3">%Last</Str>""",
+            """<code>592</code><Str sr="arg0" ve="3">%names</Str><Str sr="arg1" ve="3">+</Str><Int sr="arg2" val="0"/>""",
+            """<code>547</code><Str sr="arg0" ve="3">%Joined</Str><Str sr="arg1" ve="3">%names</Str><Int sr="arg2" val="0"/>""" +
+                """<Int sr="arg3" val="0"/><Int sr="arg4" val="0"/>""",
+        ).bundle.tasks.single()
+        val variables = VariableStore().apply { set("names", "a,b,c") }
+
+        val report = runBlocking { TaskRunner(ActionContext(ContextWrapper(null), variables)).run(task) }
+
+        assertTrue(report.toString(), report.success)
+        assertEquals("c", variables.get("Last"))
+        assertEquals("zero+a+b", variables.get("Joined"))
     }
 
     // Interrupt Mode (312). No public export holds one, so these follow Tasker's action table.

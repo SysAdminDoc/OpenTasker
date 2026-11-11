@@ -146,6 +146,41 @@
     <string name="catalog_action_text_substring_field_end_hint" formatted="false">不含结尾；省略表示到字符串末尾</string>
     <string name="catalog_action_text_substring_field_var_label" formatted="false">输出变量</string>
     <string name="catalog_action_text_substring_field_var_hint" formatted="false">默认：substring</string>
+    <string name="catalog_action_var_split_name" formatted="false">变量拆分</string>
+    <string name="catalog_action_var_split_description" formatted="false">像 Tasker 一样把变量拆分为编号元素（%text1、%text2……）</string>
+    <string name="catalog_action_var_split_field_name_label" formatted="false">名称</string>
+    <string name="catalog_action_var_split_field_name_hint" formatted="false">%text 变为 %text1、%text2……</string>
+    <string name="catalog_action_var_split_field_splitter_label" formatted="false">分隔符</string>
+    <string name="catalog_action_var_split_field_splitter_hint" formatted="false">留空则按空格和换行拆分</string>
+    <string name="catalog_action_var_split_field_regex_label" formatted="false">分隔符为正则</string>
+    <string name="catalog_action_var_split_field_delete_base_label" formatted="false">拆分后删除原变量</string>
+    <string name="catalog_action_var_join_name" formatted="false">变量合并</string>
+    <string name="catalog_action_var_join_description" formatted="false">把编号元素（%arr1、%arr2……）合并回一个变量</string>
+    <string name="catalog_action_var_join_field_name_label" formatted="false">名称</string>
+    <string name="catalog_action_var_join_field_name_hint" formatted="false">%arr 把 %arr1、%arr2……合并到 %arr</string>
+    <string name="catalog_action_var_join_field_joiner_label" formatted="false">连接符</string>
+    <string name="catalog_action_var_join_field_delete_parts_label" formatted="false">合并后删除各元素</string>
+    <string name="catalog_action_array_push_name" formatted="false">数组插入</string>
+    <string name="catalog_action_array_push_description" formatted="false">向数组插入一个值，后面的元素依次后移</string>
+    <string name="catalog_action_array_push_field_array_label" formatted="false">数组</string>
+    <string name="catalog_action_array_push_field_array_hint" formatted="false">%arr，元素为 %arr1、%arr2……</string>
+    <string name="catalog_action_array_push_field_position_label" formatted="false">位置</string>
+    <string name="catalog_action_array_push_field_position_hint" formatted="false">默认：1；超出末尾则追加</string>
+    <string name="catalog_action_array_push_field_value_label" formatted="false">值</string>
+    <string name="catalog_action_array_push_field_fill_spaces_label" formatted="false">填补空位</string>
+    <string name="catalog_action_array_push_field_fill_spaces_hint" formatted="false">只移动到第一个空位为止的元素</string>
+    <string name="catalog_action_array_pop_name" formatted="false">数组弹出</string>
+    <string name="catalog_action_array_pop_description" formatted="false">从数组移除一个元素，后面的元素依次前移</string>
+    <string name="catalog_action_array_pop_field_array_label" formatted="false">数组</string>
+    <string name="catalog_action_array_pop_field_array_hint" formatted="false">%arr，元素为 %arr1、%arr2……</string>
+    <string name="catalog_action_array_pop_field_position_label" formatted="false">位置</string>
+    <string name="catalog_action_array_pop_field_position_hint" formatted="false">默认：1；超出末尾则弹出最后一个</string>
+    <string name="catalog_action_array_pop_field_to_var_label" formatted="false">存入变量</string>
+    <string name="catalog_action_array_pop_field_to_var_hint" formatted="false">可选，接收被移除的值</string>
+    <string name="catalog_action_array_clear_name" formatted="false">数组清空</string>
+    <string name="catalog_action_array_clear_description" formatted="false">取消设置数组的所有元素</string>
+    <string name="catalog_action_array_clear_field_array_label" formatted="false">数组</string>
+    <string name="catalog_action_array_clear_field_array_hint" formatted="false">%arr，元素为 %arr1、%arr2……</string>
     <string name="catalog_action_tts_speak_name" formatted="false">朗读（文本转语音）</string>
     <string name="catalog_action_tts_speak_description" formatted="false">使用设备扬声器朗读文本</string>
     <string name="catalog_action_tts_speak_field_text_label" formatted="false">要朗读的文本</string>

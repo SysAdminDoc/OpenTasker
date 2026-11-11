@@ -100,6 +100,11 @@ object TaskerXmlExporter {
         "http.request" to "339",
         "http.get" to "339",
         "http.post" to "339",
+        "var.split" to "590",
+        "var.join" to "592",
+        "array.push" to "355",
+        "array.pop" to "356",
+        "array.clear" to "357",
     )
 
     fun export(
@@ -331,6 +336,29 @@ object TaskerXmlExporter {
                 ),
                 warnings,
             )
+            "var.split" -> {
+                appendStr(sb, 0, taskerVariableName(args["name"], "VAR"))
+                appendStr(sb, 1, args["splitter"].orEmpty())
+                appendInt(sb, 2, taskerFlag(args["delete_base"]))
+                appendInt(sb, 3, taskerFlag(args["regex"]))
+            }
+            "var.join" -> {
+                appendStr(sb, 0, taskerVariableName(args["name"], "VAR"))
+                appendStr(sb, 1, args["joiner"].orEmpty())
+                appendInt(sb, 2, taskerFlag(args["delete_parts"]))
+            }
+            "array.push" -> {
+                appendStr(sb, 0, taskerVariableName(args["array"], "arr"))
+                appendInt(sb, 1, args["position"]?.ifBlank { null } ?: "1")
+                appendStr(sb, 2, args["value"].orEmpty())
+                appendInt(sb, 3, taskerFlag(args["fill_spaces"]))
+            }
+            "array.pop" -> {
+                appendStr(sb, 0, taskerVariableName(args["array"], "arr"))
+                appendInt(sb, 1, args["position"]?.ifBlank { null } ?: "1")
+                appendStr(sb, 2, args["to_var"]?.ifBlank { null }?.let { taskerVariableName(it, it) }.orEmpty())
+            }
+            "array.clear" -> appendStr(sb, 0, taskerVariableName(args["array"], "arr"))
         }
 
         appendConditionList(sb, action, redactionContext, warnings)
@@ -802,6 +830,9 @@ object TaskerXmlExporter {
         val trimmed = name?.trim().orEmpty().ifBlank { fallback }
         return if (trimmed.startsWith("%")) trimmed else "%$trimmed"
     }
+
+    /** A checkbox the way Tasker stores one, as 1 or 0. */
+    private fun taskerFlag(value: String?): String = if (value?.trim()?.toBooleanStrictOrNull() == true) "1" else "0"
 
     /** Tasker's For loops over `%name()`. Null when the list isn't one whole array. */
     private fun taskerForItems(list: String): String? {

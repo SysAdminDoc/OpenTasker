@@ -23,7 +23,7 @@
     "work": "2.12.0"
   },
   "capabilities": {
-    "registeredActions": 82,
+    "registeredActions": 87,
     "engineHandledActions": 10,
     "contextFamilies": 7,
     "bundleSchemaVersion": 2,

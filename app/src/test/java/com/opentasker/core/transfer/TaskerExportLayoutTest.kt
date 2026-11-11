@@ -204,4 +204,30 @@ class TaskerExportLayoutTest {
         assertFalse(report.xml, "<code>905</code>" in report.xml)
         assertEquals("log", report.skippedActions.single().actionType)
     }
+
+    @Test
+    fun arrayActionsWriteTaskersSplitJoinPushPopAndClear() {
+        assertHas(
+            xml("var.split", "name" to "words", "splitter" to " ", "regex" to "true"),
+            "<code>590</code>",
+            """<Str sr="arg0" ve="3">%words</Str>""",
+            """<Str sr="arg1" ve="3"> </Str>""",
+            """<Int sr="arg2" val="0"/>""",
+            """<Int sr="arg3" val="1"/>""",
+        )
+        assertHas(xml("array.pop", "array" to "%arr", "position" to "%pos", "to_var" to "out"), "<code>356</code>", "<var>%pos</var>", ">%out</Str>")
+
+        val cases = listOf(
+            "var.split" to mapOf("name" to "%words", "splitter" to " ", "delete_base" to "true", "regex" to "false"),
+            "var.join" to mapOf("name" to "%words", "joiner" to "|||", "delete_parts" to "false"),
+            "array.push" to mapOf("array" to "%Log", "position" to "99", "value" to "%Entry", "fill_spaces" to "true"),
+            "array.pop" to mapOf("array" to "%Log", "position" to "%pos", "to_var" to "%Out"),
+            "array.clear" to mapOf("array" to "%Log"),
+        )
+        cases.forEach { (type, args) ->
+            val back = roundTrip(type, *args.toList().toTypedArray())
+            assertEquals(type, back.type)
+            assertEquals(type, args, back.args)
+        }
+    }
 }

@@ -262,6 +262,13 @@ internal fun declaredActionOutputs(actionId: String): List<ActionOutputDefinitio
     )
     "text.join" -> listOf(output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("var", "variable"), defaultName = "joined"))
     "text.substring" -> listOf(output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("var", "variable"), defaultName = "substring"))
+    "var.split" -> listOf(output("array", ActionValueType.ARRAY, nameArgumentKeys = listOf("name")))
+    "var.join" -> listOf(output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("name")))
+    "array.push", "array.clear" -> listOf(output("array", ActionValueType.ARRAY, nameArgumentKeys = listOf("array")))
+    "array.pop" -> listOf(
+        output("array", ActionValueType.ARRAY, nameArgumentKeys = listOf("array")),
+        output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("to_var")),
+    )
     "flow.foreach" -> listOf(output("item", ActionValueType.ANY, nameArgumentKeys = listOf("var"), defaultName = "item"))
     "intent.launch" -> listOf(output("result", ActionValueType.NUMBER, nameArgumentKeys = listOf("result_variable"), requiredArgumentValues = mapOf("mode" to setOf("broadcast"))))
     "plugin.locale.query" -> listOf(output("state", ActionValueType.TEXT, nameArgumentKeys = listOf("resultVariable")))

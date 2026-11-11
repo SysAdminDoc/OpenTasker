@@ -58,6 +58,11 @@ object ActionCapabilityRegistry {
         "text.split",
         "text.join",
         "text.substring",
+        "var.split",
+        "var.join",
+        "array.push",
+        "array.pop",
+        "array.clear",
         // Flow control: engine-handled markers plus the runtime wait.
         "flow.wait",
         "task.run",

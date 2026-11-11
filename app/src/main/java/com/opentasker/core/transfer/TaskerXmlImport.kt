@@ -476,6 +476,7 @@ object TaskerXmlImporter {
             "549" -> taskerVariableClear(code, byIndex, intsByIndex)
             "597" -> taskerVariableSection(code, byIndex, intsByIndex, intVariables)
             "598" -> taskerSearchReplace(code, element, byIndex, intsByIndex)
+            "590", "592", "355", "356", "357" -> taskerArrayAction(code, element, byIndex, intsByIndex, intVariables)
             "30", "wait", "flow.wait" -> {
                 val duration = taskerDuration(
                     actionName = "Wait",
@@ -1090,6 +1091,49 @@ object TaskerXmlImporter {
     }
 
     /**
+     * Variable Split and Join and Array Push, Pop and Clear work on Tasker's numbered elements
+     * (%arr1, %arr2, ...), which is what the actions they map to work on. Splitter, Joiner and
+     * Value are read untrimmed, because a space there is the whole point.
+     */
+    private fun taskerArrayAction(
+        code: String,
+        element: Element,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
+        val tasker = TASKER_ARRAY_ACTIONS.getValue(code)
+        val name = byIndex[0].orEmpty()
+        val toVar = byIndex[2].orEmptyIfBlank().takeIf { code == "356" }
+        val position = variables[1] ?: (ints[1] ?: 1).toString()
+        val regexSplitter = element.rawActionString(1).takeIf { code == "590" && (ints[3] ?: 0) != 0 && it.isNotEmpty() }
+        val refusal = when {
+            !TASKER_PLAIN_VARIABLE.matches(name) -> "Tasker ${tasker.first}'s ${if (code.startsWith("59")) "name" else "array"} $name isn't one plain variable"
+            (code == "355" || code == "356") && !(TASKER_PLAIN_VARIABLE.matches(position) || position.toIntOrNull()?.let { it >= 1 } == true) ->
+                "Tasker ${tasker.first}'s Position $position isn't a number or one plain variable"
+            toVar != null && !TASKER_PLAIN_VARIABLE.matches(toVar) -> "Tasker Array Pop stores into $toVar, which isn't one plain variable"
+            // A splitter holding a variable is only known when the step runs, so it's checked then.
+            regexSplitter != null && !TASKER_VARIABLE_REFERENCE.containsMatchIn(regexSplitter) && TextOps.match("", regexSplitter) == null ->
+                "Tasker Variable Split's splitter $regexSplitter uses regular expression features this app doesn't have"
+            else -> null
+        }
+        if (refusal != null) return taskerPlaceholder(code, refusal)
+        fun flag(index: Int) = ((ints[index] ?: 0) != 0).toString()
+        val args = when (code) {
+            "590" -> mapOf("name" to name, "splitter" to element.rawActionString(1), "delete_base" to flag(2), "regex" to flag(3))
+            "592" -> mapOf("name" to name, "joiner" to element.rawActionString(1), "delete_parts" to flag(2))
+            "355" -> mapOf("array" to name, "position" to position, "value" to element.rawActionString(2), "fill_spaces" to flag(3))
+            "356" -> buildMap {
+                put("array", name)
+                put("position", position)
+                toVar?.let { put("to_var", it) }
+            }
+            else -> mapOf("array" to name)
+        }
+        return ActionWithLoss(ActionSpec(type = tasker.second, label = "Tasker ${tasker.first.lowercase()}", args = args))
+    }
+
+    /**
      * Search Replace runs a regular expression over a variable and writes the result back. Search
      * and Replace With are read untrimmed, because a space there is part of the pattern.
      */
@@ -1694,6 +1738,15 @@ object TaskerXmlImporter {
     )
 
     private val TASKER_PLAIN_VARIABLE = Regex("""%[A-Za-z][A-Za-z0-9_]*""")
+
+    /** Tasker's array actions: their Tasker name and the action each one maps to. */
+    private val TASKER_ARRAY_ACTIONS = mapOf(
+        "590" to ("Variable Split" to "var.split"),
+        "592" to ("Variable Join" to "var.join"),
+        "355" to ("Array Push" to "array.push"),
+        "356" to ("Array Pop" to "array.pop"),
+        "357" to ("Array Clear" to "array.clear"),
+    )
 
     /** Anywhere Tasker would fill in a variable when the action runs. */
     private val TASKER_VARIABLE_REFERENCE = Regex("""%[A-Za-z]""")

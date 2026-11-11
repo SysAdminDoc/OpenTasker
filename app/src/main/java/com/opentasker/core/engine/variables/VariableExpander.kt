@@ -189,6 +189,8 @@ class VariableExpander {
             }
         }
 
+        taskerArrayValue(name, op, baseValue, store, arrays)?.let { return it }
+
         if (baseValue == null) return ""
 
         // Math operations
@@ -248,6 +250,42 @@ class VariableExpander {
                 replaceRegex(pattern, baseValue, replacement) ?: baseValue
             }
             else -> baseValue
+        }
+    }
+
+    /**
+     * Tasker's array forms over numbered variables (`%arr1`, `%arr2`, ...): `#` counts the elements,
+     * `#>` and `#<` give the first and last index, `>` and `<` the first and last value, a number
+     * one element, and an empty, `:` or `a:b` form joins the elements set in that range with commas,
+     * backwards when a is past b. A variable inside the parentheses is filled in first, so
+     * `%arr(%i)` works as it does in Tasker. Returns null when [op] is none of these, or when [name]
+     * is a plain variable with no elements, so its own operators still apply.
+     */
+    private fun taskerArrayValue(
+        name: String,
+        op: String,
+        baseValue: String?,
+        store: VariableStore,
+        arrays: ArrayStore,
+    ): String? {
+        val form = (if ('%' in op) expandText(op, store, arrays) { it } else op).trim()
+        if (!TASKER_ARRAY_FORM.matches(form)) return null
+        val items = store.numberedItems(name)
+        if (items.isEmpty() && baseValue != null) return null
+        val lastIndex = if (items.isEmpty()) 0 else items.lastKey()
+        return when (form) {
+            "#" -> items.size.toString()
+            "#>" -> (if (items.isEmpty()) 0 else items.firstKey()).toString()
+            "#<" -> lastIndex.toString()
+            ">" -> items.firstEntry()?.value.orEmpty()
+            "<" -> items.lastEntry()?.value.orEmpty()
+            else -> {
+                if (':' !in form && form.isNotEmpty()) return form.toIntOrNull()?.let(items::get).orEmpty()
+                val from = form.substringBefore(':').ifEmpty { "1" }.toIntOrNull() ?: return ""
+                val to = form.substringAfter(':', "").ifEmpty { null }?.let { it.toIntOrNull() ?: return "" } ?: lastIndex
+                val range = if (from <= to) items.subMap(from, true, to, true) else items.subMap(to, true, from, true).descendingMap()
+                range.values.joinToString(",")
+            }
         }
     }
 
@@ -614,6 +652,7 @@ class VariableExpander {
         )
         private const val MAX_REGEX_LENGTH = 256
         private const val MAX_REGEX_INPUT_LENGTH = 10_000
+        private val TASKER_ARRAY_FORM = Regex("""#[<>]?|[<>]|\d*(?::\d*)?""")
 
         private fun compileLinearRegex(pattern: String): Re2Pattern? {
             return try {

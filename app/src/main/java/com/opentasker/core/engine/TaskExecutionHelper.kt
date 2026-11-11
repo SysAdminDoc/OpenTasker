@@ -495,6 +495,10 @@ fun changedGlobals(
         .map { (name, value) -> RuntimeVariableValue(name, value, isSecret = name in afterSensitive, projectId = projectId) }
         .toList()
 
+/** Globals the run unset, like an emptied or popped Tasker array element. Pure for testability. */
+fun removedGlobals(before: Map<String, String>, after: Map<String, String>): List<String> =
+    before.keys.filterNot(after::containsKey).sorted()
+
 /**
  * Commits globals changed during the run to [com.opentasker.core.storage.VariableDao] before the
  * task's success is reported, so names containing uppercase letters and explicit `var.persist`
@@ -511,16 +515,17 @@ private suspend fun persistChangedGlobals(
     projectId: Long = com.opentasker.core.model.DEFAULT_PROJECT_ID,
 ): List<String> {
     val changed = changedGlobals(before, after, beforeSensitive, afterSensitive, projectId)
-    if (changed.isEmpty()) return emptyList()
+    val removed = removedGlobals(before, after)
+    if (changed.isEmpty() && removed.isEmpty()) return emptyList()
     val commit = runCatching {
-        variableRepository.persistRuntimeAtomically(persistedBaseline, changed)
+        variableRepository.persistRuntimeAtomically(persistedBaseline, changed, removed, projectId)
     }.getOrElse { error ->
         AppLogger.error(
             logTag,
-            "Failed to persist ${changed.size} global variable change(s) atomically",
+            "Failed to persist ${changed.size + removed.size} global variable change(s) atomically",
             error,
         )
-        return listOf("Global commit failed: ${changed.map(RuntimeVariableValue::name).joinToString()}")
+        return listOf("Global commit failed: ${(changed.map(RuntimeVariableValue::name) + removed).joinToString()}")
     }
     if (commit.conflictedNames.isEmpty()) return emptyList()
     val names = commit.conflictedNames.joinToString()

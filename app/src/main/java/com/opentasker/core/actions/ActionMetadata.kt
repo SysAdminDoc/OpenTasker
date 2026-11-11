@@ -109,6 +109,11 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "text.split",
     "text.join",
     "text.substring",
+    "var.split",
+    "var.join",
+    "array.push",
+    "array.pop",
+    "array.clear",
     "tts.speak",
     "flow.wait",
     "task.run",
@@ -464,6 +469,76 @@ fun registerActionMetadata() {
                 ActionField("start", R.string.catalog_action_text_substring_field_start_label, FieldType.NUMBER, required = true, hintRes = R.string.catalog_action_text_substring_field_start_hint, numberRule = integerRule(0)),
                 ActionField("end", R.string.catalog_action_text_substring_field_end_label, FieldType.NUMBER, hintRes = R.string.catalog_action_text_substring_field_end_hint, numberRule = integerRule(0)),
                 ActionField("var", R.string.catalog_action_text_substring_field_var_label, hintRes = R.string.catalog_action_text_substring_field_var_hint),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "var.split",
+            nameRes = R.string.catalog_action_var_split_name,
+            descriptionRes = R.string.catalog_action_var_split_description,
+            categoryRes = R.string.catalog_category_variable,
+            fields = listOf(
+                ActionField("name", R.string.catalog_action_var_split_field_name_label, required = true, hintRes = R.string.catalog_action_var_split_field_name_hint),
+                ActionField("splitter", R.string.catalog_action_var_split_field_splitter_label, hintRes = R.string.catalog_action_var_split_field_splitter_hint),
+                ActionField("regex", R.string.catalog_action_var_split_field_regex_label, FieldType.CHECKBOX),
+                ActionField("delete_base", R.string.catalog_action_var_split_field_delete_base_label, FieldType.CHECKBOX),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "var.join",
+            nameRes = R.string.catalog_action_var_join_name,
+            descriptionRes = R.string.catalog_action_var_join_description,
+            categoryRes = R.string.catalog_category_variable,
+            fields = listOf(
+                ActionField("name", R.string.catalog_action_var_join_field_name_label, required = true, hintRes = R.string.catalog_action_var_join_field_name_hint),
+                ActionField("joiner", R.string.catalog_action_var_join_field_joiner_label),
+                ActionField("delete_parts", R.string.catalog_action_var_join_field_delete_parts_label, FieldType.CHECKBOX),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "array.push",
+            nameRes = R.string.catalog_action_array_push_name,
+            descriptionRes = R.string.catalog_action_array_push_description,
+            categoryRes = R.string.catalog_category_variable,
+            fields = listOf(
+                ActionField("array", R.string.catalog_action_array_push_field_array_label, required = true, hintRes = R.string.catalog_action_array_push_field_array_hint),
+                ActionField("position", R.string.catalog_action_array_push_field_position_label, FieldType.NUMBER, hintRes = R.string.catalog_action_array_push_field_position_hint, numberRule = integerRule(1)),
+                ActionField("value", R.string.catalog_action_array_push_field_value_label),
+                ActionField("fill_spaces", R.string.catalog_action_array_push_field_fill_spaces_label, FieldType.CHECKBOX, hintRes = R.string.catalog_action_array_push_field_fill_spaces_hint),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "array.pop",
+            nameRes = R.string.catalog_action_array_pop_name,
+            descriptionRes = R.string.catalog_action_array_pop_description,
+            categoryRes = R.string.catalog_category_variable,
+            fields = listOf(
+                ActionField("array", R.string.catalog_action_array_pop_field_array_label, required = true, hintRes = R.string.catalog_action_array_pop_field_array_hint),
+                ActionField("position", R.string.catalog_action_array_pop_field_position_label, FieldType.NUMBER, hintRes = R.string.catalog_action_array_pop_field_position_hint, numberRule = integerRule(1)),
+                ActionField("to_var", R.string.catalog_action_array_pop_field_to_var_label, hintRes = R.string.catalog_action_array_pop_field_to_var_hint),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "array.clear",
+            nameRes = R.string.catalog_action_array_clear_name,
+            descriptionRes = R.string.catalog_action_array_clear_description,
+            categoryRes = R.string.catalog_category_variable,
+            fields = listOf(
+                ActionField("array", R.string.catalog_action_array_clear_field_array_label, required = true, hintRes = R.string.catalog_action_array_clear_field_array_hint),
             )
         )
     )

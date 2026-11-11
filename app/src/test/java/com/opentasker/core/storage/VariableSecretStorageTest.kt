@@ -165,6 +165,41 @@ class VariableSecretStorageTest {
     }
 
     @Test
+    fun aGlobalTheRunUnsetIsDeletedSoItStaysUnsetNextRun() = runBlocking {
+        val dao = FakeVariableDao(
+            VariableEntity("LOG1", "a", isGlobal = true),
+            VariableEntity("LOG2", "b", isGlobal = true),
+        )
+        val repository = VariableRepository(dao, codec(newKey()))
+        val baseline = repository.runtimeGlobals()
+
+        val result = repository.persistRuntimeAtomically(
+            baseline,
+            listOf(RuntimeVariableValue("LOG1", "b", isSecret = false)),
+            removedNames = listOf("LOG2", "NEVER_SET"),
+        )
+
+        assertEquals(listOf("LOG1", "LOG2", "NEVER_SET"), result.appliedNames.sorted())
+        assertTrue(result.conflictedNames.isEmpty())
+        assertEquals(mapOf("LOG1" to "b"), repository.runtimeGlobals().values)
+    }
+
+    @Test
+    fun anUnsetGlobalAnotherRunChangedMeanwhileIsKept() = runBlocking {
+        val dao = FakeVariableDao(VariableEntity("LOG2", "b", isGlobal = true))
+        val key = newKey()
+        val first = VariableRepository(dao, codec(key))
+        val second = VariableRepository(dao, codec(key))
+        val baseline = first.runtimeGlobals()
+        second.persistRuntimeAtomically(baseline, listOf(RuntimeVariableValue("LOG2", "newer", isSecret = false)))
+
+        val result = first.persistRuntimeAtomically(baseline, emptyList(), removedNames = listOf("LOG2"))
+
+        assertEquals(listOf("LOG2"), result.conflictedNames)
+        assertEquals("newer", first.runtimeGlobals().values["LOG2"])
+    }
+
+    @Test
     fun missingOrReplacedKeystoreKeyRequiresReentryWithoutReturningCiphertext() = runBlocking {
         val dao = FakeVariableDao()
         VariableRepository(dao, codec(newKey())).upsert(

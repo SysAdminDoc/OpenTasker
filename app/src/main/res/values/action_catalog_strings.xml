@@ -152,6 +152,41 @@
     <string name="catalog_action_text_substring_field_end_hint" formatted="false">exclusive; omit for end of string</string>
     <string name="catalog_action_text_substring_field_var_label" formatted="false">Output variable</string>
     <string name="catalog_action_text_substring_field_var_hint" formatted="false">default: substring</string>
+    <string name="catalog_action_var_split_name" formatted="false">Variable Split</string>
+    <string name="catalog_action_var_split_description" formatted="false">Split a variable into numbered elements, the way Tasker does (%text1, %text2, …)</string>
+    <string name="catalog_action_var_split_field_name_label" formatted="false">Name</string>
+    <string name="catalog_action_var_split_field_name_hint" formatted="false">%text becomes %text1, %text2, …</string>
+    <string name="catalog_action_var_split_field_splitter_label" formatted="false">Splitter</string>
+    <string name="catalog_action_var_split_field_splitter_hint" formatted="false">blank splits on spaces and new lines</string>
+    <string name="catalog_action_var_split_field_regex_label" formatted="false">Splitter is a regex</string>
+    <string name="catalog_action_var_split_field_delete_base_label" formatted="false">Delete the variable after splitting</string>
+    <string name="catalog_action_var_join_name" formatted="false">Variable Join</string>
+    <string name="catalog_action_var_join_description" formatted="false">Join numbered elements (%arr1, %arr2, …) back into one variable</string>
+    <string name="catalog_action_var_join_field_name_label" formatted="false">Name</string>
+    <string name="catalog_action_var_join_field_name_hint" formatted="false">%arr joins %arr1, %arr2, … into %arr</string>
+    <string name="catalog_action_var_join_field_joiner_label" formatted="false">Joiner</string>
+    <string name="catalog_action_var_join_field_delete_parts_label" formatted="false">Delete the elements after joining</string>
+    <string name="catalog_action_array_push_name" formatted="false">Array Push</string>
+    <string name="catalog_action_array_push_description" formatted="false">Insert a value into an array and move later elements up</string>
+    <string name="catalog_action_array_push_field_array_label" formatted="false">Array</string>
+    <string name="catalog_action_array_push_field_array_hint" formatted="false">%arr, with elements %arr1, %arr2, …</string>
+    <string name="catalog_action_array_push_field_position_label" formatted="false">Position</string>
+    <string name="catalog_action_array_push_field_position_hint" formatted="false">default: 1; past the end appends</string>
+    <string name="catalog_action_array_push_field_value_label" formatted="false">Value</string>
+    <string name="catalog_action_array_push_field_fill_spaces_label" formatted="false">Fill spaces</string>
+    <string name="catalog_action_array_push_field_fill_spaces_hint" formatted="false">only move elements up to the first gap</string>
+    <string name="catalog_action_array_pop_name" formatted="false">Array Pop</string>
+    <string name="catalog_action_array_pop_description" formatted="false">Remove an element from an array and move later elements down</string>
+    <string name="catalog_action_array_pop_field_array_label" formatted="false">Array</string>
+    <string name="catalog_action_array_pop_field_array_hint" formatted="false">%arr, with elements %arr1, %arr2, …</string>
+    <string name="catalog_action_array_pop_field_position_label" formatted="false">Position</string>
+    <string name="catalog_action_array_pop_field_position_hint" formatted="false">default: 1; past the end pops the last</string>
+    <string name="catalog_action_array_pop_field_to_var_label" formatted="false">To variable</string>
+    <string name="catalog_action_array_pop_field_to_var_hint" formatted="false">optional, gets the removed value</string>
+    <string name="catalog_action_array_clear_name" formatted="false">Array Clear</string>
+    <string name="catalog_action_array_clear_description" formatted="false">Unset every element of an array</string>
+    <string name="catalog_action_array_clear_field_array_label" formatted="false">Array</string>
+    <string name="catalog_action_array_clear_field_array_hint" formatted="false">%arr, with elements %arr1, %arr2, …</string>
     <string name="catalog_action_tts_speak_name" formatted="false">Say (Text-to-Speech)</string>
     <string name="catalog_action_tts_speak_description" formatted="false">Speak text aloud using the device speaker</string>
     <string name="catalog_action_tts_speak_field_text_label" formatted="false">Text to speak</string>

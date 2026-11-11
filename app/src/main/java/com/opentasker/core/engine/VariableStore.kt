@@ -103,6 +103,95 @@ class VariableStore {
         return rootLocals[normalizedName] ?: globals[normalizedName]
     }
 
+    /**
+     * Unsets [name] in the scope [get] reads it from, so it reads as never set. Returns whether it
+     * was set. A global's taint stays, as it does in [set].
+     */
+    fun remove(name: String): Boolean {
+        val normalizedName = VariableNamePolicy.normalize(name) ?: return false
+        if (VariableNamePolicy.isGlobal(normalizedName)) return globals.remove(normalizedName) != null
+        synchronized(localStack) {
+            for (index in localStack.indices.reversed()) {
+                if (localStack[index].remove(normalizedName) != null) {
+                    localSensitiveStack[index] -= normalizedName
+                    return true
+                }
+            }
+            if (rootLocals.remove(normalizedName) == null) return false
+            rootLocalSensitiveNames -= normalizedName
+            return true
+        }
+    }
+
+    /**
+     * Tasker's array elements: the variables named [base] plus a whole number from 1 (`arr1`,
+     * `arr2`, ...), in the scope [base] belongs to, by index. Each one reads the way [get] reads it.
+     */
+    fun numberedItems(base: String): java.util.NavigableMap<Int, String> {
+        val items = java.util.TreeMap<Int, String>()
+        val normalizedBase = VariableNamePolicy.normalize(base) ?: return items
+        val names = if (VariableNamePolicy.isGlobal(normalizedBase)) {
+            globals.keys.toSet()
+        } else {
+            synchronized(localStack) { rootLocals.keys + localStack.flatMap { it.keys } }
+        }
+        names.forEach { name ->
+            val index = numberedIndex(normalizedBase, name) ?: return@forEach
+            get(name)?.let { items[index] = it }
+        }
+        return items
+    }
+
+    /**
+     * Replaces [base]'s numbered elements with [items] (index to value and secret flag) in the
+     * scope the array lives in: the innermost one holding an element, else the one [set] writes
+     * to. A sub-task changing its caller's array changes it there, instead of unsetting elements
+     * in the caller and writing the new ones into its own scope.
+     */
+    fun replaceNumberedItems(base: String, items: Map<Int, Pair<String, Boolean>>) {
+        val normalizedBase = VariableNamePolicy.normalize(base) ?: return
+        if (VariableNamePolicy.isGlobal(normalizedBase)) {
+            globals.keys.filter { numberedIndex(normalizedBase, it) != null }.forEach(globals::remove)
+            items.forEach { (index, item) -> set("$normalizedBase$index", item.first, sensitive = item.second) }
+            return
+        }
+        val tainted = sensitiveWriteDepth.get() > 0
+        synchronized(localStack) {
+            val scopes = listOf<Pair<MutableMap<String, String>, MutableSet<String>>>(rootLocals to rootLocalSensitiveNames) +
+                localStack.zip(localSensitiveStack)
+            val (values, sensitiveNames) = scopes.lastOrNull { (values, _) ->
+                values.keys.any { numberedIndex(normalizedBase, it) != null }
+            } ?: scopes.last()
+            values.keys.filter { numberedIndex(normalizedBase, it) != null }.forEach { name ->
+                values.remove(name)
+                sensitiveNames -= name
+            }
+            items.forEach { (index, item) ->
+                val name = VariableNamePolicy.normalize("$normalizedBase$index") ?: return@forEach
+                values[name] = item.first
+                if (item.second || tainted) sensitiveNames += name
+            }
+        }
+    }
+
+    /** True when any of [base]'s numbered elements holds a secret or a value derived from one. */
+    fun anyNumberedItemSensitive(base: String): Boolean {
+        val normalizedBase = VariableNamePolicy.normalize(base) ?: return false
+        if (VariableNamePolicy.isGlobal(normalizedBase)) {
+            return globalSensitiveNames.any { numberedIndex(normalizedBase, it) != null }
+        }
+        return synchronized(localStack) {
+            (rootLocalSensitiveNames + localSensitiveStack.flatten()).any { numberedIndex(normalizedBase, it) != null }
+        }
+    }
+
+    private fun numberedIndex(base: String, name: String): Int? {
+        if (name.length <= base.length || !name.startsWith(base)) return null
+        val digits = name.substring(base.length)
+        if (digits.first() == '0' || !digits.all { it in '0'..'9' }) return null
+        return digits.toIntOrNull()
+    }
+
     fun isSensitive(name: String): Boolean {
         val normalizedName = VariableNamePolicy.normalize(name) ?: return false
         synchronized(localStack) {
@@ -146,13 +235,14 @@ class VariableStore {
     }
 
     /**
-     * Returns the elements of a stored array by name, or null if no array with that name exists.
-     * Used by the `flow.foreach` control action to iterate over array variables.
+     * Returns the elements of a stored array by name, or else Tasker's numbered elements (`arr1`,
+     * `arr2`, ...) in index order, or null when neither exists. Used by the `flow.foreach` control
+     * action to iterate over array variables.
      */
     fun getArrayItems(name: String): List<String>? =
-        arrayStore.snapshot()[name]
+        arrayStore.snapshot()[name] ?: numberedItems(name).values.toList().ifEmpty { null }
 
-    fun isArraySensitive(name: String): Boolean = name in sensitiveArrayNames
+    fun isArraySensitive(name: String): Boolean = name in sensitiveArrayNames || anyNumberedItemSensitive(name)
 
     /** Expand all variable references in [s] using the current scope chain. */
     fun expand(s: String): String {
@@ -164,7 +254,8 @@ class VariableStore {
         value = expander.expand(s, this, arrayStore, InertTemplateText::hide),
         isSecretDerived = variableReference.findAll(s).any { match ->
             val name = match.groupValues[1]
-            isSensitive(name) || name in sensitiveArrayNames
+            isSensitive(name) || name in sensitiveArrayNames ||
+                (s.startsWith("(", match.range.last + 1) && anyNumberedItemSensitive(name))
         },
     )
 

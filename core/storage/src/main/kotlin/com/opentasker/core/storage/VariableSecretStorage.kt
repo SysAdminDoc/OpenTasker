@@ -503,15 +503,18 @@ class VariableRepository(
     /**
      * Applies a run's changed globals as one Room insert batch only when each row still matches the
      * snapshot that run hydrated. The first commit wins a same-name race; disjoint names merge.
+     * [removedNames] are globals the run unset, deleted on the same terms.
      */
     suspend fun persistRuntimeAtomically(
         expected: RuntimeVariableSeed,
         values: List<RuntimeVariableValue>,
+        removedNames: List<String> = emptyList(),
+        projectId: Long = values.firstOrNull()?.projectId ?: DEFAULT_PROJECT_ID,
     ): RuntimeVariableCommitResult {
-        if (values.isEmpty()) return RuntimeVariableCommitResult(emptyList(), emptyList())
+        if (values.isEmpty() && removedNames.isEmpty()) return RuntimeVariableCommitResult(emptyList(), emptyList())
         migrateLegacySensitiveVariables()
         return storageMutationMutex.withLock {
-            val current = readRuntimeGlobals(values.firstOrNull()?.projectId ?: DEFAULT_PROJECT_ID)
+            val current = readRuntimeGlobals(projectId)
             val accepted = mutableListOf<RuntimeVariableValue>()
             val appliedNames = mutableListOf<String>()
             val conflictedNames = mutableListOf<String>()
@@ -529,6 +532,17 @@ class VariableRepository(
                 }
             }
             if (accepted.isNotEmpty()) dao.upsertAll(accepted.map(::runtimeValueToEntity))
+            removedNames.sorted().forEach { name ->
+                val currentState = current.stateOf(name)
+                when {
+                    currentState == RuntimeVariableState(null, isSecret = false, unavailable = false) -> appliedNames += name
+                    currentState == expected.stateOf(name) -> {
+                        deleteLocked(name, projectId)
+                        appliedNames += name
+                    }
+                    else -> conflictedNames += name
+                }
+            }
             RuntimeVariableCommitResult(appliedNames, conflictedNames)
         }
     }
