@@ -199,13 +199,15 @@ class VariableStore {
      * The local scopes, outermost first, that hold the local array [base]: every one, unless a
      * sub-task was handed elements of it as inputs. Then the array starts at the innermost such
      * input scope, so a sub-task's `%par` is its own and a Pop on it leaves its caller's `%par1`
-     * and `%par2` alone. Call it holding the [localStack] lock.
+     * and `%par2` alone. `%par` always starts at the innermost input scope, even one given no
+     * inputs, so a sub-task run without any never sees or pops its caller's. Call it holding the
+     * [localStack] lock.
      */
     private fun arrayScopes(base: String): List<Pair<MutableMap<String, String>, MutableSet<String>>> {
         val scopes = listOf<Pair<MutableMap<String, String>, MutableSet<String>>>(rootLocals to rootLocalSensitiveNames) +
             localStack.zip(localSensitiveStack)
         val inputs = localStack.indices.lastOrNull { index ->
-            inputScopes[index] && localStack[index].keys.any { numberedIndex(base, it) != null }
+            inputScopes[index] && (base == INPUT_ARRAY || localStack[index].keys.any { numberedIndex(base, it) != null })
         } ?: return scopes
         return scopes.drop(inputs + 1)
     }
@@ -490,5 +492,8 @@ class VariableStore {
          * entries, hanging the task thread and OOM-ing the process. Writes above this fail closed.
          */
         internal const val MAX_ARRAY_INDEX = 100_000
+
+        /** The array Perform Task hands a sub-task its inputs in, as `%par1` and `%par2`. */
+        private const val INPUT_ARRAY = "par"
     }
 }

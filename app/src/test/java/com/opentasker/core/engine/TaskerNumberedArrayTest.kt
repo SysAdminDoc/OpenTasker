@@ -212,6 +212,32 @@ class TaskerNumberedArrayTest {
     }
 
     @Test
+    fun aSubTaskNeverReachesItsCallersParThroughItsOwn() {
+        fun record(text: String) = ActionSpec(type = "test.array.record", args = mapOf("v" to text))
+        fun pop() = ActionSpec(type = "array.pop", args = mapOf("array" to "%par", "position" to "1"))
+        val givenNothing = Task(id = 3, name = "GivenNothing", actions = listOf(record("given nothing sees %par(#)"), pop()))
+        val drains = Task(id = 4, name = "Drains", actions = listOf(pop(), pop(), pop(), record("drains left %par(#)")))
+        val middle = Task(
+            id = 2,
+            name = "Middle",
+            actions = listOf(
+                ActionSpec(type = "task.run", args = mapOf("task" to "GivenNothing")),
+                ActionSpec(type = "task.run", args = mapOf("task" to "Drains", "par1" to "x", "par2" to "y")),
+                record("middle still has %par1 and %par2, %par(#) in all"),
+            ),
+        )
+        val outer = Task(id = 1, name = "Outer", actions = listOf(ActionSpec(type = "task.run", args = mapOf("task" to "Middle", "par1" to "p", "par2" to "q"))))
+        val tasks = listOf(outer, middle, givenNothing, drains).associateBy(Task::name)
+
+        val report = runBlocking {
+            TaskRunner(ActionContext(ContextWrapper(null), VariableStore()), resolveTask = { ref -> tasks[ref] }).run(outer)
+        }
+
+        assertTrue(report.toString(), report.success)
+        assertEquals(listOf("given nothing sees 0", "drains left 0", "middle still has p and q, 2 in all"), recorded)
+    }
+
+    @Test
     fun preflightBlocksAnUnsetPositionOnlyWhenNothingCouldSetIt() {
         fun pop(position: String) = ActionSpec(type = "array.pop", args = mapOf("array" to "%arr", "position" to position, "to_var" to "got"))
         fun stepFor(report: PreflightReport, taskName: String) = report.tasks.single { it.taskName == taskName }.steps.last()

@@ -59,6 +59,7 @@
 - App triggers keep running when usage access was granted with `adb shell pm grant`. OpenTasker used to count only the Settings switch, so it paused app triggers and Setup listed usage access as missing while Android was serving the data.
 - The Locale condition picker no longer freezes for up to 30 seconds when it's opened right after a backup restore. If the database still isn't back by then, the condition and task pickers close instead of crashing.
 - After Split Text or Match Text, `%parts(#)` counts the parts again and `%parts(2)` or `%parts(%i)` reads one of them. Both actions also set `%parts` to the first part, and that made every one of those forms give the first part instead. A range like `%parts(0:1)` joins those parts with commas, and an index held in a variable with a stray space still reads its part.
+- A task run with no parameters doesn't see its caller's `%par1` and `%par2` as its own `%par` array anymore. `%par(#)` there used to count the caller's parameters, and an Array Pop on `%par` would take them away from the caller.
 
 ## v0.2.96 - 2026-11-09 (unreleased)
 
