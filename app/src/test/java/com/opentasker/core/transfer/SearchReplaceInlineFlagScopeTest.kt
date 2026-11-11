@@ -61,6 +61,18 @@ class SearchReplaceInlineFlagScopeTest {
     }
 
     @Test
+    fun anEscapeLongerThanTwoCharactersIsOneClassItem() {
+        // \pL, \x41 and the octal \101 each end a range or stand alone, so the - after them
+        // starts no range and the [: after it is a POSIX class. RE2 keeps the $ in the class.
+        assertFalse(warnsOfTheAnchor("""[\pL-[:alpha:]$]"""))
+        assertFalse(warnsOfTheAnchor("""[!-\x41-[:alpha:]$]"""))
+        assertFalse(warnsOfTheAnchor("""[A-\x5a-[:alpha:]$]"""))
+        assertFalse(warnsOfTheAnchor("""[!-\101-[:alpha:]$]"""))
+        // \x{41} is one item too, so here the [ ends a range and the $ is an anchor.
+        assertTrue(warnsOfTheAnchor("""[\x{41}-[:alpha:]$]"""))
+    }
+
+    @Test
     fun multiLineCoversTheAnchorUntilAnInlineFlagTurnsItOff() {
         assertFalse(warnsOfTheAnchor("""\d+$""", multiLine = true))
         assertTrue(warnsOfTheAnchor("""(?-m)\d+$""", multiLine = true))

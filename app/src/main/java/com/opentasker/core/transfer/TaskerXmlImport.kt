@@ -1235,7 +1235,8 @@ object TaskerXmlImporter {
 
     /**
      * The index of the `]` that closes the class opening at [open], or the pattern's length, with
-     * the class read item by item the way RE2 (which runs the step) reads it. A `]` first, after
+     * the class read item by item the way RE2 (which runs the step) reads it, an escape such as
+     * `\pL`, `\x41` or `\101` counting as one item. A `]` first, after
      * `[` or `[^`, is a literal. A `[:name:]` that starts an item is a POSIX class, so its `]`
      * doesn't end the outer class. The character after a range's `-` ends that range even when
      * it's a `[`, so in `[!-[:alpha:]$]` the first `]` closes the class and the `$` is an anchor.
@@ -1269,11 +1270,21 @@ object TaskerXmlImporter {
         return index
     }
 
-    private fun classItemEnd(pattern: String, index: Int): Int = when {
-        pattern[index] != '\\' -> index + 1
-        pattern.getOrNull(index + 1) in UNICODE_CLASS_ESCAPES && pattern.startsWith("{", index + 2) ->
-            pattern.indexOf('}', index + 3).let { if (it < 0) pattern.length else it + 1 }
-        else -> index + 2
+    /** One class item: a character, or an escape, which can run past two characters (`\pL`, `\x41`, `\101`). */
+    private fun classItemEnd(pattern: String, index: Int): Int {
+        if (pattern[index] != '\\') return index + 1
+        val escape = pattern.getOrNull(index + 1)
+        val end = when {
+            (escape in UNICODE_CLASS_ESCAPES || escape == 'x') && pattern.startsWith("{", index + 2) ->
+                pattern.indexOf('}', index + 3).let { if (it < 0) pattern.length else it + 1 }
+            escape in UNICODE_CLASS_ESCAPES -> index + 3
+            escape == 'x' -> index + 4
+            // Up to three octal digits make one character.
+            escape != null && escape in '0'..'7' ->
+                (index + 2 until minOf(index + 4, pattern.length)).firstOrNull { pattern[it] !in '0'..'7' } ?: minOf(index + 4, pattern.length)
+            else -> index + 2
+        }
+        return minOf(end, pattern.length)
     }
 
     private val CLASS_ESCAPES = setOf('d', 'D', 's', 'S', 'w', 'W', 'p', 'P')
