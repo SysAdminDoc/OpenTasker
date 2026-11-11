@@ -120,6 +120,7 @@ object TaskerXmlExporter {
         "var.convert" to "596",
         "text.length" to "345",
         "ringer.set" to "313",
+        "clipboard.get" to "402",
     )
 
     fun export(
@@ -443,6 +444,22 @@ object TaskerXmlExporter {
                 }
                 appendInt(sb, 0, value ?: mode)
                 appendInt(sb, 1, "1")
+            }
+            // Tasker's Get Clipboard has no settings. Its one argument lists the variables it fills
+            // for Tasker's variable picker, written here with the one this app's step fills.
+            "clipboard.get" -> {
+                val name = taskerVariableName(args["var"] ?: args["result"], "Clipboard")
+                if (name != "%cl_text") {
+                    warnings += "Tasker's Get Clipboard always fills %cl_text, so 'clipboard.get' into '$name' fills %cl_text there instead."
+                }
+                sb.appendLine("""      <Bundle sr="arg0">""")
+                sb.appendLine("""        <Vals sr="val">""")
+                sb.appendLine("""          <net.dinglisch.android.tasker.RELEVANT_VARIABLES>&lt;StringArray sr=""&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES0&gt;%cl_text""")
+                sb.appendLine("Text")
+                sb.appendLine("""Current clipboard text&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES0&gt;&lt;/StringArray&gt;</net.dinglisch.android.tasker.RELEVANT_VARIABLES>""")
+                sb.appendLine("""          <net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>[Ljava.lang.String;</net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>""")
+                sb.appendLine("""        </Vals>""")
+                sb.appendLine("""      </Bundle>""")
             }
         }
 
