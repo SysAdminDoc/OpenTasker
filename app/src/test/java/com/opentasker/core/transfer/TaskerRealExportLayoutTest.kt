@@ -562,6 +562,14 @@ class TaskerRealExportLayoutTest {
     }
 
     @Test
+    fun aBeepStreamHeldInAVariableIsNamedBecauseItBeepsOnMusic() {
+        val xml = """<code>171</code><Int sr="arg0" val="1852"/><Int sr="arg1" val="100"/><Int sr="arg3"><var>%stream</var></Int>"""
+
+        assertEquals(null, action(xml).args["stream"])
+        assertWarns(xml, "%stream")
+    }
+
+    @Test
     fun tasksOwnMusicPlayerJumpsSayTheySteerWhateverIsPlaying() {
         assertEquals("track.next", action("<code>451</code>").type)
         assertWarns("<code>451</code>", "Music Skip")

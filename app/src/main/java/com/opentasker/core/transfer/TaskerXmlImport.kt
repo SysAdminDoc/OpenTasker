@@ -1141,6 +1141,8 @@ object TaskerXmlImporter {
                 amplitude?.warning,
                 "Tasker Beep plays on stream $stream, which this app doesn't offer, so it beeps on Music"
                     .takeIf { stream != null && stream != TASKER_MUSIC_STREAM && stream != TASKER_ALARM_STREAM },
+                "Tasker Beep picks its stream from ${variables[3]}, which this app can't, so it beeps on Music"
+                    .takeIf { variables[3] != null },
                 "Tasker Beep's Do At Time $doAt was not imported, so it beeps right away".takeIf { doAt != null },
             ),
         )
