@@ -1,7 +1,6 @@
 package com.opentasker.core.transfer
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -49,11 +48,12 @@ class TaskerConditionNumberingImportTest {
     }
 
     @Test
-    fun versionTwoEvenIsStillReportedAsUnsupported() {
-        // ve="2" op 6 is Even, which this app doesn't have.
+    fun versionTwoEvenAndOddImportAsParityChecks() {
+        // ve="2" ops 6 and 7 are Even and Odd, today's 10 and 11.
         val report = importCondition("6", "", "2")
-        assertNull(report.bundle.tasks.single().actions.single().condition)
-        assertTrue(report.lossyWarnings.toString(), report.lossyWarnings.any { it.contains("unsupported Tasker comparison") })
+        assertEquals("%pa_url is_even", report.bundle.tasks.single().actions.single().condition)
+        assertTrue(report.lossyWarnings.toString(), report.lossyWarnings.none { it.contains("unsupported Tasker comparison") })
+        assertEquals("%pa_url is_odd", importedCondition("7", "", "2"))
     }
 
     @Test

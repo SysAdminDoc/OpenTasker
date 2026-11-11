@@ -612,6 +612,8 @@ object TaskerXmlExporter {
     )
 
     private val UNARY_CONDITION_OPS = listOf(
+        " is_even" to "10",
+        " is_odd" to "11",
         " is_set" to "12",
         " not_set" to "13",
     )

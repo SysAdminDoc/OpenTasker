@@ -1978,7 +1978,7 @@ object TaskerXmlImporter {
      * past it are left out with a note. A joined list is dropped with a note rather than imported with another meaning
      * when it uses Xor or Xor2, which the condition grammar has no word for, or when a condition
      * would change how the joined text splits ([joinableSide]). Likewise, an `<op>` code outside
-     * the known Tasker set (0-9, 12, 13) yields a null expression -- which for flow.if
+     * the known Tasker set (0-13) yields a null expression -- which for flow.if
      * specifically falls back to the old literal-"true" behavior -- but is now reported instead of
      * silently reproduced. Ops 4/5 are Tasker's "Matches Regex"/"Doesn't Match Regex" (verified
      * against Map-Tasker's operator table) and import as `~R`/`!~R`; a pattern RE2 can't compile
@@ -2034,7 +2034,8 @@ object TaskerXmlImporter {
         val parts = read.map { condition ->
             val op = condition.taskerConditionOp()
             val lhs = condition.childText("lhs")
-            val rhs = condition.childText("rhs")
+            // Tasker ignores the right side of a unary check, and exports often leave an old one there.
+            val rhs = if (op in TASKER_UNARY_CONDITION_OPS) "" else condition.childText("rhs")
             when {
                 lhs.isBlank() -> return dropped("one of them has nothing to compare")
                 !joinableSide(lhs) || !joinableSide(rhs) ->
@@ -2051,6 +2052,8 @@ object TaskerXmlImporter {
     private fun Element.conditionExpression(op: String): String? {
         val lhs = childText("lhs")
         return when (op) {
+            "10" -> "$lhs is_even"
+            "11" -> "$lhs is_odd"
             "12" -> "$lhs is_set"
             "13" -> "$lhs not_set"
             else -> TASKER_CONDITION_OP_TOKENS[op]?.let { token -> "$lhs $token ${childText("rhs")}" }
@@ -2318,8 +2321,8 @@ object TaskerXmlImporter {
     // variants of =/!=; this evaluator has no numeric-aware equality distinct from string
     // equality, so they map to the same tokens as 0/1. 4/5 are the regex variants of 2/3
     // ("Matches Regex"/"Doesn't Match Regex"), written `~R`/`!~R` the way Tasker shows them.
-    // 12/13 (Is Set/Not Set) are unary and handled separately in parseImportedCondition, not
-    // through this map.
+    // 10/11 (Is Even/Is Odd) and 12/13 (Is Set/Not Set) are unary and handled separately in
+    // conditionExpression, not through this map.
     private val TASKER_CONDITION_OP_TOKENS = mapOf(
         "0" to "==",
         "1" to "!=",
@@ -2336,4 +2339,7 @@ object TaskerXmlImporter {
     // Tasker's condition joiners from loosest to tightest (decompiled 6.7.8, u1). Xor, looser than
     // Or, and Xor2, between And and Or2, are left out: the grammar here has no exclusive or.
     private val TASKER_JOINER_ORDER = listOf("Or", "And", "Or2", "And2")
+
+    // Is Even, Is Odd, Is Set and Not Set, which take no right side.
+    private val TASKER_UNARY_CONDITION_OPS = setOf("10", "11", "12", "13")
 }

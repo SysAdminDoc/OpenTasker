@@ -413,6 +413,7 @@ class VariableExpander {
         val comparison = parseComparison(normalized)
         if (comparison == null) {
             unaryExistenceResult(normalized, expandOperand)?.let { return it }
+            unaryParityResult(normalized, expandOperand)?.let { return it }
             // A variable on its own, such as `%enabled`, is a boolean once it has its value.
             return expandOperand(normalized, true).trim().toBoolean()
         }
@@ -597,6 +598,24 @@ class VariableExpander {
         return null
     }
 
+    /**
+     * Tasker's Is Even and Is Odd (condition ops 10 and 11), which take no right-hand operand
+     * either. As in Tasker 6.7.8 (decompiled Expr), a value that's empty or isn't a finite number
+     * is neither, and otherwise Even is `value % 2 == 0` and Odd is anything else, so 2.5 is odd.
+     * Tasker works the value out as math first and reads an unset variable there as 0; here it's
+     * read as a plain number, like the other numeric comparisons. Null when neither suffix is there.
+     */
+    private fun unaryParityResult(normalized: String, expandOperand: (String, Boolean) -> String): Boolean? {
+        for ((suffix, wantsEven) in UNARY_PARITY_SUFFIXES) {
+            if (!normalized.endsWith(suffix, ignoreCase = true)) continue
+            val value = expandOperand(normalized.dropLast(suffix.length).trim(), true).trim().toDoubleOrNull()
+                ?.takeIf { it.isFinite() } ?: return false
+            val remainder = value % 2.0
+            return if (wantsEven) remainder == 0.0 else remainder != 0.0
+        }
+        return null
+    }
+
     private fun stripOuterParens(expr: String): String {
         var result = expr
         while (result.length >= 2 && result.first() == '(' && matchingCloseParen(result, 0) == result.lastIndex) {
@@ -777,6 +796,11 @@ class VariableExpander {
         private val UNARY_EXISTENCE_SUFFIXES = listOf(
             " is_set" to true,
             " not_set" to false,
+        )
+        // (suffix, isEvenWhenTrue)
+        private val UNARY_PARITY_SUFFIXES = listOf(
+            " is_even" to true,
+            " is_odd" to false,
         )
         private val COMPARISON_OPERATORS = listOf(
             ComparisonOperator.EQ,
