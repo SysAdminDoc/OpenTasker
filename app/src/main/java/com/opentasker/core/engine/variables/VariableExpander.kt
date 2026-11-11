@@ -411,37 +411,99 @@ class VariableExpander {
             ComparisonOperator.GE -> compareNumbers(left, right) { l, r -> l >= r }
             ComparisonOperator.LT -> compareNumbers(left, right) { l, r -> l < r }
             ComparisonOperator.GT -> compareNumbers(left, right) { l, r -> l > r }
-            ComparisonOperator.MATCHES -> left.isNotEmpty() && matchesGlob(left, right)
-            ComparisonOperator.NOT_MATCHES -> !matchesGlob(left, right)
+            ComparisonOperator.MATCHES -> matchesPattern(left, right, emptyMatchesNothing = true)
+            ComparisonOperator.NOT_MATCHES -> !matchesPattern(left, right, emptyMatchesNothing = false)
+            ComparisonOperator.MATCHES_REGEX -> findsRegex(left, right)
+            ComparisonOperator.NOT_MATCHES_REGEX -> !findsRegex(left, right)
         }
     }
 
     /**
-     * Tasker's wildcard match: `*` is the only special character, everything else is literal.
-     * Used for imported "Matches"/"Doesn't Match" conditions (Tasker op codes 2/3), e.g.
-     * `%pa_do ~ view_url` or `%pa_json ~ *"say":*`.
+     * Tasker's Matches. A pattern starting `~R` or `!~R` is a regular expression, and a leading `!`
+     * turns the rest of the pattern around, so `%a ~ !x` is `%a !~ x`. Anything else goes to
+     * [matchesGlob], where [emptyMatchesNothing] keeps `%a ~ *` false while `%a` is empty. An empty
+     * pattern matches nothing, as in Tasker, which checks for one before it looks for the `!`.
+     */
+    private fun matchesPattern(value: String, pattern: String, emptyMatchesNothing: Boolean): Boolean = when {
+        pattern.isEmpty() -> false
+        pattern.startsWith("~R") -> findsRegex(value, pattern.substring(2))
+        pattern.startsWith("!~R") -> !findsRegex(value, pattern.substring(3))
+        pattern.startsWith("!") -> !matchesGlob(value, pattern.substring(1))
+        else -> !(emptyMatchesNothing && value.isEmpty()) && matchesGlob(value, pattern)
+    }
+
+    /**
+     * Tasker's Matches Regex (`~R`, and `!~R` for Doesn't Match Regex). The pattern only has to
+     * match part of the value, and case counts unless the pattern says `(?i)`. An empty pattern, or
+     * one RE2 can't run (backreferences, lookarounds), matches nothing, the way a bad pattern does
+     * in Tasker.
+     */
+    private fun findsRegex(value: String, pattern: String): Boolean {
+        if (pattern.isEmpty() || pattern.length > MAX_REGEX_LENGTH || value.length > MAX_REGEX_INPUT_LENGTH) return false
+        val matcher = compileLinearRegex(pattern)?.matcher(value) ?: return false
+        return try {
+            matcher.find()
+        } catch (e: RuntimeException) {
+            false
+        }
+    }
+
+    /**
+     * Tasker's simple pattern matching: `/` separates alternatives, `*` is any number of any
+     * character and `+` is one or more, and an alternative with no capital letter ignores case.
+     * The whole value has to match. Used for imported "Matches"/"Doesn't Match" conditions (Tasker
+     * op codes 2/3), e.g. `%pa_do ~ view_url` or `%SSID ~ home/work`. [matchesPattern] handles a
+     * leading `!` before this.
      *
-     * Goes through [compileLinearRegex] (RE2, linear-time) with the same [MAX_REGEX_LENGTH] /
-     * [MAX_REGEX_INPUT_LENGTH] guards this file already applies to every other regex built from
-     * import- or variable-derived text (see the `regex:`/`replace:` var-ops above), rather than
-     * Kotlin's backtracking `Regex`: `pattern` here comes from imported Tasker condition data,
+     * Goes through [compileLinearRegex] (RE2, linear-time) rather than Kotlin's backtracking
+     * `Regex`: `pattern` here comes from imported Tasker condition data,
      * not a fixed literal, so several `*` wildcards is exactly the shape that causes catastrophic
      * backtracking in a standard engine. `com.google.re2j.Pattern.quote` is RE2J's per-character
      * `quoteMeta` escaper, not `kotlin.text.Regex.escape`'s `\Q...\E` -- RE2 doesn't implement
      * `\Q...\E` as a syntax construct at all, so the latter would either fail to compile or (worse)
      * be silently misinterpreted.
      *
+     * The [MAX_REGEX_LENGTH] cap this file puts on every regex built from imported or variable
+     * text applies per alternative here, so a long list of short choices still works. An
+     * alternative over it, or a value or whole pattern over [MAX_REGEX_INPUT_LENGTH], matches
+     * nothing, which makes `!~` true for it.
+     *
      * `\A`/`\z` anchor for a full-string match (RE2J's `Matcher` is not confirmed to expose a
      * `.matches()` convenience the way `java.util.regex.Matcher` does, so this uses the same
      * `.find()` call already proven out at the other [compileLinearRegex] call sites).
      */
     private fun matchesGlob(value: String, pattern: String): Boolean {
-        if (pattern.length > MAX_REGEX_LENGTH || value.length > MAX_REGEX_INPUT_LENGTH) return false
+        if (pattern.length > MAX_REGEX_INPUT_LENGTH || value.length > MAX_REGEX_INPUT_LENGTH) return false
+        return pattern.trim('/').split('/').any {
+            it.length <= MAX_REGEX_LENGTH && matchesPatternAlternative(value, it)
+        }
+    }
+
+    /**
+     * One alternative, built the way Tasker's matcher builds it from the literals between
+     * wildcards: between two literals every `*` and `+` counts, but at either end only the
+     * outermost one does, so `*+a` is `*a` and `a+*` is `a*`.
+     */
+    private fun matchesPatternAlternative(value: String, alternative: String): Boolean {
+        val literals = alternative.split(PATTERN_WILDCARD).dropLastWhile { it.isEmpty() }
+        val wildcards = alternative.filter { it == '*' || it == '+' }
         val regex = buildString {
-            append("(?s)\\A")
-            pattern.split("*").forEachIndexed { index, literal ->
-                if (index > 0) append(".*")
-                append(Re2Pattern.quote(literal))
+            append(if (alternative.lowercase() == alternative) "(?si)\\A" else "(?s)\\A")
+            alternative.firstOrNull()?.let { if (it == '*') append(".*") else if (it == '+') append(".+") }
+            var literalsSoFar = 0
+            literals.forEachIndexed { index, literal ->
+                if (literalsSoFar > 0) append(if (wildcards[index - 1] == '*') ".*" else ".+")
+                if (literal.isNotEmpty()) {
+                    literalsSoFar++
+                    append(Re2Pattern.quote(literal))
+                }
+            }
+            // The last character counts only if it isn't the leading one already used.
+            if (alternative.length > 1) {
+                when (alternative.last()) {
+                    '*' -> append(".*")
+                    '+' -> append(".+")
+                }
             }
             append("\\z")
         }
@@ -578,9 +640,10 @@ class VariableExpander {
 
     /**
      * True if `operator`'s token occurs at `index`, and -- for [ComparisonOperator.MATCHES] /
-     * [ComparisonOperator.NOT_MATCHES] only -- is bounded by whitespace or a string edge on both
-     * sides. `~` and `!~` are ordinary characters in real values in a way `==`/`<`/etc. are not
-     * (paths like `~/backups`, version strings like `1.2~rc1`, approximations like `~100`), so
+     * [ComparisonOperator.NOT_MATCHES] and their `~R` / `!~R` regex forms only -- is bounded by
+     * whitespace or a string edge on both sides. `~` and `!~` are ordinary characters in real
+     * values in a way `==`/`<`/etc. are not (paths like `~/backups`, version strings like
+     * `1.2~rc1`, approximations like `~100`), so
      * without this a literal tilde inside an otherwise unambiguous comparison's left/right text
      * makes parseComparison find two operator matches instead of one, `matches.singleOrNull()`
      * returns null, and the whole comparison silently falls back to `normalized.toBoolean()`
@@ -590,7 +653,7 @@ class VariableExpander {
      */
     private fun String.matchesOperatorAt(operator: ComparisonOperator, index: Int): Boolean {
         if (!startsWith(operator.token, index)) return false
-        if (operator != ComparisonOperator.MATCHES && operator != ComparisonOperator.NOT_MATCHES) return true
+        if (operator !in TILDE_OPERATORS) return true
         val before = index == 0 || this[index - 1].isWhitespace()
         val afterIndex = index + operator.token.length
         val after = afterIndex >= length || this[afterIndex].isWhitespace()
@@ -685,6 +748,8 @@ class VariableExpander {
         GT(">"),
         MATCHES("~"),
         NOT_MATCHES("!~"),
+        MATCHES_REGEX("~R"),
+        NOT_MATCHES_REGEX("!~R"),
     }
 
     companion object {
@@ -701,12 +766,21 @@ class VariableExpander {
             ComparisonOperator.LE,
             ComparisonOperator.GE,
             ComparisonOperator.LT,
+            ComparisonOperator.NOT_MATCHES_REGEX,
             ComparisonOperator.NOT_MATCHES,
+            ComparisonOperator.MATCHES_REGEX,
             ComparisonOperator.MATCHES,
             ComparisonOperator.GT,
         )
+        private val TILDE_OPERATORS = setOf(
+            ComparisonOperator.MATCHES,
+            ComparisonOperator.NOT_MATCHES,
+            ComparisonOperator.MATCHES_REGEX,
+            ComparisonOperator.NOT_MATCHES_REGEX,
+        )
         private const val MAX_REGEX_LENGTH = 256
         private const val MAX_REGEX_INPUT_LENGTH = 10_000
+        private val PATTERN_WILDCARD = Regex("[*+]")
         private val TASKER_ARRAY_FORM = Regex("""#[<>]?|[<>]|\d*(?::\d*)?""")
         private val STORED_ARRAY_FORM = Regex("""#|\d*(?::\d*)?""")
 

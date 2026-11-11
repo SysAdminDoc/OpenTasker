@@ -1967,8 +1967,8 @@ object TaskerXmlImporter {
      * code outside the known Tasker set (0-9, 12, 13) yields a null expression -- which for flow.if
      * specifically falls back to the old literal-"true" behavior -- but is now reported instead of
      * silently reproduced. Ops 4/5 are Tasker's "Matches Regex"/"Doesn't Match Regex" (verified
-     * against Map-Tasker's operator table); this evaluator has no regex condition operator, so
-     * they degrade to the plain wildcard match and that approximation is reported the same way.
+     * against Map-Tasker's operator table) and import as `~R`/`!~R`; a pattern RE2 can't compile
+     * is reported the same way.
      */
     private fun Element.parseImportedCondition(): ImportedCondition {
         val conditionList = directChildren("ConditionList").firstOrNull() ?: return ImportedCondition(null, null)
@@ -1997,10 +1997,17 @@ object TaskerXmlImporter {
                 "$lhs $token ${condition.childText("rhs")}"
             }
         }
-        val regexApproximationWarning = if (op == "4" || op == "5") {
-            "a regex \"Run only if\" comparison (op $op) was imported as a plain wildcard match"
-        } else {
-            null
+        // RE2 runs regex conditions here, and it has no backreferences or lookarounds, which Java's
+        // engine in Tasker does. A pattern built from a variable is only known when it runs, and an
+        // empty one matches nothing in Tasker too.
+        val rhs = condition.childText("rhs")
+        val regexApproximationWarning = when {
+            op != "4" && op != "5" || rhs.isBlank() || TASKER_VARIABLE_REFERENCE.containsMatchIn(rhs) -> null
+            rhs.length > TextOps.MAX_PATTERN_CHARS ->
+                "a regex \"Run only if\" comparison (op $op) is longer than ${TextOps.MAX_PATTERN_CHARS} characters, so its pattern never matches here"
+            TextOps.match("", rhs) == null ->
+                "a regex \"Run only if\" comparison (op $op) uses regular expression features this app doesn't have, so its pattern never matches here: $rhs"
+            else -> null
         }
         return ImportedCondition(
             expression,
@@ -2191,17 +2198,16 @@ object TaskerXmlImporter {
     // 3-9 don't appear in that corpus but are included for completeness. 8/9 are the "(Numeric)"
     // variants of =/!=; this evaluator has no numeric-aware equality distinct from string
     // equality, so they map to the same tokens as 0/1. 4/5 are the regex variants of 2/3
-    // ("Matches Regex"/"Doesn't Match Regex"); this evaluator has no regex condition operator,
-    // so they map to the wildcard tokens and parseImportedCondition reports the approximation
-    // as a lossy warning. 12/13 (Is Set/Not Set) are unary and handled separately in
-    // parseImportedCondition, not through this map.
+    // ("Matches Regex"/"Doesn't Match Regex"), written `~R`/`!~R` the way Tasker shows them.
+    // 12/13 (Is Set/Not Set) are unary and handled separately in parseImportedCondition, not
+    // through this map.
     private val TASKER_CONDITION_OP_TOKENS = mapOf(
         "0" to "==",
         "1" to "!=",
         "2" to "~",
         "3" to "!~",
-        "4" to "~",
-        "5" to "!~",
+        "4" to "~R",
+        "5" to "!~R",
         "6" to "<",
         "7" to ">",
         "8" to "==",

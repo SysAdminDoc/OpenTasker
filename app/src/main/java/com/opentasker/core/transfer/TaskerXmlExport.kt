@@ -558,12 +558,14 @@ object TaskerXmlExporter {
     }
 
     // App condition operators -> Tasker Condition <op> codes (the import table's canonical
-    // inverse: regex ops 4/5 and numeric-equality ops 8/9 already collapsed on import). Two-char
-    // tokens are matched before their one-char substrings; every token is whitespace-bounded, so
-    // "a <= b" matches nothing here and is reported as unrepresentable instead of exported as "<".
+    // inverse: numeric-equality ops 8/9 already collapsed on import). Longer tokens are matched
+    // before their substrings; every token is whitespace-bounded, so "a <= b" matches nothing
+    // here and is reported as unrepresentable instead of exported as "<".
     private val BINARY_CONDITION_OPS = listOf(
         "==" to "0",
         "!=" to "1",
+        "!~R" to "5",
+        "~R" to "4",
         "!~" to "3",
         "~" to "2",
         "<" to "6",

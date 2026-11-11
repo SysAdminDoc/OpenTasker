@@ -480,11 +480,9 @@ class TaskerXmlImporterTest {
     }
 
     @Test
-    fun regexConditionOperatorImportsAsWildcardAndWarns() {
-        // Tasker ops 4/5 are "Matches Regex"/"Doesn't Match Regex". The evaluator has no regex
-        // condition operator, so they degrade to the wildcard match -- which keeps the guard in
-        // place (fail-closed) but changes semantics, so the degradation must be reported the same
-        // way the multi-condition and unknown-op cases are, not applied silently.
+    fun regexConditionOperatorImportsAsRegexCondition() {
+        // Tasker ops 4/5 are "Matches Regex"/"Doesn't Match Regex", which the evaluator now runs
+        // as real regex conditions (~R / !~R), so a pattern it can compile imports without a note.
         val report = TaskerXmlImporter.parse(
             rawXml = """
                 <TaskerData>
@@ -504,12 +502,8 @@ class TaskerXmlImporterTest {
         )
 
         val action = report.bundle.tasks.single().actions.single()
-        assertEquals("%pa_url ~ ^https?://.+", action.condition)
-        assertTrue(
-            report.lossyWarnings.any {
-                it.contains("regex") && it.contains("imported as a plain wildcard match")
-            },
-        )
+        assertEquals("%pa_url ~R ^https?://.+", action.condition)
+        assertTrue(report.lossyWarnings.none { it.contains("regex") })
     }
 
     @Test
