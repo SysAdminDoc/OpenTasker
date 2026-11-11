@@ -131,6 +131,9 @@ data class LocalePluginReturnedVariables(
 ) {
     val errorMessage: String? get() = values["errmsg"]
 
+    /** Stands in for a value that threw when it was read, so [from] refuses that key alone. */
+    internal object Unreadable
+
     companion object {
         fun from(raw: Map<String, Any?>): LocalePluginReturnedVariables {
             val values = linkedMapOf<String, String>()
@@ -152,6 +155,7 @@ data class LocalePluginReturnedVariables(
                     else -> items?.sumOf { it.length + 1 } ?: 0
                 }
                 val reason = when {
+                    value === Unreadable -> "couldn't be read"
                     name == null -> "not a local variable name"
                     items == null -> "not text or a list of text"
                     values.size + arrays.size >= LocalePluginContract.MAX_RETURNED_VARIABLES -> "too many variables"
@@ -298,12 +302,7 @@ private class AndroidLocalePluginTransport(
             val completionReceiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context, received: Intent) {
                     if (received.action != completionAction) return
-                    completion.complete(
-                        LocalePluginCompletion.reply(
-                            { received.getIntExtra(LocalePluginContract.EXTRA_RESULT_CODE, LocalePluginContract.RESULT_CODE_UNKNOWN) },
-                            { received.getBundleExtra(LocalePluginContract.EXTRA_VARIABLES) },
-                        ),
-                    )
+                    completion.complete(LocalePluginCompletion.reply(received))
                 }
             }
             ContextCompat.registerReceiver(
@@ -327,13 +326,7 @@ private class AndroidLocalePluginTransport(
                         val resultReceiver = object : BroadcastReceiver() {
                             override fun onReceive(context: Context, ignored: Intent?) {
                                 if (!continuation.isActive) return
-                                val code = resultCode
-                                continuation.resume(
-                                    LocalePluginCompletion.reply(
-                                        { code },
-                                        { getResultExtras(false)?.getBundle(LocalePluginContract.EXTRA_VARIABLES) },
-                                    ),
-                                )
+                                continuation.resume(LocalePluginCompletion.reply(resultCode, getResultExtras(false)))
                             }
                         }
                         appContext.sendOrderedBroadcast(
@@ -396,26 +389,76 @@ private class AndroidLocalePluginTransport(
     }
 }
 
+/**
+ * Unparceling a Parcelable or Serializable builds the class it names and runs that class's code.
+ * What a plugin sends is read with the boot class loader, which has only Android's and Java's own
+ * classes, so a value naming a class packed in OpenTasker fails to read instead of being built.
+ * Set it before anything unparcels: the system hands receivers the app's own loader.
+ */
+internal object PluginParcels {
+    val classLoader: ClassLoader = checkNotNull(Bundle::class.java.classLoader)
+
+    /**
+     * Reads part of what a plugin sent. A value that can't be read throws a RuntimeException, and
+     * one nested deep enough runs out of stack while needing nothing but Android's own classes.
+     */
+    inline fun <T> read(read: () -> T, unreadable: (Throwable) -> T): T = try {
+        read()
+    } catch (e: RuntimeException) {
+        unreadable(e)
+    } catch (e: StackOverflowError) {
+        unreadable(e)
+    }
+}
+
 /** The token in a waited-for fire's completion action, and reading what came back. */
 internal object LocalePluginCompletion {
     private val random = SecureRandom()
 
     fun newToken(): String = ByteArray(16).also(random::nextBytes).joinToString("") { "%02x".format(it) }
 
-    /**
-     * Reading what a plugin sent unparcels it, which throws for a class this process doesn't have,
-     * so an answer that can't be read is a failure with nothing returned.
-     */
-    @Suppress("DEPRECATION")
-    fun reply(readCode: () -> Int, readVariables: () -> Bundle?): LocalePluginSettingReply = try {
-        val code = readCode()
-        val variables = readVariables()?.let { bundle -> bundle.keySet().associateWith { key -> bundle.get(key) } }
-        LocalePluginSettingReply(code, variables?.let(LocalePluginReturnedVariables::from) ?: LocalePluginReturnedVariables())
-    } catch (e: RuntimeException) {
-        LocalePluginSettingReply(
-            LocalePluginContract.RESULT_CODE_FAILED,
-            LocalePluginReturnedVariables(refused = listOf("the plugin's answer couldn't be read (${e.javaClass.simpleName})")),
+    /** The answer a plugin sent back through its completion intent. */
+    fun reply(received: Intent): LocalePluginSettingReply {
+        received.setExtrasClassLoader(PluginParcels.classLoader)
+        return reply(
+            { received.getIntExtra(LocalePluginContract.EXTRA_RESULT_CODE, LocalePluginContract.RESULT_CODE_UNKNOWN) },
+            { received.getBundleExtra(LocalePluginContract.EXTRA_VARIABLES) },
         )
+    }
+
+    /** The answer a plugin set on the ordered fire broadcast. */
+    fun reply(code: Int, resultExtras: Bundle?): LocalePluginSettingReply {
+        resultExtras?.classLoader = PluginParcels.classLoader
+        return reply({ code }, { resultExtras?.getBundle(LocalePluginContract.EXTRA_VARIABLES) })
+    }
+
+    /**
+     * Reading what a plugin sent unparcels it, which throws for a class this process doesn't have.
+     * A code that can't be read is a failure with nothing returned. Variables that can't be read
+     * leave the plugin's code standing, and a value that can't be read is refused on its own.
+     */
+    fun reply(readCode: () -> Int, readVariables: () -> Bundle?): LocalePluginSettingReply {
+        val code = PluginParcels.read(readCode) { e ->
+            return LocalePluginSettingReply(
+                LocalePluginContract.RESULT_CODE_FAILED,
+                LocalePluginReturnedVariables(refused = listOf("the plugin's answer couldn't be read (${e.javaClass.simpleName})")),
+            )
+        }
+        val variables = PluginParcels.read(
+            { readVariables()?.let(::readEach)?.let(LocalePluginReturnedVariables::from) ?: LocalePluginReturnedVariables() },
+        ) { e ->
+            LocalePluginReturnedVariables(refused = listOf("the plugin's variables couldn't be read (${e.javaClass.simpleName})"))
+        }
+        return LocalePluginSettingReply(code, variables)
+    }
+
+    /** Android 13 and newer read each value on first use, so one is refused alone; older ones read all at once. */
+    @Suppress("DEPRECATION")
+    private fun readEach(bundle: Bundle): Map<String, Any?> {
+        bundle.classLoader = PluginParcels.classLoader
+        return bundle.keySet().associateWith { key ->
+            PluginParcels.read({ bundle.get(key) }) { LocalePluginReturnedVariables.Unreadable }
+        }
     }
 }
 
@@ -675,10 +718,20 @@ object LocalePluginBundleCodec {
         }
     }
 
-    /** A plugin's saved configuration with its types kept, so firing it sends what the plugin wrote. */
+    /**
+     * A plugin's saved configuration with its types kept, so firing it sends what the plugin wrote.
+     * Each value is read with [PluginParcels.classLoader] on its own, so on Android 13 and newer one
+     * that can't be read is named in the refusal. Older versions read every value at once.
+     */
     @Suppress("DEPRECATION")
-    fun fromBundleTyped(bundle: Bundle): Map<String, LocaleBundleValue> =
-        sanitizeTypedValues(bundle.keySet().associateWith { key -> bundle.get(key) })
+    fun fromBundleTyped(bundle: Bundle): Map<String, LocaleBundleValue> {
+        bundle.classLoader = PluginParcels.classLoader
+        return sanitizeTypedValues(
+            bundle.keySet().associateWith { key ->
+                PluginParcels.read({ bundle.get(key) }) { error("Plugin bundle value for ${key.take(64)} couldn't be read.") }
+            },
+        )
+    }
 
     /**
      * Keeps the value types a bundle JSON can carry. Nested bundles, parcelables and anything else
@@ -796,6 +849,7 @@ object LocalePluginConfigurationResultParser {
     fun parse(resultCode: Int, data: Intent?): LocalePluginConfigurationResult {
         require(resultCode == Activity.RESULT_OK) { "Locale plugin configuration was canceled." }
         val resultIntent = requireNotNull(data) { "Locale plugin configuration returned no result intent." }
+        resultIntent.setExtrasClassLoader(PluginParcels.classLoader)
         val values = readingPluginData {
             val bundle = resultIntent.getBundleExtra(LocalePluginContract.EXTRA_BUNDLE)
                 ?: error("Locale plugin configuration returned no bundle.")
@@ -822,6 +876,8 @@ object LocalePluginConfigurationResultParser {
     } catch (e: IllegalStateException) {
         throw e
     } catch (e: RuntimeException) {
+        throw IllegalStateException("Locale plugin configuration couldn't be read (${e.javaClass.simpleName}).", e)
+    } catch (e: StackOverflowError) {
         throw IllegalStateException("Locale plugin configuration couldn't be read (${e.javaClass.simpleName}).", e)
     }
 }
