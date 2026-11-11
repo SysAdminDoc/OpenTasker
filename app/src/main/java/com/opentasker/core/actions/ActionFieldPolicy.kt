@@ -22,6 +22,7 @@ object ActionFieldPolicy {
         INVALID_DEFINITION,
         INVALID_TIME,
         TIME_VARIABLE_NOT_GLOBAL,
+        INVALID_TIME_VARIABLE,
         INVALID_COMPONENT,
     }
 

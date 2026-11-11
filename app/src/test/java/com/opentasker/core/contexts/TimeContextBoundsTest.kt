@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -47,6 +48,15 @@ class TimeContextBoundsTest {
         )
         assertEquals(emptyMap<String, String>(), TimeContextBounds.variableBounds(ContextSpec(ContextType.TIME, mapOf("start" to "09:00", "end" to "17:00"))))
         assertEquals(emptyMap<String, String>(), TimeContextBounds.variableBounds(ContextSpec(ContextType.DAY, mapOf("start" to "%Sunrise"))))
+    }
+
+    @Test
+    fun onlyAValidLowercaseNameIsALocalBound() {
+        assertTrue(TimeContextBounds.isLocalVariable("%sunrise"))
+        assertTrue(TimeContextBounds.isLocalVariable(" %sun_rise "))
+        listOf("%Sunrise", "%Times(1)", "% Sunrise", "%1x", "%", "09:00", "sunrise").forEach { bound ->
+            assertFalse(bound, TimeContextBounds.isLocalVariable(bound))
+        }
     }
 
     @Test

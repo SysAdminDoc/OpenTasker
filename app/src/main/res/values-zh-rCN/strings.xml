@@ -1452,6 +1452,7 @@
     <string name="action_field_error_invalid_app">请输入或选择一个有效的应用包。</string>
     <string name="action_field_error_invalid_time">请使用24小时制时间，例如 07:30。</string>
     <string name="action_field_error_time_variable_not_global">情境无法读取局部变量。请使用名称中含大写字母的全局变量，例如 %Sunrise。</string>
+    <string name="action_field_error_invalid_time_variable">这不是有效的变量名。变量名以字母开头，只能包含字母、数字、_ 和 -，例如 %Sunrise。</string>
     <string name="action_field_error_invalid_component">请使用Activity名称，例如 com.example.app.PlayerActivity，或以 * 结尾以匹配一组。</string>
     <string name="action_field_error_invalid_file">请输入或选择一个有效的文件路径。</string>
     <string name="action_field_error_conflicting_value">此字段不能与其他所选输入同时使用。</string>

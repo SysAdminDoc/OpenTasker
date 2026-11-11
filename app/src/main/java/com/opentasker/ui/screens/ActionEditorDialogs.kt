@@ -818,6 +818,7 @@ private fun ActionFieldErrorText(issue: ActionFieldPolicy.Issue) {
         ActionFieldPolicy.Error.INVALID_DEFINITION -> stringResource(R.string.action_field_error_invalid_definition)
         ActionFieldPolicy.Error.INVALID_TIME -> stringResource(R.string.action_field_error_invalid_time)
         ActionFieldPolicy.Error.TIME_VARIABLE_NOT_GLOBAL -> stringResource(R.string.action_field_error_time_variable_not_global)
+        ActionFieldPolicy.Error.INVALID_TIME_VARIABLE -> stringResource(R.string.action_field_error_invalid_time_variable)
         ActionFieldPolicy.Error.INVALID_COMPONENT -> stringResource(R.string.action_field_error_invalid_component)
     }
     Text(text, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

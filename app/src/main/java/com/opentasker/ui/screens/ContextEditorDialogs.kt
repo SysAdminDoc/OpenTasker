@@ -440,7 +440,12 @@ internal fun contextInvalidFields(type: ContextType, config: Map<String, String>
         val raw = config[key]?.trim().orEmpty()
         if (raw.isBlank() || TimeContextBounds.variableName(raw) != null) return
         if (TimeContextBounds.isVariable(raw)) {
-            issues[key] = ActionFieldPolicy.Issue(ActionFieldPolicy.Error.TIME_VARIABLE_NOT_GLOBAL)
+            val error = if (TimeContextBounds.isLocalVariable(raw)) {
+                ActionFieldPolicy.Error.TIME_VARIABLE_NOT_GLOBAL
+            } else {
+                ActionFieldPolicy.Error.INVALID_TIME_VARIABLE
+            }
+            issues[key] = ActionFieldPolicy.Issue(error)
             return
         }
         val parts = raw.split(":")

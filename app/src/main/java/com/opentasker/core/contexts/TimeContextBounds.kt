@@ -34,6 +34,12 @@ object TimeContextBounds {
             ?.let(VariableNamePolicy::normalize)
             ?.takeIf(VariableNamePolicy::isGlobal)
 
+    /** True for a bound naming a local (`%sunrise`), as opposed to a global or something that isn't a variable name at all (`%1x`). */
+    fun isLocalVariable(raw: String): Boolean =
+        raw.trim().takeIf { it.startsWith('%') }
+            ?.let(VariableNamePolicy::normalize)
+            ?.let { !VariableNamePolicy.isGlobal(it) } == true
+
     /** The event key each variable bound's value goes under, with the global it names. */
     fun variableBounds(spec: ContextSpec): Map<String, String> {
         if (spec.type != ContextType.TIME) return emptyMap()

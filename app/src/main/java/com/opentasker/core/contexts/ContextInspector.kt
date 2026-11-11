@@ -392,8 +392,11 @@ private fun contextReason(
 /** Why a Time context bounded by a variable can't match yet, naming the variable, or null when every bound holds a time. */
 private fun timeBoundsGap(spec: ContextSpec, metadata: Map<String, String>): String? {
     val unresolved = TimeContextBounds.unresolvedBounds(spec, metadata).ifEmpty { return null }
-    unresolved.firstOrNull { TimeContextBounds.variableName(it) == null }?.let { local ->
-        return "$local is a local variable, which a context can't read, so this context stays off. A global has a capital letter in its name."
+    unresolved.firstOrNull { TimeContextBounds.variableName(it) == null }?.let { unreadable ->
+        if (!TimeContextBounds.isLocalVariable(unreadable)) {
+            return "$unreadable isn't a variable name, so this context stays off. A name starts with a letter and has only letters, digits, _ and -, like %Sunrise."
+        }
+        return "$unreadable is a local variable, which a context can't read, so this context stays off. A global has a capital letter in its name."
     }
     val holds = if (unresolved.size == 1) "doesn't hold" else "don't hold"
     return "${unresolved.joinToString(" and ")} $holds a time yet, so this context stays off, inverted or not."

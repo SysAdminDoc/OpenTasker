@@ -53,6 +53,17 @@ class ContextValidationTest {
     }
 
     @Test
+    fun aTimeBoundThatIsNoVariableNameSaysSoInsteadOfCallingItALocal() {
+        listOf("%Times(1)", "% Sunrise", "%1x", "%").forEach { bound ->
+            assertEquals(
+                bound,
+                mapOf("start" to ActionFieldPolicy.Issue(ActionFieldPolicy.Error.INVALID_TIME_VARIABLE)),
+                contextInvalidFields(ContextType.TIME, mapOf("start" to bound, "end" to "%Sunset")),
+            )
+        }
+    }
+
+    @Test
     fun blankTimeIsNotFlaggedHere() {
         // Required-but-blank is handled by the missingRequired gate, not this one.
         assertFalse(contextHasInvalidValues(ContextType.TIME, emptyMap()))

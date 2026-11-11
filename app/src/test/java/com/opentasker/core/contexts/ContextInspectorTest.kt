@@ -476,6 +476,7 @@ class ContextInspectorTest {
             reason("%Sunrise", emptyMap()),
         )
         assertTrue(reason("%sunrise", mapOf("Sunset" to "18.10")).startsWith("%sunrise is a local variable"))
+        assertTrue(reason("%1x", mapOf("Sunset" to "18.10")).startsWith("%1x isn't a variable name, so this context stays off."))
         assertEquals(
             "Latest value satisfies the configuration. Read %Sunrise as 06:42 and %Sunset as 18:10.",
             reason("%Sunrise", mapOf("Sunrise" to "6.42", "Sunset" to "18.10")),
