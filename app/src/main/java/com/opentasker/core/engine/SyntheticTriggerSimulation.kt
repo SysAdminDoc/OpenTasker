@@ -47,6 +47,8 @@ data class SyntheticContextResult(
     val effectiveMatched: Boolean,
     val status: SyntheticContextStatus,
     val explanation: String,
+    /** The event carries no value for this context, so a NOT over it doesn't match either. */
+    val valueUnknown: Boolean = false,
 ) {
     val event: ContextEvent get() = template.event
     val displayMetadata: Map<String, String> get() = template.displayMetadata
@@ -94,13 +96,15 @@ object SyntheticTriggerSimulator {
                 )
             } ?: template(spec, nowMs)
             val rawMatched = template.issue == null && ContextMatchEvaluator.matches(spec, template.event)
-            // Same rule as the engine: an inverted context whose value is unknown stays off.
-            val unknown = ContextMatchEvaluator.valueUnknown(spec, template.event.metadata)
+            // Same rule as the engine: a context whose value is unknown stays off inverted, and so
+            // does a NOT group over it.
+            val unknown = !rawMatched && ContextMatchEvaluator.valueUnknown(spec, template.event.metadata)
             val effectiveMatched = if (spec.invert) !rawMatched && !unknown else rawMatched
             val event = if (index in pinnedEvents) "The pinned event" else "The synthetic event"
             val explanation = when {
                 template.issue != null -> template.issue
                 spec.invert && unknown -> "$event has no value for this context, so the inverted context stays off."
+                unknown -> "$event has no value for this context, so it counts as unknown and can't turn the profile on, even under a NOT."
                 spec.invert && effectiveMatched -> "$event fails the raw predicate, so inversion passes it."
                 spec.invert && rawMatched -> "$event satisfies the raw predicate, so inversion blocks it."
                 effectiveMatched -> "$event satisfies this predicate."
@@ -114,6 +118,7 @@ object SyntheticTriggerSimulator {
                 effectiveMatched = effectiveMatched,
                 status = if (effectiveMatched) SyntheticContextStatus.PASSED else SyntheticContextStatus.BLOCKED,
                 explanation = explanation,
+                valueUnknown = unknown,
             )
         }
         val aggregateMatch = if (results.isEmpty()) {
@@ -126,6 +131,7 @@ object SyntheticTriggerSimulator {
                         pulseContext = result.spec.type == ContextType.EVENT,
                         pulseSequence = if (result.spec.type == ContextType.EVENT && result.rawMatched) 1L else 0L,
                         event = result.event.takeIf { result.rawMatched },
+                        unknown = result.valueUnknown,
                     )
                 }.toTypedArray(),
                 profile.contexts,

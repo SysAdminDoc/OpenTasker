@@ -38,16 +38,27 @@ data class ContextExpressionNode(
 ) {
     fun isLeaf(): Boolean = contextIndex != null && operator == null && children.isEmpty()
 
-    fun evaluate(leafMatches: List<Boolean>): Boolean {
+    /**
+     * Three-valued (Kleene) evaluation. A null in [leafMatches] is a context whose value is unknown,
+     * and the result is null when the answer hangs on one: NOT of unknown stays unknown, so a NOT
+     * group over an unset Time bound doesn't turn a profile on. Only a true result matches.
+     */
+    fun evaluate(leafMatches: List<Boolean?>): Boolean? {
         val raw = when {
-            isLeaf() -> leafMatches.getOrNull(contextIndex ?: return false) ?: false
+            isLeaf() -> {
+                val index = contextIndex ?: return false
+                if (index in leafMatches.indices) leafMatches[index] else false
+            }
             contextIndex != null || operator == null || children.isEmpty() -> false
-            else -> when (operator) {
-                ContextBooleanOperator.AND -> children.all { it.evaluate(leafMatches) }
-                ContextBooleanOperator.OR -> children.any { it.evaluate(leafMatches) }
+            else -> {
+                val values = children.map { it.evaluate(leafMatches) }
+                when (operator) {
+                    ContextBooleanOperator.AND -> if (false in values) false else if (null in values) null else true
+                    ContextBooleanOperator.OR -> if (true in values) true else if (null in values) null else false
+                }
             }
         }
-        return if (invert) !raw else raw
+        return if (invert) raw?.not() else raw
     }
 
     fun leafIndices(): List<Int> = when {

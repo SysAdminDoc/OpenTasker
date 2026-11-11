@@ -94,6 +94,8 @@ data class ContextCheck(
     val lastObservation: ContextEventObservation?,
     val reason: String,
     val configSummary: String,
+    /** The value can't be told yet, so a NOT over this context doesn't match either. */
+    val valueUnknown: Boolean = false,
 )
 
 fun inspectProfiles(
@@ -200,7 +202,7 @@ internal fun evaluateChecks(
 } else if (!expression.isValidForContextCount(checks.size)) {
     false
 } else {
-    expression.evaluate(checks.map { it.effectiveMatched })
+    expression.evaluate(checks.map { if (it.valueUnknown) null else it.effectiveMatched }) == true
 }
 
 internal fun explainContextExpression(
@@ -214,7 +216,12 @@ internal fun explainContextExpression(
         return when {
             node.isLeaf() -> {
                 val check = node.contextIndex?.let(checks::getOrNull)
-                "Context ${(node.contextIndex ?: -1) + 1}=${if (check?.effectiveMatched == true) "match" else "no match"}"
+                val state = when {
+                    check?.effectiveMatched == true -> "match"
+                    check?.valueUnknown == true -> "unknown"
+                    else -> "no match"
+                }
+                "Context ${(node.contextIndex ?: -1) + 1}=$state"
             }
             nodeOperator != null && node.children.isNotEmpty() -> {
                 val operator = when (nodeOperator) {
@@ -245,12 +252,14 @@ private fun inspectContextForProfile(
     val rawMatched = observation?.let { ContextMatchEvaluator.matches(spec, it.event) } ?: false
     val sourceStatus = snapshot?.status ?: ContextSourceStatus.Missing
     val sourceCanMatch = sourceStatus == ContextSourceStatus.Active
-    // Same rule as the engine: an inverted context whose value is unknown stays off.
-    val effectiveMatched = sourceCanMatch && if (spec.invert) {
-        !rawMatched && observation != null && !ContextMatchEvaluator.valueUnknown(spec, observation.event.metadata)
+    // Same rule as the engine: a state with no reading yet, or one whose value is unknown, is
+    // unknown, so neither its inverted context nor a NOT group over it turns on.
+    val valueUnknown = !rawMatched && if (observation == null) {
+        spec.type != ContextType.EVENT
     } else {
-        rawMatched
+        ContextMatchEvaluator.valueUnknown(spec, observation.event.metadata)
     }
+    val effectiveMatched = sourceCanMatch && if (spec.invert) !rawMatched && observation != null && !valueUnknown else rawMatched
     val reason = contextReason(spec, sourceKey, snapshot, observation, rawMatched, effectiveMatched)
 
     return ContextCheck(
@@ -264,6 +273,7 @@ private fun inspectContextForProfile(
         lastObservation = observation,
         reason = reason,
         configSummary = contextConfigSummary(spec),
+        valueUnknown = valueUnknown,
     )
 }
 

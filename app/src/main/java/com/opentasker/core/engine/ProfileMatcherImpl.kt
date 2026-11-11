@@ -116,23 +116,12 @@ internal class ProfileMatcher(
                         null
                     }
                     if (pulseObservation?.duplicate == true) return@scan previous
-                    val matched = ContextMatchEvaluator.matches(spec, identityEvent)
-                    // A health reading that was refused or not read yet, or a Time bound whose global
-                    // holds no time, is unknown, not false, so its inverted context stays off too.
-                    val effectiveMatched = if (spec.invert) {
-                        !matched && !ContextMatchEvaluator.valueUnknown(spec, identityEvent.metadata)
-                    } else {
-                        matched
-                    }
-                    ContextMatchUpdate(
-                        matched = effectiveMatched,
+                    contextMatchUpdate(
+                        spec = spec,
+                        event = identityEvent,
                         pulseContext = isPulseContext,
-                        pulseSequence = pulseSequenceAfterObservation(
-                            matched = matched,
-                            observedSequence = pulseObservation?.sequence,
-                            previousSequence = previous.pulseSequence,
-                        ),
-                        event = if (isPulseContext && effectiveMatched) identityEvent else null,
+                        observedSequence = pulseObservation?.sequence,
+                        previousSequence = previous.pulseSequence,
                     )
                 }.onEach { update ->
                     AutomationLiveConditionState.updateContext(profile.id, index, update.matched)
@@ -266,16 +255,46 @@ internal fun stabilizeProfileSnapshots(
     }
 }
 
+/**
+ * One context's latest result. [unknown] means its value can't be told yet ([matched] is false
+ * then): a level context before its first reading, or [ContextMatchEvaluator.valueUnknown].
+ */
 internal data class ContextMatchUpdate(
     val matched: Boolean,
     val pulseContext: Boolean,
     val pulseSequence: Long,
     val event: ContextEvent? = null,
+    val unknown: Boolean = false,
 ) {
     companion object {
+        /** An event that hasn't come yet is a known "no"; a state that hasn't been read is unknown. */
         fun initial(pulseContext: Boolean, pulseSequence: Long = 0L): ContextMatchUpdate =
-            ContextMatchUpdate(matched = false, pulseContext = pulseContext, pulseSequence = pulseSequence)
+            ContextMatchUpdate(matched = false, pulseContext = pulseContext, pulseSequence = pulseSequence, unknown = !pulseContext)
     }
+}
+
+/**
+ * [spec]'s result for [event]. A health reading that was refused or not read yet, or a Time bound
+ * whose global holds no time, is unknown, not false, so neither its inverted context nor a NOT
+ * group over it turns on.
+ */
+internal fun contextMatchUpdate(
+    spec: ContextSpec,
+    event: ContextEvent,
+    pulseContext: Boolean = false,
+    observedSequence: Long? = null,
+    previousSequence: Long = 0L,
+): ContextMatchUpdate {
+    val matched = ContextMatchEvaluator.matches(spec, event)
+    val unknown = !matched && ContextMatchEvaluator.valueUnknown(spec, event.metadata)
+    val effectiveMatched = if (spec.invert) !matched && !unknown else matched
+    return ContextMatchUpdate(
+        matched = effectiveMatched,
+        pulseContext = pulseContext,
+        pulseSequence = pulseSequenceAfterObservation(matched, observedSequence, previousSequence),
+        event = if (pulseContext && effectiveMatched) event else null,
+        unknown = unknown,
+    )
 }
 
 /**
@@ -405,7 +424,7 @@ internal fun evaluateContextExpression(
 ): Boolean {
     if (expression == null) return evaluateWithOrGroups(contextMatches, specs)
     if (!expression.isValidForContextCount(specs.size)) return false
-    return expression.evaluate(contextMatches.map { it.matched })
+    return expression.evaluate(contextMatches.map { if (it.unknown) null else it.matched }) == true
 }
 
 sealed class ProfileStateChange {
