@@ -143,6 +143,15 @@ Extras:
 | `com.opentasker.extra.PROFILE_NAME` | string | Case-insensitive fallback lookup. |
 | `com.opentasker.extra.ENABLED` | boolean | Desired enabled state. |
 
+Turning a profile on passes the same checks as turning it on from the profile list. It's refused
+with `RESULT_CANCELED` and the reason in `com.opentasker.extra.ERROR` when the profile is an import
+still waiting for its review, when its tasks call each other in a loop, when the app's checks block
+it (a clash with an active profile of the same priority over a setting, for one), when it changes
+system settings before OpenTasker has the Modify system settings permission, or when a saved
+profile or task can't be read to check it. Turning a profile off skips those checks. Either way
+only the profile's on/off state is written, and a profile deleted before the write is reported as
+removed rather than saved again.
+
 ### Query status
 
 Action: `com.opentasker.action.QUERY_STATUS`

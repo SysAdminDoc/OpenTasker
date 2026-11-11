@@ -29,23 +29,8 @@ class ProfileStatusAction : DeclaredAction(ActionCatalog.require("profile.set"))
             is ProfileSwitch.Found.Refused -> return ActionResult.Failure(found.message)
         }
         val enabled = ProfileSwitch.next(state, profile.enabled)
-        if (enabled && !profile.enabled) {
-            val profiles = saved.map { it.toDomainDecodeResult() }
-            val tasks = db.taskDao().getAll().map { it.toDomainDecodeResult() }
-            if (profiles.any { it.issue != null } || tasks.any { it.issue != null }) {
-                return ActionResult.Failure("profile '${profile.name}' wasn't turned on, since a saved profile or task couldn't be read to check it")
-            }
-            val allProfiles = profiles.map { it.value }
-            ProfileTurnOnChecks.refusal(
-                profile = allProfiles.first { it.id == profile.id },
-                tasks = tasks.map { it.value },
-                otherProfiles = allProfiles,
-                canWriteSettings = Settings.System.canWrite(ctx.app),
-            )?.let { return ActionResult.Failure(it) }
-        }
-        if (dao.setEnabled(profile.id, enabled) == 0) {
-            return ActionResult.Failure("profile '${profile.name}' was removed or now needs its review, so it wasn't switched")
-        }
+        ProfileTurnOnChecks.switchSaved(db, profile.id, enabled, Settings.System.canWrite(ctx.app))
+            ?.let { return ActionResult.Failure(it) }
         ctx.logger("Profile '${profile.name}' turned ${if (enabled) "on" else "off"}")
         return ActionResult.Success
     }

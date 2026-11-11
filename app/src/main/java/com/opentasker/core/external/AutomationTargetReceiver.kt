@@ -5,13 +5,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import com.opentasker.app.OpenTaskerApp_NoHilt
 import androidx.core.content.ContextCompat
+import com.opentasker.core.capabilities.ProfileTurnOnChecks
 import com.opentasker.core.engine.AutomationService
 import com.opentasker.core.engine.ExecutionEnvelope
 import com.opentasker.core.engine.ExecutionProducer
 import com.opentasker.core.logging.AppLogger
-import com.opentasker.core.storage.toEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -177,7 +178,7 @@ class AutomationTargetReceiver : BroadcastReceiver() {
             val response = runCatching {
                 when (intent.action) {
                     AutomationTargetContract.ACTION_RUN_TASK -> runTask(context.applicationContext, intent)
-                    AutomationTargetContract.ACTION_SET_PROFILE_ENABLED -> setProfileEnabled(intent)
+                    AutomationTargetContract.ACTION_SET_PROFILE_ENABLED -> setProfileEnabled(context.applicationContext, intent)
                     AutomationTargetContract.ACTION_QUERY_STATUS -> queryStatus(intent)
                     AutomationTargetContract.ACTION_QUERY_EXECUTION -> queryExecution(context.applicationContext, intent)
                     else -> failure("Unsupported action: ${intent.action}")
@@ -326,7 +327,7 @@ class AutomationTargetReceiver : BroadcastReceiver() {
         )
     }
 
-    private suspend fun setProfileEnabled(intent: Intent): TargetResponse {
+    private suspend fun setProfileEnabled(appContext: Context, intent: Intent): TargetResponse {
         val db = OpenTaskerApp_NoHilt.db
         val profile = resolveProfile(intent)
             ?: return failure("Profile not found. Provide ${AutomationTargetContract.EXTRA_PROFILE_ID} or ${AutomationTargetContract.EXTRA_PROFILE_NAME}.")
@@ -334,7 +335,11 @@ class AutomationTargetReceiver : BroadcastReceiver() {
         if (enabled && profile.requiresRiskAcknowledgement) {
             return failure("Imported profile requires in-app power review before its first enable.")
         }
-        db.profileDao().upsert(profile.copy(enabled = enabled).toEntity())
+        // Turning a profile on passes what the app checks from its list. Only the enabled column is
+        // written: a whole-row write lost edits saved in the meantime and brought back a profile
+        // deleted in the meantime.
+        ProfileTurnOnChecks.switchSaved(db, profile.id, enabled, Settings.System.canWrite(appContext))
+            ?.let { return failure(it.replaceFirstChar(Char::uppercaseChar)) }
         return TargetResponse(
             Activity.RESULT_OK,
             Bundle().apply {
