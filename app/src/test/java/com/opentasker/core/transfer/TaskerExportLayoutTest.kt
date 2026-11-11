@@ -214,6 +214,16 @@ class TaskerExportLayoutTest {
     }
 
     @Test
+    fun aBeepFrequencyABeepCantPlayStillWarns() {
+        val negative = export(ActionSpec(type = "sound.beep", args = mapOf("frequency" to "-100", "duration" to "100")))
+
+        assertHas(negative.xml, """<Int sr="arg0" val="-400"/>""")
+        assertTrue(negative.warnings.toString(), negative.warnings.any { "'-100'" in it && "0 to 10000 Hz" in it })
+        assertTrue(export(ActionSpec(type = "sound.beep", args = mapOf("frequency" to "600000000", "duration" to "100"))).warnings.none { "multiplying by 4" in it })
+        assertTrue(export(ActionSpec(type = "sound.beep", args = mapOf("frequency" to "440", "duration" to "100"))).warnings.isEmpty())
+    }
+
+    @Test
     fun everyVolumeStreamExportsAsItsOwnTaskerAction() {
         mapOf("alarm" to "303", "ring" to "304", "notification" to "305", "voice" to "306", "music" to "307", "system" to "308")
             .forEach { (stream, code) ->

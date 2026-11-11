@@ -1,6 +1,7 @@
 package com.opentasker.core.transfer
 
 import com.opentasker.core.actions.ArrayProcessAction
+import com.opentasker.core.actions.BeepTone
 import com.opentasker.core.actions.HttpNetworkConstraint
 import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.DaySchedule
@@ -743,10 +744,14 @@ object TaskerXmlExporter {
      */
     private fun taskerBeepFrequency(value: String, warnings: MutableList<String>): String {
         val trimmed = value.trim()
-        // Tasker keeps the pitch in an int, so NaN, infinity or anything past an int stays as typed, with a warning.
-        trimmed.toDoubleOrNull()?.let { it * TASKER_BEEP_PITCH_DIVISOR }
-            ?.takeIf { it in Int.MIN_VALUE.toDouble()..Int.MAX_VALUE.toDouble() }
-            ?.let { return it.roundToLong().toString() }
+        trimmed.toDoubleOrNull()?.let { hz ->
+            if (hz !in 0.0..BeepTone.MAX_FREQUENCY_HZ) {
+                warnings += "The frequency '$trimmed' on 'sound.beep' is outside the 0 to 10000 Hz a beep can play."
+            }
+            // Tasker keeps the pitch in an int, so NaN, infinity or anything past an int stays as typed.
+            val pitch = hz * TASKER_BEEP_PITCH_DIVISOR
+            return if (pitch in Int.MIN_VALUE.toDouble()..Int.MAX_VALUE.toDouble()) pitch.roundToLong().toString() else trimmed
+        }
         BEEP_PITCH_TEMPLATE.matchEntire(trimmed)?.let { return "%" + it.groupValues[1] }
         warnings += "Tasker's Beep plays a quarter of the frequency it's given, so the frequency '$trimmed' on 'sound.beep' needs multiplying by 4 in Tasker."
         return trimmed

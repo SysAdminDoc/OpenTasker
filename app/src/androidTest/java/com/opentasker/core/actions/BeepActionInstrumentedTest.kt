@@ -43,7 +43,7 @@ class BeepActionInstrumentedTest {
     }
 
     @Test
-    fun aBeepHasATrackPlayingOnItsStreamWhileItSounds() = runBlocking {
+    fun aBeepSoundsOnTheStreamItWasGiven() = runBlocking {
         val audio = app.getSystemService(AudioManager::class.java)
         ActivityScenario.launch(ComponentActivity::class.java).use {
             listOf("music" to AudioAttributes.USAGE_MEDIA, "alarm" to AudioAttributes.USAGE_ALARM).forEach { (stream, usage) ->
@@ -54,12 +54,16 @@ class BeepActionInstrumentedTest {
                     )
                 }
                 delay(300)
-                val sounding = audio.activePlaybackConfigurations.any {
+                // This list holds idle players too, so it shows the track's stream, not that it plays.
+                val onItsStream = audio.activePlaybackConfigurations.any {
                     it.audioAttributes.usage == usage && it.audioAttributes.contentType == AudioAttributes.CONTENT_TYPE_SONIFICATION
                 }
+                // Music is the one stream with a public "is it sounding" check.
+                val musicSounding = audio.isMusicActive
 
                 assertEquals(stream, ActionResult.Success, beep.await())
-                assertTrue("no $stream track was playing 300 ms into the beep", sounding)
+                assertTrue("no $stream track 300 ms into the beep", onItsStream)
+                if (stream == "music") assertTrue("the music stream was silent 300 ms into the beep", musicSounding)
             }
         }
     }

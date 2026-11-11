@@ -546,6 +546,16 @@ class TaskerRealExportLayoutTest {
         assertTrue(odd.toString(), odd.any { "\"3.0\" isn't a stream number" in it } && odd.none { "picks its stream" in it })
     }
 
+    @Test
+    fun aStreamNoteComesWithTheActionsOtherNotes() {
+        val ringtone = warnings("""<code>192</code><Int sr="arg0" val="1"/><Str sr="arg1" ve="3">Pixie Dust</Str><Int sr="arg2" val="5"/>""")
+        assertTrue(ringtone.toString(), ringtone.any { "names a system sound" in it } && ringtone.any { "stream 5 (Notification)" in it })
+        val music = warnings("""<code>445</code><Str sr="arg0" ve="3">a.mp3</Str><Int sr="arg2" val="1"/><Int sr="arg3"><var>%s</var></Int>""")
+        assertTrue(music.toString(), music.any { "Loop" in it } && music.any { "picks its stream from %s" in it })
+        assertWarns("""<code>559</code><Str sr="arg0" ve="3">hi</Str><Str sr="arg1" ve="3"/><Int sr="arg2" val="5"/>""", "speaks on Music")
+        assertWarns("""<code>171</code><Int sr="arg0" val="1852"/><Int sr="arg1" val="100"/><Int sr="arg3"><var>1+%s</var></Int>""", "picks its stream from 1+%s")
+    }
+
     // Beep (171)
 
     @Test

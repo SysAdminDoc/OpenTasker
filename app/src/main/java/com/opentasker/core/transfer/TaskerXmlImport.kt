@@ -75,7 +75,7 @@ private val TASKER_STREAM_NAMES = mapOf(
  * anywhere else, or to a stream held in a variable, comes over on Music and says so.
  */
 private fun taskerStreamWarning(actionName: String, stream: Int?, variable: String?, plays: String = "plays"): String? = when {
-    variable?.startsWith("%") == true ->
+    variable?.contains('%') == true ->
         "Tasker $actionName picks its stream from $variable, which this app can't, so it $plays on Music"
     variable != null -> "Tasker $actionName's stream \"$variable\" isn't a stream number, so it $plays on Music"
     stream != null && stream != TASKER_MUSIC_STREAM && stream != TASKER_ALARM_STREAM -> {
