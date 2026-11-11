@@ -311,6 +311,21 @@ class TaskerNumberedArrayTest {
     }
 
     @Test
+    fun aPoppedValueIsNotAnArrayItCouldNumber() {
+        fun pop(array: String, position: String, toVar: String? = null) = ActionSpec(
+            type = "array.pop",
+            args = listOfNotNull("array" to array, "position" to position, toVar?.let { "to_var" to it }).toMap(),
+        )
+        val steps = PreflightRunner.preflightTask(
+            Task(id = 1, name = "T", actions = listOf(pop("%arr", "1", toVar = "%Pos"), pop("%list", "%Pos1"))),
+        ).tasks.single().steps
+
+        // Pop's to_var holds one value, so %Pos1 is never written and the run stops the second step.
+        assertEquals(PreflightStepStatus.BLOCKED, steps.last().status)
+        assertTrue(steps.last().warnings.toString(), steps.last().warnings.any { "The run stops this step" in it })
+    }
+
+    @Test
     fun arrayFormsReadTheNumberedElements() {
         val variables = store("arr1" to "a", "arr2" to "b", "arr3" to "c", "i" to "2")
 

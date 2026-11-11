@@ -1,6 +1,7 @@
 package com.opentasker.core.engine
 
 import com.opentasker.core.actions.ActionArgumentSensitivity
+import com.opentasker.core.actions.ActionValueType
 import com.opentasker.core.actions.ActiveTransport
 import com.opentasker.core.actions.ArrayPositionArguments
 import com.opentasker.core.actions.HttpNetworkConstraint
@@ -587,8 +588,8 @@ object PreflightRunner {
     /**
      * True when [position] is a single global that no step here could write: no step names it in an
      * argument (an output name, a Variable Set, anything but another Push or Pop position, which
-     * only reads it) and no declared output resolves to it, or to an element of it for the actions
-     * that write numbered elements.
+     * only reads it) and no declared output resolves to it, or, for the array output of an action
+     * that writes numbered elements, to an element of it.
      */
     private fun staysUnset(position: String, task: Task, tasks: List<Task>): Boolean {
         if (!SINGLE_VARIABLE.matches(position) || !VariableNamePolicy.isGlobal(position)) return false
@@ -599,7 +600,7 @@ object PreflightRunner {
             }
             named || declaredActionOutputs(action.type).any { output ->
                 val written = output.resolveName(action.args) ?: return@any false
-                written == name || (action.type in NUMBERED_ELEMENT_WRITERS && name.startsWith(written) &&
+                written == name || (output.type == ActionValueType.ARRAY && action.type in NUMBERED_ELEMENT_WRITERS && name.startsWith(written) &&
                     name.drop(written.length).let { it.isNotEmpty() && it.all(Char::isDigit) })
             }
         }
