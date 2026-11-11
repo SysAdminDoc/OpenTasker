@@ -138,6 +138,7 @@ class HealthConnectReader(private val context: Context) {
                 end = session.endTime,
                 awake = awakeSpans.fold(Duration.ZERO) { total, (from, to) -> total.plus(Duration.between(from, to)) },
                 awakeSpans = awakeSpans,
+                hasStages = session.stages.isNotEmpty(),
             )
         }
 

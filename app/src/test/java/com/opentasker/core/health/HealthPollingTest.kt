@@ -270,6 +270,30 @@ class HealthPollingTest {
     }
 
     @Test
+    fun aSessionWithNoStagesDoesNotHideAnotherSourcesWaking() {
+        val windowEnd = Instant.parse("2026-11-10T14:00:00Z")
+        val windowStart = windowEnd.minus(Duration.ofHours(24))
+        fun at(time: String) = Instant.parse("2026-11-10T${time}:00Z")
+        // The watch logs 23:00 to 7:00 with half an hour awake at 3:00, 450 minutes asleep.
+        val watch = SleepSpan(
+            at("00:00").minus(Duration.ofHours(1)),
+            at("07:00"),
+            awake = Duration.ofMinutes(30),
+            awakeSpans = listOf(at("03:00") to at("03:30")),
+        )
+        // A phone app logs 23:30 to 6:30 as one block with no stages.
+        val phone = SleepSpan(at("00:00").minus(Duration.ofMinutes(30)), at("06:30"))
+
+        assertEquals(450L, HealthPolling.sleepMinutes(listOf(phone, watch), windowStart, windowEnd))
+        // The phone's hour before the watch started is still sleep nobody else logged.
+        val earlyPhone = SleepSpan(at("00:00").minus(Duration.ofHours(2)), at("06:30"))
+        assertEquals(450L + 60L, HealthPolling.sleepMinutes(listOf(watch, earlyPhone), windowStart, windowEnd))
+        // A staged night with no awake stage is still staged; a block over it adds nothing.
+        val calmWatch = SleepSpan(at("00:00"), at("06:00"), hasStages = true)
+        assertEquals(360L, HealthPolling.sleepMinutes(listOf(calmWatch, SleepSpan(at("00:30"), at("05:00"))), windowStart, windowEnd))
+    }
+
+    @Test
     fun theNewestHeartRateWinsAcrossRecords() {
         val windowEnd = Instant.parse("2026-11-10T14:00:00Z")
         val windowStart = windowEnd.minus(Duration.ofHours(1))

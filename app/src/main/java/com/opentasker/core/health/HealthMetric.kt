@@ -44,13 +44,19 @@ enum class HealthMetric(
 /**
  * One sleep session, with how much of it its stages mark as awake or out of bed. [awakeSpans] says
  * where that awake time fell, which lets two sources' sessions for the same night be merged.
+ * [hasStages] marks a session that logged stages even when none of them were awake.
  */
 data class SleepSpan(
     val start: Instant,
     val end: Instant,
     val awake: Duration = Duration.ZERO,
     val awakeSpans: List<Pair<Instant, Instant>> = emptyList(),
+    val hasStages: Boolean = false,
 ) {
+    /** False for a session logged with no stages at all, which says nothing about waking. */
+    internal val staged: Boolean
+        get() = hasStages || awakeSpans.isNotEmpty()
+
     internal val minutesAsleep: Long
         get() = Duration.between(start, end).minus(awake).coerceAtLeast(Duration.ZERO).toMinutes()
 
@@ -58,15 +64,7 @@ data class SleepSpan(
     internal fun asleepSpans(): List<Pair<Instant, Instant>>? {
         val placed = awakeSpans.fold(Duration.ZERO) { total, (from, to) -> total.plus(Duration.between(from, to)) }
         if (placed != awake) return null
-        val asleep = mutableListOf<Pair<Instant, Instant>>()
-        var cursor = start
-        for ((from, to) in mergeSpans(awakeSpans)) {
-            val until = minOf(from, end)
-            if (until.isAfter(cursor)) asleep += cursor to until
-            if (to.isAfter(cursor)) cursor = to
-        }
-        if (end.isAfter(cursor)) asleep += cursor to end
-        return asleep
+        return subtractSpans(start to end, mergeSpans(awakeSpans))
     }
 }
 
@@ -82,6 +80,20 @@ internal fun mergeSpans(spans: List<Pair<Instant, Instant>>): List<Pair<Instant,
         }
     }
     return merged
+}
+
+/** What's left of [span] outside [cut], which must already be merged and sorted. */
+internal fun subtractSpans(span: Pair<Instant, Instant>, cut: List<Pair<Instant, Instant>>): List<Pair<Instant, Instant>> {
+    val (start, end) = span
+    val left = mutableListOf<Pair<Instant, Instant>>()
+    var cursor = start
+    for ((from, to) in cut) {
+        val until = minOf(from, end)
+        if (until.isAfter(cursor)) left += cursor to until
+        if (to.isAfter(cursor)) cursor = to
+    }
+    if (end.isAfter(cursor)) left += cursor to end
+    return left
 }
 
 /** Which readings the enabled profiles compare, and how often to read them. */
@@ -165,7 +177,8 @@ object HealthPolling {
      * no sleep, so an "under 6 hours" profile doesn't match on a phone with no sleep tracker.
      *
      * A watch and a phone app often both log the same night. Sessions that overlap count the time
-     * either one marks as asleep, once, instead of adding the night up twice.
+     * either one marks as asleep, once, instead of adding the night up twice. A session with no
+     * stages only adds time no staged session covers, so it can't paper over a watch's awake stages.
      */
     fun sleepMinutes(sessions: List<SleepSpan>, windowStart: Instant, windowEnd: Instant): Long? {
         val ended = sessions.filter { it.end.isAfter(windowStart) && !it.end.isAfter(windowEnd) }
@@ -176,9 +189,15 @@ object HealthPolling {
                 group.size == 1 -> group.single().minutesAsleep
                 // Awake time that can't be placed can't be merged, so the fullest session stands in.
                 asleep.any { it == null } -> group.maxOf(SleepSpan::minutesAsleep)
-                else -> mergeSpans(asleep.flatMap { it.orEmpty() })
-                    .fold(Duration.ZERO) { total, (from, to) -> total.plus(Duration.between(from, to)) }
-                    .toMinutes()
+                else -> {
+                    val (staged, unstaged) = group.partition(SleepSpan::staged)
+                    val stagedNights = mergeSpans(staged.map { it.start to it.end })
+                    val spans = staged.flatMap { it.asleepSpans().orEmpty() } +
+                        unstaged.flatMap { subtractSpans(it.start to it.end, stagedNights) }
+                    mergeSpans(spans)
+                        .fold(Duration.ZERO) { total, (from, to) -> total.plus(Duration.between(from, to)) }
+                        .toMinutes()
+                }
             }
         }
     }
