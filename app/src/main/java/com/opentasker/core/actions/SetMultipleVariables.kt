@@ -147,6 +147,16 @@ private fun multipleVariablesEntries(args: Map<String, String>): List<Pair<Strin
     }
 }
 
+/**
+ * Each name in [args] as [setMultipleVariables] fills it in, so `%cache_%slot` is `cache_token` while
+ * %slot holds `token`. An entry that isn't a name either way is left out.
+ */
+internal fun VariableStore.multipleVariablesFilledNames(args: Map<String, String>): List<String> =
+    multipleVariablesEntries(args).mapNotNull { entry ->
+        val written = entry?.first ?: return@mapNotNull null
+        VariableNamePolicy.normalize(written) ?: VariableNamePolicy.normalize(expandTracked(written).text)
+    }
+
 /** True when a name in [args] carries its own value after [multipleVariablesInlineSplitter]. */
 internal fun multipleVariablesNamesCarryValues(args: Map<String, String>): Boolean =
     multipleVariablesEntries(args).any { it?.second != null }

@@ -78,14 +78,29 @@ object ActionArgumentSensitivity {
     /**
      * True when the value [actionType] wrote to [variableName] stays hidden in a run's change list,
      * the way the editor hides the value typed for it: `%api_token` set by `var.set`, `api_key`
-     * written into `%config` by a `config.api_key` path, a `%api_token` among several names, or the
-     * global a Persist copies `%api_token` into.
+     * written into `%config` by a `config.api_key` path, a `%api_token` among several names, the
+     * global a Persist copies `%api_token` into, or `%api_token` named by any other step that writes
+     * it, like Variable Convert. An output the step doesn't name, like a response's headers, shows.
      */
     fun hidesWrittenValue(actionType: String?, args: Map<String, String>, variableName: String): Boolean {
         if (actionType == "var.persist") return isSensitiveArgumentName(variableName) || isSensitiveArgumentName(args["name"].orEmpty())
-        val (nameArg, _) = actionType?.let { NAME_KEYED_VALUE_ARGS[it] } ?: return false
+        val (nameArg, _) = actionType?.let { NAME_KEYED_VALUE_ARGS[it] }
+            ?: return isSensitiveArgumentName(variableName) && args.values.any { it.namesVariable(variableName) }
         return isSensitiveArgumentName(variableName) ||
             (actionType == "var.set" && isSensitiveArgumentName(args[nameArg].orEmpty()))
+    }
+
+    /** True when this is [name] as a bare word, or holds `%name` with no more of a name after it. */
+    private fun String.namesVariable(name: String): Boolean {
+        if (trim() == name) return true
+        val reference = "%$name"
+        var at = indexOf(reference)
+        while (at != -1) {
+            val next = getOrNull(at + reference.length)
+            if (next == null || !(next.isLetterOrDigit() || next == '_' || next == '-')) return true
+            at = indexOf(reference, at + 1)
+        }
+        return false
     }
 
     /** The explicit metadata declaration for [argName], or null when the field is not declared. */

@@ -5,6 +5,7 @@ import com.opentasker.core.actions.ArrayPositionArguments
 import com.opentasker.core.actions.LineListArguments
 import com.opentasker.core.actions.PluginBundleArguments
 import com.opentasker.core.actions.declaredActionOutputs
+import com.opentasker.core.actions.multipleVariablesFilledNames
 import com.opentasker.core.capabilities.AutomationSensitivityRegistry
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.diagnostics.ExportRedactionPolicy
@@ -817,11 +818,9 @@ class TaskRunner(
             rawResult
         }
         val changes = variableChangesBetween(before, ctx.variables.toTemplateScope()).map { change ->
-            if (change.sensitive || !ActionArgumentSensitivity.hidesWrittenValue(spec.type, spec.args, change.name)) {
-                change
-            } else {
-                change.copy(sensitive = true)
-            }
+            val hidden = ActionArgumentSensitivity.hidesWrittenValue(spec.type, spec.args, change.name) ||
+                ActionArgumentSensitivity.hidesWrittenValue(spec.type, expansionReport.args, change.name)
+            if (change.sensitive || !hidden) change else change.copy(sensitive = true)
         }
         return result to traceFor(index, spec, started, result, expansionReport, changes)
     }
@@ -1076,17 +1075,29 @@ class TaskRunner(
         }
 
         // A value hidden because of the name it's given, like Set Variable's value for %api_key, only
-        // shows in its trace as hidden, so the run log's args and template lines never print it.
+        // shows in its trace as hidden, so the run log's args and template lines never print it. The
+        // name counts as written and as filled in, so item_%slot is item_api_key while %slot holds
+        // api_key. Multiple Variables Set's names are never filled in here, so they're filled in the
+        // way the step does it.
+        fun namesFilledInAsSecret() = actionType == "var.set_multiple" &&
+            ctx.variables.multipleVariablesFilledNames(args).any(ActionArgumentSensitivity::isSensitiveArgumentName)
         val traces = expansions.map { trace ->
-            if (ActionArgumentSensitivity.isSensitive(actionType, trace.argName, args)) trace.withValueHidden() else trace
+            val hidden = ActionArgumentSensitivity.isSensitive(actionType, trace.argName, args) ||
+                ActionArgumentSensitivity.isSensitive(actionType, trace.argName, expandedArgs) ||
+                (trace.argName == "values" && namesFilledInAsSecret())
+            if (hidden) trace.withValueHidden() else trace
         }
         return ActionArgumentExpansionReport(expandedArgs, traces, actionType, failure)
     }
 
+    // A warning can quote the text typed for the value, like a missing `{{ hunter2 }}`.
     private fun ActionArgumentExpansionTrace.withValueHidden() = copy(
         rawValue = REDACTED_VALUE,
         expandedValue = REDACTED_VALUE,
-        expressions = expressions.map { it.copy(rawExpression = REDACTED_VALUE, expression = REDACTED_VALUE, value = REDACTED_VALUE) },
+        expressions = expressions.map {
+            it.copy(rawExpression = REDACTED_VALUE, expression = REDACTED_VALUE, value = REDACTED_VALUE, warning = it.warning?.let { REDACTED_VALUE })
+        },
+        warnings = warnings.map { REDACTED_VALUE },
     )
 
     /** One trace for an argument expanded in pieces, or null when no piece needed one. */
