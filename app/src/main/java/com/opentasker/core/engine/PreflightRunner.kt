@@ -11,6 +11,7 @@ import com.opentasker.core.actions.clearVariables
 import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.actions.httpNetworkDenial
 import com.opentasker.core.actions.multipleVariablesFailure
+import com.opentasker.core.actions.multipleVariablesFilledNames
 import com.opentasker.core.actions.multipleVariablesTargets
 import com.opentasker.core.actions.setMultipleVariables
 import com.opentasker.core.actions.writtenScalarVariables
@@ -982,18 +983,26 @@ object PreflightRunner {
                 }
             }
         }
-        val warnings = rawValues.values.flatMap { it.warnings }
+        val expanded = rawValues.mapValues { it.value.value }
+        // Multiple Variables Set's values go to the names the run fills in, as in the run log.
+        val valuesForSecretNames = spec.type == "var.set_multiple" &&
+            variables.multipleVariablesFilledNames(expanded, input.eventVariables).any(ActionArgumentSensitivity::isSensitiveArgumentName)
         val display = rawValues.mapValues { (key, expansion) ->
-            val secret = expansion.traces.any { it.isSecretDerived }
+            val secret = expansion.traces.any { it.isSecretDerived } || (key == "values" && valuesForSecretNames)
             if (secret) ActionArgumentSensitivity.REDACTED
-            else ActionArgumentSensitivity.maskValue(spec.type, key, expansion.value, rawValues.mapValues { it.value.value })
+            else ActionArgumentSensitivity.maskValue(spec.type, key, expansion.value, expanded)
+        }
+        // A warning can quote the text typed for a hidden value, like a missing `{{ hunter2 }}`.
+        val warnings = rawValues.flatMap { (key, expansion) ->
+            if (display.getValue(key) == expansion.value) expansion.warnings
+            else expansion.warnings.map { "$key: ${ActionArgumentSensitivity.REDACTED}" }
         }
         val secretKeys = rawValues.filterValues { expansion -> expansion.traces.any { it.isSecretDerived } }.keys
         val secretValues = secretKeys.mapNotNullTo(mutableSetOf()) { rawValues.getValue(it).value.takeIf(String::isNotBlank) }
         val missingKeys = rawValues.filterValues { expansion -> expansion.traces.any { it.source == TemplateValueSource.MISSING } }.keys
         return Expansion(
             display,
-            rawValues.mapValues { it.value.value },
+            expanded,
             warnings.distinct(),
             failure,
             unsetPosition,
