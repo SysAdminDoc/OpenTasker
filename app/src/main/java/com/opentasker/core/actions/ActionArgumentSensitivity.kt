@@ -80,12 +80,15 @@ object ActionArgumentSensitivity {
      * the way the editor hides the value typed for it: `%api_token` set by `var.set`, `api_key`
      * written into `%config` by a `config.api_key` path, a `%api_token` among several names, the
      * global a Persist copies `%api_token` into, or `%api_token` named by any other step that writes
-     * it, like Variable Convert. An output the step doesn't name, like a response's headers, shows.
+     * it, like Variable Convert, numbered pieces like the `%api_token1` Variable Split makes included.
+     * An output the step doesn't name, like a response's headers, shows.
      */
     fun hidesWrittenValue(actionType: String?, args: Map<String, String>, variableName: String): Boolean {
         if (actionType == "var.persist") return isSensitiveArgumentName(variableName) || isSensitiveArgumentName(args["name"].orEmpty())
+        val base = variableName.trimEnd(Char::isDigit)
         val (nameArg, _) = actionType?.let { NAME_KEYED_VALUE_ARGS[it] }
-            ?: return isSensitiveArgumentName(variableName) && args.values.any { it.namesVariable(variableName) }
+            ?: return isSensitiveArgumentName(variableName) &&
+                args.values.any { it.namesVariable(variableName) || it.namesVariable(base) }
         return isSensitiveArgumentName(variableName) ||
             (actionType == "var.set" && isSensitiveArgumentName(args[nameArg].orEmpty()))
     }
