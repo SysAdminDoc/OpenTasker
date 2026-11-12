@@ -2365,6 +2365,11 @@ object TaskerXmlImporter {
             "11" -> "$lhs is_odd"
             "12" -> "$lhs is_set"
             "13" -> "$lhs not_set"
+            // Maths Equals and Not Equals compare numbers, so 5.0 equals 5 and an unset variable is
+            // 0. This app's maths comparisons read both sides the same way, and a side that isn't a
+            // number leaves both forms false, as it does in Tasker.
+            "8" -> childText("rhs").let { rhs -> "($lhs <= $rhs && $lhs >= $rhs)" }
+            "9" -> childText("rhs").let { rhs -> "($lhs < $rhs || $lhs > $rhs)" }
             else -> TASKER_CONDITION_OP_TOKENS[op]?.let { token -> "$lhs $token ${childText("rhs")}" }
         }
     }
@@ -2730,12 +2735,10 @@ object TaskerXmlImporter {
     // cross-checked against a real backup: op values 0/1/2/12/13 all appear and match their
     // documented semantics -- e.g. the one real op=1 instance compares %http_response_code
     // against 200, matching this project's own documented "Doesn't Match 200" HTTP-status check.
-    // 3-9 don't appear in that corpus but are included for completeness. 8/9 are the "(Numeric)"
-    // variants of =/!=; this evaluator has no numeric-aware equality distinct from string
-    // equality, so they map to the same tokens as 0/1. 4/5 are the regex variants of 2/3
-    // ("Matches Regex"/"Doesn't Match Regex"), written `~R`/`!~R` the way Tasker shows them.
-    // 10/11 (Is Even/Is Odd) and 12/13 (Is Set/Not Set) are unary and handled separately in
-    // conditionExpression, not through this map.
+    // 3-9 don't appear in that corpus but are included for completeness. 4/5 are the regex
+    // variants of 2/3 ("Matches Regex"/"Doesn't Match Regex"), written `~R`/`!~R` the way Tasker
+    // shows them. 8/9, the maths =/!=, have no single token here, so conditionExpression spells
+    // them out, as it does the unary 10/11 (Is Even/Is Odd) and 12/13 (Is Set/Not Set).
     private val TASKER_CONDITION_OP_TOKENS = mapOf(
         "0" to "==",
         "1" to "!=",
@@ -2745,8 +2748,6 @@ object TaskerXmlImporter {
         "5" to "!~R",
         "6" to "<",
         "7" to ">",
-        "8" to "==",
-        "9" to "!=",
     )
 
     // Tasker's condition joiners from loosest to tightest (decompiled 6.7.8, u1). Xor, looser than

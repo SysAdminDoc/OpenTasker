@@ -3,6 +3,8 @@ package com.opentasker.core.engine.variables
 import com.opentasker.core.data.JsonNesting
 import com.opentasker.core.engine.VariableStore
 import org.json.JSONObject
+import java.math.BigDecimal
+import java.math.RoundingMode
 import com.google.re2j.Pattern as Re2Pattern
 import kotlin.math.floor
 import kotlin.math.roundToLong
@@ -127,7 +129,12 @@ class VariableExpander {
         var i = 0
         while (i < expr.length) {
             val c = expr[i]
-            if (c == '\\') {
+            if (expr.startsWith("\\%", i) && startsVariable(expr, i + 2)) {
+                // \%%name is a percent sign and the value, and Tasker reads an unset name as blank there.
+                val token = readVariableToken(expr, i + 2, variableStore, arrayStore)
+                out.append('%').append(if (token.unset) "" else quoteValue(token.value))
+                i = token.nextIndex
+            } else if (c == '\\') {
                 i = appendEscape(expr, i, out)
             } else if (startsVariable(expr, i)) {
                 val token = readVariableToken(expr, i, variableStore, arrayStore)
@@ -154,8 +161,8 @@ class VariableExpander {
 
     /**
      * Tasker's backslash before a variable (decompiled 6.7.8, `dq.S`): `\%name` is the reference
-     * as written without the backslash, `\%%name` is a percent sign and then the value, and
-     * `\\%name` is one backslash and then the value, so a longer run loses one backslash. A
+     * as written without the backslash, and `\\%name` is one backslash and then the value, so a
+     * longer run loses one backslash. [expandText] reads `\%%name`, which needs the value. A
      * backslash before anything else stays. Returns the index to carry on from.
      */
     private fun appendEscape(expr: String, start: Int, out: StringBuilder): Int {
@@ -168,10 +175,6 @@ class VariableExpander {
                 val end = variableTokenEnd(expr, run)
                 out.append(expr, run, end)
                 end
-            }
-            backslashes == 1 && expr.startsWith("%", run) && startsVariable(expr, run + 1) -> {
-                out.append('%')
-                run + 1
             }
             backslashes > 1 && startsVariable(expr, run) -> {
                 repeat(backslashes - 1) { out.append('\\') }
@@ -784,12 +787,24 @@ class VariableExpander {
     }
 
     /**
-     * [text] as a number the way a maths condition reads one: decimal digits with an optional sign,
-     * point and exponent, and finite. Kotlin's own parser also takes `4f`, `0x1p3`, `NaN` and
-     * `Infinity`, which aren't numbers to Tasker.
+     * [text] as a number the way Tasker's maths reads one value (decompiled 6.7.8, `Expr.d` and
+     * `yd`). It drops every space first, reads `0x` as a hexadecimal whole number, and otherwise
+     * takes Java's decimal form, `4f` included, with a sign-free exponent, since a `+` or `-` there
+     * is an operator to Tasker. The result has to be finite, and it's rounded half up to 10 decimal
+     * places, so `0.30000000000000004` equals `0.3`. Kotlin's parser alone also takes `0x1p3`,
+     * `NaN` and `Infinity`, which Tasker doesn't.
      */
-    private fun taskerNumber(text: String): Double? =
-        if (TASKER_NUMBER.matches(text)) text.toDouble().takeIf { it.isFinite() } else null
+    private fun taskerNumber(text: String): Double? {
+        // Java's \s, which Tasker strips: space, tab, line feed, vertical tab, form feed, return.
+        val compact = text.filterNot { it == ' ' || it in '\t'..'\r' }
+        val value = when {
+            compact.startsWith("0x", ignoreCase = true) -> compact.substring(2).toLongOrNull(16)?.toDouble()
+            TASKER_NUMBER.matches(compact) -> compact.toDouble()
+            else -> null
+        }
+        return value?.takeIf { it.isFinite() }
+            ?.let { BigDecimal(it.toString()).setScale(TASKER_DECIMAL_PLACES, RoundingMode.HALF_UP).toDouble() }
+    }
 
     private fun evaluateJsonPath(json: String, path: String): String {
         // org.json recurses per level and a StackOverflowError gets past the catch below.
@@ -921,7 +936,8 @@ class VariableExpander {
             ComparisonOperator.GE,
         )
         // [0-9], not \d, which Android's ICU regex matches against every script's digits.
-        private val TASKER_NUMBER = Regex("""[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?""")
+        private val TASKER_NUMBER = Regex("""[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][0-9]+)?[fFdD]?""")
+        private const val TASKER_DECIMAL_PLACES = 10
         private const val MAX_REGEX_LENGTH = 256
         private const val MAX_REGEX_INPUT_LENGTH = 10_000
         private val PATTERN_WILDCARD = Regex("[*+]")

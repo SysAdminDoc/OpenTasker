@@ -74,7 +74,7 @@ class TaskerUnsetMathsAndEscapeTest {
 
     @Test
     fun onlyAFiniteDecimalIsANumber() {
-        listOf("4f", "4d", "0x1p3", "NaN", "Infinity", "-Infinity", "1e400", "four").forEach { value ->
+        listOf("0x1p3", "NaN", "Infinity", "-Infinity", "1e400", "four").forEach { value ->
             val variables = store("x" to value)
             assertFalse(value, variables.evaluateCondition("%x < 1000"))
             assertFalse(value, variables.evaluateCondition("%x > -1000"))
