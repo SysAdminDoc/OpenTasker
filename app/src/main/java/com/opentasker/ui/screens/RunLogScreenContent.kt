@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.produceState
 import kotlinx.coroutines.delay
 import com.opentasker.app.R
+import com.opentasker.core.actions.ActionMetadataRegistry
 import com.opentasker.core.engine.ActionTraceStatus
 import com.opentasker.core.engine.RunLogActionDiagnostic
 import com.opentasker.core.engine.RunLogOutcome
@@ -752,8 +753,17 @@ private fun RunLogCard(
     }
 }
 
+/**
+ * The engine records a step with no label under its type id (`notify.show`), so the run log would
+ * title it with that id while Tasks shows "Show Notification". Returns the action's name for those
+ * steps, and null for a step with its own label or a type the registry doesn't know.
+ */
+internal fun runLogTraceTitleRes(trace: RunLogActionDiagnostic): Int? =
+    if (trace.label == trace.actionType) ActionMetadataRegistry.get(trace.actionType)?.nameRes else null
+
 @Composable
 private fun RunLogTraceRow(trace: RunLogActionDiagnostic) {
+    val title = runLogTraceTitleRes(trace)?.let { stringResource(it) } ?: trace.label
     val color = when (trace.status) {
         ActionTraceStatus.SUCCESS -> MaterialTheme.colorScheme.primary
         ActionTraceStatus.FAILURE -> MaterialTheme.colorScheme.error
@@ -768,7 +778,7 @@ private fun RunLogTraceRow(trace: RunLogActionDiagnostic) {
         StatusPill(trace.status.localizedName(), color)
         Column(Modifier.weight(1f)) {
             Text(
-                stringResource(R.string.run_log_trace_indexed, trace.index + 1, trace.label),
+                stringResource(R.string.run_log_trace_indexed, trace.index + 1, title),
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -800,14 +810,14 @@ private fun RunLogTraceRow(trace: RunLogActionDiagnostic) {
                 Spacer(Modifier.height(4.dp))
                 ExpressionDebugger(
                     expressions = trace.templateExpressions,
-                    traceLabel = trace.label,
+                    traceLabel = title,
                 )
             }
             if (trace.variableChanges.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 VariableChangeInspector(
                     changes = trace.variableChanges,
-                    traceLabel = trace.label,
+                    traceLabel = title,
                 )
             }
         }
