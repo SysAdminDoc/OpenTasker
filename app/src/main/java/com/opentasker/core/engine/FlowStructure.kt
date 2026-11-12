@@ -21,6 +21,14 @@ object FlowControl {
 
     val ALL = setOf(IF, ELSE, ENDIF, FOREACH, ENDFOR, TRY, CATCH, ENDTRY, STOP, GOTO, ANCHOR)
 
+    /**
+     * A goto's `to` values, Tasker's Top of Loop ("continue"), End of Loop ("break") and End of If.
+     * Each acts on the innermost For Each or If holding the goto, and wins over a step or label.
+     */
+    const val GOTO_LOOP_TOP = "loop_top"
+    const val GOTO_LOOP_END = "loop_end"
+    const val GOTO_IF_END = "if_end"
+
     const val DEFAULT_MAX_ATTEMPTS = 1
     const val MAX_ATTEMPTS = 5
     const val MAX_BACKOFF_MS = 60_000L
@@ -158,6 +166,14 @@ data class FlowStructure(
     fun unopenedBlockAt(target: Int, runningLoops: Collection<Int>, runningTries: Collection<Int>): Int? =
         foreachToEndfor.entries.firstOrNull { (open, end) -> target in open + 1..end && open !in runningLoops }?.key
             ?: tryToEndtry.entries.firstOrNull { (open, end) -> target in open + 1..end && open !in runningTries }?.key
+
+    /** The flow.foreach index of the innermost loop whose body holds [index], or null. */
+    fun enclosingLoop(index: Int): Int? =
+        foreachToEndfor.entries.filter { (open, end) -> index in open + 1 until end }.maxOfOrNull { it.key }
+
+    /** The flow.if index of the innermost If whose branches hold [index], or null. */
+    fun enclosingIf(index: Int): Int? =
+        ifToEndif.entries.filter { (open, end) -> index in open + 1 until end }.maxOfOrNull { it.key }
 
     companion object {
         fun analyze(actions: List<ActionSpec>): FlowStructure {

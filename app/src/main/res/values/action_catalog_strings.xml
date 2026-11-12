@@ -267,6 +267,11 @@
       <string name="catalog_action_flow_goto_field_step_hint" formatted="false">Counts from 1. A variable such as %step works too.</string>
       <string name="catalog_action_flow_goto_field_label_label" formatted="false">Step label</string>
       <string name="catalog_action_flow_goto_field_label_hint" formatted="false">Jumps to the first step with this label. Used instead of the number when set.</string>
+      <string name="catalog_action_flow_goto_field_to_label" formatted="false">Jump to</string>
+      <string name="catalog_action_flow_goto_field_to_hint" formatted="false">None jumps by the step number or label. The others act on the For Each or If this step sits in, and win over the number and label.</string>
+      <string name="catalog_action_flow_goto_to_loop_top" formatted="false">Top of the loop (next item)</string>
+      <string name="catalog_action_flow_goto_to_loop_end" formatted="false">Out of the loop</string>
+      <string name="catalog_action_flow_goto_to_if_end" formatted="false">End of the If</string>
       <string name="catalog_action_flow_anchor_name" formatted="false">Anchor</string>
       <string name="catalog_action_flow_anchor_description" formatted="false">Does nothing. Give it a label for Go To to jump to.</string>
       <string name="catalog_action_intent_launch_name" formatted="false">Launch Intent</string>

@@ -2,6 +2,7 @@ package com.opentasker.core.actions
 
 import androidx.annotation.StringRes
 import com.opentasker.app.R
+import com.opentasker.core.engine.FlowControl
 import com.opentasker.core.plugins.locale.LocalePluginContract
 
 /**
@@ -1448,6 +1449,17 @@ fun registerActionMetadata() {
             descriptionRes = R.string.catalog_action_flow_goto_description,
             categoryRes = R.string.catalog_category_flow,
             fields = listOf(
+                ActionField(
+                    "to",
+                    R.string.catalog_action_flow_goto_field_to_label,
+                    FieldType.DROPDOWN,
+                    hintRes = R.string.catalog_action_flow_goto_field_to_hint,
+                    options = listOf(
+                        option(FlowControl.GOTO_LOOP_TOP, R.string.catalog_action_flow_goto_to_loop_top),
+                        option(FlowControl.GOTO_LOOP_END, R.string.catalog_action_flow_goto_to_loop_end),
+                        option(FlowControl.GOTO_IF_END, R.string.catalog_action_flow_goto_to_if_end),
+                    ),
+                ),
                 ActionField("step", R.string.catalog_action_flow_goto_field_step_label, hintRes = R.string.catalog_action_flow_goto_field_step_hint),
                 ActionField("label", R.string.catalog_action_flow_goto_field_label_label, hintRes = R.string.catalog_action_flow_goto_field_label_hint),
             ),

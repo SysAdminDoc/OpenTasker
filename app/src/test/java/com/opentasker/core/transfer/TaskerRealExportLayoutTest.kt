@@ -1225,14 +1225,6 @@ class TaskerRealExportLayoutTest {
     }
 
     @Test
-    fun gotoToTheTopOrEndOfALoopStaysAPlaceholder() {
-        listOf(2, 3, 4).forEach { type ->
-            val goto = action("""<code>135</code><Int sr="arg0" val="$type"/><Int sr="arg1" val="1"/><Str sr="arg2" ve="3"/>""")
-            assertEquals("type $type", placeholder, goto.type)
-        }
-    }
-
-    @Test
     fun anAnchorAndAStepLabelComeAcrossSoALabelledGotoStillLands() {
         val task = parse(
             """<code>300</code><label>Wait Loop</label>""",

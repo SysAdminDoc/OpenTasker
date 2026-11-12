@@ -13,6 +13,7 @@ import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
 import com.opentasker.core.contexts.WIFI_DISCONNECTED_WORDS
 import com.opentasker.core.data.TextOps
 import com.opentasker.core.data.VariableConvert
+import com.opentasker.core.engine.FlowControl
 import com.opentasker.core.engine.STOP_TASK_ACTION_ID
 import com.opentasker.core.engine.SUB_TASK_ACTION_ID
 import com.opentasker.core.engine.variables.TaskerBuiltIns
@@ -77,6 +78,13 @@ internal const val TASKER_BEEP_PITCH_DIVISOR = 4L
  * Android's stream number: 4 Alarm, 2 Ringer, 5 Notification.
  */
 internal val TASKER_OUTPUT_STREAMS = mapOf(TASKER_ALARM_STREAM to "alarm", 2 to "ring", 5 to "notification")
+
+/** Tasker Goto's arg0 kinds besides a step number (0) and a label (1): Top of Loop, End of Loop, End of If. */
+internal val TASKER_GOTO_BLOCK_JUMPS = mapOf(
+    2 to FlowControl.GOTO_LOOP_TOP,
+    3 to FlowControl.GOTO_LOOP_END,
+    4 to FlowControl.GOTO_IF_END,
+)
 
 private fun taskerOutputStreamArg(stream: Int?): Map<String, String> =
     TASKER_OUTPUT_STREAMS[stream]?.let { mapOf("stream" to it) }.orEmpty()
@@ -1838,7 +1846,7 @@ object TaskerXmlImporter {
 
     /** Tasker's Goto: arg0 is the kind of jump, arg1 a step number, arg2 a label. */
     private fun taskerGoto(code: String, byIndex: Map<Int, String>, ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss =
-        when (ints[0] ?: 0) {
+        when (val kind = ints[0] ?: 0) {
             0 -> {
                 val step = variables[1]?.let { taskerNumberField("Goto", it) } ?: ImportedField(ints[1]?.toString().orEmpty())
                 ActionWithLoss(
@@ -1849,7 +1857,10 @@ object TaskerXmlImporter {
             1 -> ActionWithLoss(
                 ActionSpec(type = "flow.goto", label = "Tasker goto", args = mapOf("label" to byIndex[2].orEmpty())),
             )
-            else -> taskerPlaceholder(code, "Tasker Goto to the top or end of a loop, or past an If, has no match here yet")
+            in TASKER_GOTO_BLOCK_JUMPS -> ActionWithLoss(
+                ActionSpec(type = "flow.goto", label = "Tasker goto", args = mapOf("to" to TASKER_GOTO_BLOCK_JUMPS.getValue(kind))),
+            )
+            else -> taskerPlaceholder(code, "Tasker Goto of kind $kind has no match here")
         }
 
     /** A called task already runs on its own here, so stopping it hands control back to the caller. */

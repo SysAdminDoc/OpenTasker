@@ -629,6 +629,8 @@ object PreflightRunner {
             }
             FlowControl.GOTO -> if (!guardMet()) {
                 step("goto skipped: condition ($guard) -> false", index + 1, skipped = true)
+            } else if (!spec.args["to"].isNullOrBlank()) {
+                simulateGotoBlock(index, spec, spec.args.getValue("to").trim(), structure, loops, tries, variables)
             } else {
                 val expansion = expandArguments(spec, variables, input)
                 val target = FlowControl.gotoTarget(actions, expansion.rawValues, spec.args)
@@ -643,17 +645,7 @@ object PreflightRunner {
                     // variable here may well be set by then.
                     unresolved != null && landing == null -> null
                     landing == null -> target.error
-                    else -> {
-                        while (loops.lastOrNull()?.let { landing <= it.foreachIndex || landing > structure.foreachToEndfor.getValue(it.foreachIndex) } == true) {
-                            loops.removeLast()
-                        }
-                        while (tries.lastOrNull()?.let { landing <= it || landing > structure.tryToEndtry.getValue(it) } == true) {
-                            tries.removeLast()
-                        }
-                        structure.unopenedBlockAt(landing, loops.map { it.foreachIndex }, tries)?.let { open ->
-                            "goto step ${landing + 1} lands inside the block that opens at step ${open + 1}, which isn't running"
-                        }
-                    }
+                    else -> leaveBlocksFor(landing, structure, loops, tries)
                 }
                 when {
                     problem != null -> ControlSimulation(
@@ -692,6 +684,81 @@ object PreflightRunner {
             }
             else -> step(spec.type, index + 1)
         }
+    }
+
+    /** Mirrors TaskRunner.leaveBlocksFor: why a goto can't land on [landing], or null. */
+    private fun leaveBlocksFor(
+        landing: Int,
+        structure: FlowStructure,
+        loops: ArrayDeque<PreflightLoopFrame>,
+        tries: ArrayDeque<Int>,
+    ): String? {
+        while (loops.lastOrNull()?.let { landing <= it.foreachIndex || landing > structure.foreachToEndfor.getValue(it.foreachIndex) } == true) {
+            loops.removeLast()
+        }
+        while (tries.lastOrNull()?.let { landing <= it || landing > structure.tryToEndtry.getValue(it) } == true) {
+            tries.removeLast()
+        }
+        return structure.unopenedBlockAt(landing, loops.map { it.foreachIndex }, tries)?.let { open ->
+            "goto step ${landing + 1} lands inside the block that opens at step ${open + 1}, which isn't running"
+        }
+    }
+
+    /** Mirrors TaskRunner.gotoBlock: a goto to the top or out of its For Each, or past its If. */
+    private fun simulateGotoBlock(
+        index: Int,
+        spec: ActionSpec,
+        to: String,
+        structure: FlowStructure,
+        loops: ArrayDeque<PreflightLoopFrame>,
+        tries: ArrayDeque<Int>,
+        variables: VariableStore,
+    ): ControlSimulation {
+        fun result(decision: String, nextPc: Int, problem: String? = null) = ControlSimulation(
+            step = PreflightStep(
+                taskPath = "",
+                actionIndex = index,
+                actionType = spec.type,
+                label = spec.label ?: spec.type,
+                status = if (problem == null) PreflightStepStatus.SIMULATED else PreflightStepStatus.BLOCKED,
+                condition = spec.args["condition"] ?: spec.condition,
+                branchDecision = decision,
+                intendedEffect = PreflightActionRegistry.intendedEffect(spec.type),
+                warnings = listOfNotNull(problem?.let { "The run stops here: $it." }),
+            ),
+            nextPc = nextPc,
+            halt = problem != null,
+        )
+        fun fail(problem: String) = result("goto fails", index + 1, problem)
+        fun jump(decision: String, landing: Int): ControlSimulation =
+            leaveBlocksFor(landing, structure, loops, tries)?.let(::fail) ?: result(decision, landing)
+
+        if (to == FlowControl.GOTO_IF_END) {
+            val open = structure.enclosingIf(index) ?: return fail("goto end of If: this step isn't inside an If")
+            val endif = structure.ifToEndif.getValue(open)
+            return jump("goto end of If -> step ${endif + 1}", endif)
+        }
+        val name = when (to) {
+            FlowControl.GOTO_LOOP_TOP -> "top of loop"
+            FlowControl.GOTO_LOOP_END -> "out of loop"
+            else -> return fail("goto: \"$to\" isn't a place to jump to")
+        }
+        val open = structure.enclosingLoop(index) ?: return fail("goto $name: this step isn't inside a For Each")
+        val frameAt = loops.indexOfLast { it.foreachIndex == open }
+        if (frameAt < 0) return fail("goto $name: the For Each at step ${open + 1} isn't running")
+        val endfor = structure.foreachToEndfor.getValue(open)
+        if (to == FlowControl.GOTO_LOOP_END) return jump("goto out of loop -> after step ${endfor + 1}", endfor + 1)
+
+        while (loops.size > frameAt + 1) loops.removeLast()
+        while (tries.lastOrNull()?.let { it > open } == true) tries.removeLast()
+        val frame = loops.last()
+        frame.index++
+        if (frame.index < frame.items.size) {
+            variables.set(frame.itemVar, frame.items[frame.index])
+            return result("goto top of loop -> loop ${frame.index + 1}/${frame.items.size}", open + 1)
+        }
+        loops.removeLast()
+        return result("goto top of loop -> loop done", endfor + 1)
     }
 
     private fun recordStep(steps: MutableMap<Int, PreflightStep>, incoming: PreflightStep) {

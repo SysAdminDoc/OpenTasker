@@ -259,6 +259,11 @@
       <string name="catalog_action_flow_goto_field_step_hint" formatted="false">从1开始计数。也可以使用 %step 这样的变量。</string>
       <string name="catalog_action_flow_goto_field_label_label" formatted="false">步骤标签</string>
       <string name="catalog_action_flow_goto_field_label_hint" formatted="false">跳转到第一个带有此标签的步骤。设置后优先于编号。</string>
+      <string name="catalog_action_flow_goto_field_to_label" formatted="false">跳转到</string>
+      <string name="catalog_action_flow_goto_field_to_hint" formatted="false">选“无”时按步骤编号或标签跳转。其他选项作用于此步骤所在的“遍历”或“如果”块，并优先于编号和标签。</string>
+      <string name="catalog_action_flow_goto_to_loop_top" formatted="false">循环开头（下一项）</string>
+      <string name="catalog_action_flow_goto_to_loop_end" formatted="false">跳出循环</string>
+      <string name="catalog_action_flow_goto_to_if_end" formatted="false">“如果”块末尾</string>
       <string name="catalog_action_flow_anchor_name" formatted="false">锚点</string>
       <string name="catalog_action_flow_anchor_description" formatted="false">不执行任何操作。给它一个标签，供“跳转”使用。</string>
       <string name="catalog_action_intent_launch_name" formatted="false">启动Intent</string>

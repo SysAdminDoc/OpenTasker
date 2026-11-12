@@ -487,6 +487,8 @@ class TaskRunner(
             }
             FlowControl.GOTO -> if (!guardMet()) {
                 skipped("goto skipped: condition ($guard) -> false", pc + 1)
+            } else if (!spec.args["to"].isNullOrBlank()) {
+                gotoBlock(pc, spec, spec.args.getValue("to").trim(), structure, loopStack, tryStack)
             } else {
                 val expansion = expandArgs(spec.type, spec.args)
                 val target = FlowControl.gotoTarget(actions, expansion.args, spec.args)
@@ -496,15 +498,7 @@ class TaskRunner(
                     val failure = ActionResult.Failure(expansion.redactSensitiveValues(target.error ?: "goto has no target"))
                     ControlOutcome(failure, markerTrace(pc, spec, failure, ActionTraceStatus.FAILURE), pc + 1, halt = true)
                 } else {
-                    // Leaving a loop or try ends it, along with any block it holds. Jumping back
-                    // onto a For Each restarts that loop.
-                    while (loopStack.lastOrNull()?.let { index <= it.foreachIndex || index > structure.foreachToEndfor.getValue(it.foreachIndex) } == true) {
-                        loopStack.removeLast()
-                    }
-                    while (tryStack.lastOrNull()?.let { index <= it.tryIndex || index > it.endIndex } == true) {
-                        tryStack.removeLast()
-                    }
-                    val unopened = structure.unopenedBlockAt(index, loopStack.map { it.foreachIndex }, tryStack.map { it.tryIndex })
+                    val unopened = leaveBlocksFor(index, structure, loopStack, tryStack)
                     if (unopened != null) {
                         val failure = ActionResult.Failure(
                             expansion.redactSensitiveValues("goto step ${index + 1} lands inside the block that opens at step ${unopened + 1}, which isn't running"),
@@ -517,6 +511,77 @@ class TaskRunner(
             }
             else -> outcome(spec.type, pc + 1)
         }
+    }
+
+    /**
+     * Ends the loops and tries a jump to [index] leaves, along with any block they hold (jumping
+     * back onto a For Each restarts that loop). Returns the opening step of a block [index] sits
+     * in that isn't running, which a goto can't land in, or null.
+     */
+    private fun leaveBlocksFor(
+        index: Int,
+        structure: FlowStructure,
+        loopStack: ArrayDeque<LoopFrame>,
+        tryStack: ArrayDeque<TryFrame>,
+    ): Int? {
+        while (loopStack.lastOrNull()?.let { index <= it.foreachIndex || index > structure.foreachToEndfor.getValue(it.foreachIndex) } == true) {
+            loopStack.removeLast()
+        }
+        while (tryStack.lastOrNull()?.let { index <= it.tryIndex || index > it.endIndex } == true) {
+            tryStack.removeLast()
+        }
+        return structure.unopenedBlockAt(index, loopStack.map { it.foreachIndex }, tryStack.map { it.tryIndex })
+    }
+
+    /** A goto to the top or out of the For Each it sits in, or to the End If of its If. */
+    private fun gotoBlock(
+        pc: Int,
+        spec: ActionSpec,
+        to: String,
+        structure: FlowStructure,
+        loopStack: ArrayDeque<LoopFrame>,
+        tryStack: ArrayDeque<TryFrame>,
+    ): ControlOutcome {
+        fun fail(message: String): ControlOutcome {
+            val failure = ActionResult.Failure(message)
+            return ControlOutcome(failure, markerTrace(pc, spec, failure, ActionTraceStatus.FAILURE), pc + 1, halt = true)
+        }
+        fun go(message: String, nextPc: Int) =
+            ControlOutcome(ActionResult.Success, markerTrace(pc, spec, ActionResult.Success, ActionTraceStatus.SUCCESS, message), nextPc)
+        fun jump(message: String, index: Int): ControlOutcome {
+            val unopened = leaveBlocksFor(index, structure, loopStack, tryStack)
+                ?: return go(message, index)
+            return fail("goto step ${index + 1} lands inside the block that opens at step ${unopened + 1}, which isn't running")
+        }
+
+        if (to == FlowControl.GOTO_IF_END) {
+            val open = structure.enclosingIf(pc) ?: return fail("goto end of If: this step isn't inside an If")
+            val endif = structure.ifToEndif.getValue(open)
+            return jump("goto end of If -> step ${endif + 1}", endif)
+        }
+        val name = when (to) {
+            FlowControl.GOTO_LOOP_TOP -> "top of loop"
+            FlowControl.GOTO_LOOP_END -> "out of loop"
+            else -> return fail("goto: \"$to\" isn't a place to jump to")
+        }
+        val open = structure.enclosingLoop(pc) ?: return fail("goto $name: this step isn't inside a For Each")
+        val frameAt = loopStack.indexOfLast { it.foreachIndex == open }
+        if (frameAt < 0) return fail("goto $name: the For Each at step ${open + 1} isn't running")
+        val endfor = structure.foreachToEndfor.getValue(open)
+        if (to == FlowControl.GOTO_LOOP_END) return jump("goto out of loop -> after step ${endfor + 1}", endfor + 1)
+
+        // Tasker's "continue": end whatever the loop body opened, then take the next item the way
+        // the End For would, without that marker's own condition.
+        while (loopStack.size > frameAt + 1) loopStack.removeLast()
+        while (tryStack.lastOrNull()?.let { it.tryIndex > open } == true) tryStack.removeLast()
+        val frame = loopStack.last()
+        frame.index++
+        if (frame.index < frame.items.size) {
+            ctx.variables.set(frame.itemVar, frame.items[frame.index], sensitive = frame.sensitive)
+            return go("goto top of loop -> loop ${frame.index + 1}/${frame.items.size}", open + 1)
+        }
+        loopStack.removeLast()
+        return go("goto top of loop -> loop done", endfor + 1)
     }
 
     /**

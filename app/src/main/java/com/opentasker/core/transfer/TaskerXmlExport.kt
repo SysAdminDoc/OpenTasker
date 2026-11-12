@@ -565,8 +565,22 @@ object TaskerXmlExporter {
         val firstLabelled: Map<String, Int>,
     )
 
-    /** Tasker's Goto: arg0 0 jumps to the step number in arg1, 1 to the label in arg2. */
+    /**
+     * Tasker's Goto: arg0 0 jumps to the step number in arg1, 1 to the label in arg2, and 2 to 4 to
+     * the top or end of the loop, or the End If, the step sits in.
+     */
     private fun appendGoto(sb: StringBuilder, args: Map<String, String>, layout: GotoLayout, warnings: MutableList<String>) {
+        val to = args["to"]?.trim().orEmpty()
+        if (to.isNotEmpty()) {
+            val kind = TASKER_GOTO_BLOCK_JUMPS.entries.firstOrNull { it.value == to }?.key
+            if (kind != null) {
+                appendInt(sb, 0, kind.toString())
+                appendInt(sb, 1, "1")
+                appendStr(sb, 2, "")
+                return
+            }
+            warnings += "A goto to '$to' has no Tasker match, so it went out with its step number or label."
+        }
         val label = args["label"]?.trim().orEmpty()
         if (label.isNotEmpty()) {
             val target = layout.firstLabelled[label]
