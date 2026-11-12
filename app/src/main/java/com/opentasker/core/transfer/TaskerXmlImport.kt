@@ -623,13 +623,19 @@ object TaskerXmlImporter {
             "808", "822" -> taskerSystemSwitch(code, intsByIndex, intVariables)
             "810", "brightness", "brightness.set" -> {
                 val level = intVariables[0]?.let { taskerNumberField("Display Brightness", it) }
+                val brightness = level?.value ?: taskerScalar(strings, intsByIndex, "auto")
                 ActionWithLoss(
                     ActionSpec(
                         type = "brightness.set",
                         label = "Tasker brightness",
-                        args = mapOf("brightness" to (level?.value ?: taskerScalar(strings, intsByIndex, "auto"))),
+                        args = mapOf("brightness" to brightness),
                     ),
-                    lossyWarning = level?.warning,
+                    // Tasker writes only the level and warns that Auto Brightness gets in its way.
+                    lossyWarning = joinWarnings(
+                        level?.warning,
+                        "Tasker Display Brightness leaves Auto Brightness as it is, and this step turns it off to set the level"
+                            .takeIf { code == "810" && !brightness.equals("auto", ignoreCase = true) },
+                    ),
                 )
             }
             "812", "screen.timeout" -> {
