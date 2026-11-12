@@ -2363,7 +2363,7 @@ object TaskerXmlImporter {
             if (!written.readsBack()) {
                 return withNotes(null, "a \"Run only if\" guard (op $op) was dropped, since a side holds && or ||, a second comparison sign or a {{ template }}, which this app would read as part of the condition")
             }
-            return withNotes(written.text, condition.regexApproximationWarning(op), condition.trimmedSpacesWarning(op))
+            return withNotes(written.text, condition.regexApproximationWarning(op, written), condition.trimmedSpacesWarning(op))
         }
 
         fun dropped(reason: String) =
@@ -2382,7 +2382,7 @@ object TaskerXmlImporter {
             if (!written.readsBack() || !bracketsClose(written.text)) {
                 return dropped("one of them holds && or ||, a second comparison sign, a {{ template }} or an unmatched bracket, which would change how they join")
             }
-            condition.regexApproximationWarning(op)?.let { approximations += it }
+            condition.regexApproximationWarning(op, written)?.let { approximations += it }
             condition.trimmedSpacesWarning(op)?.let { approximations += it }
             written.text
         }
@@ -2493,13 +2493,15 @@ object TaskerXmlImporter {
     /**
      * RE2 runs regex conditions here, and it has no backreferences or lookarounds, which Java's
      * engine in Tasker does. A pattern built from a variable is only known when it runs, and an
-     * empty one matches nothing in Tasker too.
+     * empty one matches nothing in Tasker too. The length that counts is [written]'s, since a
+     * `(?:...)` group around the pattern makes it four characters longer.
      */
-    private fun Element.regexApproximationWarning(op: String): String? {
+    private fun Element.regexApproximationWarning(op: String, written: WrittenCondition): String? {
         val rhs = childText("rhs")
+        val pattern = written.checks.singleOrNull()?.rhs ?: rhs
         return when {
             op != "4" && op != "5" || rhs.isBlank() || TASKER_VARIABLE_REFERENCE.containsMatchIn(rhs) -> null
-            rhs.length > TextOps.MAX_PATTERN_CHARS ->
+            pattern.length > TextOps.MAX_PATTERN_CHARS ->
                 "a regex \"Run only if\" comparison (op $op) is longer than ${TextOps.MAX_PATTERN_CHARS} characters, so its pattern never matches here"
             TextOps.match("", rhs) == null ->
                 "a regex \"Run only if\" comparison (op $op) uses regular expression features this app doesn't have, so its pattern never matches here: $rhs"
