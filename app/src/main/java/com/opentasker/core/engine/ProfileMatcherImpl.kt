@@ -14,6 +14,7 @@ import com.opentasker.core.contexts.bluetoothNearMatches
 import com.opentasker.core.contexts.bluetoothNearTarget
 import com.opentasker.core.contexts.isStandIn
 import com.opentasker.core.contexts.stateContextKey
+import com.opentasker.core.contexts.stateSetupMarkerKey
 import com.opentasker.core.contexts.SubscriptionReadyContextSource
 import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.location.FossGeofenceEvaluator
@@ -130,13 +131,12 @@ internal class ProfileMatcher(
                         null
                     }
                     if (pulseObservation?.duplicate == true) return@scan previous
-                    contextMatchUpdate(
+                    nextContextMatchUpdate(
+                        previous = previous,
                         spec = spec,
                         event = identityEvent,
                         pulseContext = isPulseContext,
                         observedSequence = pulseObservation?.sequence,
-                        previousSequence = previous.pulseSequence,
-                        previouslyUnread = previous.unread,
                     )
                 }.onEach { update ->
                     publishLiveContextState(profile.id, index, update)
@@ -324,6 +324,37 @@ internal fun contextMatchUpdate(
         unknown = unknown,
         unread = previouslyUnread && !readsContext(spec, event.metadata),
     )
+}
+
+/**
+ * The context's result after [event], given the one before it. A source that starts over, as when
+ * location providers change or Bluetooth comes back on, publishes its stand-in again, so a context
+ * that was read keeps [previous] until a measured value comes, unless the source can't measure at
+ * all now (its setup marker is set).
+ */
+internal fun nextContextMatchUpdate(
+    previous: ContextMatchUpdate,
+    spec: ContextSpec,
+    event: ContextEvent,
+    pulseContext: Boolean = false,
+    observedSequence: Long? = null,
+): ContextMatchUpdate {
+    if (!previous.unread && standInAfterRestart(spec, event.metadata)) return previous
+    return contextMatchUpdate(
+        spec = spec,
+        event = event,
+        pulseContext = pulseContext,
+        observedSequence = observedSequence,
+        previousSequence = previous.pulseSequence,
+        previouslyUnread = previous.unread,
+    )
+}
+
+private fun standInAfterRestart(spec: ContextSpec, metadata: Map<String, String>): Boolean {
+    if (spec.type != ContextType.STATE) return false
+    val key = stateContextKey(spec) ?: return false
+    return isStandIn(metadata, key) && !readsContext(spec, metadata) &&
+        stateSetupMarkerKey(spec)?.let(metadata::get).isNullOrBlank()
 }
 
 /**
