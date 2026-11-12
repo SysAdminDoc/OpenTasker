@@ -98,6 +98,7 @@ object TaskerXmlExporter {
         "file.read" to "417",
         "file.write" to "410",
         "file.append" to "410",
+        "file.delete" to "406",
         "clipboard.set" to "105",
         "flow.if" to "37",
         "flow.else" to "43",
@@ -337,6 +338,11 @@ object TaskerXmlExporter {
                 appendStr(sb, 0, args["path"] ?: "")
                 appendStr(sb, 1, args["text"] ?: args["content"] ?: "")
                 appendInt(sb, 2, if (action.type == "file.append") "1" else "0")
+            }
+            "file.delete" -> {
+                appendStr(sb, 0, args["path"] ?: "")
+                appendInt(sb, 1, "0")
+                appendInt(sb, 2, "0")
             }
             "clipboard.set" -> {
                 appendStr(sb, 0, args["text"] ?: "")

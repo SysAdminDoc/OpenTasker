@@ -779,6 +779,7 @@ object TaskerXmlImporter {
                     "SIM Card".takeIf { byIndex[3].orEmptyIfBlank() != null },
                 ).takeIf { it.isNotEmpty() }?.let { "Tasker Send SMS fields not imported: ${it.joinToString(", ")}" },
             )
+            "406" -> taskerDeleteFile(byIndex, intsByIndex, intVariables)
             "417" -> ActionWithLoss(
                 ActionSpec(
                     type = "file.read",
@@ -1770,6 +1771,23 @@ object TaskerXmlImporter {
             ActionSpec(type = "wake", label = "Tasker turn on"),
             lossyWarning = "Tasker Turn On's Block Time${blockTime?.let { " of $it" }.orEmpty()} wasn't imported. " +
                 "The wake step moves on as soon as it sends the wake key",
+        )
+    }
+
+    /**
+     * Tasker's Delete File: arg0 is the file, arg1 Shred Level, arg2 Use Root and arg3 Use Global
+     * Namespace, which only matters as root. Like Read File and Write File, the path is passed through.
+     */
+    private fun taskerDeleteFile(byIndex: Map<Int, String>, ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss {
+        val shredLevel = variables[1] ?: ints[1]?.takeIf { it != 0 }?.toString()
+        val notImported = listOfNotNull(
+            shredLevel?.let { "Shred Level of $it" },
+            "Use Root".takeIf { variables[2] != null || (ints[2] ?: 0) != 0 },
+        )
+        return ActionWithLoss(
+            ActionSpec(type = "file.delete", label = "Tasker delete file", args = mapOf("path" to byIndex[0].orEmpty())),
+            lossyWarning = notImported.takeIf { it.isNotEmpty() }
+                ?.let { "Tasker Delete File fields not imported: ${it.joinToString(", ")}" },
         )
     }
 
