@@ -9,23 +9,23 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Tasker 6.7.8's maths reader (decompiled `yd.a`) skips Java whitespace at the ends of a value
- * first and only then trims control characters off it, so a control character outside a space
- * like U+2009 keeps that space on and the value isn't a number. And a Tasker Equals or Not Equals
- * whose right side is only spaces never holds, which the import now writes as a check that never
- * does instead of a pair with nothing on its right.
+ * Tasker 6.7.8's maths (decompiled `Expr.d`) strips Android's `\s` from a value, every Unicode
+ * White_Space character, before its reader (`yd.a`) skips Java whitespace at the ends and then trims
+ * control characters, so a space like U+2009 goes wherever it sits. And a Tasker Equals or Not
+ * Equals whose right side is only spaces never holds, which the import now writes as a check that
+ * never does instead of a pair with nothing on its right.
  */
 class TaskerMathsTrimOrderTest {
     private fun isNumber(value: String): Boolean =
         VariableStore().apply { set("x", value) }.evaluateCondition("%x > 41")
 
     @Test
-    fun aControlCharacterOutsideAThinSpaceKeepsItOn() {
+    fun aControlCharacterOutsideAThinSpaceStillLeavesANumber() {
         val thin = Char(THIN_SPACE).toString()
         val control = Char(START_OF_HEADING).toString()
 
-        assertFalse(isNumber("42$thin$control"))
-        assertFalse(isNumber("$control${thin}42"))
+        assertTrue(isNumber("42$thin$control"))
+        assertTrue(isNumber("$control${thin}42"))
     }
 
     @Test

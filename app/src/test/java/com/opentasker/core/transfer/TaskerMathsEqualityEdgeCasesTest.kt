@@ -13,8 +13,9 @@ import org.junit.Test
 /**
  * The corners of Tasker's maths Equals and Not Equals (ops 8 and 9) around the pair this app writes
  * them as: sides that can't sit in a pair, a right side of spaces only, and the spaces Tasker 6.7.8
- * trims off a number (decompiled `Expr.d` strips Java's `\s`, then `yd` skips Java whitespace at the
- * ends and trims everything up to U+0020, which leaves the no-break spaces on).
+ * trims off a number (decompiled `Expr.d` strips Android's `\s`, every Unicode White_Space character,
+ * then `yd` skips Java whitespace at the ends and trims everything up to U+0020, which leaves a zero
+ * width space or U+FEFF on).
  */
 class TaskerMathsEqualityEdgeCasesTest {
     private fun imported(op: String, lhs: String, rhs: String): Pair<String?, List<String>> {
@@ -104,7 +105,7 @@ class TaskerMathsEqualityEdgeCasesTest {
 
     @Test
     fun spacesTaskerTrimsOffANumberStillLeaveANumber() {
-        listOf(THIN_SPACE, IDEOGRAPHIC_SPACE, UNIT_SEPARATOR, ' '.code).forEach { space ->
+        listOf(THIN_SPACE, IDEOGRAPHIC_SPACE, UNIT_SEPARATOR, ' '.code, FIGURE_SPACE, NARROW_NO_BREAK_SPACE).forEach { space ->
             val pad = Char(space).toString()
             listOf("42$pad", "${pad}42").forEach { value ->
                 val variables = VariableStore().apply { set("x", value) }
@@ -115,8 +116,8 @@ class TaskerMathsEqualityEdgeCasesTest {
     }
 
     @Test
-    fun noBreakSpacesLeaveANumberUnread() {
-        listOf(FIGURE_SPACE, NARROW_NO_BREAK_SPACE).forEach { space ->
+    fun zeroWidthCharactersLeaveANumberUnread() {
+        listOf(ZERO_WIDTH_SPACE, BYTE_ORDER_MARK).forEach { space ->
             val variables = VariableStore().apply { set("x", "42" + Char(space)) }
             assertFalse("%04x".format(space), variables.evaluateCondition("%x > 41"))
             assertFalse("%04x".format(space), variables.evaluateCondition("%x is_even"))
@@ -128,7 +129,8 @@ class TaskerMathsEqualityEdgeCasesTest {
         val guard = imported("8", "%count", "42").first!!
 
         assertTrue(holds(guard, "42" + Char(THIN_SPACE)))
-        assertFalse(holds(guard, "42" + Char(FIGURE_SPACE)))
+        assertTrue(holds(guard, "42" + Char(FIGURE_SPACE)))
+        assertFalse(holds(guard, "42" + Char(ZERO_WIDTH_SPACE)))
         assertEquals("(%count <= 42 && %count >= 42)", guard)
     }
 
@@ -138,5 +140,7 @@ class TaskerMathsEqualityEdgeCasesTest {
         const val UNIT_SEPARATOR = 0x001F
         const val FIGURE_SPACE = 0x2007
         const val NARROW_NO_BREAK_SPACE = 0x202F
+        const val ZERO_WIDTH_SPACE = 0x200B
+        const val BYTE_ORDER_MARK = 0xFEFF
     }
 }
