@@ -692,7 +692,8 @@ object TaskerXmlExporter {
             "||" -> listOf("<", ">") to "9"
             else -> return null
         }
-        if (parts.size != 2) return null
+        // A side taskerConditionFor turns down can't go out here either, and Tasker's maths fails on it.
+        if (parts.size != 2 || parts.any { it.contains("&&") || it.contains("||") || it.contains("{{") }) return null
         val (first, second) = parts.map { conditionGrammar.comparisonParts(it) ?: return null }
         if (listOf(first.second, second.second) != tokens) return null
         if (first.first != second.first || first.third != second.third) return null

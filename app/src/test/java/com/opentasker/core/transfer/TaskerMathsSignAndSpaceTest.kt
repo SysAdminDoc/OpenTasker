@@ -7,8 +7,8 @@ import org.junit.Test
 
 /**
  * Two more corners of how Tasker 6.7.8's maths reads one value (decompiled `Expr.d` and `yd`): a
- * sign right after `0x` is an operator, so `0x-1` isn't a number, and only Java's `\s` is stripped,
- * so a no-break space left on a scraped value keeps it from being one.
+ * sign right after `0x` is an operator, so `0x-1` isn't a number, and the spaces Tasker strips and
+ * trims never include a no-break space, so one left on a scraped value keeps it from being one.
  */
 class TaskerMathsSignAndSpaceTest {
     private fun store(value: String) = VariableStore().apply { set("x", value) }
