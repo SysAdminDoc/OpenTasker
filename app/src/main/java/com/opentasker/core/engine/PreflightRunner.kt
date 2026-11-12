@@ -456,12 +456,17 @@ object PreflightRunner {
                                 warnings += note
                             }
                             val returned = ReturnSlot()
+                            if (returnVariable != null &&
+                                expansion.rawValues[SUB_TASK_RESET_RETURN_KEY]?.trim().equals("true", ignoreCase = true)
+                            ) {
+                                variables.remove(returnVariable)
+                            }
                             // The same input scope the run gives the sub-task, so its %par1 checks
                             // read what this caller passes.
                             variables.pushScope(holdsInputs = true)
                             val child = try {
                                 expansion.rawValues.forEach { (key, value) ->
-                                    if (key !in SUB_TASK_REF_KEYS && key != SUB_TASK_RETURN_KEY) {
+                                    if (key !in SUB_TASK_REF_KEYS && key !in SUB_TASK_SETTING_KEYS) {
                                         variables.set(key, value, sensitive = key in expansion.secretKeys)
                                     }
                                 }

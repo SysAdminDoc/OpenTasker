@@ -220,6 +220,8 @@
     <string name="catalog_action_task_run_field_task_hint" formatted="false">切换Wi-Fi</string>
     <string name="catalog_action_task_run_field_return_variable_label" formatted="false">将返回值存入</string>
     <string name="catalog_action_task_run_field_return_variable_hint" formatted="false">%result</string>
+    <string name="catalog_action_task_run_field_reset_return_variable_label" formatted="false">任务运行前先清除它</string>
+    <string name="catalog_action_task_run_field_reset_return_variable_hint" formatted="false">如果任务没有返回值，该变量保持未设置，而不会保留旧值</string>
     <string name="catalog_action_task_stop_name" formatted="false">停止任务</string>
     <string name="catalog_action_task_stop_description" formatted="false">停止正在运行的另一个任务。填写本任务时，会像“停止”一样在此结束本任务。</string>
     <string name="catalog_action_task_stop_field_task_label" formatted="false">任务ID或名称</string>

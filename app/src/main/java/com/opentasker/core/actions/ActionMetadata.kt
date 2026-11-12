@@ -710,6 +710,7 @@ fun registerActionMetadata() {
             fields = listOf(
                 ActionField("task", R.string.catalog_action_task_run_field_task_label, FieldType.TASK, required = true, hintRes = R.string.catalog_action_task_run_field_task_hint),
                 ActionField("returnVariable", R.string.catalog_action_task_run_field_return_variable_label, hintRes = R.string.catalog_action_task_run_field_return_variable_hint),
+                ActionField("resetReturnVariable", R.string.catalog_action_task_run_field_reset_return_variable_label, FieldType.CHECKBOX, hintRes = R.string.catalog_action_task_run_field_reset_return_variable_hint),
             )
         )
     )

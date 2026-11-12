@@ -870,10 +870,15 @@ class TaskRunner(
             originatingProfileName = originatingProfileName,
             now = now,
         )
+        // Like Tasker, cleared once the task is found and before it runs, so a task that returns
+        // nothing leaves the variable unset instead of holding an earlier call's value.
+        if (returnVariable != null && args[SUB_TASK_RESET_RETURN_KEY]?.trim().equals("true", ignoreCase = true)) {
+            ctx.variables.remove(returnVariable)
+        }
         ctx.variables.pushScope(holdsInputs = true)
         val report = try {
             args.forEach { (key, value) ->
-                if (key !in SUB_TASK_REF_KEYS && key != SUB_TASK_RETURN_KEY) {
+                if (key !in SUB_TASK_REF_KEYS && key !in SUB_TASK_SETTING_KEYS) {
                     ctx.variables.set(key, value, sensitive = expansionReport.isArgumentSensitive(key))
                 }
             }
@@ -1244,6 +1249,10 @@ const val MAX_SUBTASK_DEPTH = 8
 val SUB_TASK_REF_KEYS = listOf("task", "name", "id")
 /** The `task.run` argument naming the caller's variable for the value a Stop hands back, Tasker's Return Value Variable. */
 const val SUB_TASK_RETURN_KEY = "returnVariable"
+/** The `task.run` switch that clears that variable before the task runs, Tasker's Reset Return Variable. */
+const val SUB_TASK_RESET_RETURN_KEY = "resetReturnVariable"
+/** `task.run` arguments that set up the step itself, so they never reach the sub-task as inputs. */
+val SUB_TASK_SETTING_KEYS = setOf(SUB_TASK_RETURN_KEY, SUB_TASK_RESET_RETURN_KEY)
 
 /** What the run log and Preflight say for a step turned off. */
 const val STEP_TURNED_OFF = "step is turned off"

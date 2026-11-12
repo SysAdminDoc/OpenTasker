@@ -23,7 +23,9 @@ import com.opentasker.core.model.Variable
 import com.opentasker.core.model.enterTaskIdOrNull
 import com.opentasker.core.diagnostics.ExportRedactionPolicy
 import com.opentasker.core.engine.SUB_TASK_REF_KEYS
+import com.opentasker.core.engine.SUB_TASK_RESET_RETURN_KEY
 import com.opentasker.core.engine.SUB_TASK_RETURN_KEY
+import com.opentasker.core.engine.SUB_TASK_SETTING_KEYS
 import com.opentasker.core.engine.variables.VariableExpander
 import kotlin.math.roundToLong
 
@@ -393,7 +395,14 @@ object TaskerXmlExporter {
                 appendStr(sb, 3, args["par2"] ?: "")
                 appendStr(sb, 4, args[SUB_TASK_RETURN_KEY]?.takeIf(String::isNotBlank)?.let { taskerVariableName(it, "") }.orEmpty())
                 appendInt(sb, 5, "0")
-                val otherInputs = args.keys - SUB_TASK_REF_KEYS - setOf("par1", "par2", SUB_TASK_RETURN_KEY)
+                // Tasker's current layout: no passthrough, no limit, Reset Return Variable, no
+                // overwrite, and Structure Output on, its default.
+                appendInt(sb, 6, "0")
+                appendStr(sb, 7, "")
+                appendInt(sb, 8, taskerFlag(args[SUB_TASK_RESET_RETURN_KEY]))
+                appendInt(sb, 9, "0")
+                appendInt(sb, 10, "1")
+                val otherInputs = args.keys - SUB_TASK_REF_KEYS - setOf("par1", "par2") - SUB_TASK_SETTING_KEYS
                 if (otherInputs.isNotEmpty()) {
                     warnings += "Tasker's Perform Task only passes par1 and par2, so these inputs were left out: " +
                         otherInputs.sorted().joinToString(", ")

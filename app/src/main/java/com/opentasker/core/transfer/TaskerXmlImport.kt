@@ -16,6 +16,7 @@ import com.opentasker.core.data.VariableConvert
 import com.opentasker.core.engine.FlowControl
 import com.opentasker.core.engine.STOP_TASK_ACTION_ID
 import com.opentasker.core.engine.SUB_TASK_ACTION_ID
+import com.opentasker.core.engine.SUB_TASK_RESET_RETURN_KEY
 import com.opentasker.core.engine.SUB_TASK_RETURN_KEY
 import com.opentasker.core.engine.variables.TaskerBuiltIns
 import com.opentasker.core.model.ActionSpec
@@ -1295,6 +1296,11 @@ object TaskerXmlImporter {
         val returnVariable = byIndex[parameterStart + 2].orEmptyIfBlank()?.trim()
         val keptReturnVariable = returnVariable?.takeIf(TASKER_PLAIN_VARIABLE::matches)
         val stops = !olderLayout && (ints[5] ?: 0) != 0
+        // A called task already reads every local variable of its caller here, the same as
+        // Tasker's Local Variable Passthrough with no limit, and never changes them.
+        val limitsPassthrough = !olderLayout && (ints[6] ?: 0) != 0 && byIndex[7].orEmptyIfBlank() != null
+        val resetsReturnVariable = !olderLayout && (ints[8] ?: 0) != 0
+        val allowsOverwrite = !olderLayout && (ints[9] ?: 0) != 0
         return ActionWithLoss(
             ActionSpec(
                 type = "task.run",
@@ -1304,12 +1310,17 @@ object TaskerXmlImporter {
                     byIndex[parameterStart].orEmptyIfBlank()?.let { put("par1", it) }
                     byIndex[parameterStart + 1].orEmptyIfBlank()?.let { put("par2", it) }
                     keptReturnVariable?.let { put(SUB_TASK_RETURN_KEY, it) }
+                    if (keptReturnVariable != null && resetsReturnVariable) put(SUB_TASK_RESET_RETURN_KEY, "true")
                 },
             ),
             lossyWarning = joinWarnings(
                 returnVariable?.takeIf { keptReturnVariable == null }
                     ?.let { "Tasker Perform Task's Return Value Variable $it isn't one plain variable, so it was not imported" },
                 "Tasker Perform Task's Stop option was not imported".takeIf { stops },
+                "Tasker Perform Task's Limit Passthrough To was not imported, so the called task can read all of this task's local variables"
+                    .takeIf { limitsPassthrough },
+                "Tasker Perform Task's Allow Overwrite Variables option was not imported, so the called task can't change this task's local variables"
+                    .takeIf { allowsOverwrite },
             ),
         )
     }

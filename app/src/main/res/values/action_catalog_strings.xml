@@ -228,6 +228,8 @@
     <string name="catalog_action_task_run_field_task_hint" formatted="false">Toggle Wi-Fi</string>
     <string name="catalog_action_task_run_field_return_variable_label" formatted="false">Store the returned value in</string>
     <string name="catalog_action_task_run_field_return_variable_hint" formatted="false">%result</string>
+    <string name="catalog_action_task_run_field_reset_return_variable_label" formatted="false">Clear it before the task runs</string>
+    <string name="catalog_action_task_run_field_reset_return_variable_hint" formatted="false">If the task returns nothing, the variable stays unset instead of keeping an older value</string>
     <string name="catalog_action_task_stop_name" formatted="false">Stop Task</string>
     <string name="catalog_action_task_stop_description" formatted="false">Stop another task while it runs. Naming this task ends it here, like Stop.</string>
     <string name="catalog_action_task_stop_field_task_label" formatted="false">Task id or name</string>
