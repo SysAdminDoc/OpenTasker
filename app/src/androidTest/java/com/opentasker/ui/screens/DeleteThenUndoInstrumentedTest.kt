@@ -87,19 +87,19 @@ class DeleteThenUndoInstrumentedTest {
     @Test
     fun aDeletedVariableComesBackOnUndo() = withViewModel { db, viewModel ->
         val variables = VariableRepository(db.variableDao())
-        variables.upsert(Variable("Commute", "45", isGlobal = true, projectId = DEFAULT_PROJECT_ID))
+        variables.upsert(Variable(VARIABLE_NAME, "45", isGlobal = true, projectId = DEFAULT_PROJECT_ID))
 
-        viewModel.deleteVariable("Commute", UiMessage(R.string.variables_deleted, listOf("Commute")), DEFAULT_PROJECT_ID)
+        viewModel.deleteVariable(VARIABLE_NAME, UiMessage(R.string.variables_deleted, listOf(VARIABLE_NAME)), DEFAULT_PROJECT_ID)
         val deleted = viewModel.nextMessage()
 
         assertEquals(R.string.variables_deleted, deleted.resId)
         assertEquals(
-            UiMessageAction.Undo(EditHistoryDao.TYPE_VARIABLE, VariableEditHistoryIdentity.entityId(DEFAULT_PROJECT_ID, "Commute")),
+            UiMessageAction.Undo(EditHistoryDao.TYPE_VARIABLE, VariableEditHistoryIdentity.entityId(DEFAULT_PROJECT_ID, VARIABLE_NAME)),
             deleted.action,
         )
-        assertNull(variables.get("Commute", DEFAULT_PROJECT_ID))
+        assertNull(variables.get(VARIABLE_NAME, DEFAULT_PROJECT_ID))
         undo(viewModel, deleted)
-        assertEquals("45", variables.get("Commute", DEFAULT_PROJECT_ID)?.value)
+        assertEquals("45", variables.get(VARIABLE_NAME, DEFAULT_PROJECT_ID)?.value)
     }
 
     private suspend fun undo(viewModel: ActiveAutomationViewModel, deleted: UiMessage) {
@@ -134,5 +134,9 @@ class DeleteThenUndoInstrumentedTest {
         const val TASK_ID = 9_100_001L
         const val PROFILE_ID = 9_100_002L
         const val SCENE_ID = 9_100_003L
+
+        // A deleted variable's Locale condition grants are revoked by name in the app's real prefs,
+        // not the in-memory database, so the name must be one no real setup on the device uses.
+        const val VARIABLE_NAME = "OtUndoProbe9100004"
     }
 }
