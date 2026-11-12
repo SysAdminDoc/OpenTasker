@@ -41,7 +41,7 @@
     <string name="context_field_state_poll_minutes_label" formatted="false">检查间隔（分钟）</string>
     <string name="context_field_state_poll_minutes_hint" formatted="false">仅用于健康读数。15 到 1440，默认 15</string>
     <string name="context_field_state_operator_label" formatted="false">运算符</string>
-    <string name="context_field_state_operator_hint" formatted="false">=、&gt;=、&lt;=、&gt;、&lt;</string>
+    <string name="context_field_state_operator_hint" formatted="false">=、&gt;=、&lt;=、&gt;、&lt;、~（Wi-Fi 名称模式）</string>
     <string name="context_field_state_value_label" formatted="false">期望值</string>
     <string name="context_field_state_value_hint" formatted="false">portrait、near、walking、10、true、ringing 或现有的状态值</string>
     <string name="context_state_preset_orientation" formatted="false">竖屏</string>

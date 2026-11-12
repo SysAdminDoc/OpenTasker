@@ -1,6 +1,7 @@
 package com.opentasker.core.contexts
 
 import com.google.re2j.Pattern as Re2Pattern
+import com.opentasker.core.engine.variables.VariableExpander
 import com.opentasker.core.health.HealthPolling
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -243,13 +244,21 @@ object ContextMatchEvaluator {
             if (actualTagId !in configuredTagIds) return false
         }
 
-        val titleFilter = spec.config["title"]?.trim().orEmpty()
-        if (titleFilter.isNotBlank() && !textMatches(event.metadata["title"].orEmpty(), titleFilter, regex)) {
-            return false
-        }
-        val bodyFilter = spec.config["body"]?.trim().orEmpty()
-        if (bodyFilter.isNotBlank() && !textMatches(event.metadata["body"].orEmpty(), bodyFilter, regex)) {
-            return false
+        // A Tasker import keeps Tasker's own title and text patterns, which match the whole value.
+        if (spec.config["patterns"] == TASKER_PATTERNS) {
+            for (field in listOf("title", "body")) {
+                val pattern = spec.config[field].orEmpty()
+                if (pattern.isNotEmpty() && !taskerPatternMatcher.matches(event.metadata[field].orEmpty(), pattern)) return false
+            }
+        } else {
+            val titleFilter = spec.config["title"]?.trim().orEmpty()
+            if (titleFilter.isNotBlank() && !textMatches(event.metadata["title"].orEmpty(), titleFilter, regex)) {
+                return false
+            }
+            val bodyFilter = spec.config["body"]?.trim().orEmpty()
+            if (bodyFilter.isNotBlank() && !textMatches(event.metadata["body"].orEmpty(), bodyFilter, regex)) {
+                return false
+            }
         }
 
         val senderFilter = firstConfig(spec, "sender", "from", "originatingAddress")
@@ -405,6 +414,10 @@ object ContextMatchEvaluator {
         current ?: return false
         return if (start <= end) current in start..end else current >= start || current <= end
     }
+
+    /** An event's `patterns` value when its title and body are Tasker patterns. */
+    const val TASKER_PATTERNS = "tasker"
+    private val taskerPatternMatcher = VariableExpander()
 
     /** The plugin editors and the Tasker import keep at most this much of a blurb. */
     private const val MAX_PLUGIN_BLURB_CHARS = 120

@@ -131,16 +131,15 @@ class TaskerRealProfileContextsTest {
         val acOnly = """<State sr="con1" ve="2"><code>10</code><Int sr="arg0" val="1"/></State>"""
         val wifiList = """<State sr="con1" ve="2"><cname>Home Wifi Connected</cname><code>160</code><Str sr="arg0" ve="3">%mc_wifi_home_list</Str><Str sr="arg1" ve="3"/><Str sr="arg2" ve="3"/><Int sr="arg3" val="2"/></State>"""
         val midRange = """<State sr="con1" ve="2"><code>140</code><Int sr="arg0" val="20"/><Int sr="arg1" val="80"/></State>"""
-        val titled = """<Event sr="con1" ve="2"><code>461</code><App sr="arg0"/><Str sr="arg1" ve="3">Door</Str><Str sr="arg2" ve="3"/><Str sr="arg3" ve="3"/><Str sr="arg4" ve="3"/><Str sr="arg5" ve="3"/><Str sr="arg6" ve="3"/><Int sr="arg7" val="0"/></Event>"""
-        // Here "wifi=Off" means Wi-Fi is off, not a network called Off.
-        val networkCalledOff = """<State sr="con1" ve="2"><code>160</code><Str sr="arg0" ve="3">Off</Str><Str sr="arg1" ve="3"/><Str sr="arg2" ve="3"/><Int sr="arg3" val="2"/></State>"""
+        val subtexted = """<Event sr="con1" ve="2"><code>461</code><App sr="arg0"/><Str sr="arg1" ve="3"/><Str sr="arg2" ve="3"/><Str sr="arg3" ve="3">Door</Str><Str sr="arg4" ve="3"/><Str sr="arg5" ve="3"/><Str sr="arg6" ve="3"/><Int sr="arg7" val="0"/></Event>"""
+        val oneAccessPoint = """<State sr="con1" ve="2"><code>160</code><Str sr="arg0" ve="3">Home</Str><Str sr="arg1" ve="3">aa:bb:cc:dd:ee:ff</Str><Str sr="arg2" ve="3"/><Int sr="arg3" val="2"/></State>"""
 
         listOf(
             acOnly to "code 10",
             wifiList to "code 160",
             midRange to "code 140",
-            titled to "code 461",
-            networkCalledOff to "code 160",
+            subtexted to "code 461",
+            oneAccessPoint to "code 160",
         ).forEach { (context, code) ->
             val report = import(time, context)
             assertEquals(listOf(ContextType.TIME), report.bundle.profiles.single().contexts.map { it.type })

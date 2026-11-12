@@ -7,6 +7,7 @@ import com.opentasker.core.actions.IntentDispatchPolicy
 import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.apps.PackageNamePolicy
 import com.opentasker.core.contexts.BootContextEvents
+import com.opentasker.core.contexts.ContextMatchEvaluator
 import com.opentasker.core.contexts.DaySchedule
 import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
@@ -527,14 +528,15 @@ object TaskerXmlImporter {
                     }
                 }
                 "160" -> {
+                    // Tasker reads the name as one of its patterns. A variable in it is filled in
+                    // as it matches, and spaces at either end would be lost to the state's trim.
                     val ssid = strings[0].orEmpty()
                     val anyNetwork = strings[1].isNullOrBlank() && strings[2].isNullOrBlank() && ints[3] == 2
-                    // A network named "Off" or "connected" would read here as Wi-Fi's on/off state.
-                    val reservedWord = ssid.lowercase().let { it in WIFI_CONNECTED_WORDS || it in WIFI_DISCONNECTED_WORDS }
                     when {
-                        !anyNetwork || reservedWord || ssid.startsWith("!") || ssid.any { it in "*+/%" } -> null
+                        !anyNetwork || '%' in ssid || ssid != ssid.trim() -> null
                         ssid.isEmpty() -> state("wifi", "connected")
-                        else -> state("wifi", ssid)
+                        ssid.isExactWifiName() -> state("wifi", ssid)
+                        else -> state("wifi", ssid, "~")
                     }
                 }
                 else -> null
@@ -542,15 +544,38 @@ object TaskerXmlImporter {
             ContextType.EVENT -> when (element.childText("code")) {
                 "411" -> ContextSpec(ContextType.EVENT, mapOf("event" to BootContextEvents.EVENT_BOOT_COMPLETED))
                 "461" -> {
-                    if ((1..6).any { !strings[it].isNullOrBlank() } || (ints[7] ?: 0) != 0) return null
+                    // arg1 title and arg2 text are Tasker patterns. Subtext, messages, other text,
+                    // category and new-only have nowhere to go.
+                    if ((3..6).any { !strings[it].isNullOrBlank() } || (ints[7] ?: 0) != 0) return null
+                    val title = strings[1].orEmpty()
+                    val text = strings[2].orEmpty()
+                    if ('%' in title || '%' in text) return null
                     val owner = element.actionAppPackage(0)
-                    ContextSpec(ContextType.EVENT, listOfNotNull("event" to "notification", owner?.let { "package" to it }).toMap())
+                    ContextSpec(
+                        ContextType.EVENT,
+                        buildMap {
+                            put("event", "notification")
+                            owner?.let { put("package", it) }
+                            if (title.isNotEmpty()) put("title", title)
+                            if (text.isNotEmpty()) put("body", text)
+                            if (title.isNotEmpty() || text.isNotEmpty()) put("patterns", ContextMatchEvaluator.TASKER_PATTERNS)
+                        },
+                    )
                 }
                 else -> null
             }
             else -> null
         }
     }
+
+    /**
+     * Whether Tasker's Wi-Fi name pattern matches only a network called exactly this: no `*`, `+`
+     * or `/`, no leading `!` or `~R`, and a capital so the match keeps case. A name like "Off" or
+     * "connected" would read as Wi-Fi's on/off state, so it stays a pattern too.
+     */
+    private fun String.isExactWifiName(): Boolean =
+        none { it in "*+/" } && !startsWith("!") && !startsWith("~R") && lowercase() != this &&
+            lowercase().let { it !in WIFI_CONNECTED_WORDS && it !in WIFI_DISCONNECTED_WORDS }
 
     private fun parseAction(taskName: String, element: Element, actionIndex: Int): ParsedTaskerAction {
         val code = element.childText("code").ifBlank { element.getAttribute("code") }.ifBlank { "unknown" }

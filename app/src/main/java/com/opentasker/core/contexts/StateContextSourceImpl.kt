@@ -12,6 +12,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.view.Display
 import androidx.core.content.ContextCompat
+import com.opentasker.core.engine.variables.VariableExpander
 import com.opentasker.core.health.HealthMetric
 import com.opentasker.core.health.HealthStateEvents
 import com.opentasker.core.model.ContextSpec
@@ -377,19 +378,23 @@ private fun wifiMatches(
     expectedRaw: String,
     state: Map<String, String>,
 ): Boolean {
-    if (op != "=") return false
     val expected = expectedRaw.trim()
     val normalizedExpected = expected.lowercase()
     val connected = state["wifi_connected"]?.toBooleanStrictOrNull()
     val actualSsid = state["wifi"]?.takeUnless { it.equals("disconnected", ignoreCase = true) }
         ?: state["wifi_ssid"].orEmpty()
 
+    // Tasker's Wifi Connected reads its name as a Tasker pattern, and only while connected.
+    if (op == "~") return connected == true && wifiNamePatterns.matches(actualSsid, expected)
+    if (op != "=") return false
     return when (normalizedExpected) {
         in WIFI_CONNECTED_WORDS -> connected == true
         in WIFI_DISCONNECTED_WORDS -> connected == false
         else -> actualSsid == expected
     }
 }
+
+private val wifiNamePatterns = VariableExpander()
 
 internal val WIFI_CONNECTED_WORDS = setOf("connected", "on", "true", "yes")
 internal val WIFI_DISCONNECTED_WORDS = setOf("disconnected", "off", "false", "no")
@@ -403,11 +408,14 @@ internal fun stateSpecReadsWifiSsid(spec: ContextSpec): Boolean {
     if (spec.type != ContextType.STATE) return false
     val (key, operator, value) = stateCondition(spec)
     if (normalizeStateKey(key) != "wifi") return false
-    // wifiMatches only compares names with "=", so any other operator never reads the name and
-    // must not ask for location or blame a withheld name for a context that cannot match anyway.
-    if (operator.trim().ifEmpty { "=" } != "=") return false
+    // wifiMatches only compares names with "=" and "~", so any other operator never reads the name
+    // and must not ask for location or blame a withheld name for a context that cannot match anyway.
     val expected = value.trim().lowercase()
-    return expected.isNotEmpty() && expected !in WIFI_CONNECTED_WORDS && expected !in WIFI_DISCONNECTED_WORDS
+    return when (operator.trim().ifEmpty { "=" }) {
+        "~" -> expected.isNotEmpty()
+        "=" -> expected.isNotEmpty() && expected !in WIFI_CONNECTED_WORDS && expected !in WIFI_DISCONNECTED_WORDS
+        else -> false
+    }
 }
 
 /** The device a STATE context waits for, or null when it isn't a nearby-device context that can match. */
@@ -462,4 +470,4 @@ private inline fun numericCompare(
     return compare(actual, expected)
 }
 
-private val STATE_PREDICATE_PATTERN = Regex("^\\s*([^<>=]+?)\\s*(>=|<=|=|>|<)\\s*(.*?)\\s*$")
+private val STATE_PREDICATE_PATTERN = Regex("^\\s*([^<>=~]+?)\\s*(>=|<=|=|>|<|~)\\s*(.*?)\\s*$")

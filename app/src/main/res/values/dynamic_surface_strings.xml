@@ -41,7 +41,7 @@
     <string name="context_field_state_poll_minutes_label" formatted="false">Check every (minutes)</string>
     <string name="context_field_state_poll_minutes_hint" formatted="false">Health readings only. 15 to 1440, default 15</string>
     <string name="context_field_state_operator_label" formatted="false">Operator</string>
-    <string name="context_field_state_operator_hint" formatted="false">=, &gt;=, &lt;=, &gt;, &lt;</string>
+    <string name="context_field_state_operator_hint" formatted="false">=, &gt;=, &lt;=, &gt;, &lt;, ~ (Wi-Fi name pattern)</string>
     <string name="context_field_state_value_label" formatted="false">Expected value</string>
     <string name="context_field_state_value_hint" formatted="false">portrait, near, walking, 10, true, ringing, a Bluetooth device name or address, or an existing state value</string>
     <string name="context_state_preset_orientation" formatted="false">Portrait</string>

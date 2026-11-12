@@ -4,6 +4,7 @@ import com.opentasker.core.actions.ArrayProcessAction
 import com.opentasker.core.actions.BeepTone
 import com.opentasker.core.actions.HttpNetworkConstraint
 import com.opentasker.core.contexts.BootContextEvents
+import com.opentasker.core.contexts.ContextMatchEvaluator
 import com.opentasker.core.contexts.DaySchedule
 import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
@@ -841,8 +842,19 @@ object TaskerXmlExporter {
         return true
     }
 
+    /**
+     * A notification event whose title and body are Tasker patterns writes them to Notification's
+     * title and text fields, in that order. Anywhere else they're a substring or regex filter.
+     */
+    private fun taskerPatternFields(context: ContextSpec): List<String> =
+        if (context.type == ContextType.EVENT &&
+            context.config["event"]?.trim()?.lowercase() == "notification" &&
+            context.config["patterns"] == ContextMatchEvaluator.TASKER_PATTERNS
+        ) listOf("title", "body") else emptyList()
+
     private fun contextSettingsLost(context: ContextSpec): List<String> {
-        val written = EXPORTED_CONTEXT_KEYS[context.type].orEmpty()
+        val written = EXPORTED_CONTEXT_KEYS[context.type].orEmpty() +
+            taskerPatternFields(context).let { if (it.isEmpty()) it else it + "patterns" }
         // The matcher reads a blank setting as no filter at all, so it loses nothing.
         return context.config
             .filter { (key, value) ->
@@ -950,6 +962,8 @@ object TaskerXmlExporter {
             if (from !in 0..100 || to !in 0..100 || from > to) return null
             return TaskerContextCode(140, listOf("""<Int sr="arg0" val="$from"/>""", """<Int sr="arg1" val="$to"/>"""))
         }
+        // A Wi-Fi name pattern goes back as the same Tasker pattern, unless a variable in it would be filled in.
+        if (key == "wifi" && operator == "~") return wifiConnected(value).takeIf { '%' !in value }
         if (operator != "=") return null
         return when (key) {
             // Power and Headset Plugged with their source left at Any. Power and "charging" both
@@ -966,21 +980,24 @@ object TaskerXmlExporter {
             "wifi" -> {
                 val word = value.lowercase()
                 val ssid = if (word in WIFI_CONNECTED_WORDS || word in WIFI_DISCONNECTED_WORDS) "" else value
-                if (ssid.startsWith("!") || ssid.any { it in "*+/%" }) return null
-                TaskerContextCode(
-                    160,
-                    listOf(
-                        """<Str sr="arg0" ve="3">${escapeXml(ssid)}</Str>""",
-                        """<Str sr="arg1" ve="3"/>""",
-                        """<Str sr="arg2" ve="3"/>""",
-                        """<Int sr="arg3" val="2"/>""",
-                    ),
-                    negated = word in WIFI_DISCONNECTED_WORDS,
-                )
+                if (ssid.startsWith("!") || ssid.startsWith("~R") || ssid.any { it in "*+/%" }) return null
+                wifiConnected(ssid, negated = word in WIFI_DISCONNECTED_WORDS)
             }
             else -> null
         }
     }
+
+    /** Wifi Connected with only a name, which Tasker reads as a pattern; Active 2 is Any. */
+    private fun wifiConnected(ssid: String, negated: Boolean = false) = TaskerContextCode(
+        160,
+        listOf(
+            """<Str sr="arg0" ve="3">${escapeXml(ssid)}</Str>""",
+            """<Str sr="arg1" ve="3"/>""",
+            """<Str sr="arg2" ve="3"/>""",
+            """<Int sr="arg3" val="2"/>""",
+        ),
+        negated = negated,
+    )
 
     /** Device Boot, and Notification from one app or any app. A filter Tasker can't hold keeps the event out. */
     private fun taskerEvent(context: ContextSpec): TaskerContextCode? {
@@ -993,7 +1010,15 @@ object TaskerXmlExporter {
                 val owner = packages.singleOrNull()?.let {
                     """<App sr="arg0"><appPkg>${escapeXml(it)}</appPkg><label>${escapeXml(it)}</label></App>"""
                 } ?: """<App sr="arg0"/>"""
-                TaskerContextCode(461, listOf(owner) + (1..6).map { """<Str sr="arg$it" ve="3"/>""" } + """<Int sr="arg7" val="0"/>""")
+                // Title and text are written only as the Tasker patterns they were, and Tasker would
+                // fill in a variable in one as it matched.
+                val patterns = taskerPatternFields(context).map { context.config[it].orEmpty() }
+                if (patterns.any { '%' in it }) return null
+                val fields = (1..6).map { arg ->
+                    val pattern = patterns.getOrNull(arg - 1).orEmpty()
+                    if (pattern.isEmpty()) """<Str sr="arg$arg" ve="3"/>""" else """<Str sr="arg$arg" ve="3">${escapeXml(pattern)}</Str>"""
+                }
+                TaskerContextCode(461, listOf(owner) + fields + """<Int sr="arg7" val="0"/>""")
             }
             else -> null
         }

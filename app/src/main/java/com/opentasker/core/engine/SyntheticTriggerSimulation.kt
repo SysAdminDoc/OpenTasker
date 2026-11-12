@@ -6,6 +6,8 @@ import com.opentasker.core.contexts.ContextMatchEvaluator
 import com.opentasker.core.contexts.DaySchedule
 import com.opentasker.core.contexts.SunEventCalculator
 import com.opentasker.core.contexts.TimeContextBounds
+import com.opentasker.core.contexts.parseStatePredicate as stateContextPredicate
+import com.opentasker.core.engine.variables.VariableExpander
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
 import com.opentasker.core.model.Profile
@@ -78,6 +80,7 @@ data class SyntheticTriggerSimulation(
 object SyntheticTriggerSimulator {
     private const val ASSUMED_GLOBAL_START = 6 * 60
     private const val ASSUMED_GLOBAL_END = 18 * 60
+    private val taskerPatternMatcher = VariableExpander()
 
     fun simulate(
         profile: Profile,
@@ -287,10 +290,15 @@ object SyntheticTriggerSimulator {
         })
         val normalizedKey = parsed?.first?.let(::normalizeStateKey).orEmpty()
         val expected = parsed?.third.orEmpty()
+        val namePattern = normalizedKey == "wifi" && parsed?.second == "~"
+        val patternExample = if (namePattern) taskerPatternExample(expected) else null
         val actual = stateSyntheticValue(normalizedKey, parsed?.second.orEmpty(), expected)
         val metadata = mutableMapOf<String, String>()
         if (normalizedKey.isNotBlank()) metadata[normalizedKey] = actual
-        if (normalizedKey == "wifi") {
+        if (namePattern) {
+            metadata["wifi_connected"] = "true"
+            metadata["wifi"] = patternExample.orEmpty()
+        } else if (normalizedKey == "wifi") {
             metadata["wifi_connected"] = if (expected.equals("connected", true) || expected.equals("true", true)) "true" else "false"
             if (expected !in setOf("connected", "disconnected", "true", "false", "on", "off")) {
                 metadata["wifi"] = expected
@@ -298,6 +306,9 @@ object SyntheticTriggerSimulator {
         }
         val issue = when {
             parsed == null -> "State context needs a key, operator, and value predicate."
+            namePattern && patternExample == null ->
+                "No made-up network name matches this Wi-Fi name pattern, so it needs a real network to try."
+            namePattern -> null
             parsed.second !in setOf("=", ">=", "<=", ">", "<") -> "State context uses an unsupported comparison operator."
             parsed.second != "=" && expected.toIntOrNull() == null ->
                 "Numeric state comparisons need a numeric threshold."
@@ -329,8 +340,20 @@ object SyntheticTriggerSimulator {
         first(spec.config, "topic", "topics").takeIf(String::isNotBlank)?.let { metadata["topic"] = csvFirst(it) }
         spec.config["eventId"]?.trim()?.takeIf(String::isNotBlank)?.let { metadata["eventId"] = it }
         first(spec.config, "tagId", "tagIds", "tag").takeIf(String::isNotBlank)?.let { metadata["tagId"] = csvFirst(it) }
-        spec.config["title"]?.trim()?.takeIf(String::isNotBlank)?.let { metadata["title"] = it }
-        spec.config["body"]?.trim()?.takeIf(String::isNotBlank)?.let { metadata["body"] = it }
+        // A Tasker import's title and text are Tasker patterns, so each gets a made-up value it matches.
+        val taskerPatterns = spec.config["patterns"] == ContextMatchEvaluator.TASKER_PATTERNS
+        val patternExamples = if (taskerPatterns) {
+            listOf("title", "body").filter { spec.config[it].orEmpty().isNotEmpty() }
+                .associateWith { taskerPatternExample(spec.config[it].orEmpty()) }
+        } else {
+            emptyMap()
+        }
+        if (taskerPatterns) {
+            patternExamples.forEach { (field, example) -> metadata[field] = example.orEmpty() }
+        } else {
+            spec.config["title"]?.trim()?.takeIf(String::isNotBlank)?.let { metadata["title"] = it }
+            spec.config["body"]?.trim()?.takeIf(String::isNotBlank)?.let { metadata["body"] = it }
+        }
         first(spec.config, "sender", "from", "originatingAddress").takeIf(String::isNotBlank)?.let { metadata["sender"] = it }
         if (actualEvent.equals("share", true)) {
             first(spec.config, "mime", "mimeType", "type").takeIf(String::isNotBlank)?.let { metadata["mime"] = csvFirst(it) }
@@ -348,6 +371,8 @@ object SyntheticTriggerSimulator {
             first(spec.config, "beforeMinutes", "withinMinutes").isNotBlank() &&
                 first(spec.config, "beforeMinutes", "withinMinutes").toIntOrNull() == null ->
                 "Event before-window must be a number of minutes."
+            null in patternExamples.values ->
+                "No made-up text matches this notification's title or text pattern, so it needs a real notification to try."
             else -> null
         }
         return template(
@@ -476,10 +501,24 @@ object SyntheticTriggerSimulator {
     }
 
     private fun parseStatePredicate(value: String): Triple<String, String, String>? {
+        // A Wi-Fi name pattern can hold any sign, so it's read the way the matcher reads it.
+        stateContextPredicate(value)?.takeIf { it.second == "~" }?.let { return it.takeIf { it.third.isNotBlank() } }
         val operator = listOf(">=", "<=", ">", "<", "=").firstOrNull { value.contains(it) } ?: return null
         val parts = value.split(operator, limit = 2)
         if (parts.size != 2 || parts[0].isBlank() || parts[1].isBlank()) return null
         return Triple(parts[0].trim(), operator, parts[1].trim())
+    }
+
+    /**
+     * A value the Tasker pattern [pattern] matches: its first alternative with the wildcards filled
+     * in, or a plain word for a pattern that only says what to leave out. Null when neither matches,
+     * as for most regexes.
+     */
+    private fun taskerPatternExample(pattern: String): String? {
+        val alternative = pattern.takeUnless { it.startsWith("!") || it.startsWith("~R") }
+            ?.trim('/')?.split('/')?.firstOrNull(String::isNotEmpty)
+            ?.replace("*", "")?.replace("+", "x")?.ifEmpty { "x" }
+        return listOfNotNull(alternative, "x").firstOrNull { taskerPatternMatcher.matches(it, pattern) }
     }
 
     private fun normalizeStateKey(key: String): String = when (key.trim().lowercase(Locale.US)) {
