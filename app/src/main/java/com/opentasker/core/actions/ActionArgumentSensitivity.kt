@@ -48,6 +48,7 @@ object ActionArgumentSensitivity {
      */
     private val NAME_KEYED_VALUE_ARGS: Map<String, Pair<String, String>> = mapOf(
         "var.set" to ("name" to "value"),
+        "var.set_multiple" to ("names" to "values"),
     )
 
     /** True when [argName] itself reads as a credential-bearing key. */
@@ -61,6 +62,12 @@ object ActionArgumentSensitivity {
     fun isSensitive(actionType: String?, argName: String, args: Map<String, String> = emptyMap()): Boolean {
         declaredSensitivity(actionType, argName)?.let { return it }
         if (isSensitiveArgumentName(argName)) return true
+        if (actionType == "var.set_multiple" && argName.equals("names", ignoreCase = true)) {
+            // A name can carry its own value, a typed value can read as a bare name, and a failed step
+            // names an entry that isn't a name as written, so only a list of plain %names stays
+            // readable once it mentions a secret.
+            return isSensitiveArgumentName(args["names"].orEmpty()) && !multipleVariablesNamesArePlain(args)
+        }
         val keyed = actionType?.let { NAME_KEYED_VALUE_ARGS[it] } ?: return false
         val (nameArg, valueArg) = keyed
         if (!argName.equals(valueArg, ignoreCase = true)) return false

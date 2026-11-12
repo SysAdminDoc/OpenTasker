@@ -47,6 +47,17 @@
     <string name="catalog_action_var_set_field_name_hint" formatted="false">%var name</string>
     <string name="catalog_action_var_set_field_value_label" formatted="false">Value</string>
     <string name="catalog_action_var_set_field_value_hint" formatted="false">Supports %expansion</string>
+    <string name="catalog_action_var_set_multiple_name" formatted="false">Multiple Variables Set</string>
+    <string name="catalog_action_var_set_multiple_description" formatted="false">Set several variables in one step, each name to the value in the same place</string>
+    <string name="catalog_action_var_set_multiple_field_names_label" formatted="false">Names</string>
+    <string name="catalog_action_var_set_multiple_field_names_hint" formatted="false">One %name per line. With no values and two or more lines, a name can take its own after the values splitter, like %count,0</string>
+    <string name="catalog_action_var_set_multiple_field_values_label" formatted="false">Values</string>
+    <string name="catalog_action_var_set_multiple_field_values_hint" formatted="false">One value per line, in the same order as the names. A name without a value is unset</string>
+    <string name="catalog_action_var_set_multiple_field_names_splitter_label" formatted="false">Names splitter</string>
+    <string name="catalog_action_var_set_multiple_field_values_splitter_label" formatted="false">Values splitter</string>
+    <string name="catalog_action_var_set_multiple_field_splitter_hint" formatted="false">Text between entries. Leave blank for a new line, or a comma when there\'s only one line</string>
+    <string name="catalog_action_var_set_multiple_field_keep_existing_label" formatted="false">Keep existing</string>
+    <string name="catalog_action_var_set_multiple_field_keep_existing_hint" formatted="false">Leave a variable alone when it already has a value</string>
     <string name="catalog_action_var_persist_name" formatted="false">Persist Variable</string>
     <string name="catalog_action_var_persist_description" formatted="false">Copy a variable\'s current value into the global scope so it survives across task runs</string>
     <string name="catalog_action_var_persist_field_name_label" formatted="false">Source variable</string>

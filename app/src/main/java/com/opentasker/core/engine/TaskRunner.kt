@@ -1178,14 +1178,16 @@ class TaskRunner(
  * to a different variable. A name built from parts, like "item_%slot", still expands. Variable
  * Clear's name is never filled in, since it can be a pattern like "%item*", as in Tasker. Join
  * Text's "%parts" names the array to join, the way an output name does: filled in, it was the
- * first part's text, so the step joined nothing.
+ * first part's text, so the step joined nothing. Multiple Variables Set fills in each of its names
+ * itself, one at a time, since the whole list is never one variable.
  */
 internal class OutputNameArguments(private val actionType: String) {
     private val keys = declaredActionOutputs(actionType).flatMapTo(hashSetOf()) { it.nameArgumentKeys }
 
     fun keepsAsWritten(argumentName: String, rawValue: String): Boolean =
         ((argumentName in keys || (actionType == "text.join" && argumentName == "array")) && SINGLE_VARIABLE.matches(rawValue.trim())) ||
-            (actionType == "var.clear" && argumentName == "name")
+            (actionType == "var.clear" && argumentName == "name") ||
+            (actionType == "var.set_multiple" && argumentName == "names")
 
     private companion object {
         val SINGLE_VARIABLE = Regex("%[A-Za-z][A-Za-z0-9_]*")

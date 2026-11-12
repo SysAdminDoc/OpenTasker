@@ -46,6 +46,7 @@ object ActionCatalog {
         define("notify.cancel", ActionCategory.NOTIFICATION, ActionRetrySafety.IDEMPOTENT, ::NotifyCancelAction),
         define("notify.progress", ActionCategory.NOTIFICATION, ActionRetrySafety.NEVER, ::ProgressNotificationAction),
         define("var.set", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::SetVariableAction),
+        define("var.set_multiple", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::SetMultipleVariablesAction),
         define("var.persist", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::PersistVariableAction),
         define("var.clear", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::VarClearAction),
         define("clipboard.get", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::ClipboardGetAction),

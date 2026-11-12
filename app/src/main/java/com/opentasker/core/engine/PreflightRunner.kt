@@ -10,6 +10,10 @@ import com.opentasker.core.actions.PluginBundleArguments
 import com.opentasker.core.actions.clearVariables
 import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.actions.httpNetworkDenial
+import com.opentasker.core.actions.multipleVariablesFailure
+import com.opentasker.core.actions.multipleVariablesTargets
+import com.opentasker.core.actions.setMultipleVariables
+import com.opentasker.core.actions.writtenScalarVariables
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.capabilities.CapabilityLevel
 import com.opentasker.core.capabilities.SetupRequirement
@@ -112,6 +116,7 @@ object PreflightActionRegistry {
         SUB_TASK_ACTION_ID -> "Would invoke a referenced sub-task; nested action execution is suppressed."
         STOP_TASK_ACTION_ID -> "Would stop the named task if it is running; nothing is stopped in preview."
         "var.set" -> "Updates the preflight variable snapshot only; durable variable writes are suppressed."
+        "var.set_multiple" -> "Sets or unsets each named variable in the preflight snapshot only; durable variable writes are suppressed."
         "var.persist" -> "Would promote a variable to global scope; persistence is suppressed."
         "var.clear" -> "Unsets variables in the preflight snapshot only; durable variable removals are suppressed."
         else -> {
@@ -130,6 +135,7 @@ object PreflightRunner {
     private const val MAX_SUBTASK_DEPTH = 8
     private const val MAX_DISPLAY_VALUE_LENGTH = 256
     private val SINGLE_VARIABLE = Regex("%[A-Za-z][A-Za-z0-9_]*")
+    private val VARIABLE_REFERENCE = Regex("%[A-Za-z]")
 
     // The actions that write Tasker's numbered elements (%arr1, %arr2, ...), text.replace through
     // its matches array. text.split and text.match keep their parts in a stored array instead, so
@@ -425,7 +431,16 @@ object PreflightRunner {
                 failsHere = true
             }
             if (effectiveStatus != PreflightStepStatus.BLOCKED) {
-                simulateVariableWrite(spec, expansion.rawValues, variables)
+                simulateVariableWrite(spec, expansion.rawValues, variables, input.eventVariables)?.let { (failure, builtFromOthers) ->
+                    if (builtFromOthers) {
+                        // Something Preflight doesn't play may set those variables first, so this only warns.
+                        val note = "A name built from other variables isn't a variable name here. If nothing changes those variables before this step, the run stops the step."
+                        steps[pc]?.let { steps[pc] = it.copy(warnings = (it.warnings + note).distinct()) }
+                        warnings += note
+                    } else {
+                        block("The run stops this step: $failure.")
+                    }
+                }
                 if (spec.type == SUB_TASK_ACTION_ID) {
                     val reference = SUB_TASK_REF_KEYS.firstNotNullOfOrNull { expansion.rawValues[it]?.trim()?.takeIf(String::isNotBlank) }
                     val target = reference?.let { resolveTask(it, tasks) }
@@ -589,9 +604,7 @@ object PreflightRunner {
      * its condition holds.
      */
     private fun builtInWriteWarnings(type: String, rawValues: Map<String, String>): List<String> =
-        declaredActionOutputs(type)
-            .filter { it.type != ActionValueType.ARRAY }
-            .mapNotNull { it.resolveName(rawValues) }
+        writtenScalarVariables(type, rawValues)
             .filter { it in TaskerBuiltIns.SUPPORTED }
             .distinct()
             .map { "%$it is a Tasker built-in, which Tasker won't let a task set. Here the value this step sets replaces it until the variable is set to nothing." }
@@ -1001,8 +1014,13 @@ object PreflightRunner {
         if (!SINGLE_VARIABLE.matches(position) || !VariableNamePolicy.isGlobal(position)) return false
         val name = VariableNamePolicy.normalize(position) ?: return false
         return (tasks.filterNot { it.id == task.id } + task).flatMap(Task::actions).filter(ActionSpec::enabled).none { action ->
-            val named = action.args.any { (key, value) ->
-                !ArrayPositionArguments.isPosition(action.type, key) && VariableNamePolicy.normalize(value) == name
+            // Multiple Variables Set can list a name only to unset it, so only the names it gives a value count.
+            val named = if (action.type == "var.set_multiple") {
+                name in multipleVariablesTargets(action.args)
+            } else {
+                action.args.any { (key, value) ->
+                    !ArrayPositionArguments.isPosition(action.type, key) && VariableNamePolicy.normalize(value) == name
+                }
             }
             named || declaredActionOutputs(action.type).any { output ->
                 val written = output.resolveName(action.args) ?: return@any false
@@ -1057,7 +1075,16 @@ object PreflightRunner {
         val warnings: List<String>,
     )
 
-    private fun simulateVariableWrite(spec: ActionSpec, values: Map<String, String>, variables: VariableStore) {
+    /**
+     * Plays [spec]'s variable write on [variables]. For Multiple Variables Set, returns why the run
+     * fails the step, if it does, and whether only names built from other variables caused it.
+     */
+    private fun simulateVariableWrite(
+        spec: ActionSpec,
+        values: Map<String, String>,
+        variables: VariableStore,
+        eventVariables: Map<String, String>,
+    ): Pair<String, Boolean>? {
         when (spec.type) {
             "var.set" -> {
                 val name = values["name"]?.trim().orEmpty()
@@ -1072,7 +1099,14 @@ object PreflightRunner {
                 if (value != null && target != null) variables.set(target, value, sensitive = variables.isSensitive(source))
             }
             "var.clear" -> variables.clearVariables(values)
+            "var.set_multiple" -> {
+                val outcome = variables.setMultipleVariables(values, eventVariables)
+                val failure = multipleVariablesFailure(values, outcome) ?: return null
+                val builtFromOthers = outcome.invalid.isNotEmpty() && outcome.invalid.all { VARIABLE_REFERENCE.containsMatchIn(it.drop(1)) }
+                return failure to builtFromOthers
+            }
         }
+        return null
     }
 
     private fun resolveTask(reference: String, tasks: List<Task>): Task? =

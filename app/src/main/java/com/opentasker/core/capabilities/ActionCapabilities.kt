@@ -46,6 +46,7 @@ object ActionCapabilityRegistry {
     private val ordinaryActionIds = setOf(
         // Variables, text, and date-time: pure in-process transforms.
         "var.set",
+        "var.set_multiple",
         "var.persist",
         "var.clear",
         "clipboard.get",

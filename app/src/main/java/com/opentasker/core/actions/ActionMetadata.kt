@@ -27,6 +27,8 @@ data class ActionField(
     val inputType: ActionValueType? = null,
     /** Takes a comma-separated list, so a variable chip joins what's there with a comma. */
     val listInput: Boolean = false,
+    /** A space or a new line is a value here (a splitter or joiner), so saving clears only an empty field. */
+    val keepsWhitespace: Boolean = false,
 )
 
 data class ActionFieldOption(
@@ -103,6 +105,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "notify.progress",
     "notify.cancel",
     "var.set",
+    "var.set_multiple",
     "var.persist",
     "var.clear",
     "data.read",
@@ -349,6 +352,22 @@ fun registerActionMetadata() {
 
     ActionMetadataRegistry.register(
         ActionMetadata(
+            id = "var.set_multiple",
+            nameRes = R.string.catalog_action_var_set_multiple_name,
+            descriptionRes = R.string.catalog_action_var_set_multiple_description,
+            categoryRes = R.string.catalog_category_variable,
+            fields = listOf(
+                ActionField("names", R.string.catalog_action_var_set_multiple_field_names_label, FieldType.MULTILINE, required = true, hintRes = R.string.catalog_action_var_set_multiple_field_names_hint),
+                ActionField("values", R.string.catalog_action_var_set_multiple_field_values_label, FieldType.MULTILINE, hintRes = R.string.catalog_action_var_set_multiple_field_values_hint),
+                ActionField("names_splitter", R.string.catalog_action_var_set_multiple_field_names_splitter_label, hintRes = R.string.catalog_action_var_set_multiple_field_splitter_hint, keepsWhitespace = true),
+                ActionField("values_splitter", R.string.catalog_action_var_set_multiple_field_values_splitter_label, hintRes = R.string.catalog_action_var_set_multiple_field_splitter_hint, keepsWhitespace = true),
+                ActionField("keep_existing", R.string.catalog_action_var_set_multiple_field_keep_existing_label, FieldType.CHECKBOX, hintRes = R.string.catalog_action_var_set_multiple_field_keep_existing_hint),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
             id = "var.persist",
             nameRes = R.string.catalog_action_var_persist_name,
             descriptionRes = R.string.catalog_action_var_persist_description,
@@ -475,7 +494,7 @@ fun registerActionMetadata() {
             categoryRes = R.string.catalog_category_variable,
             fields = listOf(
                 ActionField("source", R.string.catalog_action_text_split_field_source_label, required = true),
-                ActionField("delimiter", R.string.catalog_action_text_split_field_delimiter_label, hintRes = R.string.catalog_action_text_split_field_delimiter_hint),
+                ActionField("delimiter", R.string.catalog_action_text_split_field_delimiter_label, hintRes = R.string.catalog_action_text_split_field_delimiter_hint, keepsWhitespace = true),
                 ActionField("pattern", R.string.catalog_action_text_split_field_pattern_label, hintRes = R.string.catalog_action_text_split_field_pattern_hint),
                 ActionField("var", R.string.catalog_action_text_split_field_var_label, hintRes = R.string.catalog_action_text_split_field_var_hint),
             )
@@ -490,7 +509,7 @@ fun registerActionMetadata() {
             categoryRes = R.string.catalog_category_variable,
             fields = listOf(
                 ActionField("array", R.string.catalog_action_text_join_field_array_label, required = true, hintRes = R.string.catalog_action_text_join_field_array_hint, inputType = ActionValueType.ARRAY),
-                ActionField("delimiter", R.string.catalog_action_text_join_field_delimiter_label, hintRes = R.string.catalog_action_text_join_field_delimiter_hint),
+                ActionField("delimiter", R.string.catalog_action_text_join_field_delimiter_label, hintRes = R.string.catalog_action_text_join_field_delimiter_hint, keepsWhitespace = true),
                 ActionField("var", R.string.catalog_action_text_join_field_var_label, hintRes = R.string.catalog_action_text_join_field_var_hint),
             )
         )
@@ -533,7 +552,7 @@ fun registerActionMetadata() {
             fields = listOf(
                 ActionField("name", R.string.catalog_action_var_split_field_name_label, required = true, hintRes = R.string.catalog_action_var_split_field_name_hint),
                 ActionField("values", R.string.catalog_action_var_split_field_values_label, hintRes = R.string.catalog_action_var_split_field_values_hint),
-                ActionField("splitter", R.string.catalog_action_var_split_field_splitter_label, hintRes = R.string.catalog_action_var_split_field_splitter_hint),
+                ActionField("splitter", R.string.catalog_action_var_split_field_splitter_label, hintRes = R.string.catalog_action_var_split_field_splitter_hint, keepsWhitespace = true),
                 ActionField("regex", R.string.catalog_action_var_split_field_regex_label, FieldType.CHECKBOX),
                 ActionField("delete_base", R.string.catalog_action_var_split_field_delete_base_label, FieldType.CHECKBOX),
             )
@@ -548,7 +567,7 @@ fun registerActionMetadata() {
             categoryRes = R.string.catalog_category_variable,
             fields = listOf(
                 ActionField("name", R.string.catalog_action_var_join_field_name_label, required = true, hintRes = R.string.catalog_action_var_join_field_name_hint),
-                ActionField("joiner", R.string.catalog_action_var_join_field_joiner_label),
+                ActionField("joiner", R.string.catalog_action_var_join_field_joiner_label, keepsWhitespace = true),
                 ActionField("delete_parts", R.string.catalog_action_var_join_field_delete_parts_label, FieldType.CHECKBOX),
             )
         )

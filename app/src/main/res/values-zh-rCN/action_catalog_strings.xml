@@ -41,6 +41,17 @@
     <string name="catalog_action_var_set_field_name_hint" formatted="false">%var 变量名</string>
     <string name="catalog_action_var_set_field_value_label" formatted="false">值</string>
     <string name="catalog_action_var_set_field_value_hint" formatted="false">支持%展开</string>
+    <string name="catalog_action_var_set_multiple_name" formatted="false">设置多个变量</string>
+    <string name="catalog_action_var_set_multiple_description" formatted="false">一步设置多个变量，每个名称取相同位置的值</string>
+    <string name="catalog_action_var_set_multiple_field_names_label" formatted="false">名称</string>
+    <string name="catalog_action_var_set_multiple_field_names_hint" formatted="false">每行一个 %name。不填值且有多行时，名称后可加值分隔符和值，如 %count,0</string>
+    <string name="catalog_action_var_set_multiple_field_values_label" formatted="false">值</string>
+    <string name="catalog_action_var_set_multiple_field_values_hint" formatted="false">每行一个值，顺序与名称相同。没有对应值的名称会被取消设置</string>
+    <string name="catalog_action_var_set_multiple_field_names_splitter_label" formatted="false">名称分隔符</string>
+    <string name="catalog_action_var_set_multiple_field_values_splitter_label" formatted="false">值分隔符</string>
+    <string name="catalog_action_var_set_multiple_field_splitter_hint" formatted="false">条目之间的文字。留空则按换行分隔，只有一行时按逗号分隔</string>
+    <string name="catalog_action_var_set_multiple_field_keep_existing_label" formatted="false">保留已有值</string>
+    <string name="catalog_action_var_set_multiple_field_keep_existing_hint" formatted="false">变量已有值时不覆盖</string>
     <string name="catalog_action_var_persist_name" formatted="false">持久化变量</string>
     <string name="catalog_action_var_persist_description" formatted="false">将变量的当前值复制到全局作用域，使其在任务运行后仍然保留</string>
     <string name="catalog_action_var_persist_field_name_label" formatted="false">源变量</string>

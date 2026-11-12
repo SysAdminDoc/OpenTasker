@@ -89,7 +89,7 @@ class TextSplitAction : DeclaredAction(ActionCatalog.require("text.split")) {
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val source = args["source"] ?: return ActionResult.Failure("missing source")
         val regex = args["pattern"]?.ifBlank { null }
-        val literal = args["delimiter"]?.ifBlank { null }
+        val literal = args["delimiter"]?.ifEmpty { null }
         val varName = outputVar(args, "parts")
         val parts = when {
             regex != null -> TextOps.split(source, regex, isRegex = true)

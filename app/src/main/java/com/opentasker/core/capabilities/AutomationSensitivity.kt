@@ -41,6 +41,7 @@ data class AutomationRiskSummary(
 object AutomationSensitivityRegistry {
     private val localOnlyActionIds = setOf(
         "var.set",
+        "var.set_multiple",
         "var.persist",
         "var.clear",
         "data.read",

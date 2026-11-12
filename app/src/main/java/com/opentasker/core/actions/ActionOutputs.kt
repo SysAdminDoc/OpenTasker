@@ -251,6 +251,14 @@ private fun output(
     requiredArgumentValues = requiredArgumentValues,
 )
 
+/**
+ * The single variables a step of [actionId] gives a value, by canonical name: its declared outputs
+ * other than arrays, and each name a Multiple Variables Set lists, which no output declares.
+ */
+internal fun writtenScalarVariables(actionId: String, args: Map<String, String>): List<String> =
+    declaredActionOutputs(actionId).filter { it.type != ActionValueType.ARRAY }.mapNotNull { it.resolveName(args) } +
+        if (actionId == "var.set_multiple") multipleVariablesTargets(args) else emptyList()
+
 /** Output declarations for the built-in actions whose runtime writes variables. */
 internal fun declaredActionOutputs(actionId: String): List<ActionOutputDefinition> = when (actionId) {
     "var.set" -> listOf(output("value", ActionValueType.ANY, nameArgumentKeys = listOf("name"), basePath = true))

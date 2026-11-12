@@ -1,10 +1,10 @@
 package com.opentasker.core.transfer
 
-import com.opentasker.core.actions.ActionValueType
 import com.opentasker.core.actions.ArrayProcessAction
 import com.opentasker.core.actions.IntentDispatchParseResult
 import com.opentasker.core.actions.IntentDispatchPolicy
-import com.opentasker.core.actions.declaredActionOutputs
+import com.opentasker.core.actions.multipleVariablesNamesCarryValues
+import com.opentasker.core.actions.writtenScalarVariables
 import com.opentasker.core.apps.PackageNamePolicy
 import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.ContextMatchEvaluator
@@ -201,9 +201,7 @@ object TaskerXmlImporter {
                 parsed.action
             }
             // A built-in the task's own steps set here, like %HTTPD from HTTP Request, is filled in.
-            val written = actions.flatMap { action ->
-                declaredActionOutputs(action.type).filter { it.type != ActionValueType.ARRAY }.mapNotNull { it.resolveName(action.args) }
-            }.toSet()
+            val written = actions.flatMap { action -> writtenScalarVariables(action.type, action.args) }.toSet()
             val builtIns = TaskerBuiltIns.unsupportedReads(element.directChildren("Action").flatMap { it.textNodes() }.joinToString("\n")) - written
             if (builtIns.isNotEmpty()) lossyWarnings += taskerBuiltInWarning(name, builtIns)
             Task(id = id, name = name, actions = actions)
@@ -634,6 +632,7 @@ object TaskerXmlImporter {
                 lossyWarning = "flash styling was represented as a standard notification",
             )
             "547", "var.set", "variable.set" -> taskerVariableSet(strings, intsByIndex)
+            "389" -> taskerMultipleVariablesSet(code, element, intsByIndex, intVariables)
             "888" -> taskerVariableAddOrSubtract(code, subtract = false, byIndex, intsByIndex, intVariables)
             "890" -> taskerVariableAddOrSubtract(code, subtract = true, byIndex, intsByIndex, intVariables)
             "549" -> taskerVariableClear(code, byIndex, intsByIndex, intVariables)
@@ -1115,6 +1114,81 @@ object TaskerXmlImporter {
             ),
         )
     }
+
+    /**
+     * Tasker's Multiple Variables Set: arg0 the bundle of outputs, arg1 the names, arg2 their
+     * splitter, arg3 the values, arg4 theirs, arg5 Do Maths, arg6 its rounding digits, arg7 Keep
+     * Existing and arg8 Structure Output. The text fields are read as written, since a splitter is
+     * usually a new line or a space and a leading blank value still takes the first name. Do Maths
+     * turns each value this app can work out into a template; Structure Output changes nothing here,
+     * where any variable holding JSON can already be read by path.
+     */
+    private fun taskerMultipleVariablesSet(
+        code: String,
+        element: Element,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
+        if (5 in variables || 7 in variables) {
+            return taskerPlaceholder(code, "Tasker Multiple Variables Set takes a switch from a variable, which has no match here")
+        }
+        val names = element.rawActionString(1)
+        val namesSplitter = element.rawActionString(2)
+        val valuesSplitter = element.rawActionString(4)
+        val doMaths = (ints[5] ?: 0) != 0
+        val values = element.rawActionString(3).let { raw ->
+            if (doMaths) taskerMathsValues(raw, valuesSplitter) else ImportedField(raw)
+        }
+        val args = buildMap {
+            put("names", names)
+            if (values.value.isNotEmpty()) put("values", values.value)
+            if (namesSplitter.isNotEmpty()) put("names_splitter", namesSplitter)
+            if (valuesSplitter.isNotEmpty()) put("values_splitter", valuesSplitter)
+            if ((ints[7] ?: 0) != 0) put("keep_existing", "true")
+        }
+        val inlineMaths = doMaths && multipleVariablesNamesCarryValues(args)
+        return ActionWithLoss(
+            ActionSpec(type = "var.set_multiple", label = "Tasker multiple variables set", args = args),
+            lossyWarning = joinWarnings(
+                values.warning,
+                "Tasker Multiple Variables Set's Do Maths isn't worked out for values written after their names, so those are set as written"
+                    .takeIf { inlineMaths },
+                "Tasker Multiple Variables Set has no names, so the step fails when it runs".takeIf { names.isBlank() },
+            ),
+        )
+    }
+
+    /**
+     * Do Maths for each value on its own. A number stays, a variable or a simple sum becomes a
+     * template, and text that isn't maths stays text, as in Tasker. Anything else that looks like a
+     * sum is set as written and named.
+     */
+    private fun taskerMathsValues(raw: String, splitter: String): ImportedField {
+        val effective = splitter.ifEmpty { if ('\n' in raw) "\n" else "," }
+        val unworked = mutableListOf<String>()
+        val converted = raw.split(effective).map { value ->
+            val trimmed = value.trim()
+            when {
+                trimmed.isEmpty() || trimmed.toDoubleOrNull() != null -> value
+                else -> taskerNumberTemplate(trimmed, unsetAsZero = true)
+                    ?: value.also { if (looksLikeTaskerMaths(trimmed)) unworked += trimmed }
+            }
+        }
+        return ImportedField(
+            converted.joinToString(effective),
+            "Tasker Multiple Variables Set's Do Maths isn't worked out here, so these are set as written: ${unworked.joinToString()}"
+                .takeIf { unworked.isNotEmpty() },
+        )
+    }
+
+    /**
+     * A sum Do Maths would work out. Words like `hello-world` hold an operator but are text, which
+     * Tasker sets as written, so a letter outside the variables rules a value out unless it has a
+     * bracket, the way `sqrt(%x)` does.
+     */
+    private fun looksLikeTaskerMaths(text: String): Boolean =
+        TASKER_MATHS_OPERATOR.containsMatchIn(text) &&
+            ('(' in text || TASKER_PLAIN_VARIABLE.replace(text, "").none(Char::isLetter))
 
     /** Tasker's on/off actions share one Set field: 0 off, 1 on, 2 toggle. Older exports from this app wrote the word. */
     private fun taskerSetField(
@@ -2827,6 +2901,9 @@ object TaskerXmlImporter {
         Regex("""%([A-Za-z][A-Za-z0-9_]{0,${VariableNamePolicy.MAX_LENGTH - 1}})\s*([-+*/])\s*(\d+(?:\.\d+)?)""")
 
     private val TASKER_SUM_FILTERS = mapOf("+" to "add", "-" to "sub", "*" to "mul", "/" to "div")
+
+    /** An operator Tasker's Do Maths works with, so a value holding one was meant as a sum. */
+    private val TASKER_MATHS_OPERATOR = Regex("""[-+*/^()]""")
 
     private val TASKER_WHOLE_ARRAY = Regex("""%([A-Za-z][A-Za-z0-9_]*)\(\)""")
 

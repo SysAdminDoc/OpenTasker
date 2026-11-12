@@ -2,9 +2,14 @@
 
 ## Unreleased
 
+### Added
+
+- A Multiple Variables Set action sets several variables in one step. List the names one per line or split by commas, give the values in the same order, and each name gets the value in its place. A name past the last value is unset. With no values at all and the names on separate lines, each name can carry its own value after the Values splitter (a comma unless you set another), like `%count,0`, and that value is filled in like any other. A single line is split into names at its commas first. Keep existing leaves a variable that already has a value alone. Either list can have its own splitter, and a name built from another variable, like `%item%n`, is filled in first. A name that isn't a variable fails the step after the others are set, and Preflight shows that before you run it. A secret written after its name, like `%api_token,abc` on its own line, stays hidden in previews and exports. Tasker's Multiple Variables Set imports as this step and exports back out. Tasker's own Sunrise/Sunset example uses it to copy `%ss_sunrise` and `%ss_sunset` into `%Sunrise` and `%Sunset`, so that example's Time profile gets its times now. Do Maths comes over for a number, a variable or a simple sum like `%x+1`. Anything harder, or a value written after its name, is set as written, and the import says so. An export notes a `{{ }}` template, since Tasker won't work one out. Structure Output isn't needed here, since any variable holding JSON can already be read by path. A Do Maths or Keep Existing switch taken from a variable stays a placeholder.
+
 ### Fixed
 
 - A Get Sunrise/Sunset Times step with a typed latitude and longitude no longer shows Needs setup, since it never asks for your location. A typed coordinate that's out of range, like a latitude of 91, fails the step right away and says which one. It used to wait for a location fix first when the other coordinate was left blank.
+- A space typed as the splitter or joiner in Split Text, Join Text, Variable Split or Variable Join now stays when you save the step. Saving used to drop it. Join Text then went back to commas and Variable Join to no joiner at all, while Variable Split split on any run of spaces and new lines. Split Text splits on a single space now, where it used to say there was no delimiter.
 
 ## v0.2.96 - 2026-11-12
 

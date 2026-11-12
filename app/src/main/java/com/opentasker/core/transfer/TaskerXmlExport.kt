@@ -77,6 +77,7 @@ object TaskerXmlExporter {
         "notify.cancel" to "779",
         "flow.wait" to "30",
         "var.set" to "547",
+        "var.set_multiple" to "389",
         "tts.speak" to "559",
         "vibrate" to "61",
         "torch.set" to "511",
@@ -282,6 +283,23 @@ object TaskerXmlExporter {
             "var.set" -> {
                 appendStr(sb, 0, args["name"] ?: "%VAR")
                 appendStr(sb, 1, args["value"] ?: "")
+            }
+            "var.set_multiple" -> {
+                sb.appendLine("""      <Bundle sr="arg0">""")
+                sb.appendLine("""        <Vals sr="val"/>""")
+                sb.appendLine("""      </Bundle>""")
+                appendStr(sb, 1, args["names"].orEmpty())
+                appendStr(sb, 2, args["names_splitter"].orEmpty())
+                appendStr(sb, 3, args["values"].orEmpty())
+                appendStr(sb, 4, args["values_splitter"].orEmpty())
+                // Do Maths off with Tasker's default rounding, Keep Existing, Structure Output off.
+                appendInt(sb, 5, "0")
+                appendInt(sb, 6, "3")
+                appendInt(sb, 7, if (args["keep_existing"]?.toBooleanStrictOrNull() == true) "1" else "0")
+                appendInt(sb, 8, "0")
+                if ("{{" in args["names"].orEmpty() || "{{" in args["values"].orEmpty()) {
+                    warnings += "Tasker's Multiple Variables Set reads {{ }} as written, so a value holding one won't be worked out there."
+                }
             }
             "tts.speak" -> {
                 appendStr(sb, 0, args["text"] ?: "")

@@ -187,7 +187,7 @@ fun mergeActionArguments(
     val merged = LinkedHashMap(existing)
     fields.forEach { field ->
         val value = editedValues[field.key].orEmpty()
-        if (value.isBlank()) {
+        if (value.isEmpty() || (value.isBlank() && !field.keepsWhitespace)) {
             merged.remove(field.key)
         } else {
             merged[field.key] = if (field.fieldType == FieldType.APP) value.trim() else value
