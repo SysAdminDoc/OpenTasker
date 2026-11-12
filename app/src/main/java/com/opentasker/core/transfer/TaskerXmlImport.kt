@@ -638,6 +638,7 @@ object TaskerXmlImporter {
             "890" -> taskerVariableAddOrSubtract(code, subtract = true, byIndex, intsByIndex, intVariables)
             "549" -> taskerVariableClear(code, byIndex, intsByIndex, intVariables)
             "596" -> taskerVariableConvert(code, byIndex, intsByIndex, intVariables)
+            "473" -> taskerSunTimes(byIndex)
             "597" -> taskerVariableSection(code, byIndex, intsByIndex, intVariables)
             "345" -> taskerTestVariable(code, element, byIndex, intsByIndex, intVariables)
             "598" -> taskerSearchReplace(code, element, byIndex, intsByIndex, intVariables)
@@ -1490,6 +1491,24 @@ object TaskerXmlImporter {
             ),
         )
     }
+
+    /**
+     * Tasker's Get Sunrise/Sunset Times: arg0 is the bundle of outputs it sets, arg1 latitude,
+     * arg2 longitude, arg3 the time in seconds and arg4 the custom elevations. Every field means the
+     * same thing in both apps, blank included, and the outputs keep Tasker's %ss_ names.
+     */
+    private fun taskerSunTimes(byIndex: Map<Int, String>): ActionWithLoss = ActionWithLoss(
+        ActionSpec(
+            type = "sun.times",
+            label = "Tasker sunrise and sunset",
+            args = buildMap {
+                byIndex[1].orEmptyIfBlank()?.let { put("latitude", it) }
+                byIndex[2].orEmptyIfBlank()?.let { put("longitude", it) }
+                byIndex[3].orEmptyIfBlank()?.let { put("time", it) }
+                byIndex[4].orEmptyIfBlank()?.let { put("elevations", it) }
+            },
+        ),
+    )
 
     /**
      * Tasker's Beep plays a quarter of the frequency it's given (its sine steps by pi times the

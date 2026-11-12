@@ -3,6 +3,7 @@ package com.opentasker.core.transfer
 import com.opentasker.core.actions.ArrayProcessAction
 import com.opentasker.core.actions.BeepTone
 import com.opentasker.core.actions.HttpNetworkConstraint
+import com.opentasker.core.actions.SunTimesAction
 import com.opentasker.core.contexts.BootContextEvents
 import com.opentasker.core.contexts.ContextMatchEvaluator
 import com.opentasker.core.contexts.DaySchedule
@@ -132,6 +133,7 @@ object TaskerXmlExporter {
         "array.clear" to "357",
         "array.process" to "369",
         "var.convert" to "596",
+        "sun.times" to "473",
         "text.length" to "345",
         "ringer.set" to "313",
         "clipboard.get" to "402",
@@ -499,6 +501,20 @@ object TaskerXmlExporter {
                 appendInt(sb, 1, ordinal?.toString() ?: function)
                 appendStr(sb, 2, args["var"]?.ifBlank { null }?.let { taskerVariableName(it, it) }.orEmpty())
                 appendInt(sb, 3, taskerFlag(args["url_safe"]))
+            }
+            // Tasker's own exports leave the outputs bundle empty, and its outputs are always %ss_.
+            "sun.times" -> {
+                val prefix = args["var"]?.trim()?.removePrefix("%").orEmpty()
+                if (prefix.isNotEmpty() && prefix != SunTimesAction.DEFAULT_PREFIX) {
+                    warnings += "Tasker's Get Sunrise/Sunset Times always fills %ss_sunrise and the rest, so 'sun.times' into '$prefix' fills %ss_ there instead."
+                }
+                sb.appendLine("""      <Bundle sr="arg0">""")
+                sb.appendLine("""        <Vals sr="val"/>""")
+                sb.appendLine("""      </Bundle>""")
+                appendStr(sb, 1, args["latitude"].orEmpty())
+                appendStr(sb, 2, args["longitude"].orEmpty())
+                appendStr(sb, 3, args["time"].orEmpty())
+                appendStr(sb, 4, args["elevations"].orEmpty())
             }
             "text.length" -> {
                 appendInt(sb, 0, "0")

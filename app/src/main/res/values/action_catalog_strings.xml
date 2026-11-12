@@ -223,6 +223,18 @@
     <string name="catalog_action_array_process_field_array_label" formatted="false">Array</string>
     <string name="catalog_action_array_process_field_array_hint" formatted="false">%arr, with elements %arr1, %arr2, …</string>
     <string name="catalog_action_array_process_field_type_label" formatted="false">Operation</string>
+    <string name="catalog_action_sun_times_name" formatted="false">Get Sunrise/Sunset Times</string>
+    <string name="catalog_action_sun_times_description" formatted="false">Work out sunrise, sunset, twilight and solar noon for a place and day, the way Tasker does</string>
+    <string name="catalog_action_sun_times_field_latitude_label" formatted="false">Latitude</string>
+    <string name="catalog_action_sun_times_field_latitude_hint" formatted="false">Degrees north, negative for south. Leave blank to use the phone\'s location</string>
+    <string name="catalog_action_sun_times_field_longitude_label" formatted="false">Longitude</string>
+    <string name="catalog_action_sun_times_field_longitude_hint" formatted="false">Degrees east, negative for west. Leave blank to use the phone\'s location</string>
+    <string name="catalog_action_sun_times_field_time_label" formatted="false">Day</string>
+    <string name="catalog_action_sun_times_field_time_hint" formatted="false">Any moment of the day, in seconds since 1970. Leave blank for today</string>
+    <string name="catalog_action_sun_times_field_elevations_label" formatted="false">Custom sun elevations</string>
+    <string name="catalog_action_sun_times_field_elevations_hint" formatted="false">Degrees above the horizon, negative below, one per line or comma separated. Their times go in %ss_custom_morning and %ss_custom_evening</string>
+    <string name="catalog_action_sun_times_field_var_label" formatted="false">Variable prefix</string>
+    <string name="catalog_action_sun_times_field_var_hint" formatted="false">ss by default, giving %ss_sunrise, %ss_sunset and the rest. Times are seconds since 1970</string>
     <string name="catalog_action_tts_speak_name" formatted="false">Say (Text-to-Speech)</string>
     <string name="catalog_action_tts_speak_description" formatted="false">Speak text aloud using the device speaker</string>
     <string name="catalog_action_tts_speak_field_text_label" formatted="false">Text to speak</string>

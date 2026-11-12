@@ -82,6 +82,8 @@ object AutomationSensitivityRegistry {
     private val dataAccessActionIds = setOf(
         "clipboard.get",
         "contacts.lookup",
+        // Reads the phone's location when a coordinate is blank.
+        "sun.times",
         "plugin.locale.query",
         "script.termux.run",
         "script.shizuku.run",

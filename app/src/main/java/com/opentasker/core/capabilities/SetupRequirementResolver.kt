@@ -206,6 +206,12 @@ object SetupRequirementResolver {
                 add(SetupRequirement.BACKGROUND_LOCATION)
                 add(SetupRequirement.NEARBY_WIFI)
             }
+            // Only a coordinate that isn't a number comes from the phone's location, and a profile
+            // asks for it from the background.
+            "sun.times" -> if (args["latitude"]?.trim()?.toDoubleOrNull() == null || args["longitude"]?.trim()?.toDoubleOrNull() == null) {
+                add(SetupRequirement.FOREGROUND_LOCATION)
+                add(SetupRequirement.BACKGROUND_LOCATION)
+            }
             "lock" -> add(SetupRequirement.DEVICE_ADMIN)
             // A profile runs in the background, where Android silently drops an activity start
             // unless the app can draw over others.

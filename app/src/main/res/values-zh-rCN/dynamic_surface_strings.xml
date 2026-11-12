@@ -184,6 +184,7 @@
     <string name="capability_zen_rule_access" formatted="false">需要勿扰模式访问权限；Android 15及以上使用带设备效果的专有Zen规则。</string>
     <string name="capability_torch_ready" formatted="false">使用相机闪光灯。</string>
     <string name="capability_aod_unsupported" formatted="false">更改常亮显示需要Shizuku权限及其特权用户服务传输，某些版本会完全忽略该设置。屏幕常亮会消耗更多电量。</string>
+    <string name="capability_sun_times_setup" formatted="false">仅当纬度或经度留空时需要位置访问权限，用于读取手机位置。</string>
     <string name="capability_wifi_scan_setup" formatted="false">扫描需要位置访问权限，以及Android 13及以上版本的“附近Wi-Fi设备”权限。Android会限制扫描频率，因此结果可能是最近一次缓存扫描而非全新扫描。</string>
     <string name="capability_airplane_unsupported" formatted="false">更改飞行模式需要Shizuku权限及其特权用户服务传输。开启后，通话、移动数据和（通常）Wi-Fi 会中断，直到有操作将其关闭。</string>
     <string name="capability_mobile_data_unsupported" formatted="false">更改移动数据需要Shizuku权限及其特权用户服务传输。关闭后，依赖数据的功能都会停止，包括对这台手机的远程访问。</string>

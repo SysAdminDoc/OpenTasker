@@ -70,6 +70,9 @@ object ActionCatalog {
         define("array.pop", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::ArrayPopAction),
         define("array.clear", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::ArrayClearAction),
         define("array.process", ActionCategory.VARIABLE, ActionRetrySafety.NEVER, ::ArrayProcessAction),
+        // IDEMPOTENT: a retry works the same day out again. Without coordinates it asks for a fix,
+        // which only reads.
+        define("sun.times", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::SunTimesAction),
         define("tts.speak", ActionCategory.NOTIFICATION, ActionRetrySafety.NEVER, ::SayAction),
         define("flow.wait", ActionCategory.FLOW, ActionRetrySafety.NEVER, ::WaitAction),
         // NEVER, not IDEMPOTENT: "toggle" reads the profile again, so a retry flips it back.

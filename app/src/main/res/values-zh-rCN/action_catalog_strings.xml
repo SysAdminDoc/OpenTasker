@@ -217,6 +217,18 @@
     <string name="catalog_action_array_process_field_array_label" formatted="false">数组</string>
     <string name="catalog_action_array_process_field_array_hint" formatted="false">%arr，元素为 %arr1、%arr2……</string>
     <string name="catalog_action_array_process_field_type_label" formatted="false">操作</string>
+    <string name="catalog_action_sun_times_name" formatted="false">获取日出/日落时间</string>
+    <string name="catalog_action_sun_times_description" formatted="false">按 Tasker 的算法计算某地某天的日出、日落、晨昏蒙影和正午时间</string>
+    <string name="catalog_action_sun_times_field_latitude_label" formatted="false">纬度</string>
+    <string name="catalog_action_sun_times_field_latitude_hint" formatted="false">北纬为正，南纬为负。留空则使用手机位置</string>
+    <string name="catalog_action_sun_times_field_longitude_label" formatted="false">经度</string>
+    <string name="catalog_action_sun_times_field_longitude_hint" formatted="false">东经为正，西经为负。留空则使用手机位置</string>
+    <string name="catalog_action_sun_times_field_time_label" formatted="false">日期</string>
+    <string name="catalog_action_sun_times_field_time_hint" formatted="false">当天任意时刻，以 1970 年起的秒数表示。留空则为今天</string>
+    <string name="catalog_action_sun_times_field_elevations_label" formatted="false">自定义太阳高度角</string>
+    <string name="catalog_action_sun_times_field_elevations_hint" formatted="false">地平线以上为正、以下为负的度数，每行一个或以逗号分隔。对应时间存入 %ss_custom_morning 和 %ss_custom_evening</string>
+    <string name="catalog_action_sun_times_field_var_label" formatted="false">变量前缀</string>
+    <string name="catalog_action_sun_times_field_var_hint" formatted="false">默认为 ss，生成 %ss_sunrise、%ss_sunset 等变量。时间均为 1970 年起的秒数</string>
     <string name="catalog_action_tts_speak_name" formatted="false">朗读（文本转语音）</string>
     <string name="catalog_action_tts_speak_description" formatted="false">使用设备扬声器朗读文本</string>
     <string name="catalog_action_tts_speak_field_text_label" formatted="false">要朗读的文本</string>

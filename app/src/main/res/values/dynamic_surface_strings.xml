@@ -185,6 +185,7 @@
     <string name="capability_zen_rule_access" formatted="false">Requires Do Not Disturb access; Android 15+ uses owned Zen rules with device effects.</string>
     <string name="capability_torch_ready" formatted="false">Uses the camera flashlight.</string>
     <string name="capability_aod_unsupported" formatted="false">Always-on display changes require Shizuku permission and its privileged user-service transport, and some builds ignore the setting entirely. A display that stays on uses more battery.</string>
+    <string name="capability_sun_times_setup" formatted="false">Needs location access only when latitude or longitude is left blank, to read the phone\'s location.</string>
     <string name="capability_wifi_scan_setup" formatted="false">Scanning needs location access, and Nearby Wi-Fi devices on Android 13 and later. Android rate-limits scans, so results may be the last cached scan rather than a fresh one.</string>
     <string name="capability_airplane_unsupported" formatted="false">Airplane mode changes require Shizuku permission and its privileged user-service transport. Turning it on cuts calls, mobile data and usually Wi-Fi until something turns it back off.</string>
     <string name="capability_mobile_data_unsupported" formatted="false">Mobile data changes require Shizuku permission and its privileged user-service transport. Turning it off stops anything that needs data, including remote access to this phone.</string>

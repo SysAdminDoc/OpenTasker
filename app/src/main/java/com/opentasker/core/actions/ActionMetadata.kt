@@ -122,6 +122,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "array.pop",
     "array.clear",
     "array.process",
+    "sun.times",
     "tts.speak",
     "flow.wait",
     "profile.set",
@@ -678,6 +679,22 @@ fun registerActionMetadata() {
                         option("squash", R.string.action_option_array_squash),
                     ),
                 ),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "sun.times",
+            nameRes = R.string.catalog_action_sun_times_name,
+            descriptionRes = R.string.catalog_action_sun_times_description,
+            categoryRes = R.string.catalog_category_variable,
+            fields = listOf(
+                ActionField("latitude", R.string.catalog_action_sun_times_field_latitude_label, FieldType.NUMBER, hintRes = R.string.catalog_action_sun_times_field_latitude_hint, numberRule = decimalRule(-90.0, 90.0)),
+                ActionField("longitude", R.string.catalog_action_sun_times_field_longitude_label, FieldType.NUMBER, hintRes = R.string.catalog_action_sun_times_field_longitude_hint, numberRule = decimalRule(-180.0, 180.0)),
+                ActionField("time", R.string.catalog_action_sun_times_field_time_label, FieldType.NUMBER, hintRes = R.string.catalog_action_sun_times_field_time_hint, numberRule = integerRule()),
+                ActionField("elevations", R.string.catalog_action_sun_times_field_elevations_label, FieldType.MULTILINE, hintRes = R.string.catalog_action_sun_times_field_elevations_hint),
+                ActionField("var", R.string.catalog_action_sun_times_field_var_label, hintRes = R.string.catalog_action_sun_times_field_var_hint),
             )
         )
     )
