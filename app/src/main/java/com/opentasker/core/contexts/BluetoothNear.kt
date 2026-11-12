@@ -35,9 +35,10 @@ private const val BT_NEAR_FORGET_AFTER_MS = 6 * 60_000L
 
 /**
  * How long a fresh scanner can take before a device it hasn't listed counts as away: the scans that
- * forgetting waits for, plus the cycle that publishes the result.
+ * forgetting waits for, the cycle that publishes the result, and one more for a first scan that
+ * couldn't start.
  */
-internal const val BT_NEAR_ABSENCE_SETTLES_MS = BT_NEAR_FORGET_AFTER_MS + BT_NEAR_CYCLE_MS
+internal const val BT_NEAR_ABSENCE_SETTLES_MS = BT_NEAR_FORGET_AFTER_MS + 2 * BT_NEAR_CYCLE_MS
 private const val BT_NEAR_CLASSIC_EVERY_CYCLES = 5
 private const val BT_NEAR_MAX_DEVICES = 64
 
@@ -71,6 +72,12 @@ internal class NearbyBluetoothTracker(
     @Synchronized
     fun watching(nowMs: Long) {
         if (watchingSinceMs == null) watchingSinceMs = nowMs
+    }
+
+    /** A scan that failed watched nothing, so absence starts counting again from the next one. */
+    @Synchronized
+    fun stoppedWatching() {
+        watchingSinceMs = null
     }
 
     /**
@@ -242,6 +249,7 @@ internal class NearbyBluetoothScanner(
 
         override fun onScanFailed(errorCode: Int) {
             AppLogger.debug(BT_NEAR_TAG, "BLE scan failed with error $errorCode")
+            tracker.stoppedWatching()
         }
 
         private fun note(result: ScanResult) = sighted(

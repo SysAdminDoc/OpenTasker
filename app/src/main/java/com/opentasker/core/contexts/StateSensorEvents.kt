@@ -322,15 +322,20 @@ object StateSensorEvents {
             readings.reset()
         }
 
+        // Emitted under the readings' lock, so a settled 0 can't land after a newer live fix.
         fun emitLocation(location: Location, lastKnown: Boolean = false) {
-            val (values, measured) = readings.onFix(
-                current = location.toSpeedSample(),
-                provider = location.provider ?: "unknown",
-                accuracyMps = if (location.hasSpeedAccuracy()) location.speedAccuracyMetersPerSecond.toDouble() else null,
-                nowMs = System.currentTimeMillis(),
-                lastKnown = lastKnown,
-            )
-            emitValues(emit, "speed", values, measured)
+            synchronized(readings) {
+                val sample = location.toSpeedSample()
+                val provider = location.provider ?: "unknown"
+                val accuracyMps = if (location.hasSpeedAccuracy()) location.speedAccuracyMetersPerSecond.toDouble() else null
+                val nowMs = System.currentTimeMillis()
+                val reading = if (lastKnown) {
+                    readings.onLastKnownFix(sample, provider, accuracyMps, nowMs)
+                } else {
+                    readings.onFix(sample, provider, accuracyMps, nowMs)
+                }
+                reading?.let { (values, measured) -> emitValues(emit, "speed", values, measured) }
+            }
         }
 
         fun ensure() {
@@ -350,7 +355,9 @@ object StateSensorEvents {
                 return
             }
             if (registration.isActiveFor(providers)) {
-                readings.settle(System.currentTimeMillis())?.let { emitValues(emit, "speed", it, measured = true) }
+                synchronized(readings) {
+                    readings.settle(System.currentTimeMillis())?.let { emitValues(emit, "speed", it, measured = true) }
+                }
                 return
             }
             readings.forgetPrevious()
@@ -816,12 +823,14 @@ internal data class SpeedSample(
  * last-known fix more than [freshForMs] old. Once a fix has come in live, the location request
  * delivers another each time the device moves 5 m, so a live stand-in followed by nothing for
  * [settleAfterMs] means the device is standing still, and [settle] reports 0 as measured. A
- * last-known stand-in never settles, since a cold GPS sends nothing for a while even when moving.
+ * last-known stand-in never settles, since a cold GPS sends nothing for a while even when moving,
+ * and it leaves a live stand-in's quiet spell running.
  */
 internal class SpeedReadings(private val freshForMs: Long, private val settleAfterMs: Long) {
     private var previous: SpeedSample? = null
     private var standInProvider: String? = null
     private var standInSinceMs = 0L
+    private var heardLive = false
 
     /** The values for [current] from [provider], and whether they were measured. */
     @Synchronized
@@ -832,17 +841,33 @@ internal class SpeedReadings(private val freshForMs: Long, private val settleAft
         nowMs: Long,
         lastKnown: Boolean = false,
     ): Pair<Map<String, String>, Boolean> {
+        if (!lastKnown) heardLive = true
         val stale = lastKnown && nowMs - current.observedAtMs >= freshForMs
         val measuredSpeed = if (stale) null else current.speedMps ?: SpeedCalculator.between(previous, current)
         // An old fix says where the device was, not where it starts from.
         previous = current.takeUnless { stale }
         val measured = measuredSpeed != null
-        standInProvider = provider.takeUnless { measured || lastKnown }
-        standInSinceMs = nowMs
+        if (measured || !lastKnown) {
+            standInProvider = provider.takeUnless { measured }
+            standInSinceMs = nowMs
+        }
         val values = speedValues(measuredSpeed ?: 0.0, provider) +
             (accuracyMps?.takeIf { measured }?.let { mapOf("speed_accuracy_mps" to it.trimForState()) } ?: emptyMap())
         return values to measured
     }
+
+    /**
+     * [onFix] for the last-known fix read after registering, or null when a live fix got in first:
+     * Android can deliver one before the last-known fix is read, and it's the newer of the two.
+     */
+    @Synchronized
+    fun onLastKnownFix(
+        current: SpeedSample,
+        provider: String,
+        accuracyMps: Double?,
+        nowMs: Long,
+    ): Pair<Map<String, String>, Boolean>? =
+        if (heardLive) null else onFix(current, provider, accuracyMps, nowMs, lastKnown = true)
 
     /** A measured 0 once a live stand-in has gone [settleAfterMs] with no fix after it, else null. */
     @Synchronized
@@ -857,12 +882,14 @@ internal class SpeedReadings(private val freshForMs: Long, private val settleAft
     @Synchronized
     fun forgetPrevious() {
         previous = null
+        heardLive = false
     }
 
     @Synchronized
     fun reset() {
         previous = null
         standInProvider = null
+        heardLive = false
     }
 
     private fun speedValues(speedMps: Double, provider: String): Map<String, String> {
