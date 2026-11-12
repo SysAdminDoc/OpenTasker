@@ -151,7 +151,7 @@ object TaskerXmlExporter {
         sb.appendLine("""<TaskerData sr="" dvi="1" tv="6.3.13">""")
 
         tasks.forEach { task ->
-            appendTask(sb, task, TaskRefs(taskMap, taskNames), skipped, redactionContext, redactedActionFields, warnings)
+            appendTask(sb, task, TaskRefs(taskMap, taskNames, task.name), skipped, redactionContext, redactedActionFields, warnings)
         }
 
         var exportedProfileCount = 0
@@ -1171,14 +1171,15 @@ object TaskerXmlExporter {
     /**
      * The tasks in an export, for writing the task a Perform Task or Stop names. Tasker finds that
      * task by name, so a step that names one here by id would send Tasker looking for a task called
-     * "12". Like a run here, a number is read as an id first and then as a name.
+     * "12". Like a run here, a number is read as an id first and then as a name. [caller] is the task
+     * whose steps these are, for the warning.
      */
-    private class TaskRefs(private val byId: Map<Long, Task>, private val names: Set<String>) {
+    private class TaskRefs(private val byId: Map<Long, Task>, private val names: Set<String>, private val caller: String) {
         fun taskerName(ref: String, warnings: MutableList<String>): String {
             val id = ref.toLongOrNull() ?: return ref
             byId[id]?.let { return it.name }
             if (ref !in names) {
-                warnings += "A step names task id $id, which isn't in this export, so Tasker will look for a task called '$ref'."
+                warnings += "A step in '$caller' names task id $id, which isn't in this export, so Tasker will look for a task called '$ref'."
             }
             return ref
         }

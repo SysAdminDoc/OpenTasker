@@ -13,6 +13,8 @@ import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
 import com.opentasker.core.contexts.WIFI_DISCONNECTED_WORDS
 import com.opentasker.core.data.TextOps
 import com.opentasker.core.data.VariableConvert
+import com.opentasker.core.engine.STOP_TASK_ACTION_ID
+import com.opentasker.core.engine.SUB_TASK_ACTION_ID
 import com.opentasker.core.engine.variables.TaskerBuiltIns
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
@@ -125,7 +127,7 @@ object TaskerXmlImporter {
         val mappedActions = mutableListOf<TaskerMappedAction>()
         val unsupportedActions = mutableListOf<TaskerUnsupportedAction>()
 
-        val tasks = parseTasks(doc, mappedActions, unsupportedActions, lossyWarnings)
+        val tasks = pinNumericTaskNames(parseTasks(doc, mappedActions, unsupportedActions, lossyWarnings))
         val variables = parseVariables(doc, lossyWarnings)
         val profiles = parseProfiles(doc, tasks.map { it.id }.toSet(), lossyWarnings)
         val sceneCount = doc.elementsByTagName("Scene").size
@@ -187,6 +189,28 @@ object TaskerXmlImporter {
             val builtIns = TaskerBuiltIns.unsupportedReads(element.directChildren("Action").flatMap { it.textNodes() }.joinToString("\n")) - written
             if (builtIns.isNotEmpty()) lossyWarnings += taskerBuiltInWarning(name, builtIns)
             Task(id = id, name = name, actions = actions)
+        }
+    }
+
+    /**
+     * Tasker's Perform Task and Stop find their task by name, and a run here reads a number as an id
+     * first, so a call to a task named "5" would land on whichever task ends up with id 5. Such a call
+     * is pinned to the id of the task in this file with that name, which a bundle import then moves to
+     * the task's new id along with every other id reference.
+     */
+    private fun pinNumericTaskNames(tasks: List<Task>): List<Task> {
+        val idByNumericName = buildMap {
+            tasks.forEach { task -> task.name.trim().takeIf { it.toLongOrNull() != null }?.let { putIfAbsent(it, task.id) } }
+        }
+        if (idByNumericName.isEmpty()) return tasks
+        return tasks.map { task ->
+            task.copy(
+                actions = task.actions.map { action ->
+                    val id = action.args["task"]?.trim()?.let(idByNumericName::get)
+                    val callsTask = action.type == SUB_TASK_ACTION_ID || action.type == STOP_TASK_ACTION_ID
+                    if (id == null || !callsTask) action else action.copy(args = action.args + ("task" to id.toString()))
+                },
+            )
         }
     }
 

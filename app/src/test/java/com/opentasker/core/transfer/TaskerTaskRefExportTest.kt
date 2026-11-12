@@ -9,9 +9,9 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * Tasker's Perform Task and Stop find their task by name. A step here can name it by id (pointing a
- * deleted task's steps at another task, or a bundle import, writes ids), so the export writes the
- * name Tasker needs.
+ * Tasker's Perform Task and Stop find their task by name. A step here can name it by id (renaming
+ * the task, or pointing a deleted task's steps at another task, writes ids), so the export writes
+ * the name Tasker needs.
  */
 class TaskerTaskRefExportTest {
 
