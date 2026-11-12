@@ -620,6 +620,7 @@ object TaskerXmlImporter {
             }
             "312" -> taskerInterruptMode(code, byIndex, intsByIndex, intVariables)
             "313" -> taskerSoundMode(code, intsByIndex, intVariables)
+            "808", "822" -> taskerSystemSwitch(code, intsByIndex, intVariables)
             "810", "brightness", "brightness.set" -> {
                 val level = intVariables[0]?.let { taskerNumberField("Display Brightness", it) }
                 ActionWithLoss(
@@ -1678,6 +1679,32 @@ object TaskerXmlImporter {
         )
     }
 
+    /**
+     * Auto Brightness and Display AutoRotate each switch one system setting, the one Tasker's action
+     * table names for the code, so off and on land on the settings write step. Toggle flips whatever
+     * the setting holds, which a step that writes one value can't do.
+     */
+    private fun taskerSystemSwitch(code: String, ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss {
+        val (actionName, key) = TASKER_SYSTEM_SWITCHES.getValue(code)
+        // A missing Set would read as 0, off, so it's refused rather than guessed.
+        val set = ints[0].takeIf { 0 !in variables }
+        val refusal = when {
+            variables[0] != null -> "Tasker $actionName takes its Set value from ${variables[0]}, which has no match here"
+            set == null -> "Tasker $actionName has no Set value"
+            set == 2 -> "Tasker $actionName's Toggle flips the setting, and the settings write step only writes the value it's given"
+            set != 0 && set != 1 -> "Tasker $actionName's Set value $set isn't off, on or toggle"
+            else -> null
+        }
+        if (refusal != null || set == null) return taskerPlaceholder(code, refusal.orEmpty())
+        return ActionWithLoss(
+            ActionSpec(
+                type = "settings.write",
+                label = "Tasker ${actionName.lowercase()}",
+                args = mapOf("table" to "system", "key" to key, "value" to set.toString()),
+            ),
+        )
+    }
+
     /** Tasker's Goto: arg0 is the kind of jump, arg1 a step number, arg2 a label. */
     private fun taskerGoto(code: String, byIndex: Map<Int, String>, ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss =
         when (ints[0] ?: 0) {
@@ -2318,6 +2345,12 @@ object TaskerXmlImporter {
     private val TASKER_INTERRUPT_MODE_NAMES = mapOf(4 to "Custom", 5 to "Query")
 
     private val TASKER_SOUND_MODES = mapOf(0 to "silent", 1 to "vibrate", 2 to "normal")
+
+    // Action name and the system setting it switches, as Tasker's action table pairs them.
+    private val TASKER_SYSTEM_SWITCHES = mapOf(
+        "808" to ("Auto Brightness" to "screen_brightness_mode"),
+        "822" to ("Display AutoRotate" to "accelerometer_rotation"),
+    )
 
     // Codes kept as placeholders on purpose, with the reason the placeholder's import note gives.
     // Scene codes are Tasker's Scene and Scene v2 categories in its action table, plus Edit Scene
