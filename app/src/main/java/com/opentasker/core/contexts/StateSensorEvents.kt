@@ -361,7 +361,6 @@ object StateSensorEvents {
                 return
             }
             readings.forgetPrevious()
-            readings.keepStandInOnlyFrom(providers)
             val candidate = object : LocationListener {
                 override fun onLocationChanged(location: Location) = emitLocation(location)
                 override fun onProviderEnabled(provider: String) = Unit
@@ -389,6 +388,8 @@ object StateSensorEvents {
                 emitSetup(emit, "speed", "Open Setup to review speed context support; Android could not register a location provider.")
                 return
             }
+            // After the swap, so a fix the dropped provider sent before it came off can't bring its stand-in back.
+            readings.keepStandInOnlyFrom(providers)
             providers.mapNotNull { provider -> runCatching { locationManager.getLastKnownLocation(provider) }.getOrNull() }
                 .maxByOrNull(Location::getTime)
                 ?.let { emitLocation(it, lastKnown = true) }
