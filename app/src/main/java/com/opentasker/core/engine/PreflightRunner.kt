@@ -136,6 +136,10 @@ object PreflightRunner {
     private const val MAX_DISPLAY_VALUE_LENGTH = 256
     private val SINGLE_VARIABLE = Regex("%[A-Za-z][A-Za-z0-9_]*")
 
+    // A variable inside a name as the expander reads it: hyphens allowed, and an operator such as
+    // `(#)` or `(lower)` right after it is part of the same reference.
+    private val VARIABLE_WITH_OPERATOR = Regex("""%[A-Za-z][A-Za-z0-9_-]*(?:\([^()]*\))?""")
+
     // The actions that write Tasker's numbered elements (%arr1, %arr2, ...), text.replace through
     // its matches array. text.split and text.match keep their parts in a stored array instead, so
     // they never set %Pos1.
@@ -1104,8 +1108,8 @@ object PreflightRunner {
                 // Only a name that reads as one once its variables are filled in, like %item%n; a
                 // line such as `Total %count` fails whatever %count holds.
                 val builtFromOthers = outcome.invalid.isNotEmpty() && outcome.invalid.all { entry ->
-                    SINGLE_VARIABLE.containsMatchIn(entry.drop(1)) &&
-                        VariableNamePolicy.normalize(entry.take(1) + SINGLE_VARIABLE.replace(entry.drop(1), "a")) != null
+                    VARIABLE_WITH_OPERATOR.containsMatchIn(entry.drop(1)) &&
+                        VariableNamePolicy.normalize(entry.take(1) + VARIABLE_WITH_OPERATOR.replace(entry.drop(1), "a")) != null
                 }
                 return failure to builtFromOthers
             }
