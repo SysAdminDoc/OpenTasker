@@ -875,8 +875,6 @@ class TaskRunner(
         // nothing leaves the variable unset instead of holding an earlier call's value.
         if (returnVariable != null && resetsReturnVariable(args)) ctx.variables.clearForTask(returnVariable)
         ctx.variables.pushScope(holdsInputs = true)
-        // Tasker's %TRUN lists a task run by another one too.
-        val running = TaskerBuiltIns.subTaskStarted(target.name)
         val report = try {
             args.forEach { (key, value) ->
                 if (key !in SUB_TASK_REF_KEYS && key !in SUB_TASK_SETTING_KEYS) {
@@ -885,7 +883,7 @@ class TaskRunner(
             }
             val coordinator = collisionCoordinator
             val outcome = if (coordinator == null) {
-                TaskCollisionOutcome.Executed(child.run(target))
+                TaskCollisionOutcome.Executed(runListed(child, target))
             } else {
                 runNestedUnderItsOwnJob(coordinator, target, child)
             }
@@ -894,7 +892,6 @@ class TaskRunner(
                 is TaskCollisionOutcome.Skipped -> return fail(outcome.reason)
             }
         } finally {
-            TaskerBuiltIns.subTaskEnded(running)
             ctx.variables.popScope()
         }
         // Set after the inputs' scope is gone, so the value lands in this task's own variables.
@@ -931,7 +928,7 @@ class TaskRunner(
         target: Task,
         child: TaskRunner,
     ): TaskCollisionOutcome<TaskRunReport> = supervisorScope {
-        val nested = async { coordinator.execute(target) { child.run(target) } }
+        val nested = async { coordinator.execute(target) { runListed(child, target) } }
         try {
             nested.await()
         } catch (cancelled: CancellationException) {
@@ -939,6 +936,19 @@ class TaskRunner(
             TaskCollisionOutcome.Skipped(
                 cancelled.message ?: "The sub-task was replaced by a newer run.",
             )
+        }
+    }
+
+    /**
+     * Tasker's %TRUN lists a task run by another one too, from when its collision rule lets it run,
+     * so one still waiting its turn or skipped isn't listed.
+     */
+    private suspend fun runListed(child: TaskRunner, target: Task): TaskRunReport {
+        val running = TaskerBuiltIns.subTaskStarted(target.name)
+        try {
+            return child.run(target)
+        } finally {
+            TaskerBuiltIns.subTaskEnded(running)
         }
     }
 
