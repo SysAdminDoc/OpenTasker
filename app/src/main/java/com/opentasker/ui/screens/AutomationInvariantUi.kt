@@ -48,6 +48,7 @@ import com.opentasker.core.model.AutomationInvariantPolicy
 import com.opentasker.core.model.InvariantOperator
 import com.opentasker.core.model.InvariantStatePredicate
 import com.opentasker.ui.theme.DesignSystem
+import com.opentasker.ui.utils.rememberSingleTap
 
 /**
  * [current] with [deleted] put back at [index], or null when an identical rule is already there.
@@ -76,6 +77,8 @@ internal fun AutomationInvariantPanel(
 ) {
     var editingId by rememberSaveable { mutableStateOf<Long?>(null) }
     val resources = LocalResources.current
+    // A rule's delete runs on the tap, so one gate keeps a double tap from taking the next rule too.
+    val singleDelete = rememberSingleTap()
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -129,12 +132,14 @@ internal fun AutomationInvariantPanel(
                         },
                         onEdit = { editingId = invariant.id },
                         onDelete = {
-                            val index = invariants.indexOf(invariant)
-                            onUpdate(invariants.filterNot { it.id == invariant.id })
-                            // Undo can come long after this card has left the screen, so it goes through
-                            // onRestore, which reads the saved list when tapped, not this card's copy.
-                            onUndoableMessage(resources.getString(R.string.automation_invariant_deleted, invariant.name)) {
-                                onRestore(invariant, index)
+                            singleDelete {
+                                val index = invariants.indexOf(invariant)
+                                onUpdate(invariants.filterNot { it.id == invariant.id })
+                                // Undo can come long after this card has left the screen, so it goes through
+                                // onRestore, which reads the saved list when tapped, not this card's copy.
+                                onUndoableMessage(resources.getString(R.string.automation_invariant_deleted, invariant.name)) {
+                                    onRestore(invariant, index)
+                                }
                             }
                         },
                     )

@@ -61,6 +61,7 @@ import com.opentasker.core.model.VariableNamePolicy
 import com.opentasker.core.model.DEFAULT_PROJECT_ID
 import com.opentasker.core.storage.AesGcmVariableSecretCodec
 import com.opentasker.ui.theme.DesignSystem
+import com.opentasker.ui.utils.rememberSingleTap
 
 @Composable
 fun VariablesScreen(
@@ -93,6 +94,7 @@ fun VariablesScreen(
     var editTargetName by rememberSaveable { mutableStateOf<String?>(null) }
     var editTargetProjectId by rememberSaveable { mutableStateOf(DEFAULT_PROJECT_ID) }
     var showCreateDialog by rememberSaveable { mutableStateOf(false) }
+    val singleDelete = rememberSingleTap()
 
     LaunchedEffect(focusVariableName, focusVariableProjectId, variables) {
         val target = focusVariableName?.let { name ->
@@ -167,8 +169,10 @@ fun VariablesScreen(
                     onDelete = {
                         // No confirmation: the snackbar the ViewModel sends once the delete lands
                         // offers Undo, and a variable something still uses isn't deleted at all.
-                        onDelete(variable.name, UiMessage(R.string.variables_deleted, listOf(variable.name)), variable.projectId)
-                        if (editTargetName == variable.name && editTargetProjectId == variable.projectId) editTargetName = null
+                        singleDelete {
+                            onDelete(variable.name, UiMessage(R.string.variables_deleted, listOf(variable.name)), variable.projectId)
+                            if (editTargetName == variable.name && editTargetProjectId == variable.projectId) editTargetName = null
+                        }
                     },
                 )
             }

@@ -35,6 +35,7 @@ import com.opentasker.core.model.Scene
 import com.opentasker.core.model.Task
 import com.opentasker.core.scenes.SceneOverlayService
 import com.opentasker.ui.theme.DesignSystem
+import com.opentasker.ui.utils.rememberSingleTap
 
 @Composable
 fun SceneLibraryScreen(
@@ -139,6 +140,8 @@ fun SceneLibraryScreen(
         )
         return
     }
+    // Scene and element deletes run on the tap, so one gate keeps a double tap to a single delete.
+    val singleDelete = rememberSingleTap()
 
     Box(
         modifier = Modifier
@@ -202,14 +205,14 @@ fun SceneLibraryScreen(
                         elementEditorIndex = index
                     },
                     onDeleteElement = { index, _ ->
-                        onRemoveElement(scene, index)
+                        singleDelete { onRemoveElement(scene, index) }
                     },
                     onUpdateScene = { scene, messageRes -> onUpdateScene(scene, messageRes) {} },
                     canUndo = historyAvailability.canUndoScene(scene.id),
                     canRedo = historyAvailability.canRedoScene(scene.id),
                     onUndo = { onUndoSceneEdit(scene) },
                     onRedo = { onRedoSceneEdit(scene) },
-                    onDelete = { onDeleteScene(scene) },
+                    onDelete = { singleDelete { onDeleteScene(scene) } },
                     onDuplicate = { onDuplicateScene(scene) },
                     onShowOverlay = { SceneOverlayService.show(sceneContext, scene) },
                 )
