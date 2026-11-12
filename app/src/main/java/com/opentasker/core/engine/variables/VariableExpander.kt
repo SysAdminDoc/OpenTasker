@@ -5,6 +5,7 @@ import com.opentasker.core.engine.VariableStore
 import org.json.JSONObject
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.util.Locale
 import com.google.re2j.Pattern as Re2Pattern
 import kotlin.math.floor
 import kotlin.math.roundToLong
@@ -512,8 +513,8 @@ class VariableExpander {
             ComparisonOperator.GE -> compareNumbers(left, right) { l, r -> l >= r }
             ComparisonOperator.LT -> compareNumbers(left, right) { l, r -> l < r }
             ComparisonOperator.GT -> compareNumbers(left, right) { l, r -> l > r }
-            ComparisonOperator.MATCHES -> matchesPattern(left, right, emptyMatchesNothing = true)
-            ComparisonOperator.NOT_MATCHES -> !matchesPattern(left, right, emptyMatchesNothing = false)
+            ComparisonOperator.MATCHES -> matchesPattern(left, withEnglishOnOff(right), emptyMatchesNothing = true)
+            ComparisonOperator.NOT_MATCHES -> !matchesPattern(left, withEnglishOnOff(right), emptyMatchesNothing = false)
             ComparisonOperator.MATCHES_REGEX -> findsRegex(left, right)
             ComparisonOperator.NOT_MATCHES_REGEX -> !findsRegex(left, right)
         }
@@ -531,6 +532,29 @@ class VariableExpander {
         pattern.startsWith("!~R") -> !findsRegex(value, pattern.substring(3))
         pattern.startsWith("!") -> !matchesGlob(value, pattern.substring(1))
         else -> !(emptyMatchesNothing && value.isEmpty()) && matchesGlob(value, pattern)
+    }
+
+    /**
+     * Tasker's Matches and Doesn't Match add `/on` to a pattern that is just Tasker's word for on in
+     * the phone's language, and `/off` to its word for off (decompiled 6.7.8 `Expr.a`), so
+     * `%BLUE ~ On`, or `Ein` in German, also matches the `on` a state variable holds. Tasker compares
+     * the whole pattern, case included, and leaves `on` and `off` themselves alone.
+     */
+    private fun withEnglishOnOff(pattern: String, locale: Locale = Locale.getDefault()): String {
+        val (on, off) = TASKER_ON_OFF_WORDS[taskerLanguage(locale)] ?: TASKER_ON_OFF_WORDS.getValue("")
+        return when {
+            pattern != "on" && pattern == on -> "$pattern/on"
+            pattern != "off" && pattern == off -> "$pattern/off"
+            else -> pattern
+        }
+    }
+
+    /** The [TASKER_ON_OFF_WORDS] key Android picks Tasker's strings by for [locale]. */
+    private fun taskerLanguage(locale: Locale): String = when (val language = locale.language) {
+        "zh" -> if (locale.country == "TW" || locale.script == "Hant") "zh-TW" else "zh"
+        // Android still reports Indonesian by its old code, and the JVM by the new one.
+        "id" -> "in"
+        else -> language
     }
 
     /** [matchesPattern] for a value that is never empty, like the variable names Variable Clear matches. */
@@ -947,6 +971,30 @@ class VariableExpander {
         // [0-9], not \d, which Android's ICU regex matches against every script's digits.
         private val TASKER_NUMBER = Regex("""[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][0-9]+)?[fFdD]?""")
         private const val TASKER_DECIMAL_PLACES = 10
+
+        // Tasker 6.7.8's word_on and word_off in each language it ships, "" for its default.
+        private val TASKER_ON_OFF_WORDS = mapOf(
+            "" to ("On" to "Off"),
+            "cs" to ("Zapnuto" to "Vypnuto"),
+            "de" to ("Ein" to "Aus"),
+            "es" to ("Encendido" to "Apagado"),
+            "fr" to ("On" to "Off"),
+            "hu" to ("Be" to "Ki"),
+            "in" to ("Nyala" to "Mati"),
+            "it" to ("Acceso" to "Spento"),
+            "ja" to ("オン" to "オフ"),
+            "ko" to ("켜기" to "끄기"),
+            "nl" to ("Aan" to "Uit"),
+            "pl" to ("Włączony" to "Wyłączony"),
+            "pt" to ("Ligado" to "Desligar"),
+            "ro" to ("Activat" to "Dezactivat"),
+            "ru" to ("Вкл" to "Выкл"),
+            "tr" to ("Devrede" to "kapalı"),
+            "uk" to ("Увімк." to "Вимк."),
+            "vi" to ("Trong" to "Tắt"),
+            "zh" to ("开启" to "关闭"),
+            "zh-TW" to ("開" to "關"),
+        )
         private const val MAX_REGEX_LENGTH = 256
         private const val MAX_REGEX_INPUT_LENGTH = 10_000
         private val PATTERN_WILDCARD = Regex("[*+]")

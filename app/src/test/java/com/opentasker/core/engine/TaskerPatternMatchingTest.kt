@@ -91,7 +91,7 @@ class TaskerPatternMatchingTest {
     fun aPatternWithNoCapitalIgnoresCase() {
         assertRunsFor("On", "~", "on" to true, "On" to true, "ON" to false)
         assertRunsFor("ON", "~", "on" to true, "o*" to true)
-        assertRunsFor("on", "~", "On" to false)
+        assertRunsFor("work", "~", "Work" to false)
         // Each alternative decides for itself.
         assertRunsFor("WORK", "~", "Home/work" to true)
         assertRunsFor("home", "~", "Home/work" to false)
