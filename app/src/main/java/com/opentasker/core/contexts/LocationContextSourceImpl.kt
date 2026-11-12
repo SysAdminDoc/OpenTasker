@@ -225,6 +225,27 @@ internal class LocationListenerRegistrationState(
     }
 }
 
+/**
+ * A listener that hands [onFix] a fix only while it's the one [registration] has on, checked under
+ * [lock]. Older Android can still deliver a fix queued before removeUpdates, which would bring a
+ * dropped provider's stand-in back after the swap.
+ */
+internal fun currentOnlyLocationListener(
+    registration: LocationListenerRegistrationState,
+    lock: Any,
+    onFix: (Location) -> Unit,
+): LocationListener = object : LocationListener {
+    override fun onLocationChanged(location: Location) = synchronized(lock) {
+        if (registration.isCurrent(this)) onFix(location)
+    }
+
+    override fun onProviderEnabled(provider: String) = Unit
+    override fun onProviderDisabled(provider: String) = Unit
+
+    @Deprecated("Deprecated in Android framework")
+    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+}
+
 internal fun LocationListenerRegistrationState.replaceProviders(
     providers: Set<String>,
     listener: LocationListener,

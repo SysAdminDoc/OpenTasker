@@ -12,12 +12,10 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.location.Location
-import android.location.LocationListener
 import android.location.LocationManager
 import android.net.TetheringInterface
 import android.net.TetheringManager
 import android.os.Build
-import android.os.Bundle
 import android.os.Looper
 import android.telephony.TelephonyManager
 import androidx.annotation.RequiresApi
@@ -361,19 +359,7 @@ object StateSensorEvents {
                 return
             }
             readings.forgetPrevious()
-            val candidate = object : LocationListener {
-                // Older Android can still deliver a fix queued before removeUpdates, which would
-                // bring a dropped provider's stand-in back after keepStandInOnlyFrom.
-                override fun onLocationChanged(location: Location) = synchronized(readings) {
-                    if (registration.isCurrent(this)) emitLocation(location)
-                }
-
-                override fun onProviderEnabled(provider: String) = Unit
-                override fun onProviderDisabled(provider: String) = Unit
-
-                @Deprecated("Deprecated in Android framework")
-                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
-            }
+            val candidate = currentOnlyLocationListener(registration, readings) { emitLocation(it) }
             try {
                 registration.replaceProviders(providers, candidate) { provider, registeredListener ->
                     locationManager.requestLocationUpdates(
