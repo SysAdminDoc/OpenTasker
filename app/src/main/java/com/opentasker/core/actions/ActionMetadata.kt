@@ -235,6 +235,8 @@ private val audioStreamOptions = listOf(
 private val audioOutputOptions = listOf(
     option("music", R.string.action_option_stream_music),
     option("alarm", R.string.action_option_stream_alarm),
+    option("ring", R.string.action_option_stream_ring),
+    option("notification", R.string.action_option_stream_notification),
 )
 
 private val temporaryStateTargetOptions = listOf(

@@ -211,7 +211,7 @@
     <string name="catalog_action_tts_speak_description" formatted="false">Speak text aloud using the device speaker</string>
     <string name="catalog_action_tts_speak_field_text_label" formatted="false">Text to speak</string>
     <string name="catalog_action_tts_speak_field_stream_label" formatted="false">Audio stream</string>
-    <string name="catalog_action_tts_speak_field_stream_hint" formatted="false">Music by default. On Android 17 a task started in the background can only be heard on Alarm, which needs exact-alarm access and follows the alarm volume.</string>
+    <string name="catalog_action_tts_speak_field_stream_hint" formatted="false">Music by default. Ringer and Notifications use the ringer or notification volume and go quiet on vibrate or silent, and Do Not Disturb can silence them too. On Android 17 a task started in the background can only be heard on Alarm, which needs exact-alarm access and follows the alarm volume.</string>
     <string name="catalog_action_flow_wait_name" formatted="false">Wait</string>
     <string name="catalog_action_flow_wait_description" formatted="false">Pause task execution for a specified duration</string>
     <string name="catalog_category_flow" formatted="false">Flow</string>
@@ -666,7 +666,7 @@
     <string name="catalog_action_sound_play_field_volume_label" formatted="false">Volume (0-100)</string>
     <string name="catalog_action_sound_play_field_volume_hint" formatted="false">Optional; uses current volume when empty</string>
     <string name="catalog_action_sound_play_field_stream_label" formatted="false">Audio stream</string>
-    <string name="catalog_action_sound_play_field_stream_hint" formatted="false">Music by default. On Android 17 a task started in the background can only be heard on Alarm, which needs exact-alarm access and follows the alarm volume.</string>
+    <string name="catalog_action_sound_play_field_stream_hint" formatted="false">Music by default. Ringer and Notifications use the ringer or notification volume and go quiet on vibrate or silent, and Do Not Disturb can silence them too. On Android 17 a task started in the background can only be heard on Alarm, which needs exact-alarm access and follows the alarm volume.</string>
     <string name="catalog_action_sound_beep_name" formatted="false">Beep</string>
     <string name="catalog_action_sound_beep_description" formatted="false">Play a tone at a set pitch</string>
     <string name="catalog_action_sound_beep_field_frequency_label" formatted="false">Frequency (Hz)</string>

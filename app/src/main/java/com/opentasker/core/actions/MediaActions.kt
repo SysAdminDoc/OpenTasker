@@ -21,7 +21,7 @@ import com.opentasker.core.platform.AudioUsageEligibility
  * Args:
  *   - "path": file path or URI (e.g., content://media/external/audio/media/123)
  *   - "volume": 0-100 (optional)
- *   - "stream": music (default) or alarm (optional)
+ *   - "stream": music (default), alarm, ring or notification (optional)
  */
 /** Schemes MediaPlayer may open directly: everything else must go through the HTTP action. */
 private val LOCAL_SOUND_SCHEMES = setOf("file", "content", "android.resource")
@@ -36,7 +36,7 @@ class PlaySoundAction : DeclaredAction(ActionCatalog.require("sound.play")) {
             ctx,
             "sound playback",
             stream.usage,
-            offersAlarmStream = stream == AudioOutputStream.MUSIC,
+            offersAlarmStream = stream != AudioOutputStream.ALARM,
         )?.let { return it }
         val volume = args["volume"]?.toFloatOrNull()?.let { (it / 100f).coerceIn(0f, 1f) }
 
@@ -53,7 +53,7 @@ class PlaySoundAction : DeclaredAction(ActionCatalog.require("sound.play")) {
             )
         }
 
-        if (stream != AudioOutputStream.ALARM) {
+        if (stream == AudioOutputStream.MUSIC) {
             val player = try {
                 MediaPlayer.create(ctx.app, uri) ?: return ActionResult.Failure("could not create player for: $path")
             } catch (ex: Exception) {
@@ -63,16 +63,20 @@ class PlaySoundAction : DeclaredAction(ActionCatalog.require("sound.play")) {
         }
 
         val audioManager = ctx.app.getSystemService(AudioManager::class.java)
-        val attributes = alarmAudioAttributes(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-        val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-            .setAudioAttributes(attributes)
-            .build()
+        val attributes = outputAudioAttributes(stream, AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        val focus = if (stream == AudioOutputStream.ALARM) {
+            AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                .setAudioAttributes(attributes)
+                .build()
+        } else {
+            null
+        }
         // Android 17 only exempts alarm audio once its audio server has seen the exact-alarm grant, and
         // that record is refreshed by the app's own focus or volume call or its own AudioTrack. A
         // MediaPlayer's track lives in the media server, so without this request the sound is muted in
         // the background while the player still runs to completion and reports success. A refused
         // request (a phone call holds focus) changes nothing about the record, so the sound still plays.
-        if (audioManager.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+        if (focus != null && audioManager.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             ctx.logger("Audio focus was not granted for the alarm sound")
         }
         return try {
@@ -84,7 +88,7 @@ class PlaySoundAction : DeclaredAction(ActionCatalog.require("sound.play")) {
             }
             playToEnd(ctx, player, path, volume)
         } finally {
-            audioManager.abandonAudioFocusRequest(focus)
+            focus?.let(audioManager::abandonAudioFocusRequest)
         }
     }
 
@@ -240,9 +244,9 @@ private fun dispatchMediaKey(ctx: ActionContext, keyCode: Int): ActionResult {
     }
 }
 
-internal fun alarmAudioAttributes(contentType: Int): AudioAttributes =
+internal fun outputAudioAttributes(stream: AudioOutputStream, contentType: Int): AudioAttributes =
     AudioAttributes.Builder()
-        .setUsage(AudioAttributes.USAGE_ALARM)
+        .setUsage(stream.attributeUsage)
         .setContentType(contentType)
         .build()
 

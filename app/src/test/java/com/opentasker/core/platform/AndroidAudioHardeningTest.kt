@@ -139,7 +139,7 @@ class AndroidAudioHardeningTest {
         assertEquals(AudioOutputStream.MUSIC, AudioOutputStream.parse(""))
         assertEquals(AudioOutputStream.MUSIC, AudioOutputStream.parse(" Music "))
         assertEquals(AudioOutputStream.ALARM, AudioOutputStream.parse("alarm"))
-        assertEquals(null, AudioOutputStream.parse("ring"))
+        assertEquals(null, AudioOutputStream.parse("voice"))
     }
 
     @Test

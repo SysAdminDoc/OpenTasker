@@ -344,7 +344,7 @@ private const val REDACTED_VARIABLE_VALUE = ActionArgumentSensitivity.REDACTED
  *
  * Args:
  *   - "text": text to speak
- *   - "stream": music (default) or alarm (optional)
+ *   - "stream": music (default), alarm, ring or notification (optional)
  */
 class SayAction : DeclaredAction(ActionCatalog.require("tts.speak")) {
 
@@ -360,7 +360,7 @@ class SayAction : DeclaredAction(ActionCatalog.require("tts.speak")) {
             ctx,
             "text-to-speech output",
             stream.usage,
-            offersAlarmStream = stream == AudioOutputStream.MUSIC,
+            offersAlarmStream = stream != AudioOutputStream.ALARM,
         )?.let { return it }
         return suspendCancellableCoroutine { cont ->
             var tts: android.speech.tts.TextToSpeech? = null
@@ -387,8 +387,8 @@ class SayAction : DeclaredAction(ActionCatalog.require("tts.speak")) {
                     }
                 })
                 ctx.logger("TTS: ${text.take(80)}${if (text.length > 80) "..." else ""}")
-                if (stream == AudioOutputStream.ALARM) {
-                    engine.setAudioAttributes(alarmAudioAttributes(android.media.AudioAttributes.CONTENT_TYPE_SPEECH))
+                if (stream != AudioOutputStream.MUSIC) {
+                    engine.setAudioAttributes(outputAudioAttributes(stream, android.media.AudioAttributes.CONTENT_TYPE_SPEECH))
                 }
                 val queued = engine.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "opentasker_say")
                 if (queued != android.speech.tts.TextToSpeech.SUCCESS) {

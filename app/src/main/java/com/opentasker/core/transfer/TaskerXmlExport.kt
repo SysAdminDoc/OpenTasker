@@ -277,9 +277,9 @@ object TaskerXmlExporter {
             }
             "tts.speak" -> {
                 appendStr(sb, 0, args["text"] ?: "")
-                if (args["stream"] == "alarm") {
+                taskerOutputStream(args["stream"])?.let { stream ->
                     appendStr(sb, 1, "")
-                    appendInt(sb, 2, TASKER_ALARM_STREAM.toString())
+                    appendInt(sb, 2, stream.toString())
                 }
             }
             "vibrate" -> appendInt(sb, 0, args["millis"] ?: "100")
@@ -297,7 +297,7 @@ object TaskerXmlExporter {
                 appendStr(sb, 0, args["path"] ?: "")
                 appendInt(sb, 1, "0")
                 appendInt(sb, 2, "0")
-                if (args["stream"] == "alarm") appendInt(sb, 3, TASKER_ALARM_STREAM.toString())
+                taskerOutputStream(args["stream"])?.let { appendInt(sb, 3, it.toString()) }
                 if (args["volume"] != null) {
                     warnings += "Tasker's Music Play has no volume of its own, so the volume on 'sound.play' was left out."
                 }
@@ -306,7 +306,7 @@ object TaskerXmlExporter {
                 appendInt(sb, 0, taskerBeepFrequency(args["frequency"].orEmpty(), warnings))
                 appendInt(sb, 1, args["duration"] ?: "")
                 appendInt(sb, 2, args["amplitude"].orEmpty().ifBlank { "50" })
-                appendInt(sb, 3, (if (args["stream"] == "alarm") TASKER_ALARM_STREAM else TASKER_MUSIC_STREAM).toString())
+                appendInt(sb, 3, (taskerOutputStream(args["stream"]) ?: TASKER_MUSIC_STREAM).toString())
                 appendStr(sb, 4, "")
             }
             "sound.stop", "sound.pause", "track.next", "track.previous",
@@ -1133,6 +1133,12 @@ object TaskerXmlExporter {
         "track.rewind" to "6",
         "track.fastforward" to "7",
     )
+
+    /** Tasker's number for a sound step's stream, or null for Music, which Say and Music Play leave unset. */
+    private fun taskerOutputStream(stream: String?): Int? {
+        val name = stream?.trim()?.lowercase() ?: return null
+        return TASKER_OUTPUT_STREAMS.entries.firstOrNull { it.value == name }?.key
+    }
 
     /** Tasker has one volume action per stream, and the stream names are the ones volume.set takes. */
     private val TASKER_VOLUME_CODES = mapOf(

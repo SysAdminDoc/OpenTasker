@@ -41,7 +41,7 @@ internal object BeepTone {
 
 /**
  * Plays a tone. Args: `frequency` in Hz, `duration` in ms, `amplitude` 0-100 (50 when blank),
- * `stream` music or alarm. The step ends once the tone has played, as Tasker's Beep does.
+ * `stream` music, alarm, ring or notification. The step ends once the tone has played, as Tasker's Beep does.
  */
 class BeepAction : DeclaredAction(ActionCatalog.require("sound.beep")) {
 
@@ -58,18 +58,11 @@ class BeepAction : DeclaredAction(ActionCatalog.require("sound.beep")) {
             ctx,
             "beep playback",
             stream.usage,
-            offersAlarmStream = stream == AudioOutputStream.MUSIC,
+            offersAlarmStream = stream != AudioOutputStream.ALARM,
         )?.let { return it }
 
         val samples = BeepTone.samples(frequency, duration, amplitude)
-        val attributes = if (stream == AudioOutputStream.ALARM) {
-            alarmAudioAttributes(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-        } else {
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-        }
+        val attributes = outputAudioAttributes(stream, AudioAttributes.CONTENT_TYPE_SONIFICATION)
         val track = try {
             AudioTrack.Builder()
                 .setAudioAttributes(attributes)

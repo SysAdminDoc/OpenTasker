@@ -63,7 +63,7 @@ class BeepActionTest {
             mapOf("frequency" to "440", "duration" to "0") to "duration",
             mapOf("frequency" to "440", "duration" to "60000") to "duration",
             mapOf("frequency" to "440", "duration" to "100", "amplitude" to "101") to "amplitude",
-            mapOf("frequency" to "440", "duration" to "100", "stream" to "ring") to "stream",
+            mapOf("frequency" to "440", "duration" to "100", "stream" to "voice") to "stream",
         ).forEach { (args, field) ->
             val result = BeepAction().run(ctx(), args)
             assertTrue("$args: $result", result is ActionResult.Failure && field in result.message)

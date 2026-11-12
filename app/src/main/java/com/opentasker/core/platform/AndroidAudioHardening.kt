@@ -1,5 +1,6 @@
 package com.opentasker.core.platform
 
+import android.media.AudioAttributes
 import android.os.Build
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
@@ -17,20 +18,28 @@ enum class AudioUsageEligibility {
 }
 
 /**
- * Where a played or spoken sound goes. Alarm audio is the one kind Android 17 lets a task started
- * from the background make, so it's offered as a choice. It follows the alarm volume.
+ * Where a played or spoken sound goes, and so which volume it follows. Alarm audio is the one kind
+ * Android 17 lets a task started from the background make, so it's offered as a choice. Ringer and
+ * Notifications are the streams Tasker's sounds most often use besides Music, and they go quiet
+ * with the phone's ringer the way those sounds do.
  */
-internal enum class AudioOutputStream(val usage: AudioUsageEligibility) {
-    MUSIC(AudioUsageEligibility.GENERAL),
-    ALARM(AudioUsageEligibility.ALARM),
+internal enum class AudioOutputStream(
+    val value: String,
+    val usage: AudioUsageEligibility,
+    /** The AudioAttributes usage a sound on this stream plays with. */
+    val attributeUsage: Int,
+) {
+    MUSIC("music", AudioUsageEligibility.GENERAL, AudioAttributes.USAGE_MEDIA),
+    ALARM("alarm", AudioUsageEligibility.ALARM, AudioAttributes.USAGE_ALARM),
+    RING("ring", AudioUsageEligibility.GENERAL, AudioAttributes.USAGE_NOTIFICATION_RINGTONE),
+    NOTIFICATION("notification", AudioUsageEligibility.GENERAL, AudioAttributes.USAGE_NOTIFICATION),
     ;
 
     companion object {
         /** A blank value is the music stream every saved action has always played on. */
-        fun parse(value: String?): AudioOutputStream? = when (value.orEmpty().trim().lowercase()) {
-            "", "music" -> MUSIC
-            "alarm" -> ALARM
-            else -> null
+        fun parse(value: String?): AudioOutputStream? {
+            val name = value.orEmpty().trim().lowercase()
+            return if (name.isEmpty()) MUSIC else entries.firstOrNull { it.value == name }
         }
     }
 }

@@ -72,23 +72,29 @@ internal const val TASKER_MUSIC_STREAM = 3
 /** Tasker's Beep plays a tone at a quarter of the frequency number it stores. */
 internal const val TASKER_BEEP_PITCH_DIVISOR = 4L
 
-private fun taskerAlarmStreamArg(stream: Int?): Map<String, String> =
-    if (stream == TASKER_ALARM_STREAM) mapOf("stream" to "alarm") else emptyMap()
+/**
+ * The streams besides Music that Beep, Say, Play Ringtone and Music Play play on here, keyed by
+ * Android's stream number: 4 Alarm, 2 Ringer, 5 Notification.
+ */
+internal val TASKER_OUTPUT_STREAMS = mapOf(TASKER_ALARM_STREAM to "alarm", 2 to "ring", 5 to "notification")
+
+private fun taskerOutputStreamArg(stream: Int?): Map<String, String> =
+    TASKER_OUTPUT_STREAMS[stream]?.let { mapOf("stream" to it) }.orEmpty()
 
 /** AudioManager's names for the other stream numbers a Tasker export can hold. */
 private val TASKER_STREAM_NAMES = mapOf(
-    0 to "Call", 1 to "System", 2 to "Ringer", 5 to "Notification", 6 to "Bluetooth", 8 to "Dial tones", 10 to "Accessibility",
+    0 to "Call", 1 to "System", 6 to "Bluetooth", 8 to "Dial tones", 10 to "Accessibility",
 )
 
 /**
- * Beep, Say, Play Ringtone and Music Play only have Music and Alarm here, so a sound Tasker sends
- * anywhere else, or to a stream held in a variable, comes over on Music and says so.
+ * Beep, Say, Play Ringtone and Music Play have Music, Alarm, Ringer and Notification here, so a
+ * sound Tasker sends anywhere else, or to a stream held in a variable, comes over on Music and says so.
  */
 private fun taskerStreamWarning(actionName: String, stream: Int?, variable: String?, plays: String = "plays"): String? = when {
     variable?.contains('%') == true ->
         "Tasker $actionName picks its stream from $variable, which this app can't, so it $plays on Music"
     variable != null -> "Tasker $actionName's stream \"$variable\" isn't a stream number, so it $plays on Music"
-    stream != null && stream != TASKER_MUSIC_STREAM && stream != TASKER_ALARM_STREAM -> {
+    stream != null && stream != TASKER_MUSIC_STREAM && stream !in TASKER_OUTPUT_STREAMS -> {
         val name = TASKER_STREAM_NAMES[stream]?.let { " ($it)" }.orEmpty()
         "Tasker $actionName plays on stream $stream$name, which this app doesn't offer, so it $plays on Music"
     }
@@ -621,7 +627,7 @@ object TaskerXmlImporter {
                 action = ActionSpec(
                     type = "tts.speak",
                     label = "Tasker speech",
-                    args = mapOf("text" to strings.getOrElse(0) { "" }) + taskerAlarmStreamArg(intsByIndex[2]),
+                    args = mapOf("text" to strings.getOrElse(0) { "" }) + taskerOutputStreamArg(intsByIndex[2]),
                 ),
                 lossyWarning = taskerStreamWarning("Say", intsByIndex[2], intVariables[2], plays = "speaks"),
             )
@@ -723,7 +729,7 @@ object TaskerXmlImporter {
                     action = ActionSpec(
                         type = "sound.play",
                         label = "Tasker sound",
-                        args = mapOf("path" to path) + taskerAlarmStreamArg(intsByIndex[2]),
+                        args = mapOf("path" to path) + taskerOutputStreamArg(intsByIndex[2]),
                     ),
                     lossyWarning = joinWarnings(
                         "Tasker Play Ringtone \"$path\" names a system sound, not a file, so it needs a file here"
@@ -736,7 +742,7 @@ object TaskerXmlImporter {
                 ActionSpec(
                     type = "sound.play",
                     label = "Tasker music play",
-                    args = mapOf("path" to byIndex[0].orEmpty()) + taskerAlarmStreamArg(intsByIndex[3]),
+                    args = mapOf("path" to byIndex[0].orEmpty()) + taskerOutputStreamArg(intsByIndex[3]),
                 ),
                 lossyWarning = joinWarnings(
                     listOfNotNull(
@@ -1430,7 +1436,7 @@ object TaskerXmlImporter {
                     frequency?.let { put("frequency", it.value) }
                     duration?.let { put("duration", it.value) }
                     amplitude?.let { put("amplitude", it.value) }
-                    putAll(taskerAlarmStreamArg(stream))
+                    putAll(taskerOutputStreamArg(stream))
                 },
             ),
             lossyWarning = joinWarnings(
