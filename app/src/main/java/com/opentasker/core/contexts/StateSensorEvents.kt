@@ -361,6 +361,7 @@ object StateSensorEvents {
                 return
             }
             readings.forgetPrevious()
+            readings.keepStandInOnlyFrom(providers)
             val candidate = object : LocationListener {
                 override fun onLocationChanged(location: Location) = emitLocation(location)
                 override fun onProviderEnabled(provider: String) = Unit
@@ -883,6 +884,15 @@ internal class SpeedReadings(private val freshForMs: Long, private val settleAft
     fun forgetPrevious() {
         previous = null
         heardLive = false
+    }
+
+    /**
+     * Drops a live stand-in from a provider that isn't in [providers], since no fix can follow it
+     * once that provider is unregistered, and the quiet spell would read that as standing still.
+     */
+    @Synchronized
+    fun keepStandInOnlyFrom(providers: Set<String>) {
+        if (standInProvider !in providers) standInProvider = null
     }
 
     @Synchronized

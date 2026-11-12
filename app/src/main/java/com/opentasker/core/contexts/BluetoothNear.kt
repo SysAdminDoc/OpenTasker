@@ -81,6 +81,15 @@ internal class NearbyBluetoothTracker(
     }
 
     /**
+     * [watching] before [start] rather than after, so a failure reported while it's starting
+     * stops the watch instead of being undone by it, and [stoppedWatching] if [start] throws.
+     */
+    fun startWatching(nowMs: Long, start: () -> Unit) {
+        watching(nowMs)
+        runCatching(start).onFailure { stoppedWatching() }.getOrThrow()
+    }
+
+    /**
      * Whether this has watched for as long as a device is kept after its last sighting, so a device
      * missing from the list is away. Before that, missing only means not seen yet.
      */
@@ -314,9 +323,11 @@ internal class NearbyBluetoothScanner(
 
         connected.values.toList().forEach { sighted(listOf(it.name), it.address) }
         runCatching {
-            leScanner.startScan(filters, SCAN_SETTINGS, scanCallback)
+            // onScanFailed can land on the main thread before startScan returns here.
+            tracker.startWatching(SystemClock.elapsedRealtime()) {
+                leScanner.startScan(filters, SCAN_SETTINGS, scanCallback)
+            }
             activeScanner = leScanner
-            tracker.watching(SystemClock.elapsedRealtime())
         }.onFailure { AppLogger.debug(BT_NEAR_TAG, "BLE scan did not start: ${it.message}") }
         if (bluetoothNearRunsClassicDiscovery(cycle, audioConnected(adapter)) && !adapter.isDiscovering) {
             startedDiscovery = runCatching { adapter.startDiscovery() }.getOrDefault(false)
