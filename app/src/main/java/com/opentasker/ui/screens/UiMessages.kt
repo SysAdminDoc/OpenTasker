@@ -12,7 +12,6 @@ import androidx.compose.runtime.snapshotFlow
 import com.opentasker.app.R
 import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.storage.CorruptStoredRecordException
-import com.opentasker.core.storage.EditHistoryDao
 import com.opentasker.core.storage.StorageDecodeIssue
 import com.opentasker.core.transfer.ImportBudgetExceededException
 import kotlinx.coroutines.CoroutineStart
@@ -149,18 +148,12 @@ internal suspend fun SnackbarHostState.showUiMessages(
 
 /**
  * What a snackbar's Undo runs. Deletes ask for no confirmation, so this is how one is taken back.
+ * It skips the "Review what actually changed" dialog: the person just made that change and is
+ * taking it back on the spot, so there's nothing to review. Undo from a task's menu still shows it.
  * Kept out of [ActiveAutomationViewModel], which sits against its line ceiling.
  */
-internal fun ActiveAutomationViewModel.undo(action: UiMessageAction.Undo) {
-    when (action.entityType) {
-        EditHistoryDao.TYPE_PROFILE -> undoLastProfileEdit(action.entityId)
-        EditHistoryDao.TYPE_TASK -> undoLastTaskEdit(action.entityId)
-        EditHistoryDao.TYPE_SCENE -> undoLastSceneEdit(action.entityId)
-        EditHistoryDao.TYPE_VARIABLE -> undoLastVariableDelete(action.entityId)
-        EditHistoryDao.TYPE_PROJECT -> undoLastProjectDelete(action.entityId)
-        else -> Unit
-    }
-}
+internal fun ActiveAutomationViewModel.undo(action: UiMessageAction.Undo) =
+    transitionEditAsync(action.entityType, action.entityId, redo = false, review = false)
 
 /** As long as a short snackbar stays up, so a reason never flashes past unread. */
 internal const val STICKY_MESSAGE_MINIMUM_MS = 4_000L

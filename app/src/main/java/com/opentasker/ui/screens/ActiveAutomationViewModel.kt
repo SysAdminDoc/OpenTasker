@@ -1653,14 +1653,14 @@ class ActiveAutomationViewModel(
         }
     }
 
-    private fun transitionEditAsync(entityType: String, entityId: Long, redo: Boolean) {
+    internal fun transitionEditAsync(entityType: String, entityId: Long, redo: Boolean, review: Boolean = true) {
         _highlightedFlowNodeKeys.value = emptySet()
         viewModelScope.launch {
             runCatching { editHistoryTransitions.transition(entityType, entityId, redo) }
                 .onSuccess { diff ->
                     val changed = diff != null
                     if (changed && entityType == EditHistoryDao.TYPE_TASK) TaskWidgetProvider.requestRefresh(appContext)
-                    if (diff != null && !diff.isEmpty) {
+                    if (review && diff != null && !diff.isEmpty) {
                         _semanticDiffReview.value = SemanticDiffReviewState(diff)
                         _highlightedFlowNodeKeys.value = diff.flowNodeKeys
                     }
