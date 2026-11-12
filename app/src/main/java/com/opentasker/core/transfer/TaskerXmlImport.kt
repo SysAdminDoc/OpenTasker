@@ -19,6 +19,7 @@ import com.opentasker.core.engine.SUB_TASK_ACTION_ID
 import com.opentasker.core.engine.SUB_TASK_RESET_RETURN_KEY
 import com.opentasker.core.engine.SUB_TASK_RETURN_KEY
 import com.opentasker.core.engine.variables.TaskerBuiltIns
+import com.opentasker.core.engine.variables.VariableExpander
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
 import com.opentasker.core.model.ContextType
@@ -2332,9 +2333,12 @@ object TaskerXmlImporter {
             if (op in TASKER_MATHS_EQUALITY_OPS && !(joinableSide(condition.childText("lhs")) && joinableSide(condition.childText("rhs")))) {
                 return withNotes(null, "a \"Run only if\" guard (op $op) was dropped, since a side holds && or ||, a {{ template }} or an unmatched bracket, which this app can't write as a pair of checks")
             }
-            val expression = condition.conditionExpression(op)
+            val written = condition.writtenCondition(op)
                 ?: return withNotes(null, "a \"Run only if\" guard used an unsupported Tasker comparison (op $op) and was dropped")
-            return withNotes(expression, condition.regexApproximationWarning(op))
+            if (!written.readsBack()) {
+                return withNotes(null, "a \"Run only if\" guard (op $op) was dropped, since a side holds && or ||, a second comparison sign or a {{ template }}, which this app would read as part of the condition")
+            }
+            return withNotes(written.text, condition.regexApproximationWarning(op), condition.trimmedSpacesWarning(op))
         }
 
         fun dropped(reason: String) =
@@ -2345,29 +2349,71 @@ object TaskerXmlImporter {
         val approximations = mutableListOf<String>()
         val parts = read.map { condition ->
             val op = condition.taskerConditionOp()
-            val lhs = condition.childText("lhs")
-            // Tasker ignores the right side of a unary check, and exports often leave an old one there.
-            val rhs = if (op in TASKER_UNARY_CONDITION_OPS) "" else condition.childText("rhs")
-            when {
-                lhs.isBlank() -> return dropped("one of them has nothing to compare")
-                !joinableSide(lhs) || !joinableSide(rhs) ->
-                    return dropped("one of them holds && or ||, a {{ template }} or an unmatched bracket, which would change how they join")
+            if (condition.childText("lhs").isBlank()) return dropped("one of them has nothing to compare")
+            val written = condition.writtenCondition(op)
+                ?: return dropped("one of them uses an unsupported Tasker comparison (op $op)")
+            // Each one has to read back as itself on its own, and close every bracket it opens, so
+            // the joiners written between them are the only places the guard splits.
+            if (!written.readsBack() || !bracketsClose(written.text)) {
+                return dropped("one of them holds && or ||, a second comparison sign, a {{ template }} or an unmatched bracket, which would change how they join")
             }
             condition.regexApproximationWarning(op)?.let { approximations += it }
-            condition.conditionExpression(op)
-                ?: return dropped("one of them uses an unsupported Tasker comparison (op $op)")
+            condition.trimmedSpacesWarning(op)?.let { approximations += it }
+            written.text
         }
         return withNotes(joinTaskerConditions(parts, joiners), *approximations.toTypedArray())
     }
 
-    /** This Condition in this app's syntax, or null when its [op] has no counterpart here. */
-    private fun Element.conditionExpression(op: String): String? {
+    /**
+     * One check an imported condition is written as: `lhs token rhs`, or `lhs token` for one with
+     * no right side, such as `is_set`.
+     */
+    private class WrittenCheck(val lhs: String, val token: String, val rhs: String? = null) {
+        val text: String get() = if (rhs == null) "$lhs $token" else "$lhs $token $rhs"
+    }
+
+    /** One check, or a bracketed pair joined by [joiner]. */
+    private class WrittenCondition(val joiner: String?, val checks: List<WrittenCheck>) {
+        constructor(check: WrittenCheck) : this(null, listOf(check))
+        constructor(joiner: String, first: WrittenCheck, second: WrittenCheck) : this(joiner, listOf(first, second))
+
+        val text: String get() = checks.singleOrNull()?.text ?: checks.joinToString(" $joiner ", "(", ")") { it.text }
+    }
+
+    /**
+     * Whether the condition grammar reads this back as the checks it was written from: no `&&` or
+     * `||` of a side's own splits it, no second comparison sign makes a check two, and a check
+     * with no right side doesn't read as a comparison. A `{{ }}` would go to the template stage,
+     * which Tasker doesn't have, so a side holding one doesn't read back either.
+     */
+    private fun WrittenCondition.readsBack(): Boolean {
+        if ("{{" in text || "}}" in text) return false
+        val (readJoiner, parts) = conditionGrammar.conditionParts(text)
+        return readJoiner == joiner && parts == checks.map { it.text } &&
+            checks.zip(parts).all { (check, part) ->
+                conditionGrammar.comparisonParts(part) == check.rhs?.let { Triple(check.lhs, check.token, it) }
+            }
+    }
+
+    /**
+     * This Condition in this app's syntax, or null when its [op] has no counterpart here.
+     *
+     * Tasker keeps the right side as it's typed, spaces included (decompiled 6.7.8 `vi` and `t1`),
+     * where this app trims both sides of a text comparison. A regex keeps its spaces in a
+     * `(?:...)` group, which matches the same. A regex the grammar would split at a `||` goes in
+     * one too, since the grammar doesn't split inside brackets.
+     */
+    private fun Element.writtenCondition(op: String): WrittenCondition? {
         val lhs = childText("lhs")
+        val typedRhs = directChildren("rhs").firstOrNull()?.textContent.orEmpty()
+        val rhs = typedRhs.trim()
+        val never = WrittenCondition("&&", WrittenCheck(lhs, "is_set"), WrittenCheck(lhs, "not_set"))
+        val always = WrittenCondition("||", WrittenCheck(lhs, "is_set"), WrittenCheck(lhs, "not_set"))
         return when (op) {
-            "10" -> "$lhs is_even"
-            "11" -> "$lhs is_odd"
-            "12" -> "$lhs is_set"
-            "13" -> "$lhs not_set"
+            "10" -> WrittenCondition(WrittenCheck(lhs, "is_even"))
+            "11" -> WrittenCondition(WrittenCheck(lhs, "is_odd"))
+            "12" -> WrittenCondition(WrittenCheck(lhs, "is_set"))
+            "13" -> WrittenCondition(WrittenCheck(lhs, "not_set"))
             // Maths Equals and Not Equals compare numbers, so 5.0 equals 5 and an unset variable is
             // 0. This app's maths comparisons read both sides the same way, and a side that isn't a
             // number leaves both forms false, as it does in Tasker. Tasker settles an empty side
@@ -2375,16 +2421,47 @@ object TaskerXmlImporter {
             // false, which the pair already is, and Not Equals true, written as a check that always holds.
             // Spaces alone aren't empty there, so they reach the number check and fail it. Either
             // blank side is written as a check that never holds, not a pair missing its right side.
-            "8" -> childText("rhs").let { rhs -> if (rhs.isEmpty()) "($lhs is_set && $lhs not_set)" else "($lhs <= $rhs && $lhs >= $rhs)" }
-            "9" -> childText("rhs").let { rhs ->
-                val empty = directChildren("rhs").firstOrNull()?.textContent.isNullOrEmpty()
+            "8" -> if (rhs.isEmpty()) never else WrittenCondition("&&", WrittenCheck(lhs, "<=", rhs), WrittenCheck(lhs, ">=", rhs))
+            "9" -> when {
+                typedRhs.isEmpty() -> always
+                rhs.isEmpty() -> never
+                else -> WrittenCondition("||", WrittenCheck(lhs, "<", rhs), WrittenCheck(lhs, ">", rhs))
+            }
+            // Tasker's empty regex finds nothing, so Doesn't Match Regex always holds on one.
+            "4", "5" -> {
+                val token = TASKER_CONDITION_OP_TOKENS.getValue(op)
+                fun grouped(pattern: String) = WrittenCondition(WrittenCheck(lhs, token, "(?:$pattern)"))
                 when {
-                    empty -> "($lhs is_set || $lhs not_set)"
-                    rhs.isEmpty() -> "($lhs is_set && $lhs not_set)"
-                    else -> "($lhs < $rhs || $lhs > $rhs)"
+                    typedRhs.isEmpty() -> if (op == "5") always else never
+                    typedRhs != rhs -> grouped(typedRhs)
+                    else -> WrittenCondition(WrittenCheck(lhs, token, rhs)).takeIf { it.readsBack() } ?: grouped(rhs)
                 }
             }
-            else -> TASKER_CONDITION_OP_TOKENS[op]?.let { token -> "$lhs $token ${childText("rhs")}" }
+            // An empty pattern matches nothing (Expr.k) and an empty text equals no value Tasker
+            // reads, so Equals and Matches never hold on a blank right side and their opposites
+            // always do. The same goes for one of only spaces, give or take a value of those
+            // spaces, which trimmedSpacesWarning points out. A blank side isn't a number, so
+            // Less Than and Greater Than never hold.
+            else -> TASKER_CONDITION_OP_TOKENS[op]?.let { token ->
+                when {
+                    rhs.isNotEmpty() -> WrittenCondition(WrittenCheck(lhs, token, rhs))
+                    op == "1" || op == "3" -> always
+                    else -> never
+                }
+            }
+        }
+    }
+
+    /**
+     * A note for a text comparison whose right side starts or ends with spaces, which Tasker
+     * compares as typed and this app trims. A regex keeps them ([writtenCondition]).
+     */
+    private fun Element.trimmedSpacesWarning(op: String): String? {
+        val typedRhs = directChildren("rhs").firstOrNull()?.textContent.orEmpty()
+        return if (op in TASKER_TEXT_CONDITION_OPS && typedRhs != typedRhs.trim()) {
+            "a \"Run only if\" comparison (op $op) has spaces at the start or end of its right side, which Tasker compares and this app trims"
+        } else {
+            null
         }
     }
 
@@ -2410,8 +2487,11 @@ object TaskerXmlImporter {
      * and brackets. The condition grammar splits at a `&&` or `||` outside brackets and skips over
      * `{{ }}`, so a side holding one of those, or a bracket it doesn't close, would move the split.
      */
-    private fun joinableSide(text: String): Boolean {
-        if ("&&" in text || "||" in text || "{{" in text || "}}" in text) return false
+    private fun joinableSide(text: String): Boolean =
+        "&&" !in text && "||" !in text && "{{" !in text && "}}" !in text && bracketsClose(text)
+
+    /** Whether every bracket [text] opens closes, and none closes before it opens. */
+    private fun bracketsClose(text: String): Boolean {
         var depth = 0
         for (char in text) {
             when (char) {
@@ -2768,8 +2848,11 @@ object TaskerXmlImporter {
     // Or, and Xor2, between And and Or2, are left out: the grammar here has no exclusive or.
     private val TASKER_JOINER_ORDER = listOf("Or", "And", "Or2", "And2")
 
-    // Is Even, Is Odd, Is Set and Not Set, which take no right side.
-    private val TASKER_UNARY_CONDITION_OPS = setOf("10", "11", "12", "13")
+    // Equals, Not Equals, Matches and Doesn't Match, which compare the right side as text.
+    private val TASKER_TEXT_CONDITION_OPS = setOf("0", "1", "2", "3")
+
+    // How the importer checks that a condition it writes reads back as itself.
+    private val conditionGrammar = VariableExpander()
 
     // Maths Equals and Not Equals, which conditionExpression writes as a bracketed pair of checks.
     private val TASKER_MATHS_EQUALITY_OPS = setOf("8", "9")

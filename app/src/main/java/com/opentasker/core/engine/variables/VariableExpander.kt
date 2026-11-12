@@ -751,6 +751,9 @@ class VariableExpander {
                     val right = expr.substring(index + operator.token.length).trim()
                     if (left.isEmpty() || right.isEmpty()) return null
                     matches += ConditionComparison(left, operator, right)
+                    // Tasker keeps a pattern in a field of its own, so once the first operator is a
+                    // match, the rest is its pattern, a `<` or `==` in it included.
+                    if (matches.size == 1 && operator in TILDE_OPERATORS) return matches.single()
                     index += operator.token.length
                     continue
                 }
