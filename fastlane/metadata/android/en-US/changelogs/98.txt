@@ -1,7 +1,8 @@
-Releases are set up for F-Droid's reproducible builds (#29).
-Release APKs no longer carry the Git commit they were built from or Google's encrypted dependency list.
-The public keys that sign our dependencies now live in gradle/verification-keyring.keys.
-A Locale condition on a variable now answers only the comparison you set up.
-Local database backups and crash logs stay out of device-to-device transfers.
-Logs and exports hide more credentials.
-A value can't change what a condition asks anymore.
+Tasker imports bring over many more actions, like Variable Clear, Stop Task, Return and Get Sunrise/Sunset Times.
+Tasker's built-in variables like %TIME and %BATT fill in.
+Deleting happens on the first tap, with Undo.
+Profiles can react to Health Connect.
+Sun contexts can wait for twilight.
+A Set Wallpaper action changes the home or lock screen.
+Other apps can't fake an NFC tap anymore.
+Releases are set up for F-Droid's reproducible builds.
