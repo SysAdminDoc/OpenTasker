@@ -798,9 +798,9 @@ class VariableExpander {
      */
     private fun taskerNumber(text: String): Double? {
         // Java's \s, which Tasker strips: space, tab, line feed, vertical tab, form feed, return.
-        // Its reader then skips Java whitespace at the ends and trims the number, which takes
-        // control characters and spaces like U+2009 too, but never a no-break space.
-        val compact = text.filterNot { it == ' ' || it in '\t'..'\r' }.trim { Character.isWhitespace(it) || it <= ' ' }
+        // Its reader then skips Java whitespace at the ends (spaces like U+2009, never a no-break
+        // space), and only after that trims control characters, so one outside a U+2009 keeps it on.
+        val compact = text.filterNot { it == ' ' || it in '\t'..'\r' }.trim { Character.isWhitespace(it) }.trim { it <= ' ' }
         val value = when {
             // A sign after 0x is an operator to Tasker, which leaves 0x alone and not a number.
             compact.startsWith("0x", ignoreCase = true) ->

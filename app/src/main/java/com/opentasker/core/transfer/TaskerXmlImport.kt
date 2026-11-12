@@ -2373,11 +2373,16 @@ object TaskerXmlImporter {
             // number leaves both forms false, as it does in Tasker. Tasker settles an empty side
             // first: with the left one filled in as 0 when unset, an empty right side makes Equals
             // false, which the pair already is, and Not Equals true, written as a check that always holds.
-            // Spaces alone aren't empty there, so they reach the number check and fail it.
-            "8" -> childText("rhs").let { rhs -> "($lhs <= $rhs && $lhs >= $rhs)" }
+            // Spaces alone aren't empty there, so they reach the number check and fail it. Either
+            // blank side is written as a check that never holds, not a pair missing its right side.
+            "8" -> childText("rhs").let { rhs -> if (rhs.isEmpty()) "($lhs is_set && $lhs not_set)" else "($lhs <= $rhs && $lhs >= $rhs)" }
             "9" -> childText("rhs").let { rhs ->
                 val empty = directChildren("rhs").firstOrNull()?.textContent.isNullOrEmpty()
-                if (empty) "($lhs is_set || $lhs not_set)" else "($lhs < $rhs || $lhs > $rhs)"
+                when {
+                    empty -> "($lhs is_set || $lhs not_set)"
+                    rhs.isEmpty() -> "($lhs is_set && $lhs not_set)"
+                    else -> "($lhs < $rhs || $lhs > $rhs)"
+                }
             }
             else -> TASKER_CONDITION_OP_TOKENS[op]?.let { token -> "$lhs $token ${childText("rhs")}" }
         }
