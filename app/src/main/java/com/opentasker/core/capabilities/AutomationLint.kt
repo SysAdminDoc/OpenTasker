@@ -1,6 +1,8 @@
 package com.opentasker.core.capabilities
 
 import com.opentasker.core.contexts.DaySchedule
+import com.opentasker.core.contexts.WIFI_CONNECTED_WORDS
+import com.opentasker.core.contexts.WIFI_DISCONNECTED_WORDS
 import com.opentasker.core.contexts.parseStatePredicate
 import com.opentasker.core.location.FossGeofenceEvaluator
 import com.opentasker.core.model.ActionSpec
@@ -454,6 +456,9 @@ object AutomationLint {
         if (leftPredicate.second == "~" || rightPredicate.second == "~") return true
         val leftValue = leftPredicate.third.lowercase(Locale.US)
         val rightValue = rightPredicate.third.lowercase(Locale.US)
+        if (normalizeStateKey(leftPredicate.first) == "wifi" && leftPredicate.second == "=" && rightPredicate.second == "=") {
+            return wifiOverlap(leftValue, rightValue)
+        }
         if (leftPredicate.second == "=" && rightPredicate.second == "=" && leftValue != rightValue) return false
         if (leftPredicate.second == "=" && rightPredicate.second == "!=" && leftValue == rightValue) return false
         if (leftPredicate.second == "!=" && rightPredicate.second == "=" && leftValue == rightValue) return false
@@ -465,6 +470,17 @@ object AutomationLint {
             return leftRange.first <= rightRange.second && rightRange.first <= leftRange.second
         }
         return true
+    }
+
+    /**
+     * Whether two Wi-Fi values can hold at once. A network's name means connected to it, so it can
+     * hold with "connected" (or `wifi_connected = true`) but never with "disconnected".
+     */
+    private fun wifiOverlap(left: String, right: String): Boolean {
+        val leftOff = left in WIFI_DISCONNECTED_WORDS
+        val rightOff = right in WIFI_DISCONNECTED_WORDS
+        if (leftOff || rightOff) return leftOff && rightOff
+        return left == right || left in WIFI_CONNECTED_WORDS || right in WIFI_CONNECTED_WORDS
     }
 
     private fun eventOverlap(left: ContextSpec, right: ContextSpec): Boolean {
