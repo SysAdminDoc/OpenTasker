@@ -186,6 +186,8 @@ fun typedVariableOptions(
 
 /** Whether a metadata field can consume a declared output without an implicit type cast. */
 fun ActionField.acceptsVariableType(type: ActionValueType): Boolean {
+    // A list's items can be a whole array, like %arr() in For Each's values.
+    if (listInput && type == ActionValueType.ARRAY) return true
     inputType?.let { expected ->
         return type == ActionValueType.ANY || type == expected
     }
@@ -209,9 +211,19 @@ fun ActionField.acceptsVariableType(type: ActionValueType): Boolean {
     }
 }
 
-/** Inserts a canonical template token while preserving an existing hand-authored expression. */
-fun insertVariableChip(existing: String, option: VariableChipOption): String {
+/**
+ * Inserts a canonical template token while preserving an existing hand-authored expression. A
+ * [list] field gets the token as one more item, after a comma unless the text already ends in one,
+ * or as the end of a range when the text ends in a colon (`1:` then a chip makes `1:{{ ... }}`).
+ * An array can't end a range, so its chip is always a new item.
+ */
+fun insertVariableChip(existing: String, option: VariableChipOption, list: Boolean = false): String {
     if (existing.isBlank()) return option.reference
+    if (list) {
+        val written = existing.trimEnd()
+        if (written.endsWith(":") && option.type != ActionValueType.ARRAY) return written + option.reference
+        if (!written.endsWith(",")) return "$written, ${option.reference}"
+    }
     val separator = if (existing.last().isWhitespace()) "" else " "
     return existing + separator + option.reference
 }

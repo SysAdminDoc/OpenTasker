@@ -891,13 +891,12 @@ object TaskerXmlImporter {
                     ActionSpec(
                         type = "flow.foreach",
                         label = "Tasker for",
+                        // A whole array loops by name, anything else as Tasker's values and ranges.
                         args = mapOf(
-                            "list" to (array ?: items),
+                            if (array != null) "list" to array else "values" to items,
                             "var" to (byIndex[0].orEmptyIfBlank() ?: "item"),
                         ),
                     ),
-                    lossyWarning = "Tasker For over \"$items\" was kept as written; only a whole array like %name() loops here"
-                        .takeIf { array == null && items.isNotEmpty() },
                 )
             }
             "40", "endfor", "flow.endfor" -> ActionWithLoss(ActionSpec(type = "flow.endfor", label = "Tasker end for"))

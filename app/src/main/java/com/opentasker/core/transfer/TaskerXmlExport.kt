@@ -364,13 +364,14 @@ object TaskerXmlExporter {
             "flow.if" -> appendStr(sb, 0, args["condition"] ?: "true")
             "flow.goto" -> appendGoto(sb, args, layout, warnings)
             "flow.foreach" -> {
-                val list = args["list"].orEmpty()
+                // The same keys, in the same order, the runner reads For Each's array from.
+                val list = listOf("list", "in", "array", "items").firstNotNullOfOrNull { args[it]?.takeIf(String::isNotBlank) }.orEmpty()
                 val items = taskerForItems(list)
                 if (items == null && list.isNotBlank()) {
                     warnings += "Tasker's For reads '$list' as a list of values, and here it needs a whole array."
                 }
                 appendStr(sb, 0, taskerVariableName(args["var"], "item"))
-                appendStr(sb, 1, items ?: list)
+                appendStr(sb, 1, items ?: list.ifBlank { taskerForValues(args["values"].orEmpty(), warnings) })
             }
             "task.stop" -> {
                 appendInt(sb, 0, "0")
@@ -1109,6 +1110,20 @@ object TaskerXmlExporter {
         return name?.let { "%$it()" }
     }
 
+    /** For Each's values as Tasker's For items, with the chips' `{{ array.x }}` as `%x()` and `{{ x }}` as `%x`. */
+    private fun taskerForValues(values: String, warnings: MutableList<String>): String {
+        val arrays = TEMPLATE_ARRAY.replace(values.trim()) { "%${it.groupValues[1]}()" }
+        // {{ true }} and {{ false }} are the template's own words, not variables.
+        val written = TEMPLATE_VARIABLE.replace(arrays) { match ->
+            val name = match.groupValues[1]
+            if ("global." !in match.value && name in setOf("true", "false")) match.value else "%$name"
+        }
+        if ("{{" in written) {
+            warnings += "Tasker's For reads '$written' as written, so its {{ }} parts won't be filled in."
+        }
+        return written
+    }
+
     private val TASKER_SET_VALUES = mapOf("off" to "0", "on" to "1", "toggle" to "2")
 
     private val TASKER_SOUND_MODE_VALUES = mapOf("silent" to "0", "vibrate" to "1", "normal" to "2", "ring" to "2")
@@ -1170,6 +1185,8 @@ object TaskerXmlExporter {
     private val BEEP_PITCH_TEMPLATE = Regex("""\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\|\s*div:4\s*\}\}""")
 
     private val TEMPLATE_ARRAY = Regex("""\{\{\s*array\.([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")
+
+    private val TEMPLATE_VARIABLE = Regex("""\{\{\s*(?:global\.)?([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")
 
     private val BARE_ARRAY = Regex("""%?([A-Za-z][A-Za-z0-9_]*)(?:\(\))?""")
 

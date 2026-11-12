@@ -231,9 +231,11 @@
     <string name="catalog_action_flow_endif_name" formatted="false">结束如果</string>
     <string name="catalog_action_flow_endif_description" formatted="false">关闭匹配的“如果/否则”块</string>
     <string name="catalog_action_flow_foreach_name" formatted="false">遍历</string>
-    <string name="catalog_action_flow_foreach_description" formatted="false">对数组变量迭代执行以下操作（以“结束遍历”关闭）</string>
+    <string name="catalog_action_flow_foreach_description" formatted="false">对数组变量或一组值迭代执行以下操作（以“结束遍历”关闭）</string>
     <string name="catalog_action_flow_foreach_field_list_label" formatted="false">数组变量名</string>
     <string name="catalog_action_flow_foreach_field_list_hint" formatted="false">myList</string>
+    <string name="catalog_action_flow_foreach_field_values_label" formatted="false">或这些值（不填数组时使用）</string>
+    <string name="catalog_action_flow_foreach_field_values_hint" formatted="false">1:10, apple, %fruit, %arr()</string>
     <string name="catalog_action_flow_foreach_field_var_label" formatted="false">元素变量名</string>
     <string name="catalog_action_flow_foreach_field_var_hint" formatted="false">item</string>
     <string name="catalog_action_flow_endfor_name" formatted="false">结束遍历</string>

@@ -110,6 +110,11 @@ object ActionFieldPolicy {
                 }
             }
         }
+        // For Each loops over an array or over written-out values, and needs one of them.
+        if (metadata.id == "flow.foreach" && listOf("list", "in", "array", "items", "values").none { values[it].isPresent() }) {
+            issues.putIfAbsent("list", Issue(Error.REQUIRED))
+            issues.putIfAbsent("values", Issue(Error.REQUIRED))
+        }
         return issues
     }
 

@@ -239,9 +239,11 @@
     <string name="catalog_action_flow_endif_name" formatted="false">End If</string>
     <string name="catalog_action_flow_endif_description" formatted="false">Closes the matching If/Else block</string>
     <string name="catalog_action_flow_foreach_name" formatted="false">For Each</string>
-    <string name="catalog_action_flow_foreach_description" formatted="false">Iterate the following actions over an array variable (close with End For)</string>
+    <string name="catalog_action_flow_foreach_description" formatted="false">Iterate the following actions over an array variable or a list of values (close with End For)</string>
     <string name="catalog_action_flow_foreach_field_list_label" formatted="false">Array variable name</string>
     <string name="catalog_action_flow_foreach_field_list_hint" formatted="false">myList</string>
+    <string name="catalog_action_flow_foreach_field_values_label" formatted="false">Or these values (used when no array is named)</string>
+    <string name="catalog_action_flow_foreach_field_values_hint" formatted="false">1:10, apple, %fruit, %arr()</string>
     <string name="catalog_action_flow_foreach_field_var_label" formatted="false">Item variable name</string>
     <string name="catalog_action_flow_foreach_field_var_hint" formatted="false">item</string>
     <string name="catalog_action_flow_endfor_name" formatted="false">End For</string>

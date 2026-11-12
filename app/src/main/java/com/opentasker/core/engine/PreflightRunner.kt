@@ -19,6 +19,7 @@ import com.opentasker.core.expressions.InertTemplateText
 import com.opentasker.core.expressions.TemplateExpansionResult
 import com.opentasker.core.expressions.TemplateExpressionEngine
 import com.opentasker.core.expressions.TemplateExpansionTrace
+import com.opentasker.core.expressions.TemplateScope
 import com.opentasker.core.expressions.TemplateValueSource
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
@@ -513,6 +514,7 @@ object PreflightRunner {
         val foreachIndex: Int,
         val items: List<String>,
         val itemVar: String,
+        val sensitive: Boolean,
         var index: Int,
     )
 
@@ -583,15 +585,35 @@ object PreflightRunner {
                 step("foreach skipped: condition ($guard) -> false", structure.foreachToEndfor.getValue(index) + 1, skipped = true)
             } else {
                 val listName = listOf("list", "in", "array", "items")
-                    .firstNotNullOfOrNull { spec.args[it]?.trim()?.takeIf(String::isNotBlank) }
+                    .firstNotNullOfOrNull { spec.args[it]?.trim()?.takeIf(String::isNotBlank)?.let(ForItems::listName) }
                 val itemVar = spec.args["var"]?.trim()?.takeIf(String::isNotBlank) ?: "item"
-                val items = listName?.let(variables::getArrayItems).orEmpty()
-                if (items.isEmpty()) {
-                    step("foreach ${listName ?: "<missing list>"} -> 0 items", structure.foreachToEndfor.getValue(index) + 1)
+                val values = spec.args["values"]?.trim()?.takeIf { listName == null && it.isNotBlank() }
+                val loop = values?.let { raw ->
+                    val scope = variables.toTemplateScope(input.eventVariables)
+                    ForItems.resolve(raw, variables) { piece ->
+                        val expanded = expand(piece, variables, input, conditionals = false, scope = scope)
+                        ForItems.Expanded(expanded.value, secret = expanded.traces.any { it.isSecretDerived })
+                    }
+                } ?: ForItems.Resolved(
+                    items = listName?.let(variables::getArrayItems).orEmpty(),
+                    sensitive = listName?.let(variables::isArraySensitive) == true,
+                )
+                val source = values ?: listName
+                if (loop.problem != null) {
+                    ControlSimulation(
+                        step = step("foreach fails", index + 1).step.copy(
+                            status = PreflightStepStatus.BLOCKED,
+                            warnings = listOf("The run stops here: ${loop.problem}."),
+                        ),
+                        nextPc = index + 1,
+                        halt = true,
+                    )
+                } else if (loop.items.isEmpty()) {
+                    step("foreach ${source ?: "<missing list>"} -> 0 items", structure.foreachToEndfor.getValue(index) + 1)
                 } else {
-                    loops.addLast(PreflightLoopFrame(index, items, itemVar, 0))
-                    variables.set(itemVar, items.first())
-                    step("foreach $listName -> ${items.size} items (1/${items.size})", index + 1)
+                    loops.addLast(PreflightLoopFrame(index, loop.items, itemVar, loop.sensitive, 0))
+                    variables.set(itemVar, loop.items.first(), sensitive = loop.sensitive)
+                    step("foreach $source -> ${loop.items.size} items (1/${loop.items.size})", index + 1)
                 }
             }
             FlowControl.ENDFOR -> {
@@ -604,7 +626,7 @@ object PreflightRunner {
                 } else {
                     frame.index++
                     if (frame.index < frame.items.size) {
-                        variables.set(frame.itemVar, frame.items[frame.index])
+                        variables.set(frame.itemVar, frame.items[frame.index], sensitive = frame.sensitive)
                         step("loop ${frame.index + 1}/${frame.items.size}", frame.foreachIndex + 1)
                     } else {
                         loops.removeLast()
@@ -754,7 +776,7 @@ object PreflightRunner {
         val frame = loops.last()
         frame.index++
         if (frame.index < frame.items.size) {
-            variables.set(frame.itemVar, frame.items[frame.index])
+            variables.set(frame.itemVar, frame.items[frame.index], sensitive = frame.sensitive)
             return result("goto top of loop -> loop ${frame.index + 1}/${frame.items.size}", open + 1)
         }
         loops.removeLast()
@@ -853,11 +875,18 @@ object PreflightRunner {
         }
     }
 
-    private fun expand(raw: String, variables: VariableStore, input: PreflightInputs, conditionals: Boolean = true): TemplateExpansionResult {
+    /** [scope] lets a caller expanding many pieces at once build the template scope only once. */
+    private fun expand(
+        raw: String,
+        variables: VariableStore,
+        input: PreflightInputs,
+        conditionals: Boolean = true,
+        scope: TemplateScope? = null,
+    ): TemplateExpansionResult {
         val legacy = variables.expandTracked(raw, conditionals)
         val result = TemplateExpressionEngine().expand(
             legacy.value,
-            variables.toTemplateScope(input.eventVariables),
+            scope ?: variables.toTemplateScope(input.eventVariables),
         ).let { it.copy(value = InertTemplateText.restore(it.value)) }
         return if (legacy.isSecretDerived && result.traces.none { it.isSecretDerived }) {
             result.copy(

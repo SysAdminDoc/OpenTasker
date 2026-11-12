@@ -701,6 +701,7 @@ internal fun ActionFieldInput(
             isError = issue != null,
             singleLine = true,
             variableOptions = variableOptions,
+            listInput = field.listInput,
         )
     }
 
@@ -721,6 +722,7 @@ private fun VariableTextField(
     singleLine: Boolean = false,
     minLines: Int = 1,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    listInput: Boolean = false,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -740,7 +742,7 @@ private fun VariableTextField(
         )
         VariableChipPicker(
             options = variableOptions,
-            onSelect = { option -> onValueChange(insertVariableChip(value, option)) },
+            onSelect = { option -> onValueChange(insertVariableChip(value, option, list = listInput)) },
         )
     }
 }

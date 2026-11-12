@@ -25,6 +25,8 @@ data class ActionField(
     val numberRule: ActionNumberRule? = null,
     val fileRule: ActionFileRule? = null,
     val inputType: ActionValueType? = null,
+    /** Takes a comma-separated list, so a variable chip joins what's there with a comma. */
+    val listInput: Boolean = false,
 )
 
 data class ActionFieldOption(
@@ -760,7 +762,8 @@ fun registerActionMetadata() {
             descriptionRes = R.string.catalog_action_flow_foreach_description,
             categoryRes = R.string.catalog_category_flow,
             fields = listOf(
-                ActionField("list", R.string.catalog_action_flow_foreach_field_list_label, required = true, hintRes = R.string.catalog_action_flow_foreach_field_list_hint, inputType = ActionValueType.ARRAY),
+                ActionField("list", R.string.catalog_action_flow_foreach_field_list_label, hintRes = R.string.catalog_action_flow_foreach_field_list_hint, inputType = ActionValueType.ARRAY),
+                ActionField("values", R.string.catalog_action_flow_foreach_field_values_label, hintRes = R.string.catalog_action_flow_foreach_field_values_hint, listInput = true),
                 ActionField("var", R.string.catalog_action_flow_foreach_field_var_label, hintRes = R.string.catalog_action_flow_foreach_field_var_hint),
             )
         )

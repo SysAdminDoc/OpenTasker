@@ -311,7 +311,7 @@ class LocalizationSourceTest {
         assertFalse("Action metadata must not retain presentation string keys", Regex("""(?:nameRes|descriptionRes|categoryRes|hintRes)\s*=\s*\"""").containsMatchIn(metadata))
         assertEquals("Catalog resources and compile-time references must stay in lockstep", catalogResources, catalogReferences)
         assertEquals("Expected every built-in action name to be resource backed", 109, Regex("""nameRes = R\.string\.catalog_action_""").findAll(metadata).count())
-        assertEquals("Expected every action field to be resource backed", 271, Regex("""ActionField\(\s*\"""").findAll(metadata).count())
+        assertEquals("Expected every action field to be resource backed", 272, Regex("""ActionField\(\s*\"""").findAll(metadata).count())
         assertFalse("Context field labels must use resource IDs", Regex("""ActionField\(\s*\"[^\"]+\"\s*,\s*\"""").containsMatchIn(contextEditor))
         assertTrue("Context type names must be resource backed", "contextTitleRes" in contextEditor)
         assertTrue("Context descriptions must be resource backed", "contextDescriptionRes" in contextEditor)

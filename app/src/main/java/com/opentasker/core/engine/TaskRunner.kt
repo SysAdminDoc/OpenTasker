@@ -392,15 +392,29 @@ class TaskRunner(
                         }
                     }
                 val itemVar = spec.args["var"]?.trim()?.takeIf { it.isNotBlank() } ?: "item"
-                val items = listName?.let { ctx.variables.getArrayItems(it) }.orEmpty()
+                // Values (Tasker's For items) apply only when no array is named.
+                val values = spec.args["values"]?.trim()?.takeIf { listName == null && it.isNotBlank() }
+                val loop = values?.let { raw ->
+                    val templateScope = ctx.variables.toTemplateScope(ctx.eventVariables)
+                    ForItems.resolve(raw, ctx.variables) { piece ->
+                        val (text, trace) = expandValue(spec.type, "values", piece, templateScope, conditionals = false)
+                        ForItems.Expanded(text, secret = trace?.isSecretDerived == true)
+                    }
+                } ?: ForItems.Resolved(
+                    items = listName?.let { ctx.variables.getArrayItems(it) }.orEmpty(),
+                    sensitive = listName?.let(ctx.variables::isArraySensitive) == true,
+                )
+                val source = values ?: listName
                 val endfor = structure.foreachToEndfor.getValue(pc)
-                if (items.isEmpty()) {
-                    outcome("foreach $listName -> 0 items", endfor + 1)
+                if (loop.problem != null) {
+                    val failure = ActionResult.Failure(loop.problem)
+                    ControlOutcome(failure, markerTrace(pc, spec, failure, ActionTraceStatus.FAILURE), pc + 1, halt = true)
+                } else if (loop.items.isEmpty()) {
+                    outcome("foreach $source -> 0 items", endfor + 1)
                 } else {
-                    val sensitive = listName?.let(ctx.variables::isArraySensitive) == true
-                    loopStack.addLast(LoopFrame(pc, items, itemVar, sensitive, 0))
-                    ctx.variables.set(itemVar, items[0], sensitive = sensitive)
-                    outcome("foreach $listName -> ${items.size} items (1/${items.size})", pc + 1)
+                    loopStack.addLast(LoopFrame(pc, loop.items, itemVar, loop.sensitive, 0))
+                    ctx.variables.set(itemVar, loop.items[0], sensitive = loop.sensitive)
+                    outcome("foreach $source -> ${loop.items.size} items (1/${loop.items.size})", pc + 1)
                 }
             }
             FlowControl.ENDFOR -> {

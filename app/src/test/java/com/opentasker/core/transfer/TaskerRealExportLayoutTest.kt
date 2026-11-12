@@ -60,15 +60,6 @@ class TaskerRealExportLayoutTest {
         assertEquals("input", action.args["list"])
     }
 
-    @Test
-    fun forOverARangeOrAWrittenOutListSaysItNeedsAnArray() {
-        val range = """<code>39</code><Str sr="arg0" ve="3">%i</Str><Str sr="arg1" ve="3">1:%HTTPD(#)</Str>"""
-        assertEquals("1:%HTTPD(#)", action(range).args["list"])
-        assertWarns(range, "1:%HTTPD(#)")
-
-        assertWarns("""<code>39</code><Str sr="arg0" ve="3">%i</Str><Str sr="arg1" ve="3">a,b,c</Str>""", "a,b,c")
-    }
-
     // Display Timeout (812)
 
     @Test
