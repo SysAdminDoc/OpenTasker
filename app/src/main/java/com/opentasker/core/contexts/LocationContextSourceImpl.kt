@@ -192,11 +192,15 @@ class LocationContextSourceImpl(
 internal class LocationListenerRegistrationState(
     private val removeUpdates: (LocationListener) -> Unit,
 ) {
+    @Volatile
     private var activeListener: LocationListener? = null
     private var activeProviders: Set<String> = emptySet()
 
     fun isActiveFor(providers: Set<String>): Boolean =
         activeListener != null && activeProviders == providers
+
+    /** Whether [listener] is the one registered now, not one that came off. */
+    fun isCurrent(listener: LocationListener): Boolean = activeListener === listener
 
     fun replace(
         providers: Set<String>,

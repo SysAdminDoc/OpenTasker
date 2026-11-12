@@ -362,7 +362,12 @@ object StateSensorEvents {
             }
             readings.forgetPrevious()
             val candidate = object : LocationListener {
-                override fun onLocationChanged(location: Location) = emitLocation(location)
+                // Older Android can still deliver a fix queued before removeUpdates, which would
+                // bring a dropped provider's stand-in back after keepStandInOnlyFrom.
+                override fun onLocationChanged(location: Location) = synchronized(readings) {
+                    if (registration.isCurrent(this)) emitLocation(location)
+                }
+
                 override fun onProviderEnabled(provider: String) = Unit
                 override fun onProviderDisabled(provider: String) = Unit
 
