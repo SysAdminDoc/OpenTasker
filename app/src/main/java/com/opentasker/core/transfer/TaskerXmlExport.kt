@@ -140,6 +140,7 @@ object TaskerXmlExporter {
         val skipped = mutableListOf<SkippedExportAction>()
         val redactedActionFields = mutableListOf<String>()
         val taskMap = tasks.associateBy { it.id }
+        val taskNames = tasks.mapTo(mutableSetOf()) { it.name }
         val redactionContext = ExportRedactionPolicy.Context(
             secretNames = variables.filter(Variable::isSecret).mapTo(linkedSetOf()) { it.name },
             secretValues = variables.filter(Variable::isSecret).mapTo(linkedSetOf()) { it.value },
@@ -150,7 +151,7 @@ object TaskerXmlExporter {
         sb.appendLine("""<TaskerData sr="" dvi="1" tv="6.3.13">""")
 
         tasks.forEach { task ->
-            appendTask(sb, task, skipped, redactionContext, redactedActionFields, warnings)
+            appendTask(sb, task, TaskRefs(taskMap, taskNames), skipped, redactionContext, redactedActionFields, warnings)
         }
 
         var exportedProfileCount = 0
@@ -186,6 +187,7 @@ object TaskerXmlExporter {
     private fun appendTask(
         sb: StringBuilder,
         task: Task,
+        taskRefs: TaskRefs,
         skipped: MutableList<SkippedExportAction>,
         redactionContext: ExportRedactionPolicy.Context,
         redactedActionFields: MutableList<String>,
@@ -215,7 +217,7 @@ object TaskerXmlExporter {
         task.actions.forEachIndexed { index, action ->
             val taskerCode = taskerCodeFor(action)
             if (taskerCode != null) {
-                appendAction(sb, index, taskerCode, action, layout, redactionContext, redactedActionFields, warnings)
+                appendAction(sb, index, taskerCode, action, layout, taskRefs, redactionContext, redactedActionFields, warnings)
             } else {
                 skipped += SkippedExportAction(
                     taskName = task.name,
@@ -238,6 +240,7 @@ object TaskerXmlExporter {
         code: String,
         action: ActionSpec,
         layout: GotoLayout,
+        taskRefs: TaskRefs,
         redactionContext: ExportRedactionPolicy.Context,
         redactedActionFields: MutableList<String>,
         warnings: MutableList<String>,
@@ -371,10 +374,10 @@ object TaskerXmlExporter {
             }
             "task.stop" -> {
                 appendInt(sb, 0, "0")
-                appendStr(sb, 1, stopTaskRef(args).orEmpty())
+                appendStr(sb, 1, taskRefs.taskerName(taskRef(args).orEmpty(), warnings))
             }
             "task.run" -> {
-                appendStr(sb, 0, args["task"] ?: args["name"] ?: args["id"] ?: "")
+                appendStr(sb, 0, taskRefs.taskerName(taskRef(args).orEmpty(), warnings))
                 appendInt(sb, 1, "%priority")
                 appendStr(sb, 2, args["par1"] ?: "")
                 appendStr(sb, 3, args["par2"] ?: "")
@@ -1158,12 +1161,28 @@ object TaskerXmlExporter {
         }
         if (action.type == "var.split" && action.args["values"] != null) return "354"
         // Tasker's Stop with no task named ends the task it's in, which isn't what this step does.
-        if (action.type == "task.stop" && stopTaskRef(action.args) == null) return null
+        if (action.type == "task.stop" && taskRef(action.args) == null) return null
         return REVERSE_ACTION_MAP[action.type]
     }
 
-    private fun stopTaskRef(args: Map<String, String>): String? =
+    private fun taskRef(args: Map<String, String>): String? =
         SUB_TASK_REF_KEYS.firstNotNullOfOrNull { args[it]?.trim()?.takeIf(String::isNotEmpty) }
+
+    /**
+     * The tasks in an export, for writing the task a Perform Task or Stop names. Tasker finds that
+     * task by name, so a step that names one here by id would send Tasker looking for a task called
+     * "12". Like a run here, a number is read as an id first and then as a name.
+     */
+    private class TaskRefs(private val byId: Map<Long, Task>, private val names: Set<String>) {
+        fun taskerName(ref: String, warnings: MutableList<String>): String {
+            val id = ref.toLongOrNull() ?: return ref
+            byId[id]?.let { return it.name }
+            if (ref !in names) {
+                warnings += "A step names task id $id, which isn't in this export, so Tasker will look for a task called '$ref'."
+            }
+            return ref
+        }
+    }
 
     /** One end of a Time window as Tasker writes it: hour and minute fields, or the global it reads (`fromvar`). */
     private fun timeBoundXml(raw: String?, hourTag: String, minuteTag: String, variableTag: String): List<String>? {
