@@ -310,6 +310,11 @@ object PreflightRunner {
         var pc = 0
         var interpretedSteps = 0
         var halted = false
+        // Like the run, the first failure nothing catches sets %FLOW_ERROR_CAUGHT to "false".
+        fun failUncaught() {
+            if (!returnSlot.fails) variables.set(TaskFailureVariables.CAUGHT, "false")
+            returnSlot.fails = true
+        }
         while (!halted && pc in task.actions.indices && interpretedSteps++ < MAX_STEPS) {
             val spec = task.actions[pc]
             if (!spec.enabled) {
@@ -325,7 +330,7 @@ object PreflightRunner {
                 recordStep(steps, control.step.copy(taskPath = taskPath))
                 warnings += control.step.warnings
                 // A control step the run can't carry out fails the task, and no Try catches that.
-                if (control.halt && control.step.status == PreflightStepStatus.BLOCKED) returnSlot.fails = true
+                if (control.halt && control.step.status == PreflightStepStatus.BLOCKED) failUncaught()
                 pc = control.nextPc
                 halted = control.halt
                 continue
@@ -519,7 +524,7 @@ object PreflightRunner {
             if (failsHere) {
                 val catching = catchingTry(pc, tryStack, handlingTries, structure)
                 if (catching == null) {
-                    returnSlot.fails = true
+                    failUncaught()
                 } else if (!halted) {
                     while (tryStack.last() != catching) tryStack.removeLast()
                     while (loopStack.lastOrNull()?.let { it.foreachIndex > catching } == true) loopStack.removeLast()
@@ -721,7 +726,10 @@ object PreflightRunner {
                 val open = tries.lastOrNull()?.takeIf { structure.tryToCatch[it] == index }
                 when {
                     open == null -> step(spec.type, index + 1)
-                    open in handlingTries -> step("catch", index + 1)
+                    open in handlingTries -> {
+                        variables.set(TaskFailureVariables.CAUGHT, "true")
+                        step("catch", index + 1)
+                    }
                     else -> {
                         // Nothing in the try failed, so the run skips the handler.
                         tries.removeLast()
