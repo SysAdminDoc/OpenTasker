@@ -530,7 +530,7 @@ object TaskerXmlImporter {
                 "160" -> {
                     // Tasker reads the name as one of its patterns. A variable in it is filled in
                     // as it matches, and spaces at either end would be lost to the state's trim.
-                    val ssid = strings[0].orEmpty()
+                    val ssid = element.rawActionString(0)
                     val anyNetwork = strings[1].isNullOrBlank() && strings[2].isNullOrBlank() && ints[3] == 2
                     when {
                         !anyNetwork || '%' in ssid || ssid != ssid.trim() -> null
