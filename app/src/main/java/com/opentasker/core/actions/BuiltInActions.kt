@@ -305,7 +305,8 @@ class SetVariableAction : DeclaredAction(ActionCatalog.require("var.set")) {
             } else {
                 value
             }
-            ctx.logger("Set \$$name = $loggedValue")
+            // Shown as stored, so %api_token and api_token both read as $api_token.
+            ctx.logger("Set \$${VariableNamePolicy.normalize(name) ?: name} = $loggedValue")
         }
         return ActionResult.Success
     }

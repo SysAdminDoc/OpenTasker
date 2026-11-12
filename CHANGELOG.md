@@ -16,6 +16,7 @@
 - A Get Sunrise/Sunset Times step with a typed latitude and longitude no longer shows Needs setup, since it never asks for your location. A typed coordinate that's out of range, like a latitude of 91, fails the step right away and says which one. It used to wait for a location fix first when the other coordinate was left blank.
 - A space typed as the splitter or joiner in Split Text, Join Text, Variable Split or Variable Join now stays when you save the step. Saving used to drop it. Join Text then went back to commas and Variable Join to no joiner at all, while Variable Split split on any run of spaces and new lines. Split Text splits on a single space now, where it used to say there was no delimiter.
 - Opening the app on the Light theme no longer flashes a black screen first. The main screen drew one frame in the AMOLED theme while it read your saved theme, and now it waits for it, like the setup screens already did.
+- Set Variable's line in the app log names the variable the same way however you typed it, so `%color` shows as `$color` like Persist's line does, where it used to read `$%color`.
 
 ## v0.2.96 - 2026-11-12
 
