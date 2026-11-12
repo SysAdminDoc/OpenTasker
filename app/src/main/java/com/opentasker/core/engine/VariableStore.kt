@@ -235,17 +235,22 @@ class VariableStore {
 
     /**
      * The local scopes, outermost first, that hold the local array [base]: every one, unless a
-     * sub-task was handed elements of it as inputs. Then the array starts at the innermost such
-     * input scope, so a sub-task's `%par` is its own and a Pop on it leaves its caller's `%par1`
-     * and `%par2` alone. `%par` always starts at the innermost input scope, even one given no
-     * inputs, so a sub-task run without any never sees or pops its caller's. Call it holding the
-     * [localStack] lock.
+     * sub-task was handed elements of it as inputs or [clearForTask] hid one of its elements there.
+     * Then the array starts at the innermost such input scope, so a sub-task's `%par` is its own
+     * and a Pop on it leaves its caller's `%par1` and `%par2` alone, and an array changed after a
+     * Reset Return Variable on one element doesn't rewrite the caller's. `%par` always starts at the
+     * innermost input scope, even one given no inputs, so a sub-task run without any never sees or
+     * pops its caller's. Call it holding the [localStack] lock.
      */
     private fun arrayScopes(base: String): List<Pair<MutableMap<String, String>, MutableSet<String>>> {
         val scopes = listOf<Pair<MutableMap<String, String>, MutableSet<String>>>(rootLocals to rootLocalSensitiveNames) +
             localStack.zip(localSensitiveStack)
         val inputs = localStack.indices.lastOrNull { index ->
-            inputScopes[index] && (base == INPUT_ARRAY || localStack[index].keys.any { numberedIndex(base, it) != null })
+            inputScopes[index] && (
+                base == INPUT_ARRAY ||
+                    localStack[index].keys.any { numberedIndex(base, it) != null } ||
+                    hiddenStack[index].any { numberedIndex(base, it) != null }
+                )
         } ?: return scopes
         return scopes.drop(inputs + 1)
     }
