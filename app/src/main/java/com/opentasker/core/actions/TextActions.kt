@@ -46,20 +46,23 @@ class TextReplaceAction : DeclaredAction(ActionCatalog.require("text.replace")) 
             VariableNamePolicy.normalize(name) ?: return ActionResult.Failure("invalid array name '$name'")
         }
         // Tasker empties the array before it even compiles the pattern, so a step that fails leaves
-        // it empty too. A list Split Text kept under the name goes as well, or it would hide the matches.
-        if (array != null) {
-            ctx.variables.removeArray(array)
-            ctx.variables.replaceNumberedItems(array, emptyMap())
+        // it empty too. A list Split Text kept under the name goes as well, or it would hide the matches
+        // from Join Text and For Each. The matches go in with one write, since emptying the array first
+        // would lose the scope it lives in and a sub-task would fill its own copy.
+        if (array != null) ctx.variables.removeArray(array)
+        fun failed(reason: String): ActionResult {
+            if (array != null) ctx.variables.replaceNumberedItems(array, emptyMap())
+            return ActionResult.Failure(reason)
         }
-        val pattern = args["pattern"]?.ifBlank { null } ?: return ActionResult.Failure("missing pattern")
+        val pattern = args["pattern"]?.ifBlank { null } ?: return failed("missing pattern")
         if (array != null || searchOnly) {
             // With no array to fill, one match is enough to check the pattern.
             val found = TextOps.findAll(source, pattern, limit = if (firstOnly || array == null) 1 else MAX_ELEMENTS + 1)
-                ?: return ActionResult.Failure("invalid or oversized pattern")
+                ?: return failed("invalid or oversized pattern")
             if (array != null) {
-                if (found.size > MAX_ELEMENTS) return ActionResult.Failure("more than $MAX_ELEMENTS matches")
+                if (found.size > MAX_ELEMENTS) return failed("more than $MAX_ELEMENTS matches")
                 if (found.isNotEmpty() && elementName(array, found.size) == null) {
-                    return ActionResult.Failure("%$array${found.size} is longer than ${VariableNamePolicy.MAX_LENGTH} characters")
+                    return failed("%$array${found.size} is longer than ${VariableNamePolicy.MAX_LENGTH} characters")
                 }
                 val sensitive = ctx.isArgumentSensitive("source")
                 ctx.variables.replaceNumberedItems(array, found.withIndex().associate { (index, match) -> index + 1 to (match to sensitive) })

@@ -16,7 +16,7 @@ import org.junit.Test
 /**
  * A step that sets a whole numbered array (Replace Text's matches, Variable Split, Array Clear)
  * drops the list Split Text kept under that name. Left in place, it hid the new elements, since
- * `%arr(#)`, Join Text and For Each read a kept list first. Replace Text also empties its array on
+ * Join Text and For Each read a kept list first. Replace Text also empties its array on
  * every failure after the name is read, as Tasker does. Globals keep the elements past the run.
  */
 class NumberedArrayReplacesKeptListTest {
