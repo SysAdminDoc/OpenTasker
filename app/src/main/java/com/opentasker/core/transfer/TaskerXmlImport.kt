@@ -1297,7 +1297,7 @@ object TaskerXmlImporter {
         val keptReturnVariable = returnVariable?.takeIf(TASKER_PLAIN_VARIABLE::matches)
         val stops = !olderLayout && (ints[5] ?: 0) != 0
         // A called task already reads every local variable of its caller here, the same as
-        // Tasker's Local Variable Passthrough with no limit, and never changes them.
+        // Tasker's Local Variable Passthrough with no limit, and a variable it sets is its own.
         val limitsPassthrough = !olderLayout && (ints[6] ?: 0) != 0 && byIndex[7].orEmptyIfBlank() != null
         val resetsReturnVariable = !olderLayout && (ints[8] ?: 0) != 0
         val allowsOverwrite = !olderLayout && (ints[9] ?: 0) != 0
@@ -1319,7 +1319,7 @@ object TaskerXmlImporter {
                 "Tasker Perform Task's Stop option was not imported".takeIf { stops },
                 "Tasker Perform Task's Limit Passthrough To was not imported, so the called task can read all of this task's local variables"
                     .takeIf { limitsPassthrough },
-                "Tasker Perform Task's Allow Overwrite Variables option was not imported, so the called task can't change this task's local variables"
+                "Tasker Perform Task's Allow Overwrite Variables option was not imported, so a Set Variable in the called task doesn't change this task's variable of that name"
                     .takeIf { allowsOverwrite },
             ),
         )

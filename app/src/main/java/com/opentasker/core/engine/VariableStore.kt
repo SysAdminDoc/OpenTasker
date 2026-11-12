@@ -52,6 +52,8 @@ class VariableStore {
     private val localSensitiveStack = java.util.Collections.synchronizedList(mutableListOf<MutableSet<String>>())
     /** Parallel to [localStack]: true for a scope that holds a sub-task's inputs. */
     private val inputScopes = java.util.Collections.synchronizedList(mutableListOf<Boolean>())
+    /** Parallel to [localStack]: names [clearForTask] hid there, so a caller's value doesn't show through. */
+    private val hiddenStack = java.util.Collections.synchronizedList(mutableListOf<MutableSet<String>>())
     private val sensitiveArrayNames = ConcurrentHashMap.newKeySet<String>()
     private val sensitiveWriteDepth = AtomicInteger(0)
     private val expander = VariableExpander()
@@ -63,6 +65,7 @@ class VariableStore {
             localStack.add(java.util.concurrent.ConcurrentHashMap())
             localSensitiveStack.add(ConcurrentHashMap.newKeySet())
             inputScopes.add(holdsInputs)
+            hiddenStack.add(ConcurrentHashMap.newKeySet())
         }
     }
     fun popScope() {
@@ -71,6 +74,7 @@ class VariableStore {
                 localStack.removeAt(localStack.size - 1)
                 localSensitiveStack.removeAt(localSensitiveStack.size - 1)
                 inputScopes.removeAt(inputScopes.size - 1)
+                hiddenStack.removeAt(hiddenStack.size - 1)
             }
         }
     }
@@ -107,6 +111,7 @@ class VariableStore {
         synchronized(localStack) {
             for (i in localStack.indices.reversed()) {
                 localStack[i][normalizedName]?.let { return it }
+                if (normalizedName in hiddenStack[i]) return TaskerBuiltIns.value(normalizedName)
             }
         }
         // A Tasker built-in fills in when nothing is stored under its name, or only an empty value
@@ -128,10 +133,38 @@ class VariableStore {
                     localSensitiveStack[index] -= normalizedName
                     return true
                 }
+                if (normalizedName in hiddenStack[index]) return false
             }
             if (rootLocals.remove(normalizedName) == null) return false
             rootLocalSensitiveNames -= normalizedName
             return true
+        }
+    }
+
+    /**
+     * Unsets [name] for the running task only, the way Tasker's Reset Return Variable clears it: a
+     * local goes from that task's own scopes (the innermost input scope and every one above it, or
+     * all of them in a task nothing called), and a caller's variable of that name stays as it is
+     * but reads as unset here until the task ends. A global is unset everywhere, as in [remove].
+     */
+    fun clearForTask(name: String) {
+        val normalizedName = VariableNamePolicy.normalize(name) ?: return
+        if (VariableNamePolicy.isGlobal(normalizedName)) {
+            globals.remove(normalizedName)
+            return
+        }
+        synchronized(localStack) {
+            val ownFrom = inputScopes.lastIndexOf(true)
+            for (index in maxOf(ownFrom, 0) until localStack.size) {
+                localStack[index].remove(normalizedName)
+                localSensitiveStack[index] -= normalizedName
+            }
+            if (ownFrom < 0) {
+                rootLocals.remove(normalizedName)
+                rootLocalSensitiveNames -= normalizedName
+            } else {
+                hiddenStack[ownFrom] += normalizedName
+            }
         }
     }
 
@@ -229,6 +262,7 @@ class VariableStore {
         synchronized(localStack) {
             for (index in localStack.indices.reversed()) {
                 if (normalizedName in localStack[index]) return normalizedName in localSensitiveStack[index]
+                if (normalizedName in hiddenStack[index]) return false
             }
         }
         if (rootLocals.containsKey(normalizedName)) return normalizedName in rootLocalSensitiveNames
@@ -344,7 +378,10 @@ class VariableStore {
     fun toTemplateScope(event: Map<String, String> = emptyMap()): TemplateScope {
         val taskValues = rootLocals.toMutableMap()
         synchronized(localStack) {
-            localStack.forEach { scope -> taskValues += scope }
+            localStack.forEachIndexed { index, scope ->
+                taskValues -= hiddenStack[index]
+                taskValues += scope
+            }
         }
         return TemplateScope(
             global = globals.toMap(),

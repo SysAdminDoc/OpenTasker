@@ -160,7 +160,7 @@ class TaskRunnerResetReturnVariableTest {
 
     // The import notes for Tasker's Limit Passthrough To and Allow Overwrite Variables rest on this.
     @Test
-    fun aCalledTaskReadsTheCallersLocalsButCantChangeThem() {
+    fun aCalledTaskReadsTheCallersLocalsAndASetVariableThereStaysItsOwn() {
         val child = Task(id = 2, name = "Child", actions = listOf(record("city"), set("city", "Bergen"), record("city")))
         val report = run(listOf(set("city", "Oslo"), runTask("Child"), record("city")), child)
 

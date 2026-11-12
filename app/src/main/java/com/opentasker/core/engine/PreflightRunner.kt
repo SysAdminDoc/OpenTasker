@@ -456,10 +456,9 @@ object PreflightRunner {
                                 warnings += note
                             }
                             val returned = ReturnSlot()
-                            if (returnVariable != null &&
-                                expansion.rawValues[SUB_TASK_RESET_RETURN_KEY]?.trim().equals("true", ignoreCase = true)
-                            ) {
-                                variables.remove(returnVariable)
+                            // Past the depth limit the run fails the step before it clears anything.
+                            if (returnVariable != null && depth < MAX_SUBTASK_DEPTH && resetsReturnVariable(expansion.rawValues)) {
+                                variables.clearForTask(returnVariable)
                             }
                             // The same input scope the run gives the sub-task, so its %par1 checks
                             // read what this caller passes.

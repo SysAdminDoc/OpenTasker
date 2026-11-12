@@ -26,6 +26,7 @@ import com.opentasker.core.engine.SUB_TASK_REF_KEYS
 import com.opentasker.core.engine.SUB_TASK_RESET_RETURN_KEY
 import com.opentasker.core.engine.SUB_TASK_RETURN_KEY
 import com.opentasker.core.engine.SUB_TASK_SETTING_KEYS
+import com.opentasker.core.engine.resetsReturnVariable
 import com.opentasker.core.engine.variables.VariableExpander
 import kotlin.math.roundToLong
 
@@ -399,9 +400,12 @@ object TaskerXmlExporter {
                 // overwrite, and Structure Output on, its default.
                 appendInt(sb, 6, "0")
                 appendStr(sb, 7, "")
-                appendInt(sb, 8, taskerFlag(args[SUB_TASK_RESET_RETURN_KEY]))
+                appendInt(sb, 8, if (resetsReturnVariable(args)) "1" else "0")
                 appendInt(sb, 9, "0")
                 appendInt(sb, 10, "1")
+                args[SUB_TASK_RESET_RETURN_KEY]?.trim()
+                    ?.takeUnless { it.isEmpty() || it.equals("true", ignoreCase = true) || it.equals("false", ignoreCase = true) }
+                    ?.let { warnings += "Tasker's Reset Return Variable is a plain on or off, so '$it' was written as off" }
                 val otherInputs = args.keys - SUB_TASK_REF_KEYS - setOf("par1", "par2") - SUB_TASK_SETTING_KEYS
                 if (otherInputs.isNotEmpty()) {
                     warnings += "Tasker's Perform Task only passes par1 and par2, so these inputs were left out: " +
