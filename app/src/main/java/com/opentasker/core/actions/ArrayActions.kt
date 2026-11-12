@@ -8,7 +8,9 @@ import com.opentasker.core.engine.isArgumentSensitive
 import com.opentasker.core.model.VariableNamePolicy
 
 // Tasker's arrays are numbered variables: %arr1, %arr2, ... in the scope %arr belongs to. These
-// actions work on those elements, not on the arrays text.split and text.match store.
+// actions work on those elements, not on the arrays text.split and text.match store. The two that
+// set a whole new array (Variable Split, Array Clear) drop a stored one of the same name, which
+// would otherwise hide the new elements from %arr(#), Join Text and For Each.
 
 internal const val MAX_ELEMENTS = 10_000
 
@@ -50,6 +52,7 @@ class VarSplitAction : DeclaredAction(ActionCatalog.require("var.split")) {
             return ActionResult.Failure("%$base${parts.size} is longer than ${VariableNamePolicy.MAX_LENGTH} characters")
         }
         val sensitive = if (values != null) ctx.isArgumentSensitive("values") else ctx.variables.isSensitive(base)
+        ctx.variables.removeArray(base)
         ctx.variables.replaceNumberedItems(base, parts.withIndex().associate { (index, part) -> index + 1 to (part to sensitive) })
         if (args["delete_base"]?.toBooleanStrictOrNull() == true) ctx.variables.remove(base)
         ctx.logger("var.split -> %$base (${parts.size} element(s))")
@@ -148,6 +151,7 @@ class ArrayClearAction : DeclaredAction(ActionCatalog.require("array.clear")) {
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val base = arrayBase(args, "array") ?: return ActionResult.Failure("invalid array name")
         val count = ctx.variables.numberedItems(base).size
+        ctx.variables.removeArray(base)
         ctx.variables.replaceNumberedItems(base, emptyMap())
         ctx.logger("array.clear -> %$base ($count element(s))")
         return ActionResult.Success

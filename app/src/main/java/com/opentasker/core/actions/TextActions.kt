@@ -40,19 +40,22 @@ class TextReplaceAction : DeclaredAction(ActionCatalog.require("text.replace")) 
 
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val source = args["source"] ?: return ActionResult.Failure("missing source")
-        val pattern = args["pattern"]?.ifBlank { null } ?: return ActionResult.Failure("missing pattern")
         val firstOnly = args["first_only"]?.toBooleanStrictOrNull() == true
         val searchOnly = args["search_only"]?.toBooleanStrictOrNull() == true
         val array = args["matches"]?.trim()?.ifEmpty { null }?.let { name ->
             VariableNamePolicy.normalize(name) ?: return ActionResult.Failure("invalid array name '$name'")
         }
+        // Tasker empties the array before it even compiles the pattern, so a step that fails leaves
+        // it empty too. A list Split Text kept under the name goes as well, or it would hide the matches.
+        if (array != null) {
+            ctx.variables.removeArray(array)
+            ctx.variables.replaceNumberedItems(array, emptyMap())
+        }
+        val pattern = args["pattern"]?.ifBlank { null } ?: return ActionResult.Failure("missing pattern")
         if (array != null || searchOnly) {
             // With no array to fill, one match is enough to check the pattern.
             val found = TextOps.findAll(source, pattern, limit = if (firstOnly || array == null) 1 else MAX_ELEMENTS + 1)
-            // Tasker empties the array before it even compiles the pattern, so a step that fails
-            // here leaves it empty too.
-            if (array != null && (found == null || found.size > MAX_ELEMENTS)) ctx.variables.replaceNumberedItems(array, emptyMap())
-            if (found == null) return ActionResult.Failure("invalid or oversized pattern")
+                ?: return ActionResult.Failure("invalid or oversized pattern")
             if (array != null) {
                 if (found.size > MAX_ELEMENTS) return ActionResult.Failure("more than $MAX_ELEMENTS matches")
                 if (found.isNotEmpty() && elementName(array, found.size) == null) {

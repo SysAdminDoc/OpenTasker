@@ -1621,8 +1621,9 @@ object TaskerXmlImporter {
             matches.isNotEmpty() && !TASKER_PLAIN_VARIABLE.matches(matches) ->
                 "Tasker Search Replace stores its matches in $matches, which isn't one plain variable"
             // Tasker fills Replace With in after it stores the matches, and here every field is
-            // filled in before the step runs, so it would read the array from before the step.
-            matches.isNotEmpty() && Regex(Regex.escape(matches) + "[0-9(]").containsMatchIn(replaceWith) ->
+            // filled in before the step runs, so it would read the array from before the step. A
+            // name runs on through letters, digits and underscores, so %found1st is another variable.
+            matches.isNotEmpty() && Regex(Regex.escape(matches) + """(?:[0-9]+(?![A-Za-z0-9_])|\()""").containsMatchIn(replaceWith) ->
                 "Tasker Search Replace's Replace With reads $matches, which Tasker fills in with this step's matches and this app can't"
             search.isEmpty() -> "Tasker Search Replace has nothing to search for"
             checkable && TextOps.match("", pattern) == null ->
