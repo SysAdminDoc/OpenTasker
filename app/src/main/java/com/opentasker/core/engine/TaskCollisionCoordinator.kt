@@ -41,8 +41,10 @@ class TaskCollisionCoordinator(
     private val slots = ConcurrentHashMap<Long, Slot>()
 
     suspend fun <T> execute(task: Task, block: suspend () -> T): TaskCollisionOutcome<T> {
-        if (task.id <= 0L) return TaskCollisionOutcome.Executed(block())
         val caller = currentCoroutineContext()[Job] ?: return TaskCollisionOutcome.Executed(block())
+        // A task with no id shares no slot, but its run still gets a scope of its own: the stop
+        // button holds whatever Job the block runs in.
+        if (task.id <= 0L) return runRegistered(Slot(), caller, block = block)
         val slot = slots.computeIfAbsent(task.id) { Slot() }
 
         return when (task.collisionMode) {
@@ -128,8 +130,9 @@ class TaskCollisionCoordinator(
      *
      * The caller's Job used to be registered, so a stop that saw this copy running just before it
      * finished cancelled the caller while it recorded the result, and the finished run lost its run
-     * log. Now that stop lands on the finished scope and the result stands. A stop while [block] is
-     * still running cancels the caller as well, as it always has, so callers see the same thing.
+     * log. Now that stop lands on the finished scope and the result stands. A stop that [block] sees,
+     * at a step's limit or any other suspension, cancels the caller as well, as it always has, so
+     * callers see the same thing. One that lands after [block]'s last suspension leaves the result.
      */
     private suspend fun <T> runRegistered(
         slot: Slot,
