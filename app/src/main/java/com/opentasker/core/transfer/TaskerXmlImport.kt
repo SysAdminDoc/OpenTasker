@@ -2468,6 +2468,40 @@ object TaskerXmlImporter {
                 "139" to "Tasker's Disable turns Tasker itself off, so there's nothing here for it to change",
                 "133" to "Tasker's Set Tasker Pref changes one of Tasker's own settings, so there's nothing here for it to change",
                 "138" to "Tasker's Set Tasker Icon changes Tasker's own icon, so there's nothing here for it to change",
+                "347" to "Tasker's Test Tasker reads Tasker's own state, so there's nothing here for it to read",
+                "365" to "Tasker's Tasker Function runs one of Tasker's own functions, which have no match here",
+                "490" to "Tasker's Media Button Events lets Tasker catch the media buttons, and OpenTasker has no media button trigger",
+                "512" to "Tasker's Status Bar opens or closes the notification shade, and OpenTasker has no step that does",
+                "513" to "Tasker's Close System Dialogs closes open system dialogs, and OpenTasker has no step that does",
+                "550" to "Tasker's Popup shows a dialog, and OpenTasker has no step that shows one",
+                "941" to "Tasker's HTML Popup shows a web page in a dialog, and OpenTasker has no step that shows one",
+                "551" to "Tasker's Menu shows a list to pick from, and OpenTasker has no step that shows one",
+                "595" to "Tasker's Variable Query asks you to type a value, and OpenTasker has no step that asks for input",
+                "903" to "Tasker's Get Voice listens for speech, and OpenTasker has no speech recognition step",
+                "697" to "Tasker's Shut Up stops speech that's playing, and OpenTasker has no step that does",
+                "62" to "Tasker's Vibrate Pattern vibrates in a pattern, and the vibrate step here takes one length",
+                "545" to "Tasker's Variable Randomize picks a random number, and OpenTasker has no step that does",
+                "90" to "Tasker's Call dials a number, and OpenTasker has no phone call step",
+                "566" to "Tasker's Set Alarm sets an alarm in the clock app, and OpenTasker has no alarm step",
+                "165" to "Tasker's Cancel Alarm cancels an alarm in the clock app, and OpenTasker has no alarm step",
+                "567" to "Tasker's Calendar Insert adds a calendar event, and OpenTasker has no calendar step",
+                "667" to "Tasker's SQL Query runs a query on a database or a content provider, and OpenTasker has no step that does",
+                "344" to "Tasker's Test App reads an app's details into a variable, and OpenTasker has no step that does",
+                "815" to "Tasker's List Apps reads the installed apps into variables, and OpenTasker has no step that does",
+                "366" to "Tasker's Get Location v2 reads a location fix into variables, and OpenTasker has no step that does. " +
+                    "Location works as a profile condition here",
+                "902" to "Tasker's Get Location reads a location fix into variables, and OpenTasker has no step that does. " +
+                    "Location works as a profile condition here",
+                "380" to "Tasker's HTTP Response answers a request made to Tasker's own web server, and OpenTasker doesn't run one",
+                "421" to "Tasker's Get Screen Info reads the screen as the assistant app, and OpenTasker can't be the assistant",
+                "450" to "Tasker's APN Droid drives the APNDroid app, which OpenTasker doesn't talk to",
+                "342" to "Tasker's Test File reads a file's details into a variable, and OpenTasker has no step that does",
+                "400" to "Tasker's Move moves or renames a file, and OpenTasker has no step that does",
+                "412" to "Tasker's List Files fills an array with full paths, and the list files step here puts file names " +
+                    "in one variable, one per line",
+                "415" to "Tasker's Read Line reads one line of a file, and the read file step here reads the whole file",
+                "776" to "Tasker's Read Binary reads a file into a variable as Base64 text, and the read file step here reads a file " +
+                    "as plain text",
             )
 
     private val TASKER_INTENT_TARGETS = mapOf(0 to "broadcast", 1 to "activity", 2 to "service")
