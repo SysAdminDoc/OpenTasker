@@ -1077,10 +1077,10 @@ class TaskRunner(
         // A value hidden because of the name it's given, like Set Variable's value for %api_key, only
         // shows in its trace as hidden, so the run log's args and template lines never print it. The
         // name counts as written and as filled in, so item_%slot is item_api_key while %slot holds
-        // api_key. Multiple Variables Set's names are never filled in here, so they're filled in the
-        // way the step does it.
+        // api_key. Multiple Variables Set's names are never filled in here, so the step's own walk
+        // fills them in, an earlier name in the list setting a later one's variable included.
         fun namesFilledInAsSecret() = actionType == "var.set_multiple" &&
-            ctx.variables.multipleVariablesFilledNames(args).any(ActionArgumentSensitivity::isSensitiveArgumentName)
+            ctx.variables.multipleVariablesFilledNames(expandedArgs, ctx.eventVariables).any(ActionArgumentSensitivity::isSensitiveArgumentName)
         val traces = expansions.map { trace ->
             val hidden = ActionArgumentSensitivity.isSensitive(actionType, trace.argName, args) ||
                 ActionArgumentSensitivity.isSensitive(actionType, trace.argName, expandedArgs) ||
@@ -1095,7 +1095,13 @@ class TaskRunner(
         rawValue = REDACTED_VALUE,
         expandedValue = REDACTED_VALUE,
         expressions = expressions.map {
-            it.copy(rawExpression = REDACTED_VALUE, expression = REDACTED_VALUE, value = REDACTED_VALUE, warning = it.warning?.let { REDACTED_VALUE })
+            it.copy(
+                rawExpression = REDACTED_VALUE,
+                expression = REDACTED_VALUE,
+                value = REDACTED_VALUE,
+                path = REDACTED_VALUE,
+                warning = it.warning?.let { REDACTED_VALUE },
+            )
         },
         warnings = warnings.map { REDACTED_VALUE },
     )

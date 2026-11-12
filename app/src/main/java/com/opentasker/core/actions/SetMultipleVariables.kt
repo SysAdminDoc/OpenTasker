@@ -148,14 +148,22 @@ private fun multipleVariablesEntries(args: Map<String, String>): List<Pair<Strin
 }
 
 /**
- * Each name in [args] as [setMultipleVariables] fills it in, so `%cache_%slot` is `cache_token` while
- * %slot holds `token`. An entry that isn't a name either way is left out.
+ * The names a run of [args] gives a value or keeps, settled the way [setMultipleVariables] does it, so
+ * `%cache_%slot` is `cache_token` while %slot holds `token` or once a name before it sets %slot. The
+ * run is played on a copy of these variables, so an operator like split: stores nothing here.
  */
-internal fun VariableStore.multipleVariablesFilledNames(args: Map<String, String>): List<String> =
-    multipleVariablesEntries(args).mapNotNull { entry ->
-        val written = entry?.first ?: return@mapNotNull null
-        VariableNamePolicy.normalize(written) ?: VariableNamePolicy.normalize(expandTracked(written).text)
+internal fun VariableStore.multipleVariablesFilledNames(
+    args: Map<String, String>,
+    eventVariables: Map<String, String> = emptyMap(),
+): List<String> {
+    val scope = toTemplateScope()
+    val copy = VariableStore().apply {
+        scope.global.forEach { (name, value) -> set(name, value) }
+        scope.task.forEach { (name, value) -> set(name, value) }
+        scope.arrays.forEach { (name, items) -> setArray(name, items) }
     }
+    return copy.setMultipleVariables(args, eventVariables).let { it.set + it.kept }
+}
 
 /** True when a name in [args] carries its own value after [multipleVariablesInlineSplitter]. */
 internal fun multipleVariablesNamesCarryValues(args: Map<String, String>): Boolean =
