@@ -136,10 +136,6 @@ object PreflightRunner {
     private const val MAX_DISPLAY_VALUE_LENGTH = 256
     private val SINGLE_VARIABLE = Regex("%[A-Za-z][A-Za-z0-9_]*")
 
-    // A variable inside a name as the expander reads it: hyphens allowed, and an operator such as
-    // `(#)` or `(lower)` right after it is part of the same reference.
-    private val VARIABLE_WITH_OPERATOR = Regex("""%[A-Za-z][A-Za-z0-9_-]*(?:\([^()]*\))?""")
-
     // The actions that write Tasker's numbered elements (%arr1, %arr2, ...), text.replace through
     // its matches array. text.split and text.match keep their parts in a stored array instead, so
     // they never set %Pos1.
@@ -1105,13 +1101,46 @@ object PreflightRunner {
             "var.set_multiple" -> {
                 val outcome = variables.setMultipleVariables(values, eventVariables)
                 val failure = multipleVariablesFailure(values, outcome) ?: return null
-                // Only a name that reads as one once its variables are filled in, like %item%n; a
-                // line such as `Total %count` fails whatever %count holds.
+                // Only a name that reads as one once its variables are filled in, like %item%n or
+                // %Title(lower); a line such as `Total %count` fails whatever %count holds.
                 val builtFromOthers = outcome.invalid.isNotEmpty() && outcome.invalid.all { entry ->
-                    VARIABLE_WITH_OPERATOR.containsMatchIn(entry.drop(1)) &&
-                        VariableNamePolicy.normalize(entry.take(1) + VARIABLE_WITH_OPERATOR.replace(entry.drop(1), "a")) != null
+                    referencesAsLetters(entry)?.let(VariableNamePolicy::normalize) != null
                 }
                 return failure to builtFromOthers
+            }
+        }
+        return null
+    }
+
+    /**
+     * [entry] with each variable in it swapped for a letter, read the way the expander reads one:
+     * hyphens belong to the name, and an operator after it, parentheses inside and all, is part of
+     * it. Null when [entry] has no variable.
+     */
+    private fun referencesAsLetters(entry: String): String? {
+        val out = StringBuilder()
+        var found = false
+        var i = 0
+        while (i < entry.length) {
+            if (entry[i] != '%' || entry.getOrNull(i + 1)?.isLetter() != true) {
+                out.append(entry[i++])
+                continue
+            }
+            i++
+            while (i < entry.length && (entry[i].isLetterOrDigit() || entry[i] == '_' || entry[i] == '-')) i++
+            if (entry.getOrNull(i) == '(') operatorClose(entry, i)?.let { i = it + 1 }
+            out.append('a')
+            found = true
+        }
+        return out.toString().takeIf { found }
+    }
+
+    private fun operatorClose(text: String, open: Int): Int? {
+        var depth = 0
+        for (index in open until text.length) {
+            when (text[index]) {
+                '(' -> depth++
+                ')' -> if (--depth == 0) return index
             }
         }
         return null
