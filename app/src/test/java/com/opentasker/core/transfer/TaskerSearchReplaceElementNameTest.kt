@@ -30,8 +30,9 @@ class TaskerSearchReplaceElementNameTest {
 
     @Test
     fun anElementStaysAPlaceholderWhereverItEnds() {
-        // Behind \% Tasker writes the name as text, and here it's still filled in from the old array.
-        listOf("%found12", "[%found3].", "%found1 and more", "\\%found1").forEach { replaceWith ->
+        // Behind two backslashes the element is filled in after one of them, and \% writes a
+        // percent sign before it, so both still read the array.
+        listOf("%found12", "[%found3].", "%found1 and more", "\\\\%found1", "\\%%found1").forEach { replaceWith ->
             assertEquals(replaceWith, TaskerXmlImporter.TASKER_UNSUPPORTED_ACTION_ID, action(replaceWith).type)
         }
     }

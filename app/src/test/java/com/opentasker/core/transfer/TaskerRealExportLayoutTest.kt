@@ -755,14 +755,15 @@ class TaskerRealExportLayoutTest {
     }
 
     @Test
-    fun searchReplaceNamesTheEscapedPercentItCannotKeep() {
+    fun searchReplaceKeepsAnEscapedPercentAsText() {
         val termux = """<code>598</code><Str sr="arg0" ve="3">%command_failed</Str>""" +
             """<Str sr="arg1" ve="3">^err = `\%err`[\n]+errmsg =[\n]```[\n]\%errmsg[\n]```[\n]+</Str><Int sr="arg2" val="0"/>""" +
             """<Int sr="arg3" val="0"/><Int sr="arg4" val="0"/><Str sr="arg5" ve="3"/><Int sr="arg6" val="1"/><Str sr="arg7" ve="3"/>"""
 
         assertEquals("text.replace", action(termux).type)
         assertEquals("", action(termux).args["replacement"])
-        assertWarns(termux, "\\%")
+        // \%err reaches the pattern as the text %err when the step runs, the same as in Tasker.
+        assertEquals(emptyList<String>(), warnings(termux))
     }
 
     @Test

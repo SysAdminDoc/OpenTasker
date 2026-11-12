@@ -10,8 +10,8 @@ import org.junit.Test
 
 /**
  * Tasker's Is Even and Is Odd (condition ops 10 and 11). The expected values follow Tasker 6.7.8's
- * own check (decompiled `Expr`): an empty value or one that isn't a number is neither, and
- * otherwise Even is `value % 2.0 == 0.0` and Odd is `value % 2.0 != 0.0`. The layouts are copied
+ * own check (decompiled `Expr`): an empty or unset variable is read as 0 first, a value that isn't
+ * a number is neither, and otherwise Even is `value % 2.0 == 0.0` and Odd is `value % 2.0 != 0.0`. The layouts are copied
  * from a real export, which leaves a stale right side on some of them that Tasker ignores.
  */
 class TaskerEvenOddConditionTest {
@@ -55,7 +55,7 @@ class TaskerEvenOddConditionTest {
             "7" to (false to true),
             "-3" to (false to true),
             "2.5" to (false to true),
-            "" to (false to false),
+            "" to (true to false),
             "four" to (false to false),
             "NaN" to (false to false),
             "Infinity" to (false to false),

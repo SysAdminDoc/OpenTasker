@@ -996,11 +996,18 @@ object TaskerXmlImporter {
      * A number field holding a variable. A plain `%x` needs nothing because actions expand it when
      * they run, and `%x + 1` becomes a template. A null result is anything harder than that.
      * [factor] converts the field's unit, so `%x` seconds can arrive as milliseconds, and [divisor]
-     * scales it down the same way.
+     * scales it down the same way. [unsetAsZero] reads an unset or empty variable as 0, the way
+     * Tasker's Do Maths does.
      */
-    private fun taskerNumberTemplate(text: String, factor: Long = 1L, divisor: Long = 1L): String? {
+    private fun taskerNumberTemplate(
+        text: String,
+        factor: Long = 1L,
+        divisor: Long = 1L,
+        unsetAsZero: Boolean = false,
+    ): String? {
         val trimmed = text.trim()
         val filters = mutableListOf<String>()
+        if (unsetAsZero) filters += "default:0"
         val name = if (TASKER_PLAIN_VARIABLE.matches(trimmed)) {
             trimmed.removePrefix("%")
         } else {
@@ -1059,7 +1066,7 @@ object TaskerXmlImporter {
         val maths = when {
             !doMaths -> ImportedField(raw)
             raw.trim().toDoubleOrNull() != null -> ImportedField(raw.trim())
-            else -> taskerNumberTemplate(raw)?.let { ImportedField(it) }
+            else -> taskerNumberTemplate(raw, unsetAsZero = true)?.let { ImportedField(it) }
                 ?: ImportedField(raw, "Tasker Variable Set's Do Maths isn't worked out here, so the text is set as written: $raw")
         }
         // "%apps" followed by more text would read as one longer variable name, so the old value
@@ -1623,7 +1630,9 @@ object TaskerXmlImporter {
             // Tasker fills Replace With in after it stores the matches, and here every field is
             // filled in before the step runs, so it would read the array from before the step. A
             // name runs on through letters, digits and underscores, so %found1st is another variable.
-            matches.isNotEmpty() && Regex(Regex.escape(matches) + """(?:[0-9]+(?![A-Za-z0-9_])|\()""").containsMatchIn(replaceWith) ->
+            // Behind exactly one backslash it's written as text, in Tasker and here.
+            matches.isNotEmpty() &&
+                Regex("""(?<!(?<!\\)\\)""" + Regex.escape(matches) + """(?:[0-9]+(?![A-Za-z0-9_])|\()""").containsMatchIn(replaceWith) ->
                 "Tasker Search Replace's Replace With reads $matches, which Tasker fills in with this step's matches and this app can't"
             search.isEmpty() -> "Tasker Search Replace has nothing to search for"
             checkable && TextOps.match("", pattern) == null ->
@@ -1644,12 +1653,8 @@ object TaskerXmlImporter {
                     if (matches.isNotEmpty()) put("matches", matches)
                 },
             ),
-            lossyWarning = joinWarnings(
-                "Tasker Search Replace writes \\% for a plain percent sign, and here a variable with that name is still filled in"
-                    .takeIf { "\\%" in search || "\\%" in replaceWith },
-                "Tasker Search Replace's $ also matches just before a final line break, and here it matches only at the very end"
-                    .takeIf { hasEndAnchor(search, multilineFlag = 'm' in flags) },
-            ),
+            lossyWarning = "Tasker Search Replace's $ also matches just before a final line break, and here it matches only at the very end"
+                .takeIf { hasEndAnchor(search, multilineFlag = 'm' in flags) },
         )
     }
 
