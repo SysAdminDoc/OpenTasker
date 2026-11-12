@@ -1407,7 +1407,7 @@ internal data class MatcherReload(val kept: Set<Long>, val stillOn: Set<Long>, v
      * Marks off each of [profiles] that starts out off but was last on. A rebuilt matcher only says
      * so when it goes on, so the old "on" would linger in %PACTIVE and the live view. A profile with
      * no state yet, like a new one or any on the engine's first start, keeps none, so a Locale host
-     * hears unknown until its matcher reports.
+     * hears unknown until its matcher's first readings settle.
      */
     fun dropOldOn(profiles: List<Profile>) = startsOff(profiles).forEach { id ->
         if (AutomationLiveConditionState.profileState(id) == true) AutomationLiveConditionState.updateProfile(id, false)

@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.withIndex
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -179,6 +180,7 @@ internal class ProfileMatcher(
                     initialPulseSequence = pulseContinuity.currentSequence(),
                     initiallyActive = initiallyActive,
                     firstReadingsWaitMs = firstReadingsWaitMs(profile.contexts),
+                    onSettledOff = { AutomationLiveConditionState.updateProfile(profile.id, false) },
                 ) { change ->
                     val startTime = System.currentTimeMillis()
                     when (change) {
@@ -531,6 +533,11 @@ private data class PulseAccumulator(
  * [firstReadingsWaitMs] counts as unknown until it's read, so its source's stand-in value can't keep
  * the profile on or turn it back on. Any other profile, and any event, turns it on only from
  * contexts that were read, so a stand-in can't run its enter task either.
+ *
+ * [onSettledOff] runs once for a profile that wasn't [initiallyActive]: right away for one with an
+ * event, which is off until the event comes, and otherwise when its first readings, or the end of
+ * the wait for them, leave it off. Only a change reports a state, so without it a Locale host asking
+ * whether the profile is active would hear unknown until the profile first went on.
  */
 internal fun profileStateChangesFromSnapshots(
     snapshots: Flow<ProfileMatchSnapshot>,
@@ -538,6 +545,7 @@ internal fun profileStateChangesFromSnapshots(
     initialPulseSequence: Long = 0L,
     initiallyActive: Boolean = false,
     firstReadingsWaitMs: Long = FIRST_READINGS_WAIT_MS,
+    onSettledOff: () -> Unit = {},
     onChange: (ProfileStateChange) -> Unit = {},
 ): Flow<ProfileStateChange> =
     if (hasPulseContexts) {
@@ -553,9 +561,14 @@ internal fun profileStateChangesFromSnapshots(
             accumulator.change?.also(onChange)
         }
         // Only a profile without an event stays on, so one that was on was just edited to wait for one.
-        if (initiallyActive) pulses.onStart { emit(ProfileStateChange.Deactivated.also(onChange)) } else pulses
+        if (initiallyActive) pulses.onStart { emit(ProfileStateChange.Deactivated.also(onChange)) } else pulses.onStart { onSettledOff() }
     } else {
-        (if (initiallyActive) snapshots.heldForFirstReadings(firstReadingsWaitMs) else snapshots).map { it.readMatched }
+        // A snapshot still waiting on a first reading never reads as matched, so holding it back
+        // from a profile that starts off changes none of its changes, only when it's known to be off.
+        snapshots.heldForFirstReadings(firstReadingsWaitMs)
+            .withIndex()
+            .onEach { (index, snapshot) -> if (index == 0 && !initiallyActive && !snapshot.readMatched) onSettledOff() }
+            .map { it.value.readMatched }
             .distinctUntilChanged()
             .scan(Pair(initiallyActive, initiallyActive)) { (_, prev), now -> Pair(prev, now) }
             .mapNotNull { (prev, now) ->
