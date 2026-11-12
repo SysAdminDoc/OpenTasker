@@ -373,7 +373,9 @@ fun ActiveAutomationUi(
         taskDeletionPreview = preview
         // Nothing uses the task any more, so there's no choice left to offer. The delete was still
         // asked for, so it goes ahead like any other delete rather than vanishing with the dialog.
-        if (pendingTaskDelete != null && preview?.hasDependents == false) {
+        // Unless the dialog was answered while the preview was being read: Confirm already deleted
+        // it, and Cancel means keep it.
+        if (pendingTaskDelete != null && preview?.hasDependents == false && pendingTaskDeleteId == pendingTaskDelete.id) {
             pendingTaskDeleteId = NO_DIALOG_ENTITY_ID
             viewModel.deleteTask(pendingTaskDelete)
         }

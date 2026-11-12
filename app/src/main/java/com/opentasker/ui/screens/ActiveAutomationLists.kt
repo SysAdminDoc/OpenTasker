@@ -98,6 +98,7 @@ import com.opentasker.core.plugins.locale.localePluginReceiverInstalled
 import com.opentasker.core.storage.StorageDecodeIssue
 import com.opentasker.ui.theme.DesignSystem
 import com.opentasker.ui.utils.expandCollapseToggle
+import com.opentasker.ui.utils.rememberSingleTap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 @Composable
@@ -193,6 +194,8 @@ internal fun ProfilesScreen(
     val filteredProfiles = profiles
         .filter { selectedGroup == null || it.group == selectedGroup }
         .filter { profileSearchQuery.isBlank() || it.name.contains(profileSearchQuery, ignoreCase = true) }
+    // A context's delete runs on the tap, so one gate keeps a double tap from taking the next context too.
+    val singleDelete = rememberSingleTap()
 
     LazyColumn(
         modifier = Modifier
@@ -293,7 +296,7 @@ internal fun ProfilesScreen(
                 onAddContext = { onAddContext(profile) },
                 onEditContextLogic = { onEditContextLogic(profile) },
                 onEditContext = { index, context -> onEditContext(profile, index, context) },
-                onDeleteContext = { index -> onDeleteContext(profile, index) },
+                onDeleteContext = { index -> singleDelete { onDeleteContext(profile, index) } },
                 onPreflight = { onPreflightProfile(profile) },
             )
         }

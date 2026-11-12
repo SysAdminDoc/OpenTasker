@@ -162,6 +162,7 @@ import com.opentasker.core.updates.UpdateCheckSettings
 import com.opentasker.core.updates.UpdateCheckState
 import com.opentasker.core.updates.UpdateCheckWorker
 import com.opentasker.ui.utils.expandCollapseToggle
+import com.opentasker.ui.utils.rememberSingleTap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -1299,6 +1300,8 @@ internal fun LocaleGrantManagementCard(
 ) {
     val resources = LocalResources.current
     val taskNames = remember(tasks) { tasks.associateBy(Task::id) }
+    // A revoke runs on the tap, so one gate keeps a double tap from taking the next grant too.
+    val singleRevoke = rememberSingleTap()
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f)),
@@ -1341,11 +1344,13 @@ internal fun LocaleGrantManagementCard(
                         }
                         OutlinedButton(
                             onClick = {
-                                val label = taskNames[grant.taskId]?.name
-                                    ?: resources.getString(R.string.setup_locale_grant_unknown_task, grant.taskId)
-                                onRevoke(grant)
-                                onUndoableMessage(resources.getString(R.string.setup_locale_grant_revoked, label)) {
-                                    onRestore(grant)
+                                singleRevoke {
+                                    val label = taskNames[grant.taskId]?.name
+                                        ?: resources.getString(R.string.setup_locale_grant_unknown_task, grant.taskId)
+                                    onRevoke(grant)
+                                    onUndoableMessage(resources.getString(R.string.setup_locale_grant_revoked, label)) {
+                                        onRestore(grant)
+                                    }
                                 }
                             },
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),

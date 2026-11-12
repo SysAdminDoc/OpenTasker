@@ -6,13 +6,13 @@ import androidx.compose.runtime.remember
 
 /**
  * One gate for every Delete button in a list: an action run through it is dropped when it comes
- * within [windowMs] of the last one that ran.
+ * less than [windowMs] after the last one that ran.
  *
  * Deletes run on the tap, with Undo in the snackbar. Once the first delete lands the next row
- * slides up under the finger, so the second tap of a double tap deletes that row too, and its
- * snackbar takes the place of the one holding the first delete's Undo. A guard on each row can't
- * see that, since the row that slid up has never been tapped. Remember this once for the list and
- * route each row's delete through it.
+ * slides up under the finger, so the second tap of a double tap deletes that row too, and its Undo
+ * only shows once the first delete's message is gone. A guard on each row can't see that, since
+ * the row that slid up has never been tapped. Remember this once for the list and route each row's
+ * delete through it.
  *
  * It's a time window, not a one-shot flag, because a delete can be refused (a variable a task
  * still reads stays put) and the next try has to work.
