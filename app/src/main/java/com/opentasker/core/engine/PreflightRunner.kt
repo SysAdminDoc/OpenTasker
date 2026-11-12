@@ -135,7 +135,6 @@ object PreflightRunner {
     private const val MAX_SUBTASK_DEPTH = 8
     private const val MAX_DISPLAY_VALUE_LENGTH = 256
     private val SINGLE_VARIABLE = Regex("%[A-Za-z][A-Za-z0-9_]*")
-    private val VARIABLE_REFERENCE = Regex("%[A-Za-z]")
 
     // The actions that write Tasker's numbered elements (%arr1, %arr2, ...), text.replace through
     // its matches array. text.split and text.match keep their parts in a stored array instead, so
@@ -1102,7 +1101,12 @@ object PreflightRunner {
             "var.set_multiple" -> {
                 val outcome = variables.setMultipleVariables(values, eventVariables)
                 val failure = multipleVariablesFailure(values, outcome) ?: return null
-                val builtFromOthers = outcome.invalid.isNotEmpty() && outcome.invalid.all { VARIABLE_REFERENCE.containsMatchIn(it.drop(1)) }
+                // Only a name that reads as one once its variables are filled in, like %item%n; a
+                // line such as `Total %count` fails whatever %count holds.
+                val builtFromOthers = outcome.invalid.isNotEmpty() && outcome.invalid.all { entry ->
+                    SINGLE_VARIABLE.containsMatchIn(entry.drop(1)) &&
+                        VariableNamePolicy.normalize(entry.take(1) + SINGLE_VARIABLE.replace(entry.drop(1), "a")) != null
+                }
                 return failure to builtFromOthers
             }
         }
