@@ -1,6 +1,7 @@
 package com.opentasker.core.engine
 
 import android.content.Context
+import android.os.SystemClock
 import com.opentasker.app.OpenTaskerApp_NoHilt
 import com.opentasker.core.contexts.BT_NEAR_ABSENCE_SETTLES_MS
 import com.opentasker.core.contexts.BT_NEAR_STATE_KEY
@@ -66,6 +67,8 @@ internal class ProfileMatcher(
     private val globalValues: (projectId: Long) -> Flow<Map<String, String>> = ::savedGlobalValues,
     /** The profile was on before this matcher replaced its last one, as on a reload. */
     private val initiallyActive: Boolean = false,
+    /** Times a sensor restart's stand-in hold, so a wall-clock change can't stretch or end one. */
+    private val holdClock: () -> Long = { SystemClock.elapsedRealtime() },
 ) {
     private val tag = "ProfileMatcher[${profile.name}]"
     private val performanceThresholdMs = 1000L // Warn if evaluation takes > 1 second
@@ -141,10 +144,10 @@ internal class ProfileMatcher(
                         event = identityEvent,
                         pulseContext = isPulseContext,
                         observedSequence = pulseObservation?.sequence,
-                        nowMs = clock(),
+                        nowMs = holdClock(),
                         holdLimitMs = standInHoldMs,
                     )
-                }.endingStandInHolds(standInHoldMs, clock).onEach { update ->
+                }.endingStandInHolds(standInHoldMs, holdClock).onEach { update ->
                     publishLiveContextState(profile.id, index, update)
                 }
             } else {
@@ -341,6 +344,7 @@ internal fun contextMatchUpdate(
  * location providers change or Bluetooth comes back on, publishes its stand-in again, so a context
  * that was read keeps [previous] until a measured value comes, unless the source can't measure at
  * all now (its setup marker is set) or [holdLimitMs] has passed since the hold began at [nowMs].
+ * Then the context is unknown, so the stand-in can end a profile that was on but never start one.
  */
 internal fun nextContextMatchUpdate(
     previous: ContextMatchUpdate,
@@ -364,15 +368,18 @@ internal fun nextContextMatchUpdate(
     // again, like a Bluetooth scan that keeps failing, can't keep the context as it was.
     val since = previous.holdingSinceMs ?: nowMs
     return if (nowMs - since < holdLimitMs) {
-        previous.copy(heldStandIn = update, holdingSinceMs = since)
+        previous.copy(heldStandIn = update.asUnknown(), holdingSinceMs = since)
     } else {
-        update.copy(holdingSinceMs = since)
+        update.asUnknown().copy(holdingSinceMs = since)
     }
 }
 
+/** A stand-in isn't a reading, so once a hold over it ends the context reads as unknown, not as it. */
+private fun ContextMatchUpdate.asUnknown(): ContextMatchUpdate = copy(matched = false, unknown = true, event = null)
+
 /**
  * Ends a hold [nextContextMatchUpdate] started once [holdLimitMs] has passed with nothing newer,
- * sending what the stand-in reads as, for a source that goes quiet on its stand-in. It goes by
+ * sending the context as unknown, for a source that goes quiet on its stand-in. It goes by
  * [clock], the same one the matcher hands [nextContextMatchUpdate], so a stand-in arriving after
  * this has ended a hold isn't held again.
  */
