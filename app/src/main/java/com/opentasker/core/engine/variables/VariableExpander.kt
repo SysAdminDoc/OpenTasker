@@ -498,10 +498,12 @@ class VariableExpander {
         // Trimmed after expansion: command output and file reads end with a newline, and a value
         // that came back empty matches nothing, so two empty sides aren't "equal". An unset side
         // stays as written, so `%a == %b` is false while both are unset, and `%a == %a` is true,
-        // except in a numeric comparison, where it's 0.
-        val unset = if (comparison.operator in NUMERIC_OPERATORS) Unset.ZERO else Unset.AS_WRITTEN
-        val left = expandOperand(comparison.left, unset).trim()
-        val right = expandOperand(comparison.right, unset).trim()
+        // except in a numeric comparison, where it's 0. A number isn't trimmed here, since
+        // taskerNumber strips only what Tasker does, and a no-break space left on it isn't a number.
+        val numeric = comparison.operator in NUMERIC_OPERATORS
+        val unset = if (numeric) Unset.ZERO else Unset.AS_WRITTEN
+        val left = expandOperand(comparison.left, unset).let { if (numeric) it else it.trim() }
+        val right = expandOperand(comparison.right, unset).let { if (numeric) it else it.trim() }
 
         return when (comparison.operator) {
             ComparisonOperator.EQ -> left.isNotEmpty() && left == right
@@ -691,7 +693,7 @@ class VariableExpander {
     private fun unaryParityResult(normalized: String, expandOperand: (String, Unset) -> String): Boolean? {
         for ((suffix, wantsEven) in UNARY_PARITY_SUFFIXES) {
             if (!normalized.endsWith(suffix, ignoreCase = true)) continue
-            val value = taskerNumber(expandOperand(normalized.dropLast(suffix.length).trim(), Unset.ZERO).trim())
+            val value = taskerNumber(expandOperand(normalized.dropLast(suffix.length).trim(), Unset.ZERO))
                 ?: return false
             val remainder = value % 2.0
             return if (wantsEven) remainder == 0.0 else remainder != 0.0
@@ -798,7 +800,9 @@ class VariableExpander {
         // Java's \s, which Tasker strips: space, tab, line feed, vertical tab, form feed, return.
         val compact = text.filterNot { it == ' ' || it in '\t'..'\r' }
         val value = when {
-            compact.startsWith("0x", ignoreCase = true) -> compact.substring(2).toLongOrNull(16)?.toDouble()
+            // A sign after 0x is an operator to Tasker, which leaves 0x alone and not a number.
+            compact.startsWith("0x", ignoreCase = true) ->
+                compact.substring(2).takeUnless { it.startsWith('+') || it.startsWith('-') }?.toLongOrNull(16)?.toDouble()
             TASKER_NUMBER.matches(compact) -> compact.toDouble()
             else -> null
         }

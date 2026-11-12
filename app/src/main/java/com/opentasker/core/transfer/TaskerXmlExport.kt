@@ -544,7 +544,7 @@ object TaskerXmlExporter {
      * guard survives an export/import round trip on any action instead of silently becoming
      * unconditional. A guard joined with `&&` and `||` goes out as several conditions with Tasker's
      * joiners ([taskerConditionChain]). Guards this can't write as Tasker's list (template
-     * expressions, <= and >=, which aren't written as a pair of Tasker conditions, and brackets
+     * expressions, <= and >= outside the maths equals pair, and brackets
      * alternating && and || deeper than its four joiner levels) are dropped with a warning rather
      * than exported wrong. A flow.if whose guard differs from its own
      * args["condition"] test is also warned and dropped: on import the ConditionList overwrites
@@ -664,6 +664,7 @@ object TaskerXmlExporter {
      * comparison has no Tasker triple or the brackets alternate deeper than those four levels.
      */
     private fun taskerConditionChain(guard: String, enclosingLevel: Int = -1): TaskerConditionChain? {
+        taskerMathsEquality(guard)?.let { return TaskerConditionChain(listOf(it), emptyList()) }
         val (operator, parts) = conditionGrammar.conditionParts(guard)
         if (operator == null) {
             return taskerConditionFor(parts.single())?.let { TaskerConditionChain(listOf(it), emptyList()) }
@@ -677,6 +678,25 @@ object TaskerXmlExporter {
                 if (index == 0) chain.joiners else listOf(TASKER_JOINERS[level].first) + chain.joiners
             },
         )
+    }
+
+    /**
+     * Tasker's maths Equals and Not Equals (ops 8 and 9) from the pair TaskerXmlImport spells them
+     * as, `a <= b && a >= b` and `a < b || a > b`, with the same sides in both halves. Null for
+     * anything else, which goes out as conditions of its own.
+     */
+    private fun taskerMathsEquality(guard: String): TaskerCondition? {
+        val (operator, parts) = conditionGrammar.conditionParts(guard)
+        val (tokens, op) = when (operator) {
+            "&&" -> listOf("<=", ">=") to "8"
+            "||" -> listOf("<", ">") to "9"
+            else -> return null
+        }
+        if (parts.size != 2) return null
+        val (first, second) = parts.map { conditionGrammar.comparisonParts(it) ?: return null }
+        if (listOf(first.second, second.second) != tokens) return null
+        if (first.first != second.first || first.third != second.third) return null
+        return TaskerCondition(first.first, op, first.third)
     }
 
     /**
@@ -716,8 +736,8 @@ object TaskerXmlExporter {
     }
 
     // App condition operators -> Tasker Condition <op> codes (the import table's canonical
-    // inverse: numeric-equality ops 8/9 already collapsed on import). <= and >= have no code, so a
-    // guard using one is reported as unrepresentable. For the space-bounded fallback, longer
+    // inverse; ops 8/9 come from taskerMathsEquality's pairs). <= and >= have no code, so any
+    // other guard using one is reported as unrepresentable. For the space-bounded fallback, longer
     // tokens come before their substrings, so "a <= b" matches nothing there instead of "<".
     private val BINARY_CONDITION_OPS = listOf(
         "==" to "0",

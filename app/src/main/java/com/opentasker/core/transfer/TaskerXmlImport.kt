@@ -2329,6 +2329,9 @@ object TaskerXmlImporter {
             val condition = read.single()
             if (condition.childText("lhs").isBlank()) return ImportedCondition(null, null)
             val op = condition.taskerConditionOp()
+            if (op in TASKER_MATHS_EQUALITY_OPS && !(joinableSide(condition.childText("lhs")) && joinableSide(condition.childText("rhs")))) {
+                return withNotes(null, "a \"Run only if\" guard (op $op) was dropped, since a side holds && or ||, a {{ template }} or an unmatched bracket, which this app can't write as a pair of checks")
+            }
             val expression = condition.conditionExpression(op)
                 ?: return withNotes(null, "a \"Run only if\" guard used an unsupported Tasker comparison (op $op) and was dropped")
             return withNotes(expression, condition.regexApproximationWarning(op))
@@ -2367,9 +2370,13 @@ object TaskerXmlImporter {
             "13" -> "$lhs not_set"
             // Maths Equals and Not Equals compare numbers, so 5.0 equals 5 and an unset variable is
             // 0. This app's maths comparisons read both sides the same way, and a side that isn't a
-            // number leaves both forms false, as it does in Tasker.
+            // number leaves both forms false, as it does in Tasker. Tasker settles an empty side
+            // first: with the left one filled in as 0 when unset, an empty right side makes Equals
+            // false, which the pair already is, and Not Equals true, written as a check that always holds.
             "8" -> childText("rhs").let { rhs -> "($lhs <= $rhs && $lhs >= $rhs)" }
-            "9" -> childText("rhs").let { rhs -> "($lhs < $rhs || $lhs > $rhs)" }
+            "9" -> childText("rhs").let { rhs ->
+                if (rhs.isEmpty()) "($lhs is_set || $lhs not_set)" else "($lhs < $rhs || $lhs > $rhs)"
+            }
             else -> TASKER_CONDITION_OP_TOKENS[op]?.let { token -> "$lhs $token ${childText("rhs")}" }
         }
     }
@@ -2756,4 +2763,7 @@ object TaskerXmlImporter {
 
     // Is Even, Is Odd, Is Set and Not Set, which take no right side.
     private val TASKER_UNARY_CONDITION_OPS = setOf("10", "11", "12", "13")
+
+    // Maths Equals and Not Equals, which conditionExpression writes as a bracketed pair of checks.
+    private val TASKER_MATHS_EQUALITY_OPS = setOf("8", "9")
 }
