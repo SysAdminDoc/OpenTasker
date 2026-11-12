@@ -32,6 +32,12 @@ private const val BT_NEAR_SCAN_MS = 12_000L
 
 /** Long enough to outlast a gap between classic scans, so a device doesn't flap between them. */
 private const val BT_NEAR_FORGET_AFTER_MS = 6 * 60_000L
+
+/**
+ * How long a fresh scanner can take before a device it hasn't listed counts as away: the scans that
+ * forgetting waits for, plus the cycle that publishes the result.
+ */
+internal const val BT_NEAR_ABSENCE_SETTLES_MS = BT_NEAR_FORGET_AFTER_MS + BT_NEAR_CYCLE_MS
 private const val BT_NEAR_CLASSIC_EVERY_CYCLES = 5
 private const val BT_NEAR_MAX_DEVICES = 64
 
@@ -59,6 +65,20 @@ internal class NearbyBluetoothTracker(
 
     // Insertion order is oldest sighting first, which is what the size cap drops.
     private val sightings = LinkedHashMap<String, Sighting>()
+    private var watchingSinceMs: Long? = null
+
+    /** Notes that scanning is under way, which is when a device's absence starts to count. */
+    @Synchronized
+    fun watching(nowMs: Long) {
+        if (watchingSinceMs == null) watchingSinceMs = nowMs
+    }
+
+    /**
+     * Whether this has watched for as long as a device is kept after its last sighting, so a device
+     * missing from the list is away. Before that, missing only means not seen yet.
+     */
+    @Synchronized
+    fun absenceSettled(nowMs: Long): Boolean = watchingSinceMs?.let { nowMs - it >= forgetAfterMs } == true
 
     @Synchronized
     fun sighted(name: String?, address: String?, nowMs: Long) {
@@ -77,7 +97,10 @@ internal class NearbyBluetoothTracker(
     }
 
     @Synchronized
-    fun clear() = sightings.clear()
+    fun clear() {
+        sightings.clear()
+        watchingSinceMs = null
+    }
 
     /** One `name<TAB>address` line per device, in an order that only changes when the list does. */
     @Synchronized
@@ -185,13 +208,14 @@ internal object BluetoothNearTargets {
  * nothing, and allows only five scan starts in 30 seconds.
  *
  * @param targets what to look for; null lists everything, for the Inspector
- * @param publish receives the state value whenever a scan finishes or finds someone
+ * @param publish receives the state value whenever a scan finishes or finds someone, and whether
+ *   it has scanned long enough for a device left off the list to be away
  */
 @SuppressLint("MissingPermission")
 internal class NearbyBluetoothScanner(
     private val app: Context,
     private val targets: () -> Set<String>?,
-    private val publish: (String) -> Unit,
+    private val publish: (devices: String, absenceSettled: Boolean) -> Unit,
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private val tracker = NearbyBluetoothTracker()
@@ -207,7 +231,7 @@ internal class NearbyBluetoothScanner(
         synchronized(this) {
             stopRadios()
             tracker.forgetStale(SystemClock.elapsedRealtime())
-            publish(tracker.stateValue())
+            publishSightings()
         }
     }
 
@@ -267,7 +291,7 @@ internal class NearbyBluetoothScanner(
         val wanted = targets()
         if (wanted != null && wanted.isEmpty()) {
             tracker.clear()
-            publish(tracker.stateValue())
+            publishSightings()
             return
         }
         val adapter = adapter() ?: return
@@ -284,6 +308,7 @@ internal class NearbyBluetoothScanner(
         runCatching {
             leScanner.startScan(filters, SCAN_SETTINGS, scanCallback)
             activeScanner = leScanner
+            tracker.watching(SystemClock.elapsedRealtime())
         }.onFailure { AppLogger.debug(BT_NEAR_TAG, "BLE scan did not start: ${it.message}") }
         if (bluetoothNearRunsClassicDiscovery(cycle, audioConnected(adapter)) && !adapter.isDiscovering) {
             startedDiscovery = runCatching { adapter.startDiscovery() }.getOrDefault(false)
@@ -315,8 +340,10 @@ internal class NearbyBluetoothScanner(
     private fun sighted(names: List<String?>, address: String?) {
         val device = bluetoothNearSighting(names, address, targets()) ?: return
         tracker.sighted(device.name, device.address, SystemClock.elapsedRealtime())
-        publish(tracker.stateValue())
+        publishSightings()
     }
+
+    private fun publishSightings() = publish(tracker.stateValue(), tracker.absenceSettled(SystemClock.elapsedRealtime()))
 
     private fun noteConnected(device: BluetoothDevice) {
         val entry = NearbyBluetoothDevice(device.bluetoothNameOrNull().orEmpty(), device.address)

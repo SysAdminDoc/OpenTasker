@@ -70,6 +70,7 @@ import com.opentasker.core.contexts.ContextSourceSnapshot
 import com.opentasker.core.contexts.ContextSourceStatus
 import com.opentasker.core.contexts.NfcTagIntentGate
 import com.opentasker.core.contexts.ProfileInspection
+import com.opentasker.core.contexts.STAND_IN_MARKER_PREFIX
 import com.opentasker.core.contexts.TimeContextBounds
 import com.opentasker.core.contexts.inspectProfiles
 import com.opentasker.core.contexts.observationStatus
@@ -883,7 +884,10 @@ private fun ContextMetadataBlock(event: ContextEventObservation, nowMs: Long) {
                 )
             }
             event.event.metadata.entries
-                .filterNot { it.key == "component" || it.key == "component_status" || it.key.startsWith("_setup_") }
+                .filterNot {
+                    it.key == "component" || it.key == "component_status" ||
+                        it.key.startsWith("_setup_") || it.key.startsWith(STAND_IN_MARKER_PREFIX)
+                }
                 .sortedBy { it.key }
                 .forEach { (key, value) ->
                     Text(

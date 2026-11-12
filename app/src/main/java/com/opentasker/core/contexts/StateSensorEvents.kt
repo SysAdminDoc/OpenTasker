@@ -51,6 +51,9 @@ object StateSensorEvents {
     private const val SPEED_MIN_TIME_MS = 15_000L
     private const val SPEED_MIN_DISTANCE_METERS = 5f
 
+    /** Four of the location request's intervals with no fix, checked on the next recheck. */
+    private const val SPEED_SETTLE_MS = 4 * SPEED_MIN_TIME_MS
+
     /** Steps-per-minute granularity published to matchers; see the activity registration. */
     private const val STEP_RATE_BUCKET = 10
     private const val AP_STATE_ACTION = "android.net.wifi.WIFI_AP_STATE_CHANGED"
@@ -235,27 +238,12 @@ object StateSensorEvents {
         val manager = app.getSystemService(SensorManager::class.java)
         var listener: SensorEventListener? = null
         var lastMotionAt = 0L
-        var lastActivity: String? = null
-        var lastStepBucket: Int? = null
+        val readings = ActivityReadings(STEP_RATE_BUCKET)
         val stepTimes = ArrayDeque<Long>()
 
-        fun emitActivity(activity: String, stepsPerMinute: Int? = null) {
+        fun emitActivity(activity: String, stepsPerMinute: Int? = null, measured: Boolean = true) {
             if (activity == "walking" || activity == "running") lastMotionAt = System.currentTimeMillis()
-            // With a step detector the cadence changes on almost every step, which bypassed the
-            // dedupe and re-evaluated every profile roughly twice a second while walking. Publish
-            // a bucketed rate so only a meaningful change reaches the matcher.
-            val bucket = stepsPerMinute?.let { (it / STEP_RATE_BUCKET) * STEP_RATE_BUCKET }
-            if (activity == lastActivity && bucket == lastStepBucket) return
-            lastActivity = activity
-            lastStepBucket = bucket
-            emitReady(
-                emit,
-                "activity",
-                buildMap {
-                    put("activity", activity)
-                    bucket?.let { put("activity_steps_per_minute", it.toString()) }
-                },
-            )
+            readings.next(activity, stepsPerMinute, measured)?.let { emitValues(emit, "activity", it, measured) }
         }
 
         fun stop() {
@@ -275,6 +263,8 @@ object StateSensorEvents {
                 return
             }
             if (listener != null) {
+                // No motion for that long while listening is a measured "stationary", which also
+                // replaces the stand-in below when a step detector never saw a step.
                 if (lastMotionAt > 0L && System.currentTimeMillis() - lastMotionAt > ACTIVITY_IDLE_MS) {
                     emitActivity("stationary", 0)
                 }
@@ -288,7 +278,8 @@ object StateSensorEvents {
                 return
             }
             lastMotionAt = System.currentTimeMillis()
-            emitActivity("stationary", 0)
+            // Nothing has been sensed yet, so this is a stand-in until the sensor or the idle check reports.
+            emitActivity("stationary", 0, measured = false)
             val candidate = object : SensorEventListener {
                 override fun onSensorChanged(event: SensorEvent) {
                     val now = System.currentTimeMillis()
@@ -324,31 +315,22 @@ object StateSensorEvents {
         val registration = LocationListenerRegistrationState { registeredListener ->
             runCatching { locationManager?.removeUpdates(registeredListener) }
         }
-        var previous: SpeedSample? = null
+        val readings = SpeedReadings(freshForMs = SPEED_MIN_TIME_MS, settleAfterMs = SPEED_SETTLE_MS)
 
         fun stop() {
             registration.stop()
-            previous = null
+            readings.reset()
         }
 
-        fun emitLocation(location: Location) {
-            val current = location.toSpeedSample()
-            val speed = (current.speedMps ?: SpeedCalculator.between(previous, current) ?: 0.0)
-                .coerceAtLeast(0.0)
-            previous = current
-            emitReady(
-                emit,
-                "speed",
-                mapOf(
-                    "speed" to speed.trimForState(),
-                    "speed_kmh" to (speed * 3.6).trimForState(),
-                    "speed_provider" to (location.provider ?: "unknown"),
-                ) + (if (location.hasSpeedAccuracy()) {
-                    mapOf("speed_accuracy_mps" to location.speedAccuracyMetersPerSecond.toDouble().trimForState())
-                } else {
-                    emptyMap()
-                }),
+        fun emitLocation(location: Location, lastKnown: Boolean = false) {
+            val (values, measured) = readings.onFix(
+                current = location.toSpeedSample(),
+                provider = location.provider ?: "unknown",
+                accuracyMps = if (location.hasSpeedAccuracy()) location.speedAccuracyMetersPerSecond.toDouble() else null,
+                nowMs = System.currentTimeMillis(),
+                lastKnown = lastKnown,
             )
+            emitValues(emit, "speed", values, measured)
         }
 
         fun ensure() {
@@ -367,8 +349,11 @@ object StateSensorEvents {
                 emitSetup(emit, "speed", "Open Setup and enable a GPS or network location provider before using Speed context values.")
                 return
             }
-            if (registration.isActiveFor(providers)) return
-            previous = null
+            if (registration.isActiveFor(providers)) {
+                readings.settle(System.currentTimeMillis())?.let { emitValues(emit, "speed", it, measured = true) }
+                return
+            }
+            readings.forgetPrevious()
             val candidate = object : LocationListener {
                 override fun onLocationChanged(location: Location) = emitLocation(location)
                 override fun onProviderEnabled(provider: String) = Unit
@@ -398,7 +383,7 @@ object StateSensorEvents {
             }
             providers.mapNotNull { provider -> runCatching { locationManager.getLastKnownLocation(provider) }.getOrNull() }
                 .maxByOrNull(Location::getTime)
-                ?.let(::emitLocation)
+                ?.let { emitLocation(it, lastKnown = true) }
             emitReady(emit, "speed")
         }
 
@@ -538,7 +523,11 @@ object StateSensorEvents {
         val scanner = NearbyBluetoothScanner(
             app,
             targets = { if (listEverything) null else BluetoothNearTargets.current },
-            publish = { devices -> emitReady(emit, BT_NEAR_STATE_KEY, mapOf(BT_NEAR_STATE_KEY to devices)) },
+            // A device on the list was seen. One left off it only counts as away once the scanner
+            // has looked for long enough, so until then the list is a stand-in for the rest.
+            publish = { devices, absenceSettled ->
+                emitValues(emit, BT_NEAR_STATE_KEY, mapOf(BT_NEAR_STATE_KEY to devices), measured = absenceSettled)
+            },
         )
 
         fun ensure() {
@@ -549,7 +538,7 @@ object StateSensorEvents {
             }
             // Nothing can be seen now, so a device from the last scan must not keep a profile active.
             scanner.stop()
-            emit(mapOf(BT_NEAR_STATE_KEY to ""))
+            emit(mapOf(BT_NEAR_STATE_KEY to "", standInMarkerKey(BT_NEAR_STATE_KEY) to ""))
             emitSetup(emit, BT_NEAR_STATE_KEY, gap)
         }
 
@@ -562,7 +551,13 @@ object StateSensorEvents {
     ): RecheckingRegistration {
         var callback: TetheringManager.TetheringEventCallback? = null
         var receiver: BroadcastReceiver? = null
+        var readings: TetheringReadings? = null
         var manager: TetheringManager? = null
+
+        // Under the lock, so a stand-in or a settle can't land after a broadcast that came first.
+        fun publish(current: TetheringReadings, measured: Boolean, read: TetheringReadings.() -> Map<String, String>?) {
+            synchronized(current) { current.read()?.let { emitValues(emit, "tethering", it, measured) } }
+        }
 
         fun stop() {
             if (Build.VERSION.SDK_INT >= 36) {
@@ -576,6 +571,7 @@ object StateSensorEvents {
             }
             receiver?.let { runCatching { app.unregisterReceiver(it) } }
             receiver = null
+            readings = null
         }
 
         fun ensure() {
@@ -583,27 +579,28 @@ object StateSensorEvents {
                 ensureApi36(app, emit, { current -> callback = current }, { current -> manager = current }, callback, manager)
                 return
             }
-            if (receiver != null) return
+            if (receiver != null) {
+                readings?.let { current -> publish(current, measured = true) { settle() } }
+                return
+            }
             // Wi-Fi hotspot and cable/Bluetooth tethering arrive on two different broadcasts, so
             // hold both and report their union. TETHER_STATE_CHANGED fires on stop as well as
             // start, and it can be replayed stickily on registration - treating any delivery as
             // "tethering on" left the state stuck on after tethering had already stopped.
-            var apEnabled = false
-            var interfacesTethered = false
+            val current = TetheringReadings()
             val candidate = object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     when (intent?.action) {
                         AP_STATE_ACTION -> {
                             val state = intent.getIntExtra(AP_STATE_EXTRA, -1)
                             if (state < 0) return
-                            apEnabled = state == WIFI_AP_STATE_ENABLED
+                            publish(current, measured = true) { apState(state == WIFI_AP_STATE_ENABLED) }
                         }
                         TETHER_STATE_ACTION -> {
-                            interfacesTethered = intent.hasTetheredInterfaces()
+                            val tethered = intent.hasTetheredInterfaces()
+                            publish(current, measured = true) { tetheredInterfaces(tethered) }
                         }
-                        else -> return
                     }
-                    emitReady(emit, "tethering", mapOf("tethering" to (apEnabled || interfacesTethered).toString()))
                 }
             }
             runCatching {
@@ -620,11 +617,11 @@ object StateSensorEvents {
                 )
             }.onSuccess {
                 receiver = candidate
-                // Publish a value immediately. Reporting the source ready with no value left a
-                // `tethering=false` predicate unable to match until the first transition, while the
-                // Inspector claimed the source was healthy. A sticky or subsequent broadcast
-                // corrects this at once if tethering is in fact already on.
-                emitReady(emit, "tethering", mapOf("tethering" to "false"))
+                readings = current
+                // Publish a value immediately, so the Inspector shows one. Reporting the source
+                // ready with no value claimed it was healthy while showing nothing. It's a stand-in
+                // until a sticky or later broadcast reports, or the next recheck settles it.
+                publish(current, measured = false) { standIn() }
             }.onFailure {
                 emitSetup(emit, "tethering", "Open Setup to review tethering support; Android could not register its tethering state callback.")
             }
@@ -676,6 +673,19 @@ object StateSensorEvents {
         emit(values + ("_setup_$key" to ""))
     }
 
+    /**
+     * [values] for [key] from a source that can publish a stand-in before it has measured anything,
+     * marked with [standInMarkerKey] until a [measured] value replaces it.
+     */
+    private fun emitValues(
+        emit: (Map<String, String>) -> Unit,
+        key: String,
+        values: Map<String, String>,
+        measured: Boolean,
+    ) {
+        emitReady(emit, key, values + (standInMarkerKey(key) to if (measured) "" else "1"))
+    }
+
     private fun hasPermission(context: Context, permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 
@@ -701,10 +711,10 @@ object StateSensorEvents {
         TelephonyManager.CALL_STATE_OFFHOOK -> "offhook"
         else -> "idle"
     }
-
-    private fun Double.trimForState(): String =
-        if (isFinite()) "%.3f".format(java.util.Locale.US, this).trimEnd('0').trimEnd('.') else "0"
 }
+
+private fun Double.trimForState(): String =
+    if (isFinite()) "%.3f".format(java.util.Locale.US, this).trimEnd('0').trimEnd('.') else "0"
 
 private class RecheckingRegistration(
     private val ensure: () -> Unit,
@@ -766,12 +776,144 @@ internal object MotionActivityClassifier {
     }
 }
 
+/** What the activity source publishes next, if anything. */
+internal class ActivityReadings(private val stepRateBucket: Int) {
+    private var lastActivity: String? = null
+    private var lastStepBucket: Int? = null
+    private var lastWasStandIn = false
+
+    /**
+     * The values for [activity], or null when they'd repeat the last ones. A measured value replaces
+     * a stand-in even when it reads the same.
+     */
+    @Synchronized
+    fun next(activity: String, stepsPerMinute: Int?, measured: Boolean): Map<String, String>? {
+        // With a step detector the cadence changes on almost every step, which bypassed the dedupe
+        // and re-evaluated every profile roughly twice a second while walking. Publish a bucketed
+        // rate so only a meaningful change reaches the matcher.
+        val bucket = stepsPerMinute?.let { (it / stepRateBucket) * stepRateBucket }
+        if (activity == lastActivity && bucket == lastStepBucket && !(lastWasStandIn && measured)) return null
+        lastActivity = activity
+        lastStepBucket = bucket
+        lastWasStandIn = !measured
+        return buildMap {
+            put("activity", activity)
+            bucket?.let { put("activity_steps_per_minute", it.toString()) }
+        }
+    }
+}
+
 internal data class SpeedSample(
     val latitude: Double,
     val longitude: Double,
     val observedAtMs: Long,
     val speedMps: Double? = null,
 )
+
+/**
+ * The speed source's values for each fix, telling a measured speed from the 0 it publishes when
+ * nothing measured one: a fix with no speed of its own and no earlier fix to work one out from, or a
+ * last-known fix more than [freshForMs] old. Once a fix has come in live, the location request
+ * delivers another each time the device moves 5 m, so a live stand-in followed by nothing for
+ * [settleAfterMs] means the device is standing still, and [settle] reports 0 as measured. A
+ * last-known stand-in never settles, since a cold GPS sends nothing for a while even when moving.
+ */
+internal class SpeedReadings(private val freshForMs: Long, private val settleAfterMs: Long) {
+    private var previous: SpeedSample? = null
+    private var standInProvider: String? = null
+    private var standInSinceMs = 0L
+
+    /** The values for [current] from [provider], and whether they were measured. */
+    @Synchronized
+    fun onFix(
+        current: SpeedSample,
+        provider: String,
+        accuracyMps: Double?,
+        nowMs: Long,
+        lastKnown: Boolean = false,
+    ): Pair<Map<String, String>, Boolean> {
+        val stale = lastKnown && nowMs - current.observedAtMs >= freshForMs
+        val measuredSpeed = if (stale) null else current.speedMps ?: SpeedCalculator.between(previous, current)
+        // An old fix says where the device was, not where it starts from.
+        previous = current.takeUnless { stale }
+        val measured = measuredSpeed != null
+        standInProvider = provider.takeUnless { measured || lastKnown }
+        standInSinceMs = nowMs
+        val values = speedValues(measuredSpeed ?: 0.0, provider) +
+            (accuracyMps?.takeIf { measured }?.let { mapOf("speed_accuracy_mps" to it.trimForState()) } ?: emptyMap())
+        return values to measured
+    }
+
+    /** A measured 0 once a live stand-in has gone [settleAfterMs] with no fix after it, else null. */
+    @Synchronized
+    fun settle(nowMs: Long): Map<String, String>? {
+        val provider = standInProvider ?: return null
+        if (nowMs - standInSinceMs < settleAfterMs) return null
+        standInProvider = null
+        return speedValues(0.0, provider)
+    }
+
+    /** Starts over from the next fix, as a source does once it registers again. */
+    @Synchronized
+    fun forgetPrevious() {
+        previous = null
+    }
+
+    @Synchronized
+    fun reset() {
+        previous = null
+        standInProvider = null
+    }
+
+    private fun speedValues(speedMps: Double, provider: String): Map<String, String> {
+        val speed = speedMps.coerceAtLeast(0.0)
+        return mapOf(
+            "speed" to speed.trimForState(),
+            "speed_kmh" to (speed * 3.6).trimForState(),
+            "speed_provider" to provider,
+        )
+    }
+}
+
+/**
+ * The tethering value below Android 16: the union of the hotspot and tether broadcasts. Until one
+ * of them arrives the source shows "false" as a stand-in. Both broadcasts are sticky, so a receiver
+ * that has heard neither by the next recheck means nothing is shared, and [settle] reports "false"
+ * as measured.
+ */
+internal class TetheringReadings {
+    private var apEnabled = false
+    private var interfacesTethered = false
+    private var heard = false
+
+    /** The stand-in to show once the receiver is registered, or null when a broadcast already came. */
+    @Synchronized
+    fun standIn(): Map<String, String>? = values().takeUnless { heard }
+
+    @Synchronized
+    fun apState(enabled: Boolean): Map<String, String> {
+        apEnabled = enabled
+        heard = true
+        return values()
+    }
+
+    @Synchronized
+    fun tetheredInterfaces(tethered: Boolean): Map<String, String> {
+        interfacesTethered = tethered
+        heard = true
+        return values()
+    }
+
+    /** The stand-in again as measured, once, if no broadcast has come; else null. */
+    @Synchronized
+    fun settle(): Map<String, String>? {
+        if (heard) return null
+        heard = true
+        return values()
+    }
+
+    private fun values(): Map<String, String> = mapOf("tethering" to (apEnabled || interfacesTethered).toString())
+}
 
 internal object SpeedCalculator {
     fun between(previous: SpeedSample?, current: SpeedSample): Double? {

@@ -431,6 +431,18 @@ internal fun stateSetupMarkerKey(spec: ContextSpec): String? =
     }
 
 /**
+ * Prefix of the private marker a state source keeps beside a value it published before measuring
+ * anything, like activity's first "stationary" or a fresh Bluetooth scan's empty list. The marker
+ * is "1" while the value is that stand-in and blank once a measured one replaces it, and
+ * `readsContext` doesn't count a stand-in as a reading.
+ */
+internal const val STAND_IN_MARKER_PREFIX = "_standin_"
+
+internal fun standInMarkerKey(stateKey: String): String = "$STAND_IN_MARKER_PREFIX$stateKey"
+
+internal fun isStandIn(state: Map<String, String>, stateKey: String): Boolean = state[standInMarkerKey(stateKey)] == "1"
+
+/**
  * Normalize a raw battery reading to a 0-100 percentage. `ACTION_BATTERY_CHANGED` reports
  * `EXTRA_LEVEL` against `EXTRA_SCALE` (often 100, but some devices report 255), so a bare level is
  * not a percentage. Returns null for an unknown level or a non-positive scale.

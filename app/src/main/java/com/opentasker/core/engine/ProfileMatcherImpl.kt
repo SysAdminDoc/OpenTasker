@@ -2,12 +2,17 @@ package com.opentasker.core.engine
 
 import android.content.Context
 import com.opentasker.app.OpenTaskerApp_NoHilt
+import com.opentasker.core.contexts.BT_NEAR_ABSENCE_SETTLES_MS
+import com.opentasker.core.contexts.BT_NEAR_STATE_KEY
 import com.opentasker.core.contexts.ContextMatchEvaluator
 import com.opentasker.core.contexts.ContextEvent
 import com.opentasker.core.contexts.ContextSourceRegistry
 import com.opentasker.core.contexts.EventDemandContextSource
 import com.opentasker.core.contexts.StateDemandContextSource
 import com.opentasker.core.contexts.UNRESOLVED_STATE_KEY
+import com.opentasker.core.contexts.bluetoothNearMatches
+import com.opentasker.core.contexts.bluetoothNearTarget
+import com.opentasker.core.contexts.isStandIn
 import com.opentasker.core.contexts.stateContextKey
 import com.opentasker.core.contexts.SubscriptionReadyContextSource
 import com.opentasker.core.contexts.TimeContextBounds
@@ -164,6 +169,7 @@ internal class ProfileMatcher(
                     hasPulseContexts = hasPulseContexts,
                     initialPulseSequence = pulseContinuity.currentSequence(),
                     initiallyActive = initiallyActive,
+                    firstReadingsWaitMs = firstReadingsWaitMs(profile.contexts),
                 ) { change ->
                     val startTime = System.currentTimeMillis()
                     when (change) {
@@ -287,11 +293,11 @@ internal data class ContextMatchUpdate(
 }
 
 /**
- * Shares [update] with Locale hosts querying this context. An unknown value is published as
- * unknown, not false, so a host that inverts the condition doesn't turn on from it.
+ * Shares [update] with Locale hosts querying this context. An unknown or not yet read value is
+ * published as unknown, not false, so a host that inverts the condition doesn't turn on from it.
  */
 internal fun publishLiveContextState(profileId: Long, contextIndex: Int, update: ContextMatchUpdate) {
-    AutomationLiveConditionState.updateContext(profileId, contextIndex, update.matched.takeUnless { update.unknown })
+    AutomationLiveConditionState.updateContext(profileId, contextIndex, update.matched.takeUnless { update.unknown || update.unread })
 }
 
 /**
@@ -324,13 +330,17 @@ internal fun contextMatchUpdate(
  * Whether [metadata] holds a reading [spec] can be told from. A State source's first event carries
  * only what it reads at once, with Wi-Fi, sensors and health coming after, a Location source's can
  * be a wait for the first fix, and the App source starts with an empty foreground until an app is
- * seen, so none of those is a reading of a context whose value comes later.
+ * seen, so none of those is a reading of a context whose value comes later. Nor is a sensor's
+ * stand-in, like activity's first "stationary", except that a device on a fresh Bluetooth Near
+ * list was seen, even while the rest of the list can't yet say who's away.
  */
 internal fun readsContext(spec: ContextSpec, metadata: Map<String, String>): Boolean = when (spec.type) {
     ContextType.STATE -> when (val key = stateContextKey(spec)) {
         null -> true
         "wifi" -> WIFI_READING_KEYS.any(metadata::containsKey)
-        else -> key in metadata
+        BT_NEAR_STATE_KEY -> key in metadata &&
+            (!isStandIn(metadata, key) || bluetoothNearMatches("=", bluetoothNearTarget(spec).orEmpty(), metadata))
+        else -> key in metadata && !isStandIn(metadata, key)
     }
     ContextType.LOCATION -> FossGeofenceEvaluator.hasFix(metadata)
     ContextType.APPLICATION -> metadata["foreground"].orEmpty().isNotBlank()
@@ -437,7 +447,8 @@ private data class PulseAccumulator(
  * A profile that was [initiallyActive] stays on without its enter task running again, and goes off
  * the first time its contexts, once each has been read, don't match. A context still unread after
  * [firstReadingsWaitMs] counts as unknown until it's read, so its source's stand-in value can't keep
- * the profile on or turn it back on.
+ * the profile on or turn it back on. Any other profile, and any event, turns it on only from
+ * contexts that were read, so a stand-in can't run its enter task either.
  */
 internal fun profileStateChangesFromSnapshots(
     snapshots: Flow<ProfileMatchSnapshot>,
@@ -450,7 +461,7 @@ internal fun profileStateChangesFromSnapshots(
     if (hasPulseContexts) {
         val pulses = snapshots.scan(PulseAccumulator(lastPulseSequence = initialPulseSequence, change = null)) { previous, snapshot ->
             val pulseChanged = snapshot.pulseSequence != previous.lastPulseSequence
-            val change = if (pulseChanged && snapshot.pulseSequence > 0 && snapshot.allMatched) {
+            val change = if (pulseChanged && snapshot.pulseSequence > 0 && snapshot.readMatched) {
                 ProfileStateChange.Activated(snapshot.event)
             } else {
                 null
@@ -462,7 +473,7 @@ internal fun profileStateChangesFromSnapshots(
         // Only a profile without an event stays on, so one that was on was just edited to wait for one.
         if (initiallyActive) pulses.onStart { emit(ProfileStateChange.Deactivated.also(onChange)) } else pulses
     } else {
-        (if (initiallyActive) snapshots.heldForFirstReadings(firstReadingsWaitMs).map { it.readMatched } else snapshots.map { it.allMatched })
+        (if (initiallyActive) snapshots.heldForFirstReadings(firstReadingsWaitMs) else snapshots).map { it.readMatched }
             .distinctUntilChanged()
             .scan(Pair(initiallyActive, initiallyActive)) { (_, prev), now -> Pair(prev, now) }
             .mapNotNull { (prev, now) ->
@@ -477,6 +488,10 @@ internal fun profileStateChangesFromSnapshots(
 
 /** As long as a location fix can take, and a few rounds of plugin queries. */
 internal const val FIRST_READINGS_WAIT_MS = 180_000L
+
+/** How long a profile with [specs] waits for first readings: longer with Bluetooth Near, whose "away" takes minutes to tell. */
+internal fun firstReadingsWaitMs(specs: List<ContextSpec>): Long =
+    if (specs.any { bluetoothNearTarget(it) != null }) maxOf(FIRST_READINGS_WAIT_MS, BT_NEAR_ABSENCE_SETTLES_MS) else FIRST_READINGS_WAIT_MS
 
 /**
  * [this], holding back the snapshots that wait on a first reading for at most [waitMs]. A reading
