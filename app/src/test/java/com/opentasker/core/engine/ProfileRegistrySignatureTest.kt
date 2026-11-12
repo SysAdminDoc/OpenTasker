@@ -45,7 +45,7 @@ class ProfileRegistrySignatureTest {
     @Test
     fun cosmeticEditsDoNotChangeSignature() {
         val before = profileRegistrySignature(listOf(profile(1, name = "Home", group = "A")))
-        val after = profileRegistrySignature(listOf(profile(1, name = "Renamed", group = "B")))
+        val after = profileRegistrySignature(listOf(profile(1, name = "Home", group = "B")))
         assertEquals(before, after)
     }
 

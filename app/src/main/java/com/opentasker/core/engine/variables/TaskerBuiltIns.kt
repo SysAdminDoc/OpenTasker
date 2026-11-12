@@ -2,6 +2,7 @@ package com.opentasker.core.engine.variables
 
 import com.opentasker.core.engine.ActiveExecutionRegistry
 import com.opentasker.core.engine.AutomationLiveConditionState
+import kotlinx.coroutines.Job
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.time.Clock
@@ -9,6 +10,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * Tasker's built-in variables, read-only values like `%TIME` and `%BATT` that Tasker works out
@@ -55,24 +57,61 @@ object TaskerBuiltIns {
     @Volatile
     private var device: ((String) -> String?)? = null
 
+    private val watchLock = Any()
+
     @Volatile
     private var watchedProfiles: Map<Long, String> = emptyMap()
+
+    private var watchOwner: Job? = null
+
+    private val runningSubTasks = ConcurrentLinkedQueue<RunningSubTask>()
+
+    /** A task another task runs, which `%TRUN` lists while it's going. */
+    class RunningSubTask internal constructor(val name: String)
 
     /** [read] answers a device built-in by name, or null when the device can't say. */
     fun installDevice(read: (String) -> String?) {
         device = read
     }
 
-    /** The enabled profiles the engine watches now, names by id, which `%PENABLED` and `%PACTIVE` list. */
-    fun watchProfiles(names: Map<Long, String>) {
-        watchedProfiles = names
+    /**
+     * The enabled profiles the engine watches now, names by id, which `%PENABLED` and `%PACTIVE`
+     * list. A write from an [owner] that's already cancelled is dropped, so a reload still finishing
+     * as the engine stops can't put back the list [stopWatching] cleared.
+     */
+    fun watchProfiles(names: Map<Long, String>, owner: Job? = null) {
+        synchronized(watchLock) {
+            if (owner?.isActive == false) return
+            watchOwner = owner
+            watchedProfiles = names
+        }
+    }
+
+    /** Empties the list if [owner] wrote it last. Call after cancelling [owner]. */
+    fun stopWatching(owner: Job) {
+        synchronized(watchLock) {
+            if (watchOwner !== owner) return
+            watchOwner = null
+            watchedProfiles = emptyMap()
+        }
+    }
+
+    /** Lists the sub-task [name] in `%TRUN` until [subTaskEnded] gets what this returns. */
+    fun subTaskStarted(name: String): RunningSubTask = RunningSubTask(name).also(runningSubTasks::add)
+
+    fun subTaskEnded(run: RunningSubTask) {
+        runningSubTasks.remove(run)
     }
 
     internal fun resetForTests() {
         clockForTests = null
         localeForTests = null
         device = null
-        watchedProfiles = emptyMap()
+        runningSubTasks.clear()
+        synchronized(watchLock) {
+            watchOwner = null
+            watchedProfiles = emptyMap()
+        }
     }
 
     fun isBuiltIn(name: String): Boolean = name in NAMES
@@ -96,7 +135,7 @@ object TaskerBuiltIns {
         // Tasker sorts these by when each profile was made, and ids here count up the same way.
         "PENABLED" -> taskerList(watchedProfiles.toSortedMap().values)
         "PACTIVE" -> watchedProfiles.let { names -> taskerList(AutomationLiveConditionState.activeProfileIds().mapNotNull(names::get)) }
-        else -> taskerList(ActiveExecutionRegistry.active.value.map { it.taskName })
+        else -> taskerList(ActiveExecutionRegistry.active.value.map { it.taskName } + runningSubTasks.map { it.name })
     }
 
     /**

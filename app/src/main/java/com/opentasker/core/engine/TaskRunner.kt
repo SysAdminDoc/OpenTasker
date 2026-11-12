@@ -8,6 +8,7 @@ import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.capabilities.AutomationSensitivityRegistry
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
 import com.opentasker.core.diagnostics.ExportRedactionPolicy
+import com.opentasker.core.engine.variables.TaskerBuiltIns
 import com.opentasker.core.expressions.InertTemplateText
 import com.opentasker.core.expressions.TemplateExpansionTrace
 import com.opentasker.core.expressions.TemplateScope
@@ -874,6 +875,8 @@ class TaskRunner(
         // nothing leaves the variable unset instead of holding an earlier call's value.
         if (returnVariable != null && resetsReturnVariable(args)) ctx.variables.clearForTask(returnVariable)
         ctx.variables.pushScope(holdsInputs = true)
+        // Tasker's %TRUN lists a task run by another one too.
+        val running = TaskerBuiltIns.subTaskStarted(target.name)
         val report = try {
             args.forEach { (key, value) ->
                 if (key !in SUB_TASK_REF_KEYS && key !in SUB_TASK_SETTING_KEYS) {
@@ -891,6 +894,7 @@ class TaskRunner(
                 is TaskCollisionOutcome.Skipped -> return fail(outcome.reason)
             }
         } finally {
+            TaskerBuiltIns.subTaskEnded(running)
             ctx.variables.popScope()
         }
         // Set after the inputs' scope is gone, so the value lands in this task's own variables.

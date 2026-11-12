@@ -391,7 +391,6 @@ class AutomationService : Service() {
         matchers.clear()
         registeredProfiles.clear()
         matchedProfiles.clear()
-        TaskerBuiltIns.watchProfiles(emptyMap())
         AutomationLiveConditionState.clear()
         synchronized(dispatchedProfiles) {
             dispatchedProfiles.clear()
@@ -406,6 +405,8 @@ class AutomationService : Service() {
         engineHeartbeatStore.recordStopped()
         PluginConditionSubscriptions.clear()
         job.cancel()
+        // After the cancel, so a reload still finishing can't list the profiles again.
+        TaskerBuiltIns.stopWatching(job)
         logContextMonitorTransition(contextMonitorLifecycle.stopAll())
         BroadcastContextEvents.sync(this, emptySet())
         CallContextEvents.sync(this, false)
@@ -463,7 +464,7 @@ class AutomationService : Service() {
             registeredProfiles.clear()
             profiles.associateByTo(registeredProfiles) { it.id }
         }
-        TaskerBuiltIns.watchProfiles(profiles.associate { it.id to it.name })
+        TaskerBuiltIns.watchProfiles(profiles.associate { it.id to it.name }, owner = job)
         AutomationLiveConditionState.retainProfiles(activeIds)
         synchronized(pulseContinuities) {
             pulseContinuities.keys.removeAll { it !in activeIds }
@@ -478,6 +479,9 @@ class AutomationService : Service() {
             queuedProfileTasks.keys.removeAll { kotlin.math.abs(it) !in activeIds }
         }
         registerPluginSubscriptions(profiles)
+        // A rebuilt matcher that starts off only says so when it goes on, so drop the old "on"
+        // first or %PACTIVE and the live view keep showing it.
+        reload.startsOff(profiles).forEach { AutomationLiveConditionState.updateProfile(it, false) }
         for (domain in profiles) {
             if (domain.id in reload.kept) continue
             val pulseContinuity = pulseContinuities.getOrPut(domain.id) { PulseEventContinuity() }
@@ -1361,9 +1365,11 @@ class AutomationService : Service() {
 
 /**
  * Reconcile signature for the running profile registry. Two profile-table snapshots produce the
- * same signature when nothing the engine depends on has changed, so purely cosmetic edits (name,
- * group) do not thrash matcher rebuilds while enable/disable, context, task-wiring, mode, and
- * cooldown changes do. Disabled profiles are excluded because the engine only runs enabled ones.
+ * same signature when nothing the engine depends on has changed, so a cosmetic edit (group) does
+ * not reload while enable/disable, context, task-wiring, mode, and cooldown changes do. A rename
+ * reloads because `%PENABLED` and `%PACTIVE` list names, though it keeps the profile's matcher
+ * ([matchingRules] leaves the name out). Disabled profiles are excluded because the engine only
+ * runs enabled ones.
  */
 internal fun profileRegistrySignature(profiles: List<ProfileEntity>): List<String> =
     profiles.asSequence()
@@ -1372,6 +1378,7 @@ internal fun profileRegistrySignature(profiles: List<ProfileEntity>): List<Strin
         .map { p ->
             listOf(
                 p.id,
+                p.name,
                 p.enterTaskId,
                 p.exitTaskId,
                 p.cooldownSec,
@@ -1394,7 +1401,10 @@ internal fun profileRegistrySignature(profiles: List<ProfileEntity>): List<Strin
  * Which matchers a reload keeps running, which of the ones it builds again start out on, and the
  * profiles held back by priority that nothing outranks anymore.
  */
-internal data class MatcherReload(val kept: Set<Long>, val stillOn: Set<Long>, val released: List<Profile> = emptyList())
+internal data class MatcherReload(val kept: Set<Long>, val stillOn: Set<Long>, val released: List<Profile> = emptyList()) {
+    /** The ids of [profiles] whose matchers are built again and start out off. */
+    fun startsOff(profiles: List<Profile>): List<Long> = profiles.map { it.id }.filter { it !in kept && it !in stillOn }
+}
 
 /**
  * Plans a reload of [profiles], the enabled set, against [running], the profiles whose matchers are
