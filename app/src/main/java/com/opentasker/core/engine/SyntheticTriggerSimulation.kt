@@ -403,11 +403,13 @@ object SyntheticTriggerSimulator {
         val configuredPackage = first(spec.config, "package")
         val packageName = configuredPackage.ifBlank { "com.example.synthetic.plugin" }
         val bundle = first(spec.config, "bundleJson").ifBlank { "{}" }
+        val blurb = ContextMatchEvaluator.pluginConditionBlurb(spec.config)
         return template(
             event = ContextEvent(
                 "plugin",
                 true,
-                mapOf("package" to packageName, "bundleJson" to bundle, "state" to "satisfied"),
+                mapOf("package" to packageName, "bundleJson" to bundle, "state" to "satisfied") +
+                    listOfNotNull(blurb.takeIf(String::isNotEmpty)?.let { "blurb" to it }),
             ),
             description = "Satisfied plugin condition result",
             issue = if (configuredPackage.isBlank()) "Plugin context has no configured package." else null,

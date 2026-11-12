@@ -301,8 +301,17 @@ object ContextMatchEvaluator {
         if (!actualPackage.equals(expectedPackage, ignoreCase = true)) return false
         val expectedBundle = spec.config["bundleJson"]?.trim().orEmpty().ifBlank { "{}" }
         val actualBundle = event.metadata["bundleJson"].orEmpty().ifBlank { "{}" }
-        return expectedBundle == actualBundle
+        return expectedBundle == actualBundle && pluginBlurbMatches(spec, event)
     }
+
+    /**
+     * The blurb a Plugin context's query sends. Locale and Tasker send it with every query, and some
+     * plugins pick the condition by it rather than by the bundle (primitive FTPd's "server running?").
+     */
+    fun pluginConditionBlurb(config: Map<String, String>): String = config["blurb"].orEmpty().take(MAX_PLUGIN_BLURB_CHARS)
+
+    private fun pluginBlurbMatches(spec: ContextSpec, event: ContextEvent): Boolean =
+        pluginConditionBlurb(spec.config) == event.metadata["blurb"].orEmpty()
 
     private fun matchesPlugin(spec: ContextSpec, event: ContextEvent): Boolean {
         val expectedPackage = spec.config["package"]?.trim().orEmpty()
@@ -312,6 +321,7 @@ object ContextMatchEvaluator {
         val expectedBundle = spec.config["bundleJson"]?.trim().orEmpty().ifBlank { "{}" }
         val actualBundle = event.metadata["bundleJson"].orEmpty().ifBlank { "{}" }
         if (expectedBundle != actualBundle) return false
+        if (!pluginBlurbMatches(spec, event)) return false
         return event.metadata["state"].equals("satisfied", ignoreCase = true)
     }
 
@@ -396,6 +406,8 @@ object ContextMatchEvaluator {
         return if (start <= end) current in start..end else current >= start || current <= end
     }
 
+    /** The plugin editors and the Tasker import keep at most this much of a blurb. */
+    private const val MAX_PLUGIN_BLURB_CHARS = 120
     private const val MAX_REGEX_PATTERN_CHARS = 160
     private const val MAX_REGEX_INPUT_CHARS = 1_000
 

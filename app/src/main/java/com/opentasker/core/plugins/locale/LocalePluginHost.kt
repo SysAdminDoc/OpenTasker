@@ -869,6 +869,8 @@ object LocalePluginConfigurationResultParser {
 data class LocalePluginConditionCacheKey(
     val packageName: String,
     val bundleValues: Map<String, String>,
+    /** Part of the question for a plugin that picks its condition by blurb. */
+    val blurb: String = "",
 )
 
 class LocalePluginConditionStateCache(
@@ -1032,6 +1034,7 @@ class LocalePluginHost private constructor(
         val cacheKey = LocalePluginConditionCacheKey(
             packageName = request.packageName,
             bundleValues = LocalePluginBundleCodec.canonicalValues(bundleValues),
+            blurb = request.blurb.take(120),
         )
         val target = resolveBroadcastTarget(request.packageName, LocalePluginContract.ACTION_QUERY_CONDITION)
         val component = target.component ?: return LocalePluginConditionResult(
@@ -1058,6 +1061,15 @@ class LocalePluginHost private constructor(
             )
         }
     }
+
+    /**
+     * The class of [packageName]'s condition edit screen, empty when it has none. A plugin's
+     * `REQUEST_QUERY` names the plugin by that class and nothing else.
+     */
+    fun conditionEditActivityClasses(packageName: String): List<String> =
+        runCatching { componentResolver.editActivities(packageName, LocalePluginContract.ACTION_EDIT_CONDITION) }
+            .getOrDefault(emptyList())
+            .map { it.className }
 
     /**
      * The pinned-signer check, run before any bundle, intent or broadcast exists so a refused

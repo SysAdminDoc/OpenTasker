@@ -49,8 +49,8 @@ import com.opentasker.core.contexts.BroadcastContextEvents
 import com.opentasker.core.contexts.declaredBroadcastActions
 import com.opentasker.core.contexts.declaresIncomingCall
 import com.opentasker.core.contexts.PackageContextEvents
-import com.opentasker.core.contexts.PluginConditionSubscription
 import com.opentasker.core.contexts.PluginConditionSubscriptions
+import com.opentasker.core.contexts.pluginConditionSubscriptions
 import com.opentasker.core.contexts.ScreenRecordingContextEvents
 import com.opentasker.core.contexts.TimeContextEvents
 import com.opentasker.core.contexts.UsbDeviceContextEvents
@@ -585,20 +585,7 @@ class AutomationService : Service() {
     }
 
     private fun registerPluginSubscriptions(profiles: List<Profile>) {
-        val subs = profiles.flatMap { profile ->
-            profile.contexts
-                .filter { it.type == com.opentasker.core.model.ContextType.PLUGIN }
-                .mapNotNull { spec ->
-                    val pkg = spec.config["package"]?.trim().orEmpty()
-                    if (pkg.isBlank()) return@mapNotNull null
-                    PluginConditionSubscription(
-                        packageName = pkg,
-                        bundleJson = spec.config["bundleJson"]?.trim().orEmpty().ifBlank { "{}" },
-                        timeoutMs = spec.config["timeoutMs"]?.toLongOrNull()?.coerceIn(1_000, 30_000) ?: 5_000,
-                    )
-                }
-        }.toSet()
-        PluginConditionSubscriptions.replaceAll(subs)
+        PluginConditionSubscriptions.replaceAll(pluginConditionSubscriptions(profiles))
     }
 
     private suspend fun onProfileActivated(profile: com.opentasker.core.model.Profile, event: ContextEvent?) {
