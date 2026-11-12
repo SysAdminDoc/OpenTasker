@@ -2516,6 +2516,39 @@ object TaskerXmlImporter {
                 "415" to "Tasker's Read Line reads one line of a file, and the read file step here reads the whole file",
                 "776" to "Tasker's Read Binary reads a file into a variable as Base64 text, and the read file step here reads a file " +
                     "as plain text",
+                "396" to "Tasker's Simple Match/Regex fills %mt_match, %mt_match_found and %mt_groups(), and the match step here " +
+                    "fills a variable and an array you name instead",
+                "394" to "Tasker's Parse/Format DateTime fills %formatted and a set of %dt_ variables in one step, and the date steps " +
+                    "here each fill one variable",
+                "392" to "Tasker's Set Variable Structure Type marks a variable's format, like JSON or CSV, for Tasker's reading, " +
+                    "and OpenTasker has no such setting",
+                "424" to "Tasker's Get Battery Info reads battery details into variables, and OpenTasker has no step that does. " +
+                    "The battery level is in %BATT",
+                "341" to "Tasker's Test Net reads network details into a variable, and OpenTasker has no step that does",
+                "348" to "Tasker's Test Display reads display details into a variable, and OpenTasker has no step that does",
+                "248" to "Tasker's Turn Off turns the screen off, and its Dim option has no match here. The screen off step turns " +
+                    "it off through Shizuku, and the lock step locks the phone",
+                "109" to "Tasker's Set Wallpaper has fitting options like Scale and Crop that the wallpaper step here doesn't have. " +
+                    "The wallpaper step sets an image file on the home screen, lock screen or both",
+                "311" to "Tasker's BT Voice Volume sets the call volume over Bluetooth, and the volume step here has no Bluetooth " +
+                    "call stream",
+                "152" to "Tasker's Set Widget Icon changes the icon on one of Tasker's widgets, and OpenTasker has no step that " +
+                    "changes a widget",
+                "162" to "Tasker's Set up Quick Setting Tile picks the task a tile runs from inside a task. Here you pick a tile's " +
+                    "task from the tile in Quick Settings, and the tile step only changes a tile that already has one",
+                "158" to "Tasker's Quick Setting Remove takes a tile Tasker added off the Quick Settings panel, and OpenTasker has " +
+                    "no step that does",
+                "219" to "Tasker's Quick Settings pulls down the Quick Settings panel, and OpenTasker has no step that does",
+                "216" to "Tasker's App Settings opens the app list in Settings, or one app's info screen, and OpenTasker has no " +
+                    "step made for that",
+                "187" to "Tasker's Save Image saves the picture Tasker's image steps were working on, and OpenTasker has no steps " +
+                    "that edit images",
+                "188" to "Tasker's Load Image loads a picture for Tasker's image steps to edit, and OpenTasker has no steps that " +
+                    "edit images",
+                "370" to "Tasker's Shortcut runs another app's shortcut, which isn't converted here. The intent step can send the " +
+                    "shortcut's action and component, though some apps only open their shortcuts for the launcher",
+                "381" to "Tasker's Contact Via App opens a contact in an app like WhatsApp, and OpenTasker has no step that does",
+                "740" to "Tasker's Zoom Text sets text on a widget made with the Zoom app, which OpenTasker doesn't talk to",
             )
 
     private val TASKER_INTENT_TARGETS = mapOf(0 to "broadcast", 1 to "activity", 2 to "service")
