@@ -28,6 +28,7 @@ import com.opentasker.core.model.isValidForContextCount
 import com.opentasker.core.model.ProfileLifecyclePolicy
 import com.opentasker.core.storage.VariableRepository
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -44,6 +45,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.scan
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -91,6 +93,8 @@ internal class ProfileMatcher(
             val source = sourceType?.let(ContextSourceRegistry::get)
             if (source != null) {
                 val isPulseContext = spec.type == ContextType.EVENT
+                // As long as a first reading gets, so a restarted source has the same time to measure.
+                val standInHoldMs = firstReadingsWaitMs(listOf(spec))
                 val sourceEvents = if (isPulseContext && source is EventDemandContextSource) {
                     source.events(app, spec.config["event"]) {
                         markPulseContextSubscribed(index, pulseContextCount)
@@ -137,8 +141,10 @@ internal class ProfileMatcher(
                         event = identityEvent,
                         pulseContext = isPulseContext,
                         observedSequence = pulseObservation?.sequence,
+                        nowMs = clock(),
+                        holdLimitMs = standInHoldMs,
                     )
-                }.onEach { update ->
+                }.endingStandInHolds(standInHoldMs, clock).onEach { update ->
                     publishLiveContextState(profile.id, index, update)
                 }
             } else {
@@ -278,6 +284,10 @@ internal data class ContextMatchUpdate(
     val event: ContextEvent? = null,
     val unknown: Boolean = false,
     val unread: Boolean = false,
+    /** While a sensor's restart stand-in is held over, what the stand-in itself reads as. */
+    val heldStandIn: ContextMatchUpdate? = null,
+    /** When the latest hold over a stand-in began, kept after it runs out until a measured value. */
+    val holdingSinceMs: Long? = null,
 ) {
     companion object {
         /** An event that hasn't come yet is a known "no"; a state that hasn't been read is unknown. */
@@ -330,7 +340,7 @@ internal fun contextMatchUpdate(
  * The context's result after [event], given the one before it. A source that starts over, as when
  * location providers change or Bluetooth comes back on, publishes its stand-in again, so a context
  * that was read keeps [previous] until a measured value comes, unless the source can't measure at
- * all now (its setup marker is set).
+ * all now (its setup marker is set) or [holdLimitMs] has passed since the hold began at [nowMs].
  */
 internal fun nextContextMatchUpdate(
     previous: ContextMatchUpdate,
@@ -338,9 +348,10 @@ internal fun nextContextMatchUpdate(
     event: ContextEvent,
     pulseContext: Boolean = false,
     observedSequence: Long? = null,
+    nowMs: Long = 0L,
+    holdLimitMs: Long = FIRST_READINGS_WAIT_MS,
 ): ContextMatchUpdate {
-    if (!previous.unread && standInAfterRestart(spec, event.metadata)) return previous
-    return contextMatchUpdate(
+    val update = contextMatchUpdate(
         spec = spec,
         event = event,
         pulseContext = pulseContext,
@@ -348,7 +359,40 @@ internal fun nextContextMatchUpdate(
         previousSequence = previous.pulseSequence,
         previouslyUnread = previous.unread,
     )
+    if (previous.unread || !standInAfterRestart(spec, event.metadata)) return update
+    // A hold that ran out stays out until a measured value, so a source that never measures
+    // again, like a Bluetooth scan that keeps failing, can't keep the context as it was.
+    val since = previous.holdingSinceMs ?: nowMs
+    return if (nowMs - since < holdLimitMs) {
+        previous.copy(heldStandIn = update, holdingSinceMs = since)
+    } else {
+        update.copy(holdingSinceMs = since)
+    }
 }
+
+/**
+ * Ends a hold [nextContextMatchUpdate] started once [holdLimitMs] has passed with nothing newer,
+ * sending what the stand-in reads as, for a source that goes quiet on its stand-in. It goes by
+ * [clock], the same one the matcher hands [nextContextMatchUpdate], so a stand-in arriving after
+ * this has ended a hold isn't held again.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun Flow<ContextMatchUpdate>.endingStandInHolds(holdLimitMs: Long, clock: () -> Long): Flow<ContextMatchUpdate> =
+    transformLatest { update ->
+        val standIn = update.heldStandIn
+        val since = update.holdingSinceMs
+        if (standIn == null || since == null) {
+            emit(update)
+            return@transformLatest
+        }
+        var left = since + holdLimitMs - clock()
+        if (left > 0) emit(update)
+        while (left > 0) {
+            delay(left)
+            left = since + holdLimitMs - clock()
+        }
+        emit(standIn.copy(holdingSinceMs = since))
+    }
 
 private fun standInAfterRestart(spec: ContextSpec, metadata: Map<String, String>): Boolean {
     if (spec.type != ContextType.STATE) return false
