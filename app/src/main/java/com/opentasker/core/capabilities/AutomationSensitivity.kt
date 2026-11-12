@@ -42,6 +42,7 @@ object AutomationSensitivityRegistry {
     private val localOnlyActionIds = setOf(
         "var.set",
         "var.persist",
+        "var.clear",
         "data.read",
         "datetime.format",
         "datetime.parse",

@@ -47,6 +47,7 @@ object ActionCapabilityRegistry {
         // Variables, text, and date-time: pure in-process transforms.
         "var.set",
         "var.persist",
+        "var.clear",
         "clipboard.get",
         "clipboard.set",
         "data.read",

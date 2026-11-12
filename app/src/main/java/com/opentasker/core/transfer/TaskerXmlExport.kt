@@ -125,6 +125,7 @@ object TaskerXmlExporter {
         "http.post" to "339",
         "var.split" to "590",
         "var.join" to "592",
+        "var.clear" to "549",
         "array.push" to "355",
         "array.pop" to "356",
         "array.clear" to "357",
@@ -456,6 +457,15 @@ object TaskerXmlExporter {
                 appendStr(sb, 0, taskerVariableName(args["name"], "VAR"))
                 appendStr(sb, 1, args["joiner"].orEmpty())
                 appendInt(sb, 2, taskerFlag(args["delete_parts"]))
+            }
+            "var.clear" -> {
+                // A pattern or an empty name (every local) goes as written, a plain name with its %.
+                val name = args["name"]?.trim().orEmpty()
+                val pattern = taskerFlag(args["pattern"])
+                appendStr(sb, 0, if (name.isEmpty() || pattern == "1") name else taskerVariableName(name, "VAR"))
+                appendInt(sb, 1, pattern)
+                appendInt(sb, 2, taskerFlag(args["local_only"]))
+                appendInt(sb, 3, taskerFlag(args["clear_all"]))
             }
             "array.push" -> {
                 appendStr(sb, 0, taskerVariableName(args["array"], "arr"))

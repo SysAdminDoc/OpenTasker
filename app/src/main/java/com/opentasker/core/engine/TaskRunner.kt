@@ -1161,13 +1161,15 @@ class TaskRunner(
 /**
  * "%count" in an argument that names an action's output is the variable to write, the way the
  * editor reads it. Expanded like other text, it named whatever count held, so a second run wrote
- * to a different variable. A name built from parts, like "item_%slot", still expands.
+ * to a different variable. A name built from parts, like "item_%slot", still expands. Variable
+ * Clear's name is never filled in, since it can be a pattern like "%item*", as in Tasker.
  */
-internal class OutputNameArguments(actionType: String) {
+internal class OutputNameArguments(private val actionType: String) {
     private val keys = declaredActionOutputs(actionType).flatMapTo(hashSetOf()) { it.nameArgumentKeys }
 
     fun keepsAsWritten(argumentName: String, rawValue: String): Boolean =
-        argumentName in keys && SINGLE_VARIABLE.matches(rawValue.trim())
+        (argumentName in keys && SINGLE_VARIABLE.matches(rawValue.trim())) ||
+            (actionType == "var.clear" && argumentName == "name")
 
     private companion object {
         val SINGLE_VARIABLE = Regex("%[A-Za-z][A-Za-z0-9_]*")

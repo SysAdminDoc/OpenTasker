@@ -186,7 +186,7 @@ class TaskerBuiltInVariablesTest {
         val actions = listOf(
             ActionSpec(type = "var.set", args = mapOf("name" to "%TIME", "value" to "lunch")),
             record("%TIME"),
-            // How an imported Variable Clear arrives.
+            // A Variable Set to nothing.
             ActionSpec(type = "var.set", args = mapOf("name" to "%TIME", "value" to "")),
             record("%TIME"),
             ActionSpec(type = "var.set", args = mapOf("name" to "%Hour", "value" to "{{ TIME }}")),

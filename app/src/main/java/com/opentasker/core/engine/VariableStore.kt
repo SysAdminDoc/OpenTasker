@@ -115,7 +115,7 @@ class VariableStore {
             }
         }
         // A Tasker built-in fills in when nothing is stored under its name, or only an empty value
-        // is (an imported Variable Clear sets it to nothing).
+        // is (a Variable Set to nothing).
         val stored = rootLocals[normalizedName] ?: globals[normalizedName]
         return if (stored.isNullOrEmpty()) TaskerBuiltIns.value(normalizedName) ?: stored else stored
     }
@@ -166,6 +166,33 @@ class VariableStore {
                 hiddenStack[ownFrom] += normalizedName
             }
         }
+    }
+
+    /**
+     * Tasker's Variable Clear of a pattern, or of everything: unsets each variable the running task
+     * sees whose name, written with its `%`, matches [pattern] (Tasker's Matches, so `%item*` or
+     * `%a/%b`), or each one when [pattern] is null. Locals go the way [clearForTask] clears them,
+     * globals only with [includeGlobals]. Built-ins aren't stored, so they stay. Returns how many.
+     */
+    fun clearMatching(pattern: String?, includeGlobals: Boolean): Int {
+        fun matches(name: String) = pattern == null || expander.matches("%$name", pattern)
+        val locals = synchronized(localStack) {
+            visibleLocalNames().filter(::matches).onEach(::clearForTask)
+        }
+        val removedGlobals = if (includeGlobals) globals.keys.filter(::matches).filter { globals.remove(it) != null } else emptyList()
+        return locals.size + removedGlobals.size
+    }
+
+    /** The local names [get] finds a stored value for. Call it holding the [localStack] lock. */
+    private fun visibleLocalNames(): Set<String> {
+        val names = mutableSetOf<String>()
+        val hidden = mutableSetOf<String>()
+        for (index in localStack.indices.reversed()) {
+            localStack[index].keys.filterTo(names) { it !in hidden }
+            hidden += hiddenStack[index]
+        }
+        rootLocals.keys.filterTo(names) { it !in hidden }
+        return names
     }
 
     /**

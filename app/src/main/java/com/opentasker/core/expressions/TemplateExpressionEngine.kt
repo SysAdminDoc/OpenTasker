@@ -263,7 +263,7 @@ class TemplateExpressionEngine(
 
     /**
      * A Tasker built-in fills in when nothing is stored under its name, or only an empty value is
-     * (an imported Variable Clear sets it to nothing).
+     * (a Variable Set to nothing).
      */
     private fun ResolvedValue.orBuiltIn(name: String, scope: TemplateScope): ResolvedValue {
         if (value.isNotEmpty()) return this

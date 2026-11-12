@@ -453,6 +453,9 @@ class VariableExpander {
         else -> !(emptyMatchesNothing && value.isEmpty()) && matchesGlob(value, pattern)
     }
 
+    /** [matchesPattern] for a value that is never empty, like the variable names Variable Clear matches. */
+    fun matches(value: String, pattern: String): Boolean = matchesPattern(value, pattern, emptyMatchesNothing = false)
+
     /**
      * Tasker's Matches Regex (`~R`, and `!~R` for Doesn't Match Regex). The pattern only has to
      * match part of the value, and case counts unless the pattern says `(?i)`. An empty pattern, or

@@ -7,6 +7,7 @@ import com.opentasker.core.actions.ArrayPositionArguments
 import com.opentasker.core.actions.HttpNetworkConstraint
 import com.opentasker.core.actions.LineListArguments
 import com.opentasker.core.actions.PluginBundleArguments
+import com.opentasker.core.actions.clearVariables
 import com.opentasker.core.actions.declaredActionOutputs
 import com.opentasker.core.actions.httpNetworkDenial
 import com.opentasker.core.capabilities.ActionCapabilityRegistry
@@ -112,6 +113,7 @@ object PreflightActionRegistry {
         STOP_TASK_ACTION_ID -> "Would stop the named task if it is running; nothing is stopped in preview."
         "var.set" -> "Updates the preflight variable snapshot only; durable variable writes are suppressed."
         "var.persist" -> "Would promote a variable to global scope; persistence is suppressed."
+        "var.clear" -> "Unsets variables in the preflight snapshot only; durable variable removals are suppressed."
         else -> {
             val category = ActionRegistry.get(actionId)?.category?.name?.lowercase() ?: "unknown"
             "Would simulate $category action $actionId; the runtime action is not invoked."
@@ -1068,6 +1070,7 @@ object PreflightRunner {
                 val value = variables.get(source)
                 if (value != null && target != null) variables.set(target, value, sensitive = variables.isSensitive(source))
             }
+            "var.clear" -> variables.clearVariables(values)
         }
     }
 

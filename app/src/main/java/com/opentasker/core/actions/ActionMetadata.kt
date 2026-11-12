@@ -104,6 +104,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "notify.cancel",
     "var.set",
     "var.persist",
+    "var.clear",
     "data.read",
     "datetime.format",
     "datetime.parse",
@@ -354,6 +355,21 @@ fun registerActionMetadata() {
             fields = listOf(
                 ActionField("name", R.string.catalog_action_var_persist_field_name_label, required = true, hintRes = R.string.catalog_action_var_persist_field_name_hint),
                 ActionField("global_name", R.string.catalog_action_var_persist_field_global_name_label, hintRes = R.string.catalog_action_var_persist_field_global_name_hint),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "var.clear",
+            nameRes = R.string.catalog_action_var_clear_name,
+            descriptionRes = R.string.catalog_action_var_clear_description,
+            categoryRes = R.string.catalog_category_variable,
+            fields = listOf(
+                ActionField("name", R.string.catalog_action_var_clear_field_name_label, hintRes = R.string.catalog_action_var_clear_field_name_hint),
+                ActionField("pattern", R.string.catalog_action_var_clear_field_pattern_label, FieldType.CHECKBOX, hintRes = R.string.catalog_action_var_clear_field_pattern_hint),
+                ActionField("local_only", R.string.catalog_action_var_clear_field_local_only_label, FieldType.CHECKBOX, hintRes = R.string.catalog_action_var_clear_field_local_only_hint),
+                ActionField("clear_all", R.string.catalog_action_var_clear_field_clear_all_label, FieldType.CHECKBOX, hintRes = R.string.catalog_action_var_clear_field_clear_all_hint),
             )
         )
     )

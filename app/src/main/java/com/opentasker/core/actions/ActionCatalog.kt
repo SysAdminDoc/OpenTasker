@@ -47,6 +47,7 @@ object ActionCatalog {
         define("notify.progress", ActionCategory.NOTIFICATION, ActionRetrySafety.NEVER, ::ProgressNotificationAction),
         define("var.set", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::SetVariableAction),
         define("var.persist", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::PersistVariableAction),
+        define("var.clear", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::VarClearAction),
         define("clipboard.get", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::ClipboardGetAction),
         define("clipboard.set", ActionCategory.SYSTEM, ActionRetrySafety.IDEMPOTENT, ::ClipboardSetAction),
         define("contacts.lookup", ActionCategory.VARIABLE, ActionRetrySafety.IDEMPOTENT, ::ContactsLookupAction),

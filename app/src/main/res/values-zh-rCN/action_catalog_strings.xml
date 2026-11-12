@@ -47,6 +47,16 @@
     <string name="catalog_action_var_persist_field_name_hint" formatted="false">局部变量名</string>
     <string name="catalog_action_var_persist_field_global_name_label" formatted="false">全局名称</string>
     <string name="catalog_action_var_persist_field_global_name_hint" formatted="false">省略时自动从源变量转为大写</string>
+    <string name="catalog_action_var_clear_name" formatted="false">变量清除</string>
+    <string name="catalog_action_var_clear_description" formatted="false">取消设置一个变量、名称匹配模式的所有变量，或所有局部变量</string>
+    <string name="catalog_action_var_clear_field_name_label" formatted="false">名称或模式</string>
+    <string name="catalog_action_var_clear_field_name_hint" formatted="false">%name，开启模式匹配时可写 %item*。留空则清除所有局部变量</string>
+    <string name="catalog_action_var_clear_field_pattern_label" formatted="false">模式匹配</string>
+    <string name="catalog_action_var_clear_field_pattern_hint" formatted="false">清除名称匹配的所有变量，如 %item* 或 %a/%b</string>
+    <string name="catalog_action_var_clear_field_local_only_label" formatted="false">仅局部变量</string>
+    <string name="catalog_action_var_clear_field_local_only_hint" formatted="false">开启模式匹配时，不清除全局变量</string>
+    <string name="catalog_action_var_clear_field_clear_all_label" formatted="false">清除所有变量</string>
+    <string name="catalog_action_var_clear_field_clear_all_hint" formatted="false">名称留空时，也清除所有全局变量</string>
     <string name="catalog_action_clipboard_get_name" formatted="false">读取剪贴板</string>
     <string name="catalog_action_clipboard_get_description" formatted="false">从系统剪贴板读取文本并存入敏感变量</string>
     <string name="catalog_action_clipboard_get_field_var_label" formatted="false">输出变量</string>

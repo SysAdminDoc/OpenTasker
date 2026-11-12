@@ -680,20 +680,26 @@ class TaskerRealExportLayoutTest {
     fun variableClearEmptiesOneVariable() {
         val clear = action("""<code>549</code><Str sr="arg0" ve="3">%Recording</Str><Int sr="arg1" val="0"/>""")
 
-        assertEquals("var.set", clear.type)
-        assertEquals(mapOf("name" to "%Recording", "value" to ""), clear.args)
+        assertEquals("var.clear", clear.type)
+        assertEquals(mapOf("name" to "%Recording"), clear.args)
     }
 
     @Test
-    fun variableClearOfSeveralOrAllVariablesStaysAPlaceholder() {
+    fun variableClearOfSeveralVariablesKeepsOnlyTheSwitchesTaskerReads() {
         val several = """<code>549</code><Str sr="arg0" ve="3">%command_failed/%errmsg/%stdout/%stderr/%result</Str>""" +
             """<Int sr="arg1" val="1"/><Int sr="arg2" val="1"/><Int sr="arg3" val="0"/>"""
+        // Clear All Variables only counts with no name, so this clears %a alone.
         val all = """<code>549</code><Str sr="arg0" ve="3">%a</Str><Int sr="arg1" val="0"/><Int sr="arg2" val="0"/><Int sr="arg3" val="1"/>"""
-        // Local Variables Only can't reach a global one, so Tasker leaves it alone.
-        val globalLeftAlone = """<code>549</code><Str sr="arg0" ve="3">%Kept</Str><Int sr="arg1" val="0"/><Int sr="arg2" val="1"/><Int sr="arg3" val="0"/>"""
+        // Local Variables Only only counts with Pattern Matching, so Tasker clears the global.
+        val global = """<code>549</code><Str sr="arg0" ve="3">%Kept</Str><Int sr="arg1" val="0"/><Int sr="arg2" val="1"/><Int sr="arg3" val="0"/>"""
 
-        listOf(several, all, globalLeftAlone).forEach { assertEquals(it, placeholder, action(it).type) }
-        assertEquals("var.set", action(globalLeftAlone.replace("%Kept", "%kept")).type)
+        assertEquals(
+            mapOf("name" to "%command_failed/%errmsg/%stdout/%stderr/%result", "pattern" to "true", "local_only" to "true"),
+            action(several).args,
+        )
+        assertEquals(mapOf("name" to "%a"), action(all).args)
+        assertEquals(mapOf("name" to "%Kept"), action(global).args)
+        listOf(several, all, global).forEach { assertEquals(it, "var.clear", action(it).type) }
     }
 
     @Test

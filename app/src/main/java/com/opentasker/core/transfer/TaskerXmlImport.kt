@@ -610,7 +610,7 @@ object TaskerXmlImporter {
             "547", "var.set", "variable.set" -> taskerVariableSet(strings, intsByIndex)
             "888" -> taskerVariableAddOrSubtract(code, subtract = false, byIndex, intsByIndex, intVariables)
             "890" -> taskerVariableAddOrSubtract(code, subtract = true, byIndex, intsByIndex, intVariables)
-            "549" -> taskerVariableClear(code, byIndex, intsByIndex)
+            "549" -> taskerVariableClear(code, byIndex, intsByIndex, intVariables)
             "596" -> taskerVariableConvert(code, byIndex, intsByIndex, intVariables)
             "597" -> taskerVariableSection(code, byIndex, intsByIndex, intVariables)
             "345" -> taskerTestVariable(code, element, byIndex, intsByIndex, intVariables)
@@ -1357,19 +1357,41 @@ object TaskerXmlImporter {
         )
     }
 
-    /** Clearing sets the variable empty, which this app's Is Set checks read as unset. */
-    private fun taskerVariableClear(code: String, byIndex: Map<Int, String>, ints: Map<Int, Int>): ActionWithLoss {
-        val name = byIndex[0].orEmpty()
+    /**
+     * Variable Clear (decompiled 6.7.8, `dq.I`) reads its name as written, never filled in. Pattern
+     * Matching clears every name that matches, globals too unless Local Variables Only. No name
+     * clears every local, and every global as well with Clear All Variables. Each switch only
+     * counts where Tasker reads it, so only those come over.
+     */
+    private fun taskerVariableClear(
+        code: String,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
+        val name = byIndex[0].orEmpty().trim()
+        val pattern = name.isNotEmpty() && (ints[1] ?: 0) != 0
+        val localOnly = pattern && (ints[2] ?: 0) != 0
+        val clearAll = name.isEmpty() && (ints[3] ?: 0) != 0
         val refusal = when {
-            (ints[3] ?: 0) != 0 -> "Tasker Variable Clear's Clear All Variables has no match here"
-            !TASKER_PLAIN_VARIABLE.matches(name) -> "Tasker Variable Clear clears $name, and this app clears one variable at a time"
-            (ints[2] ?: 0) != 0 && name.any(Char::isUpperCase) ->
-                "Tasker Variable Clear only clears local variables there, so it leaves $name alone"
+            (1..3).any { it in variables } -> "Tasker Variable Clear takes a switch from a variable, which has no match here"
+            name.startsWith("%%") -> "Tasker Variable Clear takes the name to clear from ${name.drop(1)}, which has no match here"
+            name.isNotEmpty() && !pattern && !TASKER_PLAIN_VARIABLE.matches(name) ->
+                "Tasker Variable Clear clears $name, and this app clears one whole variable or a pattern"
             else -> null
         }
         if (refusal != null) return taskerPlaceholder(code, refusal)
         return ActionWithLoss(
-            ActionSpec(type = "var.set", label = "Tasker variable clear", args = mapOf("name" to name, "value" to "")),
+            ActionSpec(
+                type = "var.clear",
+                label = "Tasker variable clear",
+                args = buildMap {
+                    put("name", name)
+                    if (pattern) put("pattern", "true")
+                    if (localOnly) put("local_only", "true")
+                    if (clearAll) put("clear_all", "true")
+                },
+            ),
         )
     }
 

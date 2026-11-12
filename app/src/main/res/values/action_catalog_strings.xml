@@ -53,6 +53,16 @@
     <string name="catalog_action_var_persist_field_name_hint" formatted="false">local variable name</string>
     <string name="catalog_action_var_persist_field_global_name_label" formatted="false">Global name</string>
     <string name="catalog_action_var_persist_field_global_name_hint" formatted="false">Auto-uppercased from source if omitted</string>
+    <string name="catalog_action_var_clear_name" formatted="false">Variable Clear</string>
+    <string name="catalog_action_var_clear_description" formatted="false">Unset a variable, every variable matching a pattern, or every local variable</string>
+    <string name="catalog_action_var_clear_field_name_label" formatted="false">Name or pattern</string>
+    <string name="catalog_action_var_clear_field_name_hint" formatted="false">%name, or %item* with pattern matching. Leave it empty to clear every local variable</string>
+    <string name="catalog_action_var_clear_field_pattern_label" formatted="false">Pattern matching</string>
+    <string name="catalog_action_var_clear_field_pattern_hint" formatted="false">Clear every variable whose name matches, like %item* or %a/%b</string>
+    <string name="catalog_action_var_clear_field_local_only_label" formatted="false">Local variables only</string>
+    <string name="catalog_action_var_clear_field_local_only_hint" formatted="false">With pattern matching, leave global variables alone</string>
+    <string name="catalog_action_var_clear_field_clear_all_label" formatted="false">Clear all variables</string>
+    <string name="catalog_action_var_clear_field_clear_all_hint" formatted="false">With no name, clear every global variable too</string>
     <string name="catalog_action_clipboard_get_name" formatted="false">Get Clipboard</string>
     <string name="catalog_action_clipboard_get_description" formatted="false">Read text from the system clipboard into a sensitive variable</string>
     <string name="catalog_action_clipboard_get_field_var_label" formatted="false">Output variable</string>
