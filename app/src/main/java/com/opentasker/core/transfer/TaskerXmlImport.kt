@@ -532,6 +532,20 @@ object TaskerXmlImporter {
                 ),
                 lossyWarning = "notification icon, priority, and channel settings were not imported",
             )
+            // Tasker's Notify Sound: arg0 title, arg1 text, arg2 icon, arg3 number, arg4 sound file,
+            // arg5 priority and arg6 repeat alert. The notification comes over, its sound doesn't.
+            "538" -> ActionWithLoss(
+                ActionSpec(
+                    type = "notify.show",
+                    label = "Tasker notification",
+                    args = buildMap {
+                        put("title", byIndex[0].orEmptyIfBlank() ?: "Tasker notification")
+                        put("text", byIndex[1].orEmptyIfBlank() ?: byIndex[0].orEmptyIfBlank() ?: "Imported from Tasker")
+                        byIndex[0].orEmptyIfBlank()?.let { put("tag", it) }
+                    },
+                ),
+                lossyWarning = "Tasker Notify Sound's sound, icon, number, priority and repeat settings weren't imported",
+            )
             "779", "notify.cancel" -> ActionWithLoss(
                 ActionSpec(
                     type = "notify.cancel",

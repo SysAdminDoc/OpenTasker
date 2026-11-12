@@ -4,6 +4,7 @@
 
 ### Added
 
+- Tasker's Notify Sound imports as a notification with its title and text. Its sound, icon, number, priority and repeat settings don't come over, and the import says so.
 - Tasker's Delete File imports as the delete file step, and the delete file step exports back out as Delete File. Like Read File and Write File, its path is looked up inside OpenTasker's own folder. Shredding and Use Root don't come over, and the import says so when they were set.
 - Tasker's Turn On imports as the wake step, which turns the screen on through Shizuku. Its Block Time doesn't come over, and the import says so. The wake step exports back out as Turn On with Tasker's default Block Time.
 - Tasker's Stay On imports as a settings write to Android's stay on while plugged in setting, keeping the same mix of AC, USB and wireless power Tasker picked. A global setting needs secure settings access, which you grant once from a computer, and import review calls it out like every other settings write.
