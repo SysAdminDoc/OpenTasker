@@ -92,8 +92,6 @@ fun VariablesScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var editTargetName by rememberSaveable { mutableStateOf<String?>(null) }
     var editTargetProjectId by rememberSaveable { mutableStateOf(DEFAULT_PROJECT_ID) }
-    var pendingDeleteName by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingDeleteProjectId by rememberSaveable { mutableStateOf(DEFAULT_PROJECT_ID) }
     var showCreateDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(focusVariableName, focusVariableProjectId, variables) {
@@ -167,8 +165,10 @@ fun VariablesScreen(
                         editTargetProjectId = variable.projectId
                     },
                     onDelete = {
-                        pendingDeleteName = variable.name
-                        pendingDeleteProjectId = variable.projectId
+                        // No confirmation: the snackbar the ViewModel sends once the delete lands
+                        // offers Undo, and a variable something still uses isn't deleted at all.
+                        onDelete(variable.name, UiMessage(R.string.variables_deleted, listOf(variable.name)), variable.projectId)
+                        if (editTargetName == variable.name && editTargetProjectId == variable.projectId) editTargetName = null
                     },
                 )
             }
@@ -202,44 +202,6 @@ fun VariablesScreen(
             // The dialog closes only once the save lands, so a rejected secret isn't lost.
             onSave = { name, value, isSecret ->
                 onUpdate(null, name, value, isSecret, createdMsg, projectId) { showCreateDialog = false }
-            },
-        )
-    }
-
-    pendingDeleteName?.let { name ->
-        val deletedMsg = UiMessage(R.string.variables_deleted, listOf(name))
-        AlertDialog(
-            onDismissRequest = { pendingDeleteName = null },
-            icon = {
-                Icon(
-                    Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.action_delete),
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            },
-            title = { Text(stringResource(R.string.dialog_delete_variable, name)) },
-            text = {
-                Text(
-                    stringResource(R.string.variables_delete_body),
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        // Success/failure feedback is emitted by the ViewModel after the
-                        // delete actually resolves, not optimistically at click time.
-                        onDelete(name, deletedMsg, pendingDeleteProjectId)
-                        pendingDeleteName = null
-                        if (editTargetName == name) editTargetName = null
-                    },
-                ) {
-                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDeleteName = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }

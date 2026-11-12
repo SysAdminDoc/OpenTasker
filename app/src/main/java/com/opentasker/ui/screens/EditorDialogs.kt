@@ -77,7 +77,6 @@ import com.opentasker.core.model.Profile
 import com.opentasker.core.model.ProfileLifetime
 import com.opentasker.core.model.ProfileOverflowPolicy
 import com.opentasker.core.model.RunLogEntry
-import com.opentasker.core.model.Scene
 import com.opentasker.core.model.Task
 import com.opentasker.core.storage.StorageDecodeIssue
 import com.opentasker.core.templates.ProfileTemplate
@@ -1101,80 +1100,6 @@ internal fun EmptyState(
             }
         }
     }
-}
-
-internal sealed interface DeleteTarget {
-    data class ProfileTarget(val profile: Profile) : DeleteTarget
-    data class TaskTarget(val task: Task) : DeleteTarget
-    data class SceneTarget(val scene: Scene) : DeleteTarget
-}
-
-@Composable
-internal fun DeleteConfirmationDialog(
-    target: DeleteTarget,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    val title = when (target) {
-        is DeleteTarget.ProfileTarget -> stringResource(R.string.dialog_delete_profile)
-        is DeleteTarget.TaskTarget -> stringResource(R.string.dialog_delete_task)
-        is DeleteTarget.SceneTarget -> stringResource(R.string.dialog_delete_scene)
-    }
-    val body = when (target) {
-        is DeleteTarget.ProfileTarget -> stringResource(R.string.delete_profile_body, target.profile.name)
-        is DeleteTarget.TaskTarget -> stringResource(R.string.delete_task_body, target.task.name, target.task.actions.size)
-        is DeleteTarget.SceneTarget -> stringResource(R.string.delete_scene_body, target.scene.name, target.scene.elements.size)
-    }
-    val confirmLabel = when (target) {
-        is DeleteTarget.ProfileTarget -> stringResource(R.string.profile_delete)
-        is DeleteTarget.TaskTarget -> stringResource(R.string.task_delete)
-        is DeleteTarget.SceneTarget -> stringResource(R.string.scenes_delete)
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                Icons.Filled.Delete,
-                contentDescription = stringResource(R.string.action_delete),
-                tint = MaterialTheme.colorScheme.error,
-            )
-        },
-        title = { Text(title) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(body, style = MaterialTheme.typography.bodyMedium)
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.24f),
-                    shape = RoundedCornerShape(DesignSystem.Radii.lg),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)),
-                ) {
-                    Text(
-                        stringResource(R.string.delete_undo_helper),
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    // onPrimary happens to pass contrast today, but its hue is not the error
-                    // hue under Material You and a scheme edit would break it silently.
-                    contentColor = MaterialTheme.colorScheme.onError,
-                ),
-            ) {
-                Text(confirmLabel)
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
-    )
 }
 
 /**

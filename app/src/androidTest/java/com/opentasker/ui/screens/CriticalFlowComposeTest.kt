@@ -61,6 +61,7 @@ import com.opentasker.core.model.Scene
 import com.opentasker.core.model.SceneElement
 import com.opentasker.core.model.SceneElementType
 import com.opentasker.core.model.Task
+import com.opentasker.core.references.AutomationReferenceIndex
 import com.opentasker.core.storage.RunLogRetentionPolicy
 import com.opentasker.core.templates.ProfileTemplateCatalog
 import com.opentasker.core.transfer.BundleImportPlan
@@ -843,9 +844,13 @@ class CriticalFlowComposeTest(private val fontScale: Float) {
             DialogCase("task editor", aroundField) {
                 TaskEditorDialog(task = null, onDismiss = {}, onSave = { _, _, _ -> })
             },
-            DialogCase("delete task", hasScrollAction()) {
-                DeleteConfirmationDialog(
-                    DeleteTarget.TaskTarget(Task(id = 1, name = "Morning focus")),
+            DialogCase("delete task still in use", hasScrollAction()) {
+                val task = Task(id = 1, name = "Morning focus")
+                val profile = Profile(id = 2, name = "Work hours", enterTaskId = task.id)
+                val references = AutomationReferenceIndex.referencesTo(task, profiles = listOf(profile))
+                TaskDeleteReferencesDialog(
+                    preview = TaskDeletionPreview(task, references, requiresReassignment = references.any { it.isRequired }),
+                    tasks = listOf(task, Task(id = 3, name = "Evening wind-down")),
                     onDismiss = {},
                     onConfirm = {},
                 )

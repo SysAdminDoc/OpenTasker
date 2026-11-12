@@ -230,7 +230,6 @@
     <string name="context_picker_search_hint">名称、描述或上下文类型</string>
     <string name="context_picker_clear_search">清除上下文搜索</string>
     <string name="context_picker_no_results">没有匹配你搜索的上下文。</string>
-    <string name="dialog_delete_variable">删除 %%%1$s？</string>
     <string name="dialog_review_bundle">审阅OpenTasker包</string>
     <string name="dialog_review_tasker">审阅Tasker导入</string>
     <string name="dialog_review_macrodroid">审阅MacroDroid导入</string>
@@ -658,7 +657,6 @@
     <!-- Variables screen -->
     <string name="variables_search_label">搜索变量</string>
     <string name="variables_search_clear">清除变量搜索</string>
-    <string name="variables_delete_body">这会移除已保存的全局变量。引用它的任务将使用回退/默认值。</string>
     <string name="variables_deleted">已删除 %1$s</string>
     <string name="variables_updated">已更新 %1$s</string>
     <string name="variables_masked_value">掩码的敏感值</string>
@@ -899,7 +897,6 @@
     <string name="action_arm">启用</string>
     <string name="action_task">任务</string>
     <string name="action_add_element">添加元素</string>
-    <string name="action_remove_element">移除元素</string>
     <string name="action_create_blank_task">创建空白任务</string>
     <string name="action_create_blank_profile">创建空白配置文件</string>
     <string name="action_browse_templates">浏览模板</string>
@@ -1001,12 +998,6 @@
     <string name="label_profile_expiry_date">直到 %1$s</string>
     <string name="label_more_count">另外 %1$d 个</string>
 
-    <string name="dialog_remove_element">移除元素？</string>
-    <string name="dialog_delete_profile">删除配置文件？</string>
-    <string name="dialog_delete_task">删除任务？</string>
-    <string name="dialog_delete_scene">删除场景？</string>
-    <string name="dialog_remove_action">移除操作？</string>
-    <string name="dialog_remove_context">移除上下文？</string>
 
     <string name="context_daily">每日</string>
     <string name="context_weekdays">工作日</string>
@@ -1042,7 +1033,6 @@
     <string name="scenes_empty_content_description">场景库为空</string>
     <string name="scenes_edit_element_content_description">编辑元素</string>
     <string name="scenes_delete_element_content_description">删除元素</string>
-    <string name="scenes_remove_element_content_description">移除元素</string>
     <string name="scenes_move_left_content_description">将元素向左移动 1 dp</string>
     <string name="scenes_move_up_content_description">将元素向上移动 1 dp</string>
     <string name="scenes_move_down_content_description">将元素向下移动 1 dp</string>
@@ -1280,12 +1270,8 @@
     <string name="automation_mode_parallel_body">在已在运行的任务之外，再同时启动一次运行。</string>
     <string name="action_remove_action">移除操作</string>
     <string name="action_remove_context">移除上下文</string>
-    <string name="delete_profile_body">这会移除&quot;%1$s&quot;及其上下文。关联的任务仍可用；你可以从提示条恢复该配置文件。</string>
-    <string name="delete_task_body">这会移除&quot;%1$s&quot;及其 %2$d 个操作。你可以从提示条恢复它。</string>
-    <string name="delete_scene_body">这会移除&quot;%1$s&quot;及其 %2$d 个元素。你可以从提示条恢复它。</string>
     <string name="delete_action_body">这会从&quot;%2$s&quot;中移除步骤 %1$d。剩余操作保持其顺序。</string>
     <string name="delete_context_body">这会从&quot;%2$s&quot;中移除 %1$s 上下文。</string>
-    <string name="delete_undo_helper">你可以从提示条中的“撤销”操作恢复此项。</string>
 
     <string name="delete_task_references_title">任务仍在使用中</string>
     <string name="delete_task_references_body">&quot;%1$s&quot; 被另外 %2$d 个自动化引用。请在删除前决定这些引用如何处理。</string>
@@ -1315,7 +1301,6 @@
     <string name="label_y_dp">Y dp</string>
     <string name="scenes_overview_summary">%1$d 个元素，分布 %2$d 个场景</string>
     <string name="scenes_card_summary">%1$d x %2$d dp · %3$d 个元素</string>
-    <string name="scenes_remove_element_body">这会从&quot;%2$s&quot;中移除 %1$s 元素。</string>
     <string name="scenes_element_bounds">边界 %1$d,%2$d %3$dx%4$d dp</string>
     <string name="scenes_binding_tap">点击：%1$s</string>
     <string name="scenes_binding_long_press">长按：%1$s</string>

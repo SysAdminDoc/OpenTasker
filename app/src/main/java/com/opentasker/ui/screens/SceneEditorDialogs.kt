@@ -13,15 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
@@ -78,53 +74,6 @@ internal data class SceneElementEditorState(
     val index: Int? = null,
     val element: SceneElement? = null,
 )
-
-@Composable
-internal fun SceneElementDeleteDialog(
-    state: SceneElementEditorState,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    val element = state.element
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                Icons.Filled.Delete,
-                contentDescription = stringResource(R.string.scenes_remove_element_content_description),
-                tint = MaterialTheme.colorScheme.error,
-            )
-        },
-        title = { Text(stringResource(R.string.dialog_remove_element)) },
-        text = {
-            val elementLabel = element?.type?.let { sceneElementTypeLabel(it) }
-                ?: stringResource(R.string.label_selected).lowercase()
-            Text(
-                stringResource(
-                    R.string.scenes_remove_element_body,
-                    elementLabel,
-                    state.scene.name,
-                ),
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                ),
-            ) {
-                Text(stringResource(R.string.action_remove_element))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
-        },
-    )
-}
 
 @Composable
 internal fun SceneElementEditorDialog(

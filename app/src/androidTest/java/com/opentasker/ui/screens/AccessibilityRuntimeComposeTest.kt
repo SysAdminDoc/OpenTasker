@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
+import com.opentasker.core.references.AutomationReferenceIndex
 import com.opentasker.ui.theme.OpenTaskerTheme
 import org.junit.After
 import org.junit.Assert.assertTrue
@@ -96,10 +97,14 @@ class AccessibilityRuntimeComposeTest(private val fontScale: Float) {
 
     @Test
     fun destructiveDeleteDialogPassesRuntimeAccessibilityChecks() {
+        val task = Task(id = 7, name = "Remove me")
+        val profile = Profile(id = 8, name = "Work hours", enterTaskId = task.id)
+        val references = AutomationReferenceIndex.referencesTo(task, profiles = listOf(profile))
         composeTestRule.setContent {
             OpenTaskerTheme {
-                DeleteConfirmationDialog(
-                    target = DeleteTarget.TaskTarget(Task(id = 7, name = "Remove me")),
+                TaskDeleteReferencesDialog(
+                    preview = TaskDeletionPreview(task, references, requiresReassignment = references.any { it.isRequired }),
+                    tasks = listOf(task, Task(id = 9, name = "Keep me")),
                     onDismiss = {},
                     onConfirm = {},
                 )

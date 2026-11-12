@@ -46,7 +46,6 @@ class SceneLibraryModuleSplitTest {
                 "private fun SceneCanvasElement",
             ),
             "SceneEditorDialogs.kt" to listOf(
-                "internal fun SceneElementDeleteDialog",
                 "internal fun SceneElementEditorDialog",
                 "internal fun SceneEditorDialog",
             ),

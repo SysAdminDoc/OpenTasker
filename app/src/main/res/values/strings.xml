@@ -235,7 +235,6 @@
     <string name="context_picker_search_hint">Name, description, or context type</string>
     <string name="context_picker_clear_search">Clear context search</string>
     <string name="context_picker_no_results">No contexts match your search.</string>
-    <string name="dialog_delete_variable">Delete %%%1$s?</string>
     <string name="dialog_review_bundle">Review OpenTasker bundle</string>
     <string name="dialog_review_tasker">Review Tasker import</string>
     <string name="dialog_review_macrodroid">Review MacroDroid import</string>
@@ -685,7 +684,6 @@
     <string name="workspace_search_profiles_clear">Clear profile search</string>
     <string name="workspace_search_tasks_clear">Clear task search</string>
     <string name="scenes_search_clear">Clear scene search</string>
-    <string name="variables_delete_body">This removes the saved global variable. Tasks that reference it will use fallback/default values.</string>
     <string name="variables_deleted">Deleted %1$s</string>
     <string name="variables_updated">Updated %1$s</string>
     <string name="variables_masked_value">Masked sensitive value</string>
@@ -928,7 +926,6 @@
     <string name="action_arm">Arm</string>
     <string name="action_task">Task</string>
     <string name="action_add_element">Add Element</string>
-    <string name="action_remove_element">Remove Element</string>
     <string name="action_create_blank_task">Create Blank Task</string>
     <string name="action_create_blank_profile">Create Blank Profile</string>
     <string name="action_browse_templates">Browse Templates</string>
@@ -1030,12 +1027,6 @@
     <string name="label_profile_expiry_date">Until %1$s</string>
     <string name="label_more_count">%1$d more</string>
 
-    <string name="dialog_remove_element">Remove element?</string>
-    <string name="dialog_delete_profile">Delete profile?</string>
-    <string name="dialog_delete_task">Delete task?</string>
-    <string name="dialog_delete_scene">Delete scene?</string>
-    <string name="dialog_remove_action">Remove action?</string>
-    <string name="dialog_remove_context">Remove context?</string>
 
     <string name="context_daily">Daily</string>
     <string name="context_weekdays">Weekdays</string>
@@ -1078,7 +1069,6 @@
     <string name="scenes_empty_content_description">Scene library empty</string>
     <string name="scenes_edit_element_content_description">Edit element</string>
     <string name="scenes_delete_element_content_description">Delete element</string>
-    <string name="scenes_remove_element_content_description">Remove element</string>
     <string name="scenes_move_left_content_description">Move element left 1 dp</string>
     <string name="scenes_move_up_content_description">Move element up 1 dp</string>
     <string name="scenes_move_down_content_description">Move element down 1 dp</string>
@@ -1317,12 +1307,8 @@
     <string name="automation_mode_parallel_body">Start another run alongside the one already going.</string>
     <string name="action_remove_action">Remove Action</string>
     <string name="action_remove_context">Remove Context</string>
-    <string name="delete_profile_body">This removes &quot;%1$s&quot; and its contexts. The linked task remains available; you can restore the profile from the snackbar.</string>
-    <string name="delete_task_body">This removes &quot;%1$s&quot; and its %2$d action(s). You can restore it from the snackbar.</string>
-    <string name="delete_scene_body">This removes &quot;%1$s&quot; and its %2$d element(s). You can restore it from the snackbar.</string>
     <string name="delete_action_body">This removes step %1$d from &quot;%2$s&quot;. Remaining actions keep their order.</string>
     <string name="delete_context_body">This removes the %1$s context from &quot;%2$s&quot;.</string>
-    <string name="delete_undo_helper">You can restore this from the Undo action in the snackbar.</string>
 
     <string name="delete_task_references_title">Task is still in use</string>
     <string name="delete_task_references_body">&quot;%1$s&quot; is referenced by %2$d other automation(s). Choose what happens to those references before it is deleted.</string>
@@ -1357,7 +1343,6 @@
     </plurals>
     <string name="scenes_size_range_helper">From %1$d to %2$d</string>
     <string name="scenes_card_summary">%1$d x %2$d dp · %3$d element(s)</string>
-    <string name="scenes_remove_element_body">This removes the %1$s element from &quot;%2$s&quot;.</string>
     <string name="scenes_element_bounds">Bounds %1$d,%2$d %3$dx%4$d dp</string>
     <string name="scenes_binding_tap">Tap: %1$s</string>
     <string name="scenes_binding_long_press">Long press: %1$s</string>

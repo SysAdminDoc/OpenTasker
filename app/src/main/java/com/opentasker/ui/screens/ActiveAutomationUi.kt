@@ -146,7 +146,6 @@ import com.opentasker.core.model.Variable
 import com.opentasker.core.search.GlobalSearchResultKind
 import com.opentasker.core.storage.AppDatabase
 import com.opentasker.core.storage.DatabaseBackupManager
-import com.opentasker.core.storage.EditHistoryDao
 import com.opentasker.core.storage.EditHistoryEntity
 import com.opentasker.core.storage.VariableEntity
 import com.opentasker.core.storage.RunLogRetentionPolicy
@@ -187,9 +186,6 @@ import java.util.Locale
 
 private const val NO_DIALOG_ENTITY_ID = 0L
 private const val NO_DIALOG_INDEX = -1
-private const val DELETE_TARGET_PROFILE = "profile"
-private const val DELETE_TARGET_TASK = "task"
-private const val DELETE_TARGET_SCENE = "scene"
 
 internal data class ActionEditState(
     val task: Task,
@@ -290,8 +286,7 @@ fun ActiveAutomationUi(
     var contextEditTypeName by rememberSaveable { mutableStateOf<String?>(null) }
     var contextEditIndex by rememberSaveable { mutableIntStateOf(NO_DIALOG_INDEX) }
     var contextLogicProfileId by rememberSaveable { mutableLongStateOf(NO_DIALOG_ENTITY_ID) }
-    var pendingDeleteKind by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingDeleteOwnerId by rememberSaveable { mutableLongStateOf(NO_DIALOG_ENTITY_ID) }
+    var pendingTaskDeleteId by rememberSaveable { mutableLongStateOf(NO_DIALOG_ENTITY_ID) }
     var importedProfileReviewId by rememberSaveable { mutableLongStateOf(NO_DIALOG_ENTITY_ID) }
     val taskerImportReview by viewModel.taskerImportReview.collectAsState()
     val macroDroidPasswordPrompt by viewModel.macroDroidPasswordPrompt.collectAsState()
@@ -364,30 +359,24 @@ fun ActiveAutomationUi(
     }
     val contextLogicProfile = contextLogicProfileId.takeIf { it != NO_DIALOG_ENTITY_ID }
         ?.let { profileId -> profiles.firstOrNull { it.id == profileId } }
-    val pendingDelete = when (pendingDeleteKind) {
-        DELETE_TARGET_PROFILE -> profiles.firstOrNull { it.id == pendingDeleteOwnerId }
-            ?.let { DeleteTarget.ProfileTarget(it) }
-        DELETE_TARGET_TASK -> tasks.firstOrNull { it.id == pendingDeleteOwnerId }
-            ?.let { DeleteTarget.TaskTarget(it) }
-        DELETE_TARGET_SCENE -> scenes.firstOrNull { it.id == pendingDeleteOwnerId }
-            ?.let { DeleteTarget.SceneTarget(it) }
-        else -> null
-    }
     val importedProfileReview = importedProfileReviewId.takeIf { it != NO_DIALOG_ENTITY_ID }
         ?.let { profileId -> profiles.firstOrNull { it.id == profileId } }
 
-    // Task deletes are gated on a dependency scan: a task referenced by a profile, another task's
-    // `task.run`/notification button, or a scene gesture needs an explicit reassign-or-clear
-    // decision before it can go away, so the plain confirmation dialog is not enough.
-    val pendingTaskDelete = (pendingDelete as? DeleteTarget.TaskTarget)?.task
+    // Deletes happen on the tap and the snackbar offers Undo. The one exception is a task that a
+    // profile, another task's `task.run`/notification button or a scene gesture still uses: it
+    // needs a reassign-or-clear choice before it can go, so its delete opens that dialog instead.
+    val pendingTaskDelete = pendingTaskDeleteId.takeIf { it != NO_DIALOG_ENTITY_ID }
+        ?.let { taskId -> tasks.firstOrNull { it.id == taskId } }
     var taskDeletionPreview by remember { mutableStateOf<TaskDeletionPreview?>(null) }
     LaunchedEffect(pendingTaskDelete?.id, tasks, profiles, scenes) {
-        taskDeletionPreview = pendingTaskDelete?.let { viewModel.taskDeletionPreview(it) }
+        val preview = pendingTaskDelete?.let { viewModel.taskDeletionPreview(it) }
+        taskDeletionPreview = preview
+        // Nothing uses the task any more, so there's no choice left to offer.
+        if (preview != null && !preview.hasDependents) pendingTaskDeleteId = NO_DIALOG_ENTITY_ID
     }
 
-    fun clearPendingDelete() {
-        pendingDeleteKind = null
-        pendingDeleteOwnerId = NO_DIALOG_ENTITY_ID
+    fun clearPendingTaskDelete() {
+        pendingTaskDeleteId = NO_DIALOG_ENTITY_ID
     }
     fun openTaskDialog(task: Task) {
         taskDialogId = task.id
@@ -441,16 +430,19 @@ fun ActiveAutomationUi(
         contextLogicProfileId = NO_DIALOG_ENTITY_ID
     }
     fun openDeleteProfile(profile: Profile) {
-        pendingDeleteKind = DELETE_TARGET_PROFILE
-        pendingDeleteOwnerId = profile.id
+        viewModel.deleteProfile(profile)
     }
     fun openDeleteTask(task: Task) {
-        pendingDeleteKind = DELETE_TARGET_TASK
-        pendingDeleteOwnerId = task.id
+        scope.launch {
+            if (viewModel.taskDeletionPreview(task).hasDependents) {
+                pendingTaskDeleteId = task.id
+            } else {
+                viewModel.deleteTask(task)
+            }
+        }
     }
     fun openDeleteScene(scene: Scene) {
-        pendingDeleteKind = DELETE_TARGET_SCENE
-        pendingDeleteOwnerId = scene.id
+        viewModel.deleteScene(scene)
     }
     val openFlowTarget: (AutomationFlowTarget) -> Unit = { target ->
         var opened = true
@@ -498,16 +490,7 @@ fun ActiveAutomationUi(
     }
 
     LaunchedEffect(Unit) {
-        snackbarHostState.showUiMessages(viewModel.messages, context) { action ->
-            when (action.entityType) {
-                EditHistoryDao.TYPE_PROFILE -> viewModel.undoLastProfileEdit(action.entityId)
-                EditHistoryDao.TYPE_TASK -> viewModel.undoLastTaskEdit(action.entityId)
-                EditHistoryDao.TYPE_SCENE -> viewModel.undoLastSceneEdit(action.entityId)
-                EditHistoryDao.TYPE_VARIABLE -> viewModel.undoLastVariableDelete(action.entityId)
-                EditHistoryDao.TYPE_PROJECT -> viewModel.undoLastProjectDelete(action.entityId)
-                else -> Unit
-            }
-        }
+        snackbarHostState.showUiMessages(viewModel.messages, context, viewModel::undo)
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(screen) {
@@ -944,25 +927,10 @@ fun ActiveAutomationUi(
         TaskDeleteReferencesDialog(
             preview = preview,
             tasks = tasks,
-            onDismiss = { clearPendingDelete() },
+            onDismiss = { clearPendingTaskDelete() },
             onConfirm = { resolution ->
                 viewModel.deleteTask(preview.task, resolution)
-                clearPendingDelete()
-            },
-        )
-    }
-
-    pendingDelete?.takeIf { blockedTaskDelete == null }?.let { target ->
-        DeleteConfirmationDialog(
-            target = target,
-            onDismiss = { clearPendingDelete() },
-            onConfirm = {
-                when (target) {
-                    is DeleteTarget.ProfileTarget -> viewModel.deleteProfile(target.profile)
-                    is DeleteTarget.TaskTarget -> viewModel.deleteTask(target.task)
-                    is DeleteTarget.SceneTarget -> viewModel.deleteScene(target.scene)
-                }
-                clearPendingDelete()
+                clearPendingTaskDelete()
             },
         )
     }

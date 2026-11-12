@@ -12,6 +12,7 @@ import androidx.compose.runtime.snapshotFlow
 import com.opentasker.app.R
 import com.opentasker.core.logging.AppLogger
 import com.opentasker.core.storage.CorruptStoredRecordException
+import com.opentasker.core.storage.EditHistoryDao
 import com.opentasker.core.storage.StorageDecodeIssue
 import com.opentasker.core.transfer.ImportBudgetExceededException
 import kotlinx.coroutines.CoroutineStart
@@ -143,6 +144,21 @@ internal suspend fun SnackbarHostState.showUiMessages(
         val action = message.action
         if (result == SnackbarResult.ActionPerformed && action is UiMessageAction.Undo) onUndo(action)
         jumpedReason?.let { holdReason(it) }
+    }
+}
+
+/**
+ * What a snackbar's Undo runs. Deletes ask for no confirmation, so this is how one is taken back.
+ * Kept out of [ActiveAutomationViewModel], which sits against its line ceiling.
+ */
+internal fun ActiveAutomationViewModel.undo(action: UiMessageAction.Undo) {
+    when (action.entityType) {
+        EditHistoryDao.TYPE_PROFILE -> undoLastProfileEdit(action.entityId)
+        EditHistoryDao.TYPE_TASK -> undoLastTaskEdit(action.entityId)
+        EditHistoryDao.TYPE_SCENE -> undoLastSceneEdit(action.entityId)
+        EditHistoryDao.TYPE_VARIABLE -> undoLastVariableDelete(action.entityId)
+        EditHistoryDao.TYPE_PROJECT -> undoLastProjectDelete(action.entityId)
+        else -> Unit
     }
 }
 

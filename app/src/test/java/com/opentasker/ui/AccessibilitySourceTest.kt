@@ -233,7 +233,6 @@ class AccessibilitySourceTest {
                 "stateDescription = if (enabled) onLabel else offLabel",
                 "enabled = canSave",
                 "R.string.ui_info_content_description",
-                "R.string.delete_undo_helper",
                 "blueprint-input-",
             ),
             "screens/ImportedProfileRiskDialog.kt" to listOf(
@@ -259,7 +258,6 @@ class AccessibilitySourceTest {
                 "R.string.scenes_move_left_content_description",
             ),
             "screens/SceneEditorDialogs.kt" to listOf(
-                "R.string.scenes_remove_element_content_description",
                 "enabled = canSave",
             ),
             "screens/RunLogScreenContent.kt" to listOf(
