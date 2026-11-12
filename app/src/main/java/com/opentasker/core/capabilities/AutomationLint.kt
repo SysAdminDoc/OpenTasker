@@ -1,6 +1,7 @@
 package com.opentasker.core.capabilities
 
 import com.opentasker.core.contexts.DaySchedule
+import com.opentasker.core.contexts.parseStatePredicate
 import com.opentasker.core.location.FossGeofenceEvaluator
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.AutomationInvariant
@@ -448,6 +449,9 @@ object AutomationLint {
         val leftPredicate = statePredicate(left) ?: return true
         val rightPredicate = statePredicate(right) ?: return true
         if (normalizeStateKey(leftPredicate.first) != normalizeStateKey(rightPredicate.first)) return true
+        // A Wi-Fi name pattern can match many names, `+5` among them, so it's neither one name
+        // nor one number.
+        if (leftPredicate.second == "~" || rightPredicate.second == "~") return true
         val leftValue = leftPredicate.third.lowercase(Locale.US)
         val rightValue = rightPredicate.third.lowercase(Locale.US)
         if (leftPredicate.second == "=" && rightPredicate.second == "=" && leftValue != rightValue) return false
@@ -526,11 +530,11 @@ object AutomationLint {
         return Triple(key.lowercase(Locale.US), spec.config["operator"]?.trim().orEmpty().ifBlank { "=" }, value)
     }
 
+    /** [value] read the way matching reads it, so `wifi ~ a=b` is a pattern, not `wifi ~ a` equal to `b`. */
     private fun parsePredicate(value: String): Triple<String, String, String>? {
-        val operator = listOf(">=", "<=", "!=", ">", "<", "=").firstOrNull { value.contains(it) } ?: return null
-        val parts = value.split(operator, limit = 2)
-        if (parts.size != 2 || parts[0].isBlank() || parts[1].isBlank()) return null
-        return Triple(parts[0].trim().lowercase(Locale.US), operator, parts[1].trim())
+        val (key, operator, rhs) = parseStatePredicate(value) ?: return null
+        if (key.isBlank() || rhs.isBlank()) return null
+        return Triple(key.trim().lowercase(Locale.US), operator, rhs)
     }
 
     private fun numericRange(operator: String, value: Int): Pair<Int, Int> = when (operator) {
