@@ -1,11 +1,13 @@
 package com.opentasker.ui.screens
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -22,7 +24,10 @@ import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
 import com.opentasker.core.plugins.locale.LocaleGrant
 import com.opentasker.ui.theme.OpenTaskerTheme
+import com.opentasker.ui.utils.SINGLE_TAP_WINDOW_MS
+import com.opentasker.ui.utils.rememberSingleTap
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -50,6 +55,35 @@ class DoubleTapDeleteInstrumentedTest {
         composeTestRule.onNodeWithContentDescription("Ungated delete").performTouchInput { doubleClick() }
         composeTestRule.waitForIdle()
         assertEquals(2, clicks)
+    }
+
+    /**
+     * The other control: with a gate in each row, as these lists had before, the double tap's
+     * second tap lands on the row that slid up and deletes it too. So the list lays out again
+     * between the two taps, and the gated lists below aren't just catching a repeat on one row.
+     */
+    @Test
+    fun aGateInEachRowLetsTheRowThatSlidUpGo() {
+        var rows by mutableStateOf(listOf("First", "Second"))
+        val deleted = mutableListOf<String>()
+        composeTestRule.setContent {
+            OpenTaskerTheme {
+                Column {
+                    rows.forEach { row ->
+                        key(row) {
+                            val singleTap = rememberSingleTap()
+                            IconButton(onClick = { singleTap { deleted += row; rows = rows - row } }) {
+                                Icon(Icons.Filled.Delete, contentDescription = "Delete $row")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Delete First").performTouchInput { doubleClick() }
+        composeTestRule.waitForIdle()
+        assertEquals(listOf("First", "Second"), deleted)
     }
 
     @Test
@@ -99,11 +133,14 @@ class DoubleTapDeleteInstrumentedTest {
         }
         composeTestRule.onNodeWithContentDescription("Expand", useUnmergedTree = true).performClick()
 
-        composeTestRule.onNodeWithContentDescription("Delete context 1, Time").performScrollTo()
-            .performTouchInput { doubleClick() }
+        val firstDelete = composeTestRule.onNodeWithContentDescription("Delete context 1, Time").performScrollTo()
+        val tapPoint = firstDelete.fetchSemanticsNode().boundsInRoot.center
+        firstDelete.performTouchInput { doubleClick() }
         composeTestRule.waitForIdle()
         assertEquals(listOf(0), deleted)
         assertEquals(listOf(ContextSpec(ContextType.DAY)), profile.contexts)
+        // The Day row's Delete slid up under the spot both taps landed on.
+        assertTrue(composeTestRule.onNodeWithContentDescription("Delete context 1, Day").fetchSemanticsNode().boundsInRoot.contains(tapPoint))
 
         Thread.sleep(PAST_THE_WINDOW_MS)
         composeTestRule.onNodeWithContentDescription("Delete context 1, Day").performScrollTo().performClick()
@@ -130,10 +167,13 @@ class DoubleTapDeleteInstrumentedTest {
             }
         }
 
+        val tapPoint = composeTestRule.onAllNodesWithText("Revoke")[0].fetchSemanticsNode().boundsInRoot.center
         composeTestRule.onAllNodesWithText("Revoke")[0].performTouchInput { doubleClick() }
         composeTestRule.waitForIdle()
         assertEquals(listOf(first), revoked)
         assertEquals(listOf(second), grants)
+        // The second grant's Revoke slid up under the spot both taps landed on.
+        assertTrue(composeTestRule.onAllNodesWithText("Revoke")[0].fetchSemanticsNode().boundsInRoot.contains(tapPoint))
 
         Thread.sleep(PAST_THE_WINDOW_MS)
         composeTestRule.onAllNodesWithText("Revoke")[0].performClick()
@@ -142,6 +182,6 @@ class DoubleTapDeleteInstrumentedTest {
     }
 
     private companion object {
-        const val PAST_THE_WINDOW_MS = 1_200L
+        const val PAST_THE_WINDOW_MS = SINGLE_TAP_WINDOW_MS + 200L
     }
 }
