@@ -243,6 +243,14 @@ internal object LocaleSettingDispatch {
 /** Package/component queries used by the host and discovery surfaces. */
 interface LocalePluginComponentResolver {
     fun editActivities(packageName: String, action: String): List<ComponentName>
+
+    /**
+     * Every class name [packageName]'s [action] activities answer to: each one's own name and, for
+     * an `<activity-alias>`, the class it points at, before [editActivities] narrows them to one.
+     */
+    fun editActivityClassNames(packageName: String, action: String): Set<String> =
+        editActivities(packageName, action).mapTo(linkedSetOf()) { it.className }
+
     fun broadcastReceivers(packageName: String, action: String): List<ComponentName>
     fun activityPackages(action: String): Set<String>
     fun broadcastReceiverPermissions(action: String): Map<String, List<String>>
@@ -269,6 +277,11 @@ private class AndroidLocalePluginComponentResolver(
 ) : LocalePluginComponentResolver {
     override fun editActivities(packageName: String, action: String): List<ComponentName> =
         queryEditActivities(packageManager, packageName, action)
+
+    override fun editActivityClassNames(packageName: String, action: String): Set<String> =
+        packageManager.queryIntentActivities(Intent(action).setPackage(packageName), 0)
+            .mapNotNull { it.activityInfo?.takeIf { info -> info.packageName == packageName } }
+            .flatMapTo(linkedSetOf()) { info -> listOfNotNull(info.name, info.targetActivity).map { it.toClassName(packageName) } }
 
     override fun broadcastReceivers(packageName: String, action: String): List<ComponentName> =
         queryBroadcastReceivers(packageManager, packageName, action).map { it.component }
@@ -1063,13 +1076,13 @@ class LocalePluginHost private constructor(
     }
 
     /**
-     * The class of [packageName]'s condition edit screen, empty when it has none. A plugin's
-     * `REQUEST_QUERY` names the plugin by that class and nothing else.
+     * The classes of [packageName]'s condition edit screens, empty when it has none. A plugin's
+     * `REQUEST_QUERY` names the plugin by one of them and nothing else, and may name the class an
+     * alias points at rather than the alias.
      */
-    fun conditionEditActivityClasses(packageName: String): List<String> =
-        runCatching { componentResolver.editActivities(packageName, LocalePluginContract.ACTION_EDIT_CONDITION) }
-            .getOrDefault(emptyList())
-            .map { it.className }
+    fun conditionEditActivityClasses(packageName: String): Set<String> =
+        runCatching { componentResolver.editActivityClassNames(packageName, LocalePluginContract.ACTION_EDIT_CONDITION) }
+            .getOrDefault(emptySet())
 
     /**
      * The pinned-signer check, run before any bundle, intent or broadcast exists so a refused

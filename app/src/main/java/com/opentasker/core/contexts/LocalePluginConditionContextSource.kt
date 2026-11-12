@@ -8,6 +8,7 @@ import com.opentasker.core.model.Profile
 import com.opentasker.core.plugins.locale.LocalePluginHost
 import com.opentasker.core.plugins.locale.LocalePluginRequest
 import com.opentasker.core.plugins.locale.LocalePluginRequestQueryEvents
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +21,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.withTimeoutOrNull
+
+/** How often every plugin condition is queried, between full passes. */
+private const val POLL_INTERVAL_MS = 30_000L
 
 class LocalePluginConditionContextSource : ContextSource {
     override val type = "plugin"
@@ -39,22 +43,27 @@ class LocalePluginConditionContextSource : ContextSource {
         val plan = PluginConditionPollPlan()
         val wake = Channel<Unit>(Channel.CONFLATED)
         // A plugin sends REQUEST_QUERY when its answer may have changed. Without this its profile
-        // waited for the next 30 second poll.
+        // waited for the next 30 second poll. If the listener can't run, the poll still does.
         val requestJob = launch {
-            LocalePluginRequestQueryEvents.events(app).collect { event ->
-                val activityClass = event.metadata["activityClass"] ?: return@collect
-                val subscribed = PluginConditionSubscriptions.snapshot().map { it.packageName }
-                val asking = packagesAskingForQuery(activityClass, subscribed, host::conditionEditActivityClasses)
-                if (asking.isEmpty()) return@collect
-                plan.request(asking)
-                wake.trySend(Unit)
+            try {
+                LocalePluginRequestQueryEvents.events(app).collect { event ->
+                    val activityClass = event.metadata["activityClass"] ?: return@collect
+                    val subscribed = PluginConditionSubscriptions.snapshot().map { it.packageName }
+                    val asking = packagesAskingForQuery(activityClass, subscribed, host::conditionEditActivityClasses)
+                    if (asking.isEmpty()) return@collect
+                    plan.request(asking)
+                    wake.trySend(Unit)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (ex: Exception) {
+                AppLogger.warn(TAG, "Plugin query requests aren't heard, polling only: ${ex.message}")
             }
         }
         val pollJob = launch {
             while (isActive) {
-                val due = plan.take(SystemClock.elapsedRealtime())
-                    ?.let { pass -> PluginConditionSubscriptions.snapshot().filter { pass.includes(it.packageName) } }
-                    .orEmpty()
+                val pass = plan.take(SystemClock.elapsedRealtime())
+                val due = pass?.let { taken -> PluginConditionSubscriptions.snapshot().filter { taken.includes(it.packageName) } }.orEmpty()
                 for (sub in due) {
                     if (!isActive) break
                     val result = try {
@@ -83,6 +92,7 @@ class LocalePluginConditionContextSource : ContextSource {
                         )
                     )
                 }
+                pass?.let { plan.finished(SystemClock.elapsedRealtime(), it) }
                 withTimeoutOrNull(plan.waitMs(SystemClock.elapsedRealtime())) { wake.receive() }
             }
         }
@@ -115,13 +125,15 @@ class LocalePluginConditionContextSource : ContextSource {
 }
 
 /**
- * When the shared plugin poll queries whom. Every subscription is queried each [fullIntervalMs].
- * A plugin that sends REQUEST_QUERY is queried on its own in between, at most once per
- * [requeryGapMs] (Locale lets a host throttle a plugin that keeps asking), and asking never moves
- * the next full pass, so a busy plugin can't hold back the others.
+ * When the shared plugin poll queries whom. Every subscription is queried [fullIntervalMs] after
+ * the last full pass ended, as the poll always waited. A plugin that sends REQUEST_QUERY is queried
+ * on its own in between, passes starting at most [requeryGapMs] apart (Locale lets a host throttle
+ * a plugin that keeps asking), and asking never moves the next full pass, so a plugin that keeps
+ * asking can't hold back the regular checks. Queries run one at a time, so a request that comes in
+ * during a pass is answered once that pass is done.
  */
 internal class PluginConditionPollPlan(
-    private val fullIntervalMs: Long = 30_000L,
+    private val fullIntervalMs: Long = POLL_INTERVAL_MS,
     private val requeryGapMs: Long = 1_000L,
 ) {
     /** One pass over the subscriptions; [packages] null means all of them. */
@@ -150,6 +162,12 @@ internal class PluginConditionPollPlan(
         asked.clear()
         lastPassAt = now
         return pass
+    }
+
+    /** Ends [pass] at [now]: after a full one, the next full pass is a whole interval from here. */
+    @Synchronized
+    fun finished(now: Long, pass: Pass) {
+        if (pass.packages == null) nextFullAt = now + fullIntervalMs
     }
 
     /** How long after [now] the next pass is due, unless a request comes in first. */
