@@ -293,16 +293,16 @@ fun contextConfigSummary(spec: ContextSpec): String {
 
 /**
  * The plain-words line for a day, state or sun context, or null for any other. [entries] writes the
- * fields the line doesn't cover and [value] the value a state is compared with, so Flow can mask and
- * shorten them the way it shows every other value.
+ * fields the line doesn't cover and [quote] each part of a state the line quotes (its name, operator
+ * and value), so Flow can mask and shorten them the way it shows every other value.
  */
 internal fun readableContextSummary(
     spec: ContextSpec,
     entries: (Map<String, String>) -> String = ::configEntriesSummary,
-    value: (String) -> String = { it.trim() },
+    quote: (String) -> String = { it.trim() },
 ): String? = when (spec.type) {
     ContextType.DAY -> DaySchedule.displayLabel(spec.config["days"] ?: spec.config["day"].orEmpty())
-    ContextType.STATE -> stateConditionSummary(spec, entries, value)
+    ContextType.STATE -> stateConditionSummary(spec, entries, quote)
     ContextType.EVENT -> sunEventSummary(spec, entries)
     else -> null
 }
@@ -349,15 +349,15 @@ private fun configEntriesSummary(config: Map<String, String>): String =
 private fun stateConditionSummary(
     spec: ContextSpec,
     entries: (Map<String, String>) -> String,
-    value: (String) -> String,
+    quote: (String) -> String,
 ): String? {
     // The engine reads a non-blank predicate alone, so one it can't parse shows as written, not as key fields it ignores.
     val predicate = spec.config["predicate"]
     if (!predicate.isNullOrBlank() && parseStatePredicate(predicate) == null) return null
     val (key, operator, expected) = stateCondition(spec)
     val normalized = normalizeStateKey(key).ifEmpty { return null }
-    val label = if (normalized == BT_NEAR_STATE_KEY) "Bluetooth device nearby" else normalized.replace('_', ' ')
-    val condition = "$label ${operator.trim().ifEmpty { "=" }} ${value(expected)}".trim()
+    val label = if (normalized == BT_NEAR_STATE_KEY) "Bluetooth device nearby" else quote(normalized.replace('_', ' '))
+    val condition = "$label ${quote(operator.trim().ifEmpty { "=" })} ${quote(expected)}".trim()
     if (spec.config.keys.all { it in STATE_CONDITION_KEYS }) return condition
     return "$condition, ${entries(spec.config.filterKeys { it !in STATE_CONDITION_KEYS })}"
 }

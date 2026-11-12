@@ -298,7 +298,7 @@ private fun ContextSpec.toNode(
     val readable = readableContextSummary(
         this,
         entries = { it.summaryOrNull(actionType = null, structuralKeys = structuralKeys).orEmpty() },
-        value = { it.trim().safePreview() },
+        quote = { it.trim().safePreview() },
     )
     return AutomationFlowNode(
         id = id,

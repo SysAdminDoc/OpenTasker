@@ -8,7 +8,7 @@
 
 ### Changed
 
-- Flow's context cards read like the Inspector now, so a battery check shows as `battery level <= 20` instead of `key=battery_level, operator=<=, value=20`. Sun and day contexts name the moment and the days. A field with a password or token in its name stays hidden.
+- Flow's context cards read like the Inspector now, so a battery check shows as `battery level <= 20` instead of `key=battery_level, operator=<=, value=20`. Sun and day contexts name the moment and the days. A field with a password or token in its name stays hidden. A long state name is cut short the same way a long value is, and a line break in one doesn't split the card.
 
 ### Fixed
 
