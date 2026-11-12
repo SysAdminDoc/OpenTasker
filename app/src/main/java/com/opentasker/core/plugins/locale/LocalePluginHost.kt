@@ -46,6 +46,12 @@ object LocalePluginContract {
     const val EXTRA_BUNDLE = "com.twofortyfouram.locale.intent.extra.BUNDLE"
     const val EXTRA_STRING_BLURB = "com.twofortyfouram.locale.intent.extra.BLURB"
     const val EXTRA_STRING_ACTIVITY_CLASS_NAME = "com.twofortyfouram.locale.intent.extra.ACTIVITY"
+
+    /**
+     * Where some plugins put the class on a `REQUEST_QUERY` instead: the constant's name spelled out
+     * as the key. primitive ftpd does this every time its server starts or stops.
+     */
+    const val EXTRA_ACTIVITY_CLASS_NAME_SPELLED_OUT = "com.twofortyfouram.locale.intent.extra.ACTIVITY_CLASS_NAME"
     const val EXTRA_STRING_BREADCRUMB = "com.twofortyfouram.locale.intent.extra.BREADCRUMB"
     const val EXTRA_BLURB = EXTRA_STRING_BLURB
     const val EXTRA_ACTIVITY_CLASS_NAME = EXTRA_STRING_ACTIVITY_CLASS_NAME

@@ -52,14 +52,19 @@ object LocalePluginRequestQueryEvents {
         if (intent.action != LocalePluginContract.ACTION_REQUEST_QUERY) return null
         ForeignParcels.guard(intent)
         return runCatching {
-            val activityClassName = intent
-                .getStringExtra(LocalePluginContract.EXTRA_STRING_ACTIVITY_CLASS_NAME)
-                .orEmpty()
+            val activityClassName = requestedActivityClass(intent::getStringExtra)
             val bundle = intent.getBundleExtra(LocalePluginContract.EXTRA_BUNDLE)
             val bundleValues = bundle?.let(LocalePluginBundleCodec::fromBundle).orEmpty()
             buildEvent(activityClassName, bundleValues)
         }.getOrNull()
     }
+
+    /** The class a `REQUEST_QUERY` names, read from the standard extra first, then the spelled-out one. */
+    fun requestedActivityClass(extra: (String) -> String?): String =
+        listOf(
+            LocalePluginContract.EXTRA_STRING_ACTIVITY_CLASS_NAME,
+            LocalePluginContract.EXTRA_ACTIVITY_CLASS_NAME_SPELLED_OUT,
+        ).firstNotNullOfOrNull { key -> extra(key)?.takeIf { it.isNotBlank() } }.orEmpty()
 
     fun normalizeActivityClassName(value: String): String? {
         val normalized = value.trim().take(MAX_ACTIVITY_CLASS_CHARS)
