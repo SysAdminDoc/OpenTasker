@@ -798,13 +798,13 @@ class TaskRunner(
     }
 
     /**
-     * Runs a sub-task in a coroutine of its own so the collision coordinator registers *it*.
+     * Runs a sub-task in a coroutine of its own, so stopping the sub-task cancels *it*.
      *
-     * The coordinator identifies a running invocation by the current Job. A sub-task used to run
-     * directly in the caller's coroutine, so the Job it registered for the sub-task was the
-     * caller's whole execution: a later Abort existing run of the sub-task cancelled the caller,
-     * which had no collision of its own and was logged as "Replaced by a newer run", and an Abort
-     * new run of the sub-task was refused because the caller looked like a run of it.
+     * A stopped run cancels the Job the coordinator was called from. A sub-task used to run
+     * directly in the caller's coroutine, so that Job was the caller's whole execution: a later
+     * Abort existing run of the sub-task cancelled the caller, which had no collision of its own
+     * and was logged as "Replaced by a newer run", and an Abort new run of the sub-task was
+     * refused because the caller looked like a run of it.
      *
      * `supervisorScope` keeps that cancellation from reaching the caller, so the sub-task step
      * fails and the caller's own `continueOnError` decides what happens next. A cancellation of
