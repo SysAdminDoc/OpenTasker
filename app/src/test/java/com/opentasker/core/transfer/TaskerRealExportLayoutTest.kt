@@ -492,9 +492,9 @@ class TaskerRealExportLayoutTest {
     }
 
     @Test
-    fun mediaControlNamesTheCommandsThisAppLacks() {
-        mapOf("3" to "Toggle Pause", "5" to "Play", "6" to "Rewind", "7" to "Fast Forward").forEach { (cmd, name) ->
-            val xml = """<code>443</code><Int sr="arg0" val="$cmd"/>"""
+    fun mediaControlNamesACommandItCannotMap() {
+        mapOf("""<Int sr="arg0"><var>%cmd</var></Int>""" to "%cmd", """<Int sr="arg0" val="8"/>""" to "8").forEach { (arg, name) ->
+            val xml = """<code>443</code>$arg"""
             assertEquals(TaskerXmlImporter.TASKER_UNSUPPORTED_ACTION_ID, action(xml).type)
             assertWarns(xml, name)
         }

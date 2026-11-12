@@ -1205,12 +1205,13 @@ object TaskerXmlImporter {
         val type = TASKER_MEDIA_COMMANDS[command].takeIf { 0 !in variables }
             ?: return taskerPlaceholder(
                 code,
-                "Tasker Media Control's ${TASKER_MEDIA_COMMAND_NAMES[command] ?: variables[0] ?: command} command has no match here",
+                variables[0]?.let { "Tasker Media Control takes its command from $it, which isn't known until the task runs" }
+                    ?: "Tasker Media Control's $command command has no match here",
             )
         return ActionWithLoss(
             ActionSpec(type = type, label = "Tasker media control"),
             lossyWarning = element.actionAppPackage(2)
-                ?.let { "Tasker Media Control aimed at $it was not imported; the key goes to whatever is playing" },
+                ?.let { "Tasker Media Control aimed at $it was not imported; the key goes to the app that's playing or played last" },
         )
     }
 
@@ -2414,14 +2415,11 @@ object TaskerXmlImporter {
         0 to "track.next",
         1 to "sound.pause",
         2 to "track.previous",
+        3 to "sound.toggle",
         4 to "sound.stop",
-    )
-
-    private val TASKER_MEDIA_COMMAND_NAMES = mapOf(
-        3 to "Toggle Pause",
-        5 to "Play",
-        6 to "Rewind",
-        7 to "Fast Forward",
+        5 to "sound.resume",
+        6 to "track.rewind",
+        7 to "track.fastforward",
     )
 
     /** One variable whose name fits [VariableNamePolicy.MAX_LENGTH], so a step can store into it. */

@@ -4,6 +4,7 @@
 
 ### Added
 
+- New Resume Sound, Play/Pause, Rewind and Fast Forward steps send those media keys to the app that's playing or played last. Tasker's Media Control imports its Play, Toggle Pause, Rewind and Fast Forward commands as these steps, and they export back out as Media Control.
 - Tasker's Notify Sound imports as a notification with its title and text. Its sound, icon, number, priority and repeat settings don't come over, and the import says so.
 - Tasker's Delete File imports as the delete file step, and the delete file step exports back out as Delete File. Like Read File and Write File, its path is looked up inside OpenTasker's own folder. Shredding and Use Root don't come over, and the import says so when they were set.
 - Tasker's Turn On imports as the wake step, which turns the screen on through Shizuku. Its Block Time doesn't come over, and the import says so. The wake step exports back out as Turn On with Tasker's default Block Time.

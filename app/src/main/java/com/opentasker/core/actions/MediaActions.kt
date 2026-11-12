@@ -155,6 +155,50 @@ class PreviousTrackAction : DeclaredAction(ActionCatalog.require("track.previous
 }
 
 /**
+ * Resume audio playback.
+ */
+class ResumeSoundAction : DeclaredAction(ActionCatalog.require("sound.resume")) {
+
+    override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+        ctx.logger("Resume playback")
+        return dispatchMediaKey(ctx, KeyEvent.KEYCODE_MEDIA_PLAY)
+    }
+}
+
+/**
+ * Toggle between play and pause.
+ */
+class TogglePlaybackAction : DeclaredAction(ActionCatalog.require("sound.toggle")) {
+
+    override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+        ctx.logger("Toggle playback")
+        return dispatchMediaKey(ctx, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+    }
+}
+
+/**
+ * Rewind the current track.
+ */
+class RewindTrackAction : DeclaredAction(ActionCatalog.require("track.rewind")) {
+
+    override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+        ctx.logger("Rewind")
+        return dispatchMediaKey(ctx, KeyEvent.KEYCODE_MEDIA_REWIND)
+    }
+}
+
+/**
+ * Fast forward the current track.
+ */
+class FastForwardTrackAction : DeclaredAction(ActionCatalog.require("track.fastforward")) {
+
+    override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+        ctx.logger("Fast forward")
+        return dispatchMediaKey(ctx, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)
+    }
+}
+
+/**
  * Mute audio.
  *
  * Args:

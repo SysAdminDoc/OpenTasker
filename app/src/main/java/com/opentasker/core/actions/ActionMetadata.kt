@@ -193,6 +193,10 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "sound.pause",
     "track.next",
     "track.previous",
+    "sound.resume",
+    "sound.toggle",
+    "track.rewind",
+    "track.fastforward",
     "media.mute",
     "vibrate",
     "reboot",
@@ -1699,6 +1703,46 @@ fun registerActionMetadata() {
             id = "track.previous",
             nameRes = R.string.catalog_action_track_previous_name,
             descriptionRes = R.string.catalog_action_track_previous_description,
+            categoryRes = R.string.catalog_category_media,
+            fields = emptyList()
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "sound.resume",
+            nameRes = R.string.catalog_action_sound_resume_name,
+            descriptionRes = R.string.catalog_action_sound_resume_description,
+            categoryRes = R.string.catalog_category_media,
+            fields = emptyList()
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "sound.toggle",
+            nameRes = R.string.catalog_action_sound_toggle_name,
+            descriptionRes = R.string.catalog_action_sound_toggle_description,
+            categoryRes = R.string.catalog_category_media,
+            fields = emptyList()
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "track.rewind",
+            nameRes = R.string.catalog_action_track_rewind_name,
+            descriptionRes = R.string.catalog_action_track_rewind_description,
+            categoryRes = R.string.catalog_category_media,
+            fields = emptyList()
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "track.fastforward",
+            nameRes = R.string.catalog_action_track_fastforward_name,
+            descriptionRes = R.string.catalog_action_track_fastforward_description,
             categoryRes = R.string.catalog_category_media,
             fields = emptyList()
         )

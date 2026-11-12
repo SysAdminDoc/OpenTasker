@@ -85,6 +85,10 @@ object TaskerXmlExporter {
         "sound.pause" to "443",
         "track.next" to "443",
         "track.previous" to "443",
+        "sound.toggle" to "443",
+        "sound.resume" to "443",
+        "track.rewind" to "443",
+        "track.fastforward" to "443",
         "home.go" to "25",
         "lock" to "16",
         "reboot" to "59",
@@ -297,7 +301,8 @@ object TaskerXmlExporter {
                 appendInt(sb, 3, (if (args["stream"] == "alarm") TASKER_ALARM_STREAM else TASKER_MUSIC_STREAM).toString())
                 appendStr(sb, 4, "")
             }
-            "sound.stop", "sound.pause", "track.next", "track.previous" -> {
+            "sound.stop", "sound.pause", "track.next", "track.previous",
+            "sound.toggle", "sound.resume", "track.rewind", "track.fastforward" -> {
                 appendInt(sb, 0, TASKER_MEDIA_COMMANDS.getValue(action.type))
                 appendInt(sb, 1, "1")
             }
@@ -1110,7 +1115,11 @@ object TaskerXmlExporter {
         "track.next" to "0",
         "sound.pause" to "1",
         "track.previous" to "2",
+        "sound.toggle" to "3",
         "sound.stop" to "4",
+        "sound.resume" to "5",
+        "track.rewind" to "6",
+        "track.fastforward" to "7",
     )
 
     /** Tasker has one volume action per stream, and the stream names are the ones volume.set takes. */

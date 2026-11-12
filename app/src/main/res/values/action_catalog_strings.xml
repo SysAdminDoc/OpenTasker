@@ -678,6 +678,14 @@
     <string name="catalog_action_track_next_description" formatted="false">Play next track</string>
     <string name="catalog_action_track_previous_name" formatted="false">Previous Track</string>
     <string name="catalog_action_track_previous_description" formatted="false">Play previous track</string>
+    <string name="catalog_action_sound_resume_name" formatted="false">Resume Sound</string>
+    <string name="catalog_action_sound_resume_description" formatted="false">Resume playback</string>
+    <string name="catalog_action_sound_toggle_name" formatted="false">Play/Pause</string>
+    <string name="catalog_action_sound_toggle_description" formatted="false">Switch between playing and paused</string>
+    <string name="catalog_action_track_rewind_name" formatted="false">Rewind</string>
+    <string name="catalog_action_track_rewind_description" formatted="false">Rewind the current track</string>
+    <string name="catalog_action_track_fastforward_name" formatted="false">Fast Forward</string>
+    <string name="catalog_action_track_fastforward_description" formatted="false">Fast forward the current track</string>
     <string name="catalog_action_media_mute_name" formatted="false">Mute</string>
     <string name="catalog_action_media_mute_description" formatted="false">Mute audio</string>
     <string name="catalog_action_media_mute_field_stream_label" formatted="false">Stream</string>
