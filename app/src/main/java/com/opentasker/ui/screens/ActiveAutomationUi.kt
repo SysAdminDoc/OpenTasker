@@ -371,8 +371,12 @@ fun ActiveAutomationUi(
     LaunchedEffect(pendingTaskDelete?.id, tasks, profiles, scenes) {
         val preview = pendingTaskDelete?.let { viewModel.taskDeletionPreview(it) }
         taskDeletionPreview = preview
-        // Nothing uses the task any more, so there's no choice left to offer.
-        if (preview != null && !preview.hasDependents) pendingTaskDeleteId = NO_DIALOG_ENTITY_ID
+        // Nothing uses the task any more, so there's no choice left to offer. The delete was still
+        // asked for, so it goes ahead like any other delete rather than vanishing with the dialog.
+        if (pendingTaskDelete != null && preview?.hasDependents == false) {
+            pendingTaskDeleteId = NO_DIALOG_ENTITY_ID
+            viewModel.deleteTask(pendingTaskDelete)
+        }
     }
 
     fun clearPendingTaskDelete() {
