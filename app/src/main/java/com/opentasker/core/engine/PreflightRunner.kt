@@ -303,6 +303,8 @@ object PreflightRunner {
         val steps = linkedMapOf<Int, PreflightStep>()
         val loopStack = ArrayDeque<PreflightLoopFrame>()
         val tryStack = ArrayDeque<Int>()
+        // Try steps on the stack whose Catch handler is running, which no longer catches.
+        val handlingTries = mutableSetOf<Int>()
         val armedElseIndices = mutableSetOf<Int>()
         val ifResults = mutableMapOf<Int, Boolean>()
         var pc = 0
@@ -318,6 +320,7 @@ object PreflightRunner {
             if (FlowControl.isControl(spec.type)) {
                 val control = simulateControl(
                     pc, spec, task.actions, structure, loopStack, tryStack, armedElseIndices, ifResults, variables, input, returnSlot,
+                    handlingTries,
                 )
                 recordStep(steps, control.step.copy(taskPath = taskPath))
                 warnings += control.step.warnings
@@ -406,7 +409,13 @@ object PreflightRunner {
             recordStep(steps, step)
             warnings += step.warnings
 
-            var runFailsStep = false
+            // Whether the run fails this step on this pass. The recorded status stays blocked once
+            // any pass of a loop blocks it, so it can't answer that.
+            var failsHere = effectiveStatus == PreflightStepStatus.BLOCKED
+            fun block(warning: String) {
+                addWarning(steps, pc, warning)
+                failsHere = true
+            }
             if (effectiveStatus != PreflightStepStatus.BLOCKED) {
                 simulateVariableWrite(spec, expansion.rawValues, variables)
                 if (spec.type == SUB_TASK_ACTION_ID) {
@@ -424,11 +433,11 @@ object PreflightRunner {
                         // Checked first, like the run does.
                         returnVariable == null && returnWritten != null && !returnEmptyHere && !returnPartEmptyHere -> {
                             val problem = unusableReturnVariable(returnWritten, returnExpanded, SUB_TASK_RETURN_KEY in expansion.secretKeys)
-                            addWarning(steps, pc, "The run stops this step: $problem.")
+                            block("The run stops this step: $problem.")
                         }
-                        reference == null -> addWarning(steps, pc, "task.run requires a task id or name.")
-                        target == null -> addWarning(steps, pc, "Sub-task not found: $reference")
-                        target.id in activeTaskIds -> addWarning(steps, pc, "Sub-task recursion detected for ${target.name}.")
+                        reference == null -> block("task.run requires a task id or name.")
+                        target == null -> block("Sub-task not found: $reference")
+                        target.id in activeTaskIds -> block("Sub-task recursion detected for ${target.name}.")
                         else -> {
                             val emptyNote = when {
                                 returnEmptyHere -> "'${returnWritten.orEmpty().trim()}' is empty here. If nothing sets it before this step, "
@@ -472,7 +481,7 @@ object PreflightRunner {
                             // fails this step when it didn't.
                             val value = returned.value
                             if (returned.fails) {
-                                runFailsStep = true
+                                failsHere = true
                             } else if (callerStop.stop == null && returnVariable != null && value != null) {
                                 variables.set(returnVariable, value, sensitive = returned.sensitive)
                             }
@@ -481,7 +490,7 @@ object PreflightRunner {
                                     // The task this step ran was stopped, so this step fails and the
                                     // run carries on from here.
                                     callerStop.stop = null
-                                    addWarning(steps, pc, "The run stops this step: ${stop.reason}.")
+                                    block("The run stops this step: ${stop.reason}.")
                                 } else {
                                     halted = true
                                 }
@@ -493,8 +502,8 @@ object PreflightRunner {
                     val reference = SUB_TASK_REF_KEYS.firstNotNullOfOrNull { expansion.rawValues[it]?.trim()?.takeIf(String::isNotBlank) }
                     val target = reference?.let { resolveTask(it, tasks) }
                     when {
-                        reference == null -> addWarning(steps, pc, "task.stop requires a task id or name.")
-                        target == null -> addWarning(steps, pc, "Task to stop not found: $reference")
+                        reference == null -> block("task.stop requires a task id or name.")
+                        target == null -> block("Task to stop not found: $reference")
                         // Naming the task it's in ends the run here, like Stop.
                         target.id > 0L && target.id == task.id -> halted = true
                         target.id > 0L && target.id in activeTaskIds -> {
@@ -504,10 +513,20 @@ object PreflightRunner {
                     }
                 }
             }
-            // The run fails this task here unless a Try catches it. Continue on error carries on,
-            // but the task still ends as failed.
-            if ((runFailsStep || steps[pc]?.status == PreflightStepStatus.BLOCKED) && tryStack.isEmpty()) {
-                returnSlot.fails = true
+            // The run fails this task here unless a Try with a Catch around the step catches it, and
+            // then it goes on at that Catch. Continue on error carries on, but the task still ends
+            // as failed.
+            if (failsHere) {
+                val catching = catchingTry(pc, tryStack, handlingTries, structure)
+                if (catching == null) {
+                    returnSlot.fails = true
+                } else if (!halted) {
+                    while (tryStack.last() != catching) tryStack.removeLast()
+                    while (loopStack.lastOrNull()?.let { it.foreachIndex > catching } == true) loopStack.removeLast()
+                    handlingTries += catching
+                    pc = structure.tryToCatch.getValue(catching)
+                    continue
+                }
             }
             pc++
         }
@@ -591,6 +610,7 @@ object PreflightRunner {
         variables: VariableStore,
         input: PreflightInputs,
         returnSlot: ReturnSlot,
+        handlingTries: MutableSet<Int>,
     ): ControlSimulation {
         fun step(decision: String, nextPc: Int, halt: Boolean = false, skipped: Boolean = false) = ControlSimulation(
             step = PreflightStep(
@@ -693,11 +713,24 @@ object PreflightRunner {
             FlowControl.TRY -> if (!guardMet()) {
                 step("try skipped: condition ($guard) -> false", structure.tryToEndtry.getValue(index) + 1, skipped = true)
             } else {
+                handlingTries -= index
                 tries.addLast(index)
                 step(spec.type, index + 1)
             }
+            FlowControl.CATCH -> {
+                val open = tries.lastOrNull()?.takeIf { structure.tryToCatch[it] == index }
+                when {
+                    open == null -> step(spec.type, index + 1)
+                    open in handlingTries -> step("catch", index + 1)
+                    else -> {
+                        // Nothing in the try failed, so the run skips the handler.
+                        tries.removeLast()
+                        step("catch skipped; try succeeded", structure.tryToEndtry.getValue(open) + 1)
+                    }
+                }
+            }
             FlowControl.ENDTRY -> {
-                if (tries.lastOrNull()?.let(structure.tryToEndtry::get) == index) tries.removeLast()
+                if (tries.lastOrNull()?.let(structure.tryToEndtry::get) == index) handlingTries -= tries.removeLast()
                 step(spec.type, index + 1)
             }
             FlowControl.STOP -> if (!guardMet()) {
@@ -775,6 +808,15 @@ object PreflightRunner {
             else -> step(spec.type, index + 1)
         }
     }
+
+    /**
+     * Mirrors TaskRunner.recoverFailure: the innermost running Try body around [pc] that has a
+     * Catch, or null. A Try without one only retries, so a failure there goes on outward.
+     */
+    private fun catchingTry(pc: Int, tries: ArrayDeque<Int>, handling: Set<Int>, structure: FlowStructure): Int? =
+        tries.asReversed().firstOrNull { open ->
+            open !in handling && pc > open && pc < structure.tryToEndtry.getValue(open) && open in structure.tryToCatch
+        }
 
     /** Mirrors TaskRunner.leaveBlocksFor: why a goto can't land on [landing], or null. */
     private fun leaveBlocksFor(
