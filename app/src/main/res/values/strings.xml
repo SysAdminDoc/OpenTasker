@@ -853,6 +853,10 @@
     <string name="import_paste_json_hint">OpenTasker JSON or Tasker XML</string>
     <string name="import_paste_too_long">Too long to paste, so the end was cut off. Save it as a file and use Import JSON or Import Tasker or MacroDroid instead.</string>
     <string name="import_paste_json_review">Review import</string>
+    <plurals name="import_paste_hidden">
+        <item quantity="one">%1$s character pasted, too many to show here.</item>
+        <item quantity="other">%1$s characters pasted, too many to show here.</item>
+    </plurals>
     <string name="import_opentasker_bundle">OpenTasker bundle</string>
     <string name="import_count_tasks">Tasks</string>
     <string name="import_count_profiles">Profiles</string>

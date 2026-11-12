@@ -47,6 +47,7 @@ import com.opentasker.core.transfer.VariableConflictAction
 import com.opentasker.core.transfer.VariableConflictResolution
 import com.opentasker.core.transfer.VariableImportConflict
 import com.opentasker.ui.theme.DesignSystem
+import java.text.NumberFormat
 
 /**
  * The pasted draft is held in `rememberSaveable`, which rides `onSaveInstanceState` through a
@@ -56,6 +57,13 @@ import com.opentasker.ui.theme.DesignSystem
  * import, which streams and has its own 8 MB decode bound.
  */
 internal const val MAX_PASTED_BUNDLE_CHARS = 256 * 1024
+
+/**
+ * A draft longer than this shows as a count instead of in the text field. Laying out a paste at
+ * [MAX_PASTED_BUNDLE_CHARS] took the field about 80 seconds on an API 35 emulator and ran it out
+ * of memory, and an export that long isn't something anyone edits by hand on a phone.
+ */
+internal const val MAX_EDITABLE_PASTE_CHARS = 16 * 1024
 
 internal fun readClipboardText(context: Context): String {
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return ""
@@ -92,22 +100,37 @@ internal fun OpenTaskerBundleTextImportDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = onTextChanged,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 180.dp, max = 360.dp),
-                    placeholder = { Text(stringResource(R.string.import_paste_json_hint)) },
-                    isError = cutOff,
-                    supportingText = if (cutOff) {
-                        { Text(stringResource(R.string.import_paste_too_long)) }
-                    } else {
-                        null
-                    },
-                    minLines = 8,
-                    maxLines = 16,
-                )
+                if (text.length > MAX_EDITABLE_PASTE_CHARS) {
+                    Text(
+                        pluralStringResource(
+                            R.plurals.import_paste_hidden,
+                            text.length,
+                            NumberFormat.getIntegerInstance().format(text.length),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    if (cutOff) {
+                        Text(
+                            stringResource(R.string.import_paste_too_long),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    TextButton(onClick = { onTextChanged("") }, enabled = !busy) {
+                        Text(stringResource(R.string.action_clear))
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = onTextChanged,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 180.dp, max = 360.dp),
+                        placeholder = { Text(stringResource(R.string.import_paste_json_hint)) },
+                        minLines = 8,
+                        maxLines = 16,
+                    )
+                }
             }
         },
         confirmButton = {
