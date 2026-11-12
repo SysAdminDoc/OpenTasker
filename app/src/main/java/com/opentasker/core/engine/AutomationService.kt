@@ -55,6 +55,7 @@ import com.opentasker.core.contexts.ScreenRecordingContextEvents
 import com.opentasker.core.contexts.TimeContextEvents
 import com.opentasker.core.contexts.UsbDeviceContextEvents
 import com.opentasker.core.diagnostics.EngineHealthReader
+import com.opentasker.core.engine.variables.TaskerBuiltIns
 import com.opentasker.core.model.AutomationMode
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.ProfileLifecyclePolicy
@@ -390,6 +391,7 @@ class AutomationService : Service() {
         matchers.clear()
         registeredProfiles.clear()
         matchedProfiles.clear()
+        TaskerBuiltIns.watchProfiles(emptyMap())
         AutomationLiveConditionState.clear()
         synchronized(dispatchedProfiles) {
             dispatchedProfiles.clear()
@@ -461,6 +463,7 @@ class AutomationService : Service() {
             registeredProfiles.clear()
             profiles.associateByTo(registeredProfiles) { it.id }
         }
+        TaskerBuiltIns.watchProfiles(profiles.associate { it.id to it.name })
         AutomationLiveConditionState.retainProfiles(activeIds)
         synchronized(pulseContinuities) {
             pulseContinuities.keys.removeAll { it !in activeIds }

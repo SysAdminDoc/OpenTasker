@@ -27,6 +27,10 @@ object AutomationLiveConditionState {
     @Synchronized
     fun profileState(profileId: Long): Boolean? = profileStates[profileId]
 
+    /** The profiles that are on, in the order they went on. */
+    @Synchronized
+    fun activeProfileIds(): List<Long> = activeProfiles.toList()
+
     @Synchronized
     fun contextState(profileId: Long, contextIndex: Int): Boolean? =
         contextStates[ContextKey(profileId, contextIndex)]

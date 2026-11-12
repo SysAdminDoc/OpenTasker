@@ -1,5 +1,7 @@
 package com.opentasker.core.engine.variables
 
+import com.opentasker.core.engine.ActiveExecutionRegistry
+import com.opentasker.core.engine.AutomationLiveConditionState
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.time.Clock
@@ -30,10 +32,17 @@ object TaskerBuiltIns {
     )
 
     private val CLOCK_NAMES = setOf("TIME", "TIMES", "TIMEMS", "DATE", "DAYW", "DAYM")
-    private val DEVICE_NAMES = setOf("BATT", "BRIGHT", "DEVID", "DEVMAN", "DEVMOD", "DEVPROD", "DTOUT", "SCREEN", "SDK", "UPS")
+    private val DEVICE_NAMES = setOf(
+        "BATT", "BRIGHT", "DEVID", "DEVMAN", "DEVMOD", "DEVPROD", "DTOUT", "LOC", "LOCN", "SCREEN", "SDK", "UPS",
+        "VOLA", "VOLC", "VOLD", "VOLM", "VOLN", "VOLR", "VOLS",
+    )
+    private val ENGINE_NAMES = setOf("PACTIVE", "PENABLED", "TRUN")
 
-    /** The built-ins this app fills in. The device ones need [installDevice] first. */
-    val SUPPORTED: Set<String> = CLOCK_NAMES + DEVICE_NAMES
+    /**
+     * The built-ins this app fills in. The device ones need [installDevice] first, and the profile
+     * lists need [watchProfiles].
+     */
+    val SUPPORTED: Set<String> = CLOCK_NAMES + DEVICE_NAMES + ENGINE_NAMES
 
     private val REFERENCE = Regex("%([A-Za-z][A-Za-z0-9_]*)")
 
@@ -46,15 +55,24 @@ object TaskerBuiltIns {
     @Volatile
     private var device: ((String) -> String?)? = null
 
+    @Volatile
+    private var watchedProfiles: Map<Long, String> = emptyMap()
+
     /** [read] answers a device built-in by name, or null when the device can't say. */
     fun installDevice(read: (String) -> String?) {
         device = read
+    }
+
+    /** The enabled profiles the engine watches now, names by id, which `%PENABLED` and `%PACTIVE` list. */
+    fun watchProfiles(names: Map<Long, String>) {
+        watchedProfiles = names
     }
 
     internal fun resetForTests() {
         clockForTests = null
         localeForTests = null
         device = null
+        watchedProfiles = emptyMap()
     }
 
     fun isBuiltIn(name: String): Boolean = name in NAMES
@@ -66,12 +84,27 @@ object TaskerBuiltIns {
     fun value(name: String): String? = when (name) {
         in CLOCK_NAMES -> clockValue(name)
         in DEVICE_NAMES -> runCatching { device?.invoke(name) }.getOrNull()
+        in ENGINE_NAMES -> engineValue(name)
         else -> null
     }
 
     /** The built-ins [text] reads that this app doesn't fill in, in the order they first show up. */
     fun unsupportedReads(text: String): List<String> =
         REFERENCE.findAll(text).map { it.groupValues[1] }.filter { it in NAMES && it !in SUPPORTED }.distinct().toList()
+
+    private fun engineValue(name: String): String? = when (name) {
+        // Tasker sorts these by when each profile was made, and ids here count up the same way.
+        "PENABLED" -> taskerList(watchedProfiles.toSortedMap().values)
+        "PACTIVE" -> watchedProfiles.let { names -> taskerList(AutomationLiveConditionState.activeProfileIds().mapNotNull(names::get)) }
+        else -> taskerList(ActiveExecutionRegistry.active.value.map { it.taskName })
+    }
+
+    /**
+     * Tasker's list form, `,a,b,` with each name once, or null when there's none, since Tasker
+     * leaves the variable unset then.
+     */
+    private fun taskerList(names: Collection<String>): String? =
+        names.filter { it.isNotBlank() }.distinct().takeIf { it.isNotEmpty() }?.joinToString(",", prefix = ",", postfix = ",")
 
     private fun clockValue(name: String): String {
         val clock = clockForTests ?: Clock.systemDefaultZone()
