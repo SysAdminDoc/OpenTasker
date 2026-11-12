@@ -94,7 +94,7 @@
 | Media | 11 | play, beep, stop, pause, resume, play/pause, next, previous, rewind, fast forward, mute |
 | System | 7 | vibrate, clipboard set, reboot, lock, screen off, wake, log |
 | Notification | 4 | notify/toast, progress, cancel, TTS speak |
-| Variable | 22 | set variable, variable clear (one, a pattern or all), clipboard get, contacts lookup, read data (JSON/CSV/XML/HTML), date-time (format/parse/add), text (match/replace/split/join/substring/length), Tasker's numbered arrays (variable split/join, array push/pop/clear/process), variable convert (sizes, units, dates, Base64, hashes and more) |
+| Variable | 22 | set variable, variable clear (one, a pattern or all), clipboard get, contacts lookup, read data (JSON/CSV/XML/HTML), date-time (format/parse/add), text (match, replace or collect regex matches into an array, split, join, substring, length), Tasker's numbered arrays (variable split/join, array push/pop/clear/process), variable convert (sizes, units, dates, Base64, hashes and more) |
 | Flow | 2+13 | wait, profile status; engine: task.run, task.stop, if/else/end if, for each/end for, try/catch/end try, stop, go to, anchor |
 | Plugin | 2 | Locale setting dispatch, Locale condition query |
 | Script | 2 | SHA-256-pinned Termux `RUN_COMMAND` and Shizuku shell scripts, both with bounded result capture |

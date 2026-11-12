@@ -268,7 +268,10 @@ internal fun declaredActionOutputs(actionId: String): List<ActionOutputDefinitio
         output("array", ActionValueType.ARRAY, nameArgumentKeys = listOf("var", "variable"), defaultName = "match"),
         output("count", ActionValueType.NUMBER, nameArgumentKeys = listOf("var", "variable"), defaultName = "match", suffix = "_count"),
     )
-    "text.replace" -> listOf(output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("var", "variable"), defaultName = "result"))
+    "text.replace" -> listOf(
+        output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("var", "variable"), defaultName = "result"),
+        output("matches", ActionValueType.ARRAY, nameArgumentKeys = listOf("matches")),
+    )
     "text.split" -> listOf(
         output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("var", "variable"), defaultName = "parts"),
         output("array", ActionValueType.ARRAY, nameArgumentKeys = listOf("var", "variable"), defaultName = "parts"),

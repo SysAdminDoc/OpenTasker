@@ -771,13 +771,9 @@ class TaskerRealExportLayoutTest {
             """<Int sr="arg3" val="0"/><Int sr="arg4" val="0"/><Str sr="arg5" ve="3"/><Int sr="arg6" val="1"/><Str sr="arg7" ve="3">b</Str>"""
         assertEquals("text.replace", action(base).type)
 
-        listOf(
-            base.replace("""<Int sr="arg6" val="1"/>""", """<Int sr="arg6" val="0"/>"""),
-            base.replace("""<Int sr="arg4" val="0"/>""", """<Int sr="arg4" val="1"/>"""),
-            // RE2 has no lookahead, so this pattern would never compile when the step ran.
-            base.replace(""">a</Str>""", """>a(?=b)</Str>"""),
-        ).forEach { assertEquals(it, placeholder, action(it).type) }
-        assertWarns(base.replace("""<Str sr="arg5" ve="3"/>""", """<Str sr="arg5" ve="3">%found</Str>"""), "%found")
+        // RE2 has no lookahead, so this pattern would never compile when the step ran.
+        val lookahead = base.replace(""">a</Str>""", """>a(?=b)</Str>""")
+        assertEquals(placeholder, action(lookahead).type)
     }
 
     @Test

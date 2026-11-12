@@ -459,6 +459,9 @@ fun registerActionMetadata() {
                 ActionField("pattern", R.string.catalog_action_text_replace_field_pattern_label, required = true),
                 ActionField("replacement", R.string.catalog_action_text_replace_field_replacement_label, hintRes = R.string.catalog_action_text_replace_field_replacement_hint),
                 ActionField("var", R.string.catalog_action_text_replace_field_var_label, hintRes = R.string.catalog_action_text_replace_field_var_hint),
+                ActionField("first_only", R.string.catalog_action_text_replace_field_first_only_label, FieldType.CHECKBOX, hintRes = R.string.catalog_action_text_replace_field_first_only_hint),
+                ActionField("matches", R.string.catalog_action_text_replace_field_matches_label, hintRes = R.string.catalog_action_text_replace_field_matches_hint),
+                ActionField("search_only", R.string.catalog_action_text_replace_field_search_only_label, FieldType.CHECKBOX, hintRes = R.string.catalog_action_text_replace_field_search_only_hint),
             )
         )
     )

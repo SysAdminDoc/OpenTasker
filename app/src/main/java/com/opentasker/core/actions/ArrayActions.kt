@@ -10,7 +10,7 @@ import com.opentasker.core.model.VariableNamePolicy
 // Tasker's arrays are numbered variables: %arr1, %arr2, ... in the scope %arr belongs to. These
 // actions work on those elements, not on the arrays text.split and text.match store.
 
-private const val MAX_ELEMENTS = 10_000
+internal const val MAX_ELEMENTS = 10_000
 
 private fun arrayBase(args: Map<String, String>, key: String): String? =
     args[key]?.let(VariableNamePolicy::normalize)
@@ -21,7 +21,7 @@ private fun position(args: Map<String, String>): Int? {
     return if (raw.isEmpty()) 1 else raw.toIntOrNull()?.takeIf { it >= 1 }
 }
 
-private fun elementName(base: String, index: Int): String? =
+internal fun elementName(base: String, index: Int): String? =
     "$base$index".takeIf { it.length <= VariableNamePolicy.MAX_LENGTH }
 
 /** [base]'s elements by index, each with its own secret flag so moving it keeps the flag. */

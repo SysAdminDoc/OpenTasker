@@ -614,7 +614,7 @@ object TaskerXmlImporter {
             "596" -> taskerVariableConvert(code, byIndex, intsByIndex, intVariables)
             "597" -> taskerVariableSection(code, byIndex, intsByIndex, intVariables)
             "345" -> taskerTestVariable(code, element, byIndex, intsByIndex, intVariables)
-            "598" -> taskerSearchReplace(code, element, byIndex, intsByIndex)
+            "598" -> taskerSearchReplace(code, element, byIndex, intsByIndex, intVariables)
             "590", "592", "354", "355", "356", "357", "369" -> taskerArrayAction(code, element, byIndex, intsByIndex, intVariables)
             "30", "wait", "flow.wait" -> {
                 val duration = taskerDuration(
@@ -1589,13 +1589,24 @@ object TaskerXmlImporter {
     }
 
     /**
-     * Search Replace runs a regular expression over a variable and writes the result back. Search
-     * and Replace With are read untrimmed, because a space there is part of the pattern.
+     * Search Replace runs a regular expression over a variable and writes the result back
+     * (decompiled 6.7.8, `ExecuteService.V2`). Store Matches In Array empties that array and fills
+     * it with each match, One Match Only keeps and replaces only the first, and with Replace Matches
+     * off the variable stays as it is. Search and Replace With are read untrimmed, because a space
+     * there is part of the pattern.
      */
-    private fun taskerSearchReplace(code: String, element: Element, byIndex: Map<Int, String>, ints: Map<Int, Int>): ActionWithLoss {
+    private fun taskerSearchReplace(
+        code: String,
+        element: Element,
+        byIndex: Map<Int, String>,
+        ints: Map<Int, Int>,
+        variables: Map<Int, String>,
+    ): ActionWithLoss {
         val name = byIndex[0].orEmpty()
         val search = element.rawActionString(1)
-        val replaceWith = element.rawActionString(7)
+        val matches = byIndex[5].orEmpty().trim()
+        val replace = (ints[6] ?: 0) != 0
+        val replaceWith = if (replace) element.rawActionString(7) else ""
         val flags = buildString {
             if ((ints[2] ?: 0) != 0) append('i')
             if ((ints[3] ?: 0) != 0) append('m')
@@ -1605,8 +1616,9 @@ object TaskerXmlImporter {
         val checkable = !TASKER_VARIABLE_REFERENCE.containsMatchIn(pattern)
         val refusal = when {
             !TASKER_PLAIN_VARIABLE.matches(name) -> "Tasker Search Replace's variable $name isn't one plain variable"
-            (ints[6] ?: 0) == 0 -> "Tasker Search Replace with Replace Matches off only collects matches, which has no match here"
-            (ints[4] ?: 0) != 0 -> "Tasker Search Replace's One Match Only has no match here"
+            listOf(2, 3, 4, 6).any { it in variables } -> "Tasker Search Replace takes a switch from a variable, which has no match here"
+            matches.isNotEmpty() && !TASKER_PLAIN_VARIABLE.matches(matches) ->
+                "Tasker Search Replace stores its matches in $matches, which isn't one plain variable"
             search.isEmpty() -> "Tasker Search Replace has nothing to search for"
             checkable && TextOps.match("", pattern) == null ->
                 "Tasker Search Replace's pattern $search uses regular expression features this app doesn't have"
@@ -1617,15 +1629,16 @@ object TaskerXmlImporter {
             ActionSpec(
                 type = "text.replace",
                 label = "Tasker search replace",
-                args = mapOf(
-                    "source" to "{{ ${name.removePrefix("%")} }}",
-                    "pattern" to pattern,
-                    "replacement" to replaceWith,
-                    "var" to name,
-                ),
+                args = buildMap {
+                    put("source", "{{ ${name.removePrefix("%")} }}")
+                    put("pattern", pattern)
+                    if (replace) put("replacement", replaceWith) else put("search_only", "true")
+                    put("var", name)
+                    if ((ints[4] ?: 0) != 0) put("first_only", "true")
+                    if (matches.isNotEmpty()) put("matches", matches)
+                },
             ),
             lossyWarning = joinWarnings(
-                byIndex[5].orEmptyIfBlank()?.let { "Tasker Search Replace's Store Matches In Array was not imported: $it" },
                 "Tasker Search Replace writes \\% for a plain percent sign, and here a variable with that name is still filled in"
                     .takeIf { "\\%" in search || "\\%" in replaceWith },
                 "Tasker Search Replace's $ also matches just before a final line break, and here it matches only at the very end"

@@ -123,13 +123,19 @@
     <string name="catalog_action_text_match_field_var_label" formatted="false">输出变量</string>
     <string name="catalog_action_text_match_field_var_hint" formatted="false">默认：match（同时设置数组和 %var_count）</string>
     <string name="catalog_action_text_replace_name" formatted="false">替换文本（正则）</string>
-    <string name="catalog_action_text_replace_description" formatted="false">替换每个正则匹配；支持 $1 组引用</string>
+    <string name="catalog_action_text_replace_description" formatted="false">替换正则匹配，或将其存入数组。支持 $1 组引用</string>
     <string name="catalog_action_text_replace_field_source_label" formatted="false">源文本</string>
     <string name="catalog_action_text_replace_field_pattern_label" formatted="false">正则模式</string>
     <string name="catalog_action_text_replace_field_replacement_label" formatted="false">替换内容</string>
     <string name="catalog_action_text_replace_field_replacement_hint" formatted="false">可引用 $1、$2 等</string>
     <string name="catalog_action_text_replace_field_var_label" formatted="false">输出变量</string>
     <string name="catalog_action_text_replace_field_var_hint" formatted="false">默认：result</string>
+    <string name="catalog_action_text_replace_field_first_only_label" formatted="false">仅第一个匹配</string>
+    <string name="catalog_action_text_replace_field_first_only_hint" formatted="false">只替换和存储第一个匹配</string>
+    <string name="catalog_action_text_replace_field_matches_label" formatted="false">将匹配存入数组</string>
+    <string name="catalog_action_text_replace_field_matches_hint" formatted="false">%found 依次得到每个匹配：%found1、%found2……</string>
+    <string name="catalog_action_text_replace_field_search_only_label" formatted="false">仅查找匹配</string>
+    <string name="catalog_action_text_replace_field_search_only_hint" formatted="false">只存储匹配，不改动输出变量</string>
     <string name="catalog_action_text_split_name" formatted="false">拆分文本</string>
     <string name="catalog_action_text_split_description" formatted="false">按字面分隔符或正则模式拆分为数组</string>
     <string name="catalog_action_text_split_field_source_label" formatted="false">源文本</string>

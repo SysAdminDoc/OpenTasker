@@ -30,6 +30,26 @@ object TextOps {
         return runCatching { compiled.matcher(source).replaceAll(replacement) }.getOrNull()
     }
 
+    /** Replace only the first match of [pattern] with [replacement] (supports `$1` group refs). */
+    fun replaceFirst(source: String, pattern: String, replacement: String): String? {
+        if (source.length > MAX_INPUT_CHARS) return null
+        val compiled = compile(pattern) ?: return null
+        return runCatching { compiled.matcher(source).replaceFirst(replacement) }.getOrNull()
+    }
+
+    /**
+     * The whole text of each match of [pattern] in [source], in order and at most [limit] of them,
+     * or null when the pattern/input is invalid.
+     */
+    fun findAll(source: String, pattern: String, limit: Int): List<String>? {
+        if (source.length > MAX_INPUT_CHARS) return null
+        val compiled = compile(pattern) ?: return null
+        val matcher = compiled.matcher(source)
+        val found = mutableListOf<String>()
+        while (found.size < limit && matcher.find()) found += matcher.group().orEmpty()
+        return found
+    }
+
     /** Split [source] by a literal [delimiter] or, when [isRegex], a regex delimiter. */
     fun split(source: String, delimiter: String, isRegex: Boolean): List<String>? {
         if (source.length > MAX_INPUT_CHARS) return null

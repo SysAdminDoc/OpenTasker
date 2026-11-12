@@ -131,9 +131,10 @@ object PreflightRunner {
     private const val MAX_DISPLAY_VALUE_LENGTH = 256
     private val SINGLE_VARIABLE = Regex("%[A-Za-z][A-Za-z0-9_]*")
 
-    // The actions that write Tasker's numbered elements (%arr1, %arr2, ...). text.split and
-    // text.match keep their parts in a stored array instead, so they never set %Pos1.
-    private val NUMBERED_ELEMENT_WRITERS = setOf("var.split", "array.push", "array.pop", "array.process")
+    // The actions that write Tasker's numbered elements (%arr1, %arr2, ...), text.replace through
+    // its matches array. text.split and text.match keep their parts in a stored array instead, so
+    // they never set %Pos1.
+    private val NUMBERED_ELEMENT_WRITERS = setOf("var.split", "array.push", "array.pop", "array.process", "text.replace")
 
     fun preflightTask(
         task: Task,
