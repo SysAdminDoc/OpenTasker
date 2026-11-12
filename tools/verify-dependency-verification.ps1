@@ -106,6 +106,49 @@ function Get-ArtifactPath {
     return "$groupPath/$($Component.name)/$($Component.version)/$ArtifactName"
 }
 
+function Get-ModuleDeclaredUrls {
+    param(
+        [Parameter(Mandatory = $true)]$Component,
+        [Parameter(Mandatory = $true)]$Artifact,
+        [Parameter(Mandatory = $true)]$Repository
+    )
+
+    # Gradle module metadata can serve a variant's file from another version's directory:
+    # guava's -android module points its JVM variant at ../<version>-jre/guava-<version>-jre.jar.
+    if ($Artifact.name -match [Regex]::Escape($Component.version)) { return @() }
+    $versionUrl = "$($Repository.Base)$($Component.group.Replace('.', '/'))/$($Component.name)/$($Component.version)/"
+    $text = Get-Text (Get-RemoteBytes "$versionUrl$($Component.name)-$($Component.version).module")
+    if ($null -eq $text) { return @() }
+    $module = $text | ConvertFrom-Json
+    if ($module.PSObject.Properties.Name -notcontains "variants") { return @() }
+    $urls = foreach ($variant in @($module.variants)) {
+        if ($variant.PSObject.Properties.Name -notcontains "files") { continue }
+        foreach ($file in @($variant.files)) {
+            if ($file.name -eq $Artifact.name -and $file.url -ne $file.name) {
+                [Uri]::new([Uri]$versionUrl, [string]$file.url).AbsoluteUri
+            }
+        }
+    }
+    return @($urls | Select-Object -Unique)
+}
+
+function Get-CandidateUrls {
+    param(
+        [Parameter(Mandatory = $true)]$Component,
+        [Parameter(Mandatory = $true)]$Artifact,
+        [Parameter(Mandatory = $true)]$Repository
+    )
+
+    $urls = [Collections.Generic.List[string]]::new()
+    foreach ($artifactName in (Get-ArtifactNames $Component $Artifact)) {
+        $urls.Add("$($Repository.Base)$(Get-ArtifactPath $Component $artifactName)")
+    }
+    foreach ($url in (Get-ModuleDeclaredUrls $Component $Artifact $Repository)) {
+        $urls.Add($url)
+    }
+    return @($urls | Select-Object -Unique)
+}
+
 function Get-OriginRepository {
     param([Parameter(Mandatory = $true)][string]$Origin)
 
@@ -144,19 +187,15 @@ function Resolve-Evidence {
         }
         @($repository)
     }
-    $path = Get-ArtifactPath $Component $Artifact.name
-    $artifactNames = Get-ArtifactNames $Component $Artifact
     $originMode = if ($ExistingOrigin -match "published \.sha256") { "sha256" } elseif ($ExistingOrigin -match "published \.asc") { "asc" } else { "direct" }
 
     foreach ($repository in $repositories) {
-        foreach ($artifactName in $artifactNames) {
-            $candidatePath = if ($artifactName -eq $Artifact.name) { $path } else { Get-ArtifactPath $Component $artifactName }
-            $artifactUrl = "$($repository.Base)$candidatePath"
+        foreach ($artifactUrl in (Get-CandidateUrls $Component $Artifact $repository)) {
             if ($originMode -in @("sha256", "direct") -and [string]::IsNullOrWhiteSpace($ExistingOrigin)) {
                 $publishedHash = Get-PublishedHash (Get-RemoteBytes "$artifactUrl.sha256")
                 if ($null -ne $publishedHash) {
                     if ($publishedHash -ne $ExpectedHash) {
-                        throw "Upstream SHA-256 mismatch for $($Component.group):$($Component.name):$($Component.version) $artifactName from $($repository.Name)."
+                        throw "Upstream SHA-256 mismatch for $($Component.group):$($Component.name):$($Component.version) at $artifactUrl."
                     }
                     return "OpenTasker: $($repository.Name) published .sha256"
                 }
@@ -199,8 +238,7 @@ function Resolve-Evidence {
     }
 
     foreach ($repository in $repositories) {
-        foreach ($artifactName in $artifactNames) {
-            $artifactUrl = "$($repository.Base)$(Get-ArtifactPath $Component $artifactName)"
+        foreach ($artifactUrl in (Get-CandidateUrls $Component $Artifact $repository)) {
             Write-Verbose "Checking direct upstream artifact $artifactUrl"
             $bytes = Get-RemoteBytes $artifactUrl
             if ($null -eq $bytes) {

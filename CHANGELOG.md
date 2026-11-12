@@ -180,6 +180,7 @@
 - The device test for Lock Device turns the screen back on when it's done. Locking also puts the screen to sleep, and on a device without a PIN every screen test that ran after it started on a dark screen and failed.
 - The device test that compiles the app's regexes on Android's engine passes again, and the credential redaction patterns now have device tests of their own. The test's pattern list took the first line of a pattern split across several lines for the whole thing, so it failed on a fragment, and the redaction patterns, which are built from shared pieces, never reached it at all.
 - The app now ships Guava 33.7.2. Health Connect support had brought in Guava 32.0.0, which has a published advisory (GHSA-xxph-c9ww-hj94) about some of its collections allocating huge arrays when they read crafted serialized data.
+- The release gate's dependency check finds a jar that a library's module file serves from another version's folder, the way Guava's Android build points at its JVM jar. It used to report that jar's upstream evidence as missing and stop the gate.
 
 ## v0.2.95 - 2026-11-07
 
