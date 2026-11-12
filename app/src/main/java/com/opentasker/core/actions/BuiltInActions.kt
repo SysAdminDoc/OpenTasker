@@ -334,7 +334,10 @@ class PersistVariableAction : DeclaredAction(ActionCatalog.require("var.persist"
             ?: return ActionResult.Failure("variable '$name' is not set")
         val sensitive = ctx.variables.isSensitive(name)
         ctx.variables.set(globalName, value, sensitive = sensitive)
-        ctx.logger("Persist \$$name → \$$globalName = ${if (sensitive) REDACTED_VARIABLE_VALUE else value}")
+        // Either name reading like a secret keeps the value out of the log, as the run's change list does.
+        val hidden = sensitive || ActionArgumentSensitivity.isSensitiveArgumentName(name) ||
+            ActionArgumentSensitivity.isSensitiveArgumentName(globalName)
+        ctx.logger("Persist \$$name → \$$globalName = ${if (hidden) REDACTED_VARIABLE_VALUE else value}")
         return ActionResult.Success
     }
 }

@@ -51,7 +51,8 @@ internal fun multipleVariablesFailure(args: Map<String, String>, outcome: Multip
 
 /**
  * What [setMultipleVariables] did with each name, by canonical name; [invalid] keeps the text as
- * written. [builtFromSecret] says a name was filled in from a secret, like `%cache_%Pin`.
+ * written, with `(blank name)` standing in for an empty one. [builtFromSecret] says a name was
+ * filled in from a secret, like `%cache_%Pin`.
  */
 internal data class MultipleVariablesOutcome(
     val set: List<String>,

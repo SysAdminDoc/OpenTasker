@@ -1075,8 +1075,19 @@ class TaskRunner(
             expanded
         }
 
-        return ActionArgumentExpansionReport(expandedArgs, expansions, actionType, failure)
+        // A value hidden because of the name it's given, like Set Variable's value for %api_key, only
+        // shows in its trace as hidden, so the run log's args and template lines never print it.
+        val traces = expansions.map { trace ->
+            if (ActionArgumentSensitivity.isSensitive(actionType, trace.argName, args)) trace.withValueHidden() else trace
+        }
+        return ActionArgumentExpansionReport(expandedArgs, traces, actionType, failure)
     }
+
+    private fun ActionArgumentExpansionTrace.withValueHidden() = copy(
+        rawValue = REDACTED_VALUE,
+        expandedValue = REDACTED_VALUE,
+        expressions = expressions.map { it.copy(rawExpression = REDACTED_VALUE, expression = REDACTED_VALUE, value = REDACTED_VALUE) },
+    )
 
     /** One trace for an argument expanded in pieces, or null when no piece needed one. */
     private fun combinedTrace(
