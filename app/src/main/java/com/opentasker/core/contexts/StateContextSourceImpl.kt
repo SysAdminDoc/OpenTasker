@@ -384,15 +384,20 @@ private fun wifiMatches(
     val actualSsid = state["wifi"]?.takeUnless { it.equals("disconnected", ignoreCase = true) }
         ?: state["wifi_ssid"].orEmpty()
 
-    // Tasker's Wifi Connected reads its name as a Tasker pattern, and only while connected.
-    if (op == "~") return connected == true && wifiNamePatterns.matches(actualSsid, expected)
+    // Tasker's Wifi Connected reads its name as a Tasker pattern, and only while connected. A name
+    // Android withholds is published as "Unknown", which `!Office` or `*` would otherwise match.
+    if (op == "~") return connected == true && !wifiNameWithheld(state) && wifiNamePatterns.matches(actualSsid, expected)
     if (op != "=") return false
     return when (normalizedExpected) {
         in WIFI_CONNECTED_WORDS -> connected == true
         in WIFI_DISCONNECTED_WORDS -> connected == false
-        else -> actualSsid == expected
+        else -> !wifiNameWithheld(state) && actualSsid == expected
     }
 }
+
+/** Whether Android is withholding the name of the network the device is connected to. */
+internal fun wifiNameWithheld(state: Map<String, String>): Boolean =
+    !state[DeviceStateEvents.WIFI_SSID_SETUP_MARKER].isNullOrBlank()
 
 private val wifiNamePatterns = VariableExpander()
 

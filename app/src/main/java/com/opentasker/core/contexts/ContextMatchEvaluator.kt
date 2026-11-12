@@ -46,12 +46,15 @@ object ContextMatchEvaluator {
     }
 
     /**
-     * True when [spec] can't tell yet whether it holds: a Health reading that wasn't read, or a Time
-     * bound whose global holds no time. An inverted context stays off then too, since "not between
-     * %Sunrise and %Sunset" isn't true just because %Sunrise isn't set.
+     * True when [spec] can't tell yet whether it holds: a Health reading that wasn't read, a Time
+     * bound whose global holds no time, or a Wi-Fi name Android is withholding. An inverted context
+     * stays off then too, since "not between %Sunrise and %Sunset" isn't true just because
+     * %Sunrise isn't set, and "not on Office" isn't true just because the name is hidden.
      */
     fun valueUnknown(spec: ContextSpec, metadata: Map<String, String>): Boolean =
-        HealthPolling.readingMissing(spec, metadata) || TimeContextBounds.unresolvedBounds(spec, metadata).isNotEmpty()
+        HealthPolling.readingMissing(spec, metadata) ||
+            TimeContextBounds.unresolvedBounds(spec, metadata).isNotEmpty() ||
+            (stateSpecReadsWifiSsid(spec) && wifiNameWithheld(metadata))
 
     private fun matchesApplication(spec: ContextSpec, event: ContextEvent): Boolean {
         val foreground = event.metadata["foreground"].orEmpty().ifBlank { event.metadata["package"].orEmpty() }

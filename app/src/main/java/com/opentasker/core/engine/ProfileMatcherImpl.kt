@@ -314,9 +314,9 @@ internal fun publishLiveContextState(profileId: Long, contextIndex: Int, update:
 }
 
 /**
- * [spec]'s result for [event]. A health reading that was refused or not read yet, or a Time bound
- * whose global holds no time, is unknown, not false, so neither its inverted context nor a NOT
- * group over it turns on.
+ * [spec]'s result for [event]. A health reading that was refused or not read yet, a Time bound
+ * whose global holds no time, or a Wi-Fi name Android withholds, is unknown, not false, so neither
+ * its inverted context nor a NOT group over it turns on.
  */
 internal fun contextMatchUpdate(
     spec: ContextSpec,
