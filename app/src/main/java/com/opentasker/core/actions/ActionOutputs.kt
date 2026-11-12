@@ -90,6 +90,26 @@ fun ActionMetadata.resolveOutputs(
             actionIndex = actionIndex,
         )
     }
+} + multipleVariablesOutputs(action, actionIndex)
+
+/**
+ * One output per name a Multiple Variables Set gives a value, which a fixed list can't declare. When
+ * the editor hides the names field, a bare word there may be a value typed on a name line, so only
+ * the names written as `%name` count.
+ */
+private fun ActionMetadata.multipleVariablesOutputs(action: ActionSpec, actionIndex: Int?): List<ResolvedActionOutput> {
+    if (id != "var.set_multiple") return emptyList()
+    val hidden = ActionArgumentSensitivity.isSensitive(id, "names", action.args)
+    return multipleVariablesTargets(action.args, writtenAsVariablesOnly = hidden).map { name ->
+        ResolvedActionOutput(
+            key = "value",
+            name = name,
+            type = ActionValueType.ANY,
+            scope = ActionOutputScope.INFERRED,
+            actionType = action.type,
+            actionIndex = actionIndex,
+        )
+    }
 }
 
 enum class VariableChipScope {

@@ -163,8 +163,9 @@ internal fun multipleVariablesNamesArePlain(args: Map<String, String>): Boolean 
  * The variables [args] gives a value, by canonical name; a name past the last value is only unset.
  * A name built from others, like `%item%n`, isn't known until the step runs, so it's left out. Values
  * filled in from a variable, like `%line`, can split into any number, so then every name counts.
+ * [writtenAsVariablesOnly] leaves out a name written without its `%`.
  */
-internal fun multipleVariablesTargets(args: Map<String, String>): List<String> {
+internal fun multipleVariablesTargets(args: Map<String, String>, writtenAsVariablesOnly: Boolean = false): List<String> {
     val valuesText = args["values"].orEmpty()
     val valueCount = when {
         valuesText.isEmpty() -> 0
@@ -172,7 +173,8 @@ internal fun multipleVariablesTargets(args: Map<String, String>): List<String> {
         else -> valuesText.split(multipleVariablesSplitter(args["values_splitter"], valuesText)).size
     }
     return multipleVariablesEntries(args).mapIndexedNotNull { index, entry ->
-        entry?.takeIf { it.second != null || index < valueCount }?.first?.let(VariableNamePolicy::normalize)
+        entry?.takeIf { (it.second != null || index < valueCount) && (!writtenAsVariablesOnly || it.first.startsWith('%')) }
+            ?.first?.let(VariableNamePolicy::normalize)
     }.distinct()
 }
 
