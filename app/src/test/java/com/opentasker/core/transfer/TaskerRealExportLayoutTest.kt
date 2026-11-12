@@ -631,11 +631,12 @@ class TaskerRealExportLayoutTest {
     }
 
     @Test
-    fun stoppingAnotherTaskIsAPlaceholderBecauseThisTaskWouldStopInstead() {
-        val xml = """<code>137</code><Int sr="arg0" val="0"/><Str sr="arg1" ve="3">Background</Str>"""
+    fun stoppingAnotherTaskImportsAsStopTaskAndAPlainStopStaysStop() {
+        val named = action("""<code>137</code><Int sr="arg0" val="0"/><Str sr="arg1" ve="3">Background</Str>""")
 
-        assertEquals(TaskerXmlImporter.TASKER_UNSUPPORTED_ACTION_ID, action(xml).type)
-        assertWarns(xml, "Background")
+        assertEquals("task.stop", named.type)
+        assertEquals(mapOf("task" to "Background"), named.args)
+        assertEquals(emptyList<String>(), warnings("""<code>137</code><Int sr="arg0" val="0"/><Str sr="arg1" ve="3">Background</Str>"""))
         assertEquals("flow.stop", action("""<code>137</code><Int sr="arg0" val="0"/><Str sr="arg1" ve="3"/>""").type)
     }
 

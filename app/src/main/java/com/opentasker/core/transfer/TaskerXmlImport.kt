@@ -865,15 +865,15 @@ object TaskerXmlImporter {
             "40", "endfor", "flow.endfor" -> ActionWithLoss(ActionSpec(type = "flow.endfor", label = "Tasker end for"))
             "137", "stop", "flow.stop" -> {
                 val otherTask = byIndex[1].orEmptyIfBlank()
-                if (otherTask != null) {
-                    // flow.stop ends the running task, so importing this as one would stop the wrong task.
-                    taskerPlaceholder(code, "Tasker Stop names another task to stop: $otherTask")
-                } else {
-                    ActionWithLoss(
-                        ActionSpec(type = "flow.stop", label = "Tasker stop"),
-                        lossyWarning = "Tasker Stop's With Error option was not imported".takeIf { (intsByIndex[0] ?: 0) != 0 },
-                    )
-                }
+                ActionWithLoss(
+                    // A named task goes to task.stop, which also ends this run when the name is its own.
+                    if (otherTask != null) {
+                        ActionSpec(type = "task.stop", label = "Tasker stop", args = mapOf("task" to otherTask))
+                    } else {
+                        ActionSpec(type = "flow.stop", label = "Tasker stop")
+                    },
+                    lossyWarning = "Tasker Stop's With Error option was not imported".takeIf { (intsByIndex[0] ?: 0) != 0 },
+                )
             }
             "126" -> taskerReturn(code, byIndex, intsByIndex)
             "135" -> taskerGoto(code, byIndex, intsByIndex, intVariables)

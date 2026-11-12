@@ -150,6 +150,7 @@ object ActionCatalog {
     /** Engine-handled flow markers have metadata but no runtime Action implementation. */
     private val engineHandled = listOf(
         defineEngine("task.run", ActionCategory.FLOW),
+        defineEngine("task.stop", ActionCategory.FLOW),
         defineEngine("flow.if", ActionCategory.FLOW),
         defineEngine("flow.else", ActionCategory.FLOW),
         defineEngine("flow.endif", ActionCategory.FLOW),

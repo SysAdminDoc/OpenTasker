@@ -16,6 +16,7 @@ import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.Task
 import com.opentasker.core.model.VariableNamePolicy
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
@@ -74,9 +75,17 @@ class TaskRunner(
         var phase: TryPhase = TryPhase.BODY,
     )
 
+    /** The task [run] is running, for a Stop Task step that names it. */
+    private var runningTask: Task? = null
+
+    /** Set when a Stop Task step names [runningTask], which ends the run like `flow.stop`. */
+    private var stopThisRun = false
+
     suspend fun run(task: Task): TaskRunReport {
         ctx.variables.pushScope()
         val started = now()
+        runningTask = task
+        stopThisRun = false
         val results = mutableListOf<ActionResult>()
         val traces = mutableListOf<ActionExecutionTrace>()
 
@@ -222,6 +231,7 @@ class TaskRunner(
                         break
                     }
                 }
+                if (stopThisRun) break
                 pc++
             }
         } finally {
@@ -668,6 +678,9 @@ class TaskRunner(
         if (spec.type == SUB_TASK_ACTION_ID) {
             return runSubTask(index, spec, started)
         }
+        if (spec.type == STOP_TASK_ACTION_ID) {
+            return stopTask(index, spec, started)
+        }
 
         val action = ActionRegistry.get(spec.type)
             ?: ActionResult.Failure("unknown action: ${spec.type}").let { result ->
@@ -811,6 +824,47 @@ class TaskRunner(
                 cancelled.message ?: "The sub-task was replaced by a newer run.",
             )
         }
+    }
+
+    /**
+     * Stops every running copy of the task the step names, Tasker's Stop with a task given.
+     *
+     * Naming the task this step runs in ends this run the way `flow.stop` does and cancels its other
+     * runs. Naming a task that called this one, directly or further up, stops that caller and this
+     * run with it. Another task's runs are cancelled, and a task running the stopped one as a
+     * sub-task sees that step fail. A task that isn't running is not an error.
+     */
+    private suspend fun stopTask(
+        index: Int,
+        spec: ActionSpec,
+        started: Long,
+    ): Pair<ActionResult, ActionExecutionTrace> {
+        val expansionReport = expandArgs(spec.type, spec.args)
+
+        fun finish(result: ActionResult): Pair<ActionResult, ActionExecutionTrace> =
+            result to traceFor(index, spec, started, result, expansionReport)
+
+        expansionReport.failure?.let { return finish(ActionResult.Failure(it)) }
+        val ref = SUB_TASK_REF_KEYS.firstNotNullOfOrNull { expansionReport.args[it]?.trim()?.takeIf(String::isNotBlank) }
+            ?: return finish(ActionResult.Failure("task.stop requires a 'task' (id or name)"))
+        val resolver = resolveTask ?: return finish(ActionResult.Failure("stopping a task is not available in this context"))
+        val target = resolver(ref) ?: return finish(ActionResult.Failure("task not found: $ref"))
+        val running = runningTask
+        val reason = "Stopped by a Stop Task step in '${running?.name.orEmpty()}'"
+        if (target.id > 0L && target.id == running?.id) {
+            // Tasker stops every copy of the task, so the other runs of this one end as well.
+            val others = collisionCoordinator?.cancelRunning(target.id, reason, sparing = currentCoroutineContext()[Job]) ?: 0
+            if (others > 0) ctx.logger("Stopped '${target.name}'")
+            stopThisRun = true
+            return finish(ActionResult.Success)
+        }
+        val coordinator = collisionCoordinator
+            ?: return finish(ActionResult.Failure("stopping another task is not available in this context"))
+        val stopped = coordinator.cancelRunning(target.id, reason)
+        ctx.logger(if (stopped == 0) "'${target.name}' wasn't running" else "Stopped '${target.name}'")
+        // Stopping a task that called this one cancelled this run too, so end before another step.
+        currentCoroutineContext().ensureActive()
+        return finish(ActionResult.Success)
     }
 
     private fun shouldRun(spec: ActionSpec): Boolean {
@@ -1074,6 +1128,8 @@ private const val MEDIA_ACTION_TIMEOUT_MS = 600_000L // 10 minutes
 private const val MAX_WAIT_TIMEOUT_MS = 1_860_000L // 30 minutes + 60 s margin
 
 const val SUB_TASK_ACTION_ID = "task.run"
+/** Stops another task's running copies; takes its target through [SUB_TASK_REF_KEYS] like `task.run`. */
+const val STOP_TASK_ACTION_ID = "task.stop"
 const val MAX_SUBTASK_DEPTH = 8
 /** Argument keys `task.run` accepts as its target, in precedence order. */
 val SUB_TASK_REF_KEYS = listOf("task", "name", "id")

@@ -71,6 +71,7 @@ object ActionCapabilityRegistry {
         // Switches one of the app's own profiles, which needs no access from Android.
         "profile.set",
         "task.run",
+        "task.stop",
         "flow.if",
         "flow.else",
         "flow.endif",

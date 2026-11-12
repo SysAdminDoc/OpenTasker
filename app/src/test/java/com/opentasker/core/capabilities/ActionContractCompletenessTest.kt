@@ -6,6 +6,7 @@ import com.opentasker.core.actions.registerActionMetadata
 import com.opentasker.core.engine.ActionRegistry
 import com.opentasker.core.engine.ActionRetrySafety
 import com.opentasker.core.engine.FlowControl
+import com.opentasker.core.engine.STOP_TASK_ACTION_ID
 import com.opentasker.core.engine.SUB_TASK_ACTION_ID
 import com.opentasker.core.registerCoreRuntime
 import com.opentasker.core.power.ShizukuPowerBackend
@@ -29,7 +30,7 @@ import kotlin.io.path.readText
  */
 class ActionContractCompletenessTest {
 
-    private val engineHandledActions = setOf(SUB_TASK_ACTION_ID) + FlowControl.ALL
+    private val engineHandledActions = setOf(SUB_TASK_ACTION_ID, STOP_TASK_ACTION_ID) + FlowControl.ALL
 
     private val repoRoot: Path = listOf(Path.of("."), Path.of(".."))
         .first { Files.exists(it.resolve("README.md")) && Files.exists(it.resolve("app/build.gradle.kts")) }

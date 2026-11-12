@@ -4,6 +4,7 @@
 
 ### Added
 
+- A Stop Task step stops another task while it runs. Tasker's Stop with a task named comes over as this step, where it used to be a placeholder, and exports write it back as Stop. Naming the task it's in ends that run right there, like a plain Stop, and its other copies stop too. A task that isn't running is fine, the step just moves on. When the stopped task was running as another task's sub-task, that step fails and says what stopped it. A run of the same task that's still waiting for its turn isn't stopped and starts once the slot frees up. The preview warns when the task can't be found and ends where a run would, and a step that names no task stays out of a Tasker export, since Tasker would read it back as a plain Stop.
 - New Resume Sound, Play/Pause, Rewind and Fast Forward steps send those media keys to the app that's playing or played last. Tasker's Media Control imports its Play, Toggle Pause, Rewind and Fast Forward commands as these steps, and they export back out as Media Control.
 - Tasker's Notify Sound imports as a notification with its title and text. Its sound, icon, number, priority and repeat settings don't come over, and the import says so.
 - Tasker's Delete File imports as the delete file step, and the delete file step exports back out as Delete File. Like Read File and Write File, its path is looked up inside OpenTasker's own folder. Shredding and Use Root don't come over, and the import says so when they were set.

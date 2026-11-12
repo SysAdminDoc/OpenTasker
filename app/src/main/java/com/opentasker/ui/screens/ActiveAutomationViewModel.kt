@@ -515,24 +515,27 @@ class ActiveAutomationViewModel(
         // Wrapped like updateScene: the corrupt-record check, history snapshot, prune, and
         // update must be atomic so a concurrent writer can't interleave and lose a revision.
         db.withTransaction {
+            var saved = task
             val previous = db.taskDao().getById(task.id)
             if (previous != null) {
                 previous.toDomainDecodeResult().issue?.let { issue ->
                     throw CorruptRecordOverwriteException(issue)
                 }
                 val previousTask = previous.toDomain()
+                val renamed = !previousTask.name.equals(task.name, ignoreCase = true)
+                if (renamed) saved = AutomationReferenceRewriter.stabilizeOwnNameReferences(previousTask, task)
                 recordEdit(
                     entityType = EditHistoryDao.TYPE_TASK,
                     entityId = task.id,
                     previousJson = StorageJson.encodeToString(previousTask),
-                    nextJson = StorageJson.encodeToString(task),
+                    nextJson = StorageJson.encodeToString(saved),
                 )
 
                 // A rename breaks every reference that still names this task ("task.run" targets,
-                // legacy notification bindings). Pin those to the stable id in the same
-                // transaction so they cannot dangle or be captured by a future task that takes the
-                // old name.
-                if (!previousTask.name.equals(task.name, ignoreCase = true)) {
+                // "task.stop" ones, its own included, legacy notification bindings). Pin those to
+                // the stable id in the same transaction so they cannot dangle or be captured by a
+                // future task that takes the old name.
+                if (renamed) {
                     val rewrite = AutomationReferenceRewriter.stabilizeNameReferences(
                         target = previousTask,
                         profiles = db.profileDao().getAll().map { it.toDomain() },
@@ -544,7 +547,7 @@ class ActiveAutomationViewModel(
                     rewrite.scenes.forEach { db.sceneDao().update(it.toEntity()) }
                 }
             }
-            db.taskDao().update(task.toEntity())
+            db.taskDao().update(saved.toEntity())
         }
     }
 

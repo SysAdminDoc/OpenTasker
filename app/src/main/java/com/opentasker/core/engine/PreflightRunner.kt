@@ -101,12 +101,14 @@ data class PreflightReport(
  */
 object PreflightActionRegistry {
     fun hasImplementation(actionId: String): Boolean =
-        actionId in FlowControl.ALL || actionId == SUB_TASK_ACTION_ID || ActionRegistry.get(actionId) != null
+        actionId in FlowControl.ALL || actionId == SUB_TASK_ACTION_ID || actionId == STOP_TASK_ACTION_ID ||
+            ActionRegistry.get(actionId) != null
 
     fun intendedEffect(actionId: String): String = when (actionId) {
         FlowControl.IF, FlowControl.ELSE, FlowControl.ENDIF, FlowControl.FOREACH, FlowControl.ENDFOR,
         FlowControl.STOP, FlowControl.GOTO, FlowControl.ANCHOR -> "Evaluates flow control in memory; no external effect."
         SUB_TASK_ACTION_ID -> "Would invoke a referenced sub-task; nested action execution is suppressed."
+        STOP_TASK_ACTION_ID -> "Would stop the named task if it is running; nothing is stopped in preview."
         "var.set" -> "Updates the preflight variable snapshot only; durable variable writes are suppressed."
         "var.persist" -> "Would promote a variable to global scope; persistence is suppressed."
         else -> {
@@ -205,6 +207,15 @@ object PreflightRunner {
         )
     }
 
+    /**
+     * A Stop Task step in a sub-task that names one of its callers. A run cancels that caller and
+     * everything it ran, so each task in between ends there, and the step that ran the stopped
+     * task fails.
+     */
+    private class CallerStop(val taskId: Long, val reason: String)
+
+    private class CallerStopSignal(var stop: CallerStop? = null)
+
     private fun simulateTask(
         task: Task,
         tasks: List<Task>,
@@ -215,6 +226,7 @@ object PreflightRunner {
         activeTaskIds: Set<Long>,
         reports: MutableList<PreflightTaskReport>,
         warnings: MutableList<String>,
+        callerStop: CallerStopSignal = CallerStopSignal(),
     ): PreflightTaskReport {
         variables.pushScope()
         return try {
@@ -228,6 +240,7 @@ object PreflightRunner {
                 activeTaskIds = activeTaskIds,
                 reports = reports,
                 warnings = warnings,
+                callerStop = callerStop,
             )
         } finally {
             variables.popScope()
@@ -244,6 +257,7 @@ object PreflightRunner {
         activeTaskIds: Set<Long>,
         reports: MutableList<PreflightTaskReport>,
         warnings: MutableList<String>,
+        callerStop: CallerStopSignal,
     ): PreflightTaskReport {
         if (depth > MAX_SUBTASK_DEPTH) {
             val blocked = PreflightStep(
@@ -405,11 +419,36 @@ object PreflightRunner {
                                     activeTaskIds = activeTaskIds + target.id,
                                     reports = reports,
                                     warnings = warnings,
+                                    callerStop = callerStop,
                                 )
                             } finally {
                                 variables.popScope()
                             }
                             reports += child
+                            callerStop.stop?.let { stop ->
+                                if (stop.taskId == target.id) {
+                                    // The task this step ran was stopped, so this step fails and the
+                                    // run carries on from here.
+                                    callerStop.stop = null
+                                    addWarning(steps, pc, "The run stops this step: ${stop.reason}.")
+                                } else {
+                                    halted = true
+                                }
+                            }
+                        }
+                    }
+                }
+                if (spec.type == STOP_TASK_ACTION_ID) {
+                    val reference = SUB_TASK_REF_KEYS.firstNotNullOfOrNull { expansion.rawValues[it]?.trim()?.takeIf(String::isNotBlank) }
+                    val target = reference?.let { resolveTask(it, tasks) }
+                    when {
+                        reference == null -> addWarning(steps, pc, "task.stop requires a task id or name.")
+                        target == null -> addWarning(steps, pc, "Task to stop not found: $reference")
+                        // Naming the task it's in ends the run here, like Stop.
+                        target.id > 0L && target.id == task.id -> halted = true
+                        target.id > 0L && target.id in activeTaskIds -> {
+                            callerStop.stop = CallerStop(target.id, "Stopped by a Stop Task step in '${task.name}'")
+                            halted = true
                         }
                     }
                 }

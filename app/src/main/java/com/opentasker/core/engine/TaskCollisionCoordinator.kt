@@ -94,6 +94,26 @@ class TaskCollisionCoordinator(
         }
     }
 
+    /**
+     * Cancels every running invocation of [taskId] for a Stop Task step and returns how many it
+     * cancelled. A WAIT invocation still queued for its turn isn't running yet, so it starts once
+     * the slot frees up. The invocation [sparing] runs in is left alone, for a step that names its
+     * own task and ends its own run another way.
+     */
+    fun cancelRunning(taskId: Long, reason: String, sparing: Job? = null): Int {
+        val slot = slots[taskId] ?: return 0
+        val running = synchronized(slot) {
+            slot.activeJobs.removeAll { !it.isActive }
+            slot.activeJobs.filter { sparing == null || !it.isOrContains(sparing) }
+        }
+        running.forEach { job -> job.cancel(CancellationException(reason)) }
+        return running.size
+    }
+
+    // A registered copy that encloses [job] is spared too. Nothing runs a task inside its own run
+    // today (the execution chain refuses it), so that copy is always [job] itself.
+    private fun Job.isOrContains(job: Job): Boolean = this === job || children.any { it.isOrContains(job) }
+
     private suspend fun <T> runRegistered(
         slot: Slot,
         job: Job,

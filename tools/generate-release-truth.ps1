@@ -67,7 +67,7 @@ if ($flowControlIds.Count -eq 0) {
 if ($TaskRunner -notmatch '(?m)^\s*const val SUB_TASK_ACTION_ID\s*=') {
     throw "SUB_TASK_ACTION_ID must remain a declared engine-handled action."
 }
-$engineHandledActionCount = $flowControlIds.Count + 1
+$engineHandledActionCount = ([regex]::Matches($ActionCatalog, '(?m)^\s*defineEngine\("')).Count
 
 $truth = [ordered]@{
     schemaVersion = 1

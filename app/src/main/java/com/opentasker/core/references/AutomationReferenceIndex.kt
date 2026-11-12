@@ -1,6 +1,7 @@
 package com.opentasker.core.references
 
 import com.opentasker.core.actions.NotificationTaskBindings
+import com.opentasker.core.engine.STOP_TASK_ACTION_ID
 import com.opentasker.core.engine.SUB_TASK_ACTION_ID
 import com.opentasker.core.engine.SUB_TASK_REF_KEYS
 import com.opentasker.core.model.Profile
@@ -46,6 +47,16 @@ sealed interface TaskReferenceSite {
 
     /** A `task.run` action inside another task. */
     data class SubTaskRun(
+        override val ownerId: Long,
+        override val ownerName: String,
+        val actionIndex: Int,
+        val argKey: String,
+    ) : TaskReferenceSite {
+        override val ownerKind = OwnerKind.TASK
+    }
+
+    /** A `task.stop` action inside another task. */
+    data class StopTaskStep(
         override val ownerId: Long,
         override val ownerName: String,
         val actionIndex: Int,
@@ -376,13 +387,18 @@ object AutomationReferenceIndex {
         actionType: String,
         args: Map<String, String>,
     ): List<TaskReference> = buildList {
-        if (actionType == SUB_TASK_ACTION_ID) {
+        if (actionType == SUB_TASK_ACTION_ID || actionType == STOP_TASK_ACTION_ID) {
             val key = SUB_TASK_REF_KEYS.firstOrNull { args[it]?.isNotBlank() == true }
             val raw = key?.let { args[it]?.trim() }
             if (key != null && !raw.isNullOrBlank()) {
+                val site = if (actionType == SUB_TASK_ACTION_ID) {
+                    TaskReferenceSite.SubTaskRun(owner.id, owner.name, actionIndex, key)
+                } else {
+                    TaskReferenceSite.StopTaskStep(owner.id, owner.name, actionIndex, key)
+                }
                 add(
                     TaskReference(
-                        TaskReferenceSite.SubTaskRun(owner.id, owner.name, actionIndex, key),
+                        site,
                         raw.toLongOrNull()?.takeIf { it > 0 }?.let(TaskRef::ById) ?: TaskRef.ByName(raw),
                     ),
                 )

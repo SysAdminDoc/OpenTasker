@@ -122,6 +122,7 @@ private fun declaredActionSummaryRes(actionId: String): Int = when (actionId) {
     "flow.wait",
     "profile.set",
     "task.run",
+    "task.stop",
     "flow.if",
     "flow.else",
     "flow.endif",
@@ -703,6 +704,18 @@ fun registerActionMetadata() {
             categoryRes = R.string.catalog_category_flow,
             fields = listOf(
                 ActionField("task", R.string.catalog_action_task_run_field_task_label, FieldType.TASK, required = true, hintRes = R.string.catalog_action_task_run_field_task_hint),
+            )
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
+            id = "task.stop",
+            nameRes = R.string.catalog_action_task_stop_name,
+            descriptionRes = R.string.catalog_action_task_stop_description,
+            categoryRes = R.string.catalog_category_flow,
+            fields = listOf(
+                ActionField("task", R.string.catalog_action_task_stop_field_task_label, FieldType.TASK, required = true, hintRes = R.string.catalog_action_task_stop_field_task_hint),
             )
         )
     )

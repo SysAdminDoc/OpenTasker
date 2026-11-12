@@ -218,6 +218,10 @@
     <string name="catalog_action_task_run_description" formatted="false">将另一个任务作为可复用的子任务运行（共享变量；最多8层嵌套）</string>
     <string name="catalog_action_task_run_field_task_label" formatted="false">任务ID或名称</string>
     <string name="catalog_action_task_run_field_task_hint" formatted="false">切换Wi-Fi</string>
+    <string name="catalog_action_task_stop_name" formatted="false">停止任务</string>
+    <string name="catalog_action_task_stop_description" formatted="false">停止正在运行的另一个任务。填写本任务时，会像“停止”一样在此结束本任务。</string>
+    <string name="catalog_action_task_stop_field_task_label" formatted="false">任务ID或名称</string>
+    <string name="catalog_action_task_stop_field_task_hint" formatted="false">重复闹钟</string>
     <string name="catalog_action_flow_if_name" formatted="false">如果</string>
     <string name="catalog_action_flow_if_description" formatted="false">仅当条件为真时运行以下操作（以“结束如果”关闭）</string>
     <string name="catalog_action_flow_if_field_condition_label" formatted="false">条件</string>

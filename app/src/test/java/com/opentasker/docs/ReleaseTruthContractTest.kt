@@ -129,8 +129,6 @@ class ReleaseTruthContractTest {
         val fdroid = read("fdroid/metadata/com.opentasker.app.yml")
         val actionCatalog = read("app/src/main/java/com/opentasker/core/actions/ActionCatalog.kt")
         val contextSpec = com.opentasker.ProductionSources.read("com/opentasker/core/model/ContextSpec.kt")
-        val flowStructure = com.opentasker.ProductionSources.read("com/opentasker/core/engine/FlowStructure.kt")
-        val taskRunner = com.opentasker.ProductionSources.read("com/opentasker/core/engine/TaskRunner.kt")
         val database = com.opentasker.ProductionSources.read("com/opentasker/core/storage/AppDatabase.kt")
         val bundle = read("app/src/main/java/com/opentasker/core/transfer/OpenTaskerBundle.kt")
         val generator = read("tools/generate-release-truth.ps1")
@@ -186,10 +184,16 @@ class ReleaseTruthContractTest {
             Regex("(?m)^\\s*define\\(\\\"").findAll(actionCatalog).count().toString(),
             jsonValue(truth, "registeredActions"),
         )
-        val flowBody = gradleValue(flowStructure, """(?s)\bval\s+ALL\s*=\s*setOf\(([^)]*)\)""")
-        val flowCount = Regex("\\b[A-Z][A-Z0-9_]*\\b").findAll(flowBody).map { it.value }.toSet().size
-        val engineCount = flowCount + if ("const val SUB_TASK_ACTION_ID" in taskRunner) 1 else 0
-        assertEquals(engineCount.toString(), jsonValue(truth, "engineHandledActions"))
+        assertEquals(
+            Regex("(?m)^\\s*defineEngine\\(\\\"").findAll(actionCatalog).count().toString(),
+            jsonValue(truth, "engineHandledActions"),
+        )
+        // The steps the runner handles itself, from compiled code, so the count can't drift along
+        // with the gate's regex.
+        val runnerHandled = com.opentasker.core.engine.FlowControl.ALL +
+            com.opentasker.core.engine.SUB_TASK_ACTION_ID +
+            com.opentasker.core.engine.STOP_TASK_ACTION_ID
+        assertEquals(runnerHandled.size.toString(), jsonValue(truth, "engineHandledActions"))
         val contextBody = gradleValue(contextSpec, """(?s)enum class ContextType\s*\{(.*?)\}""")
         assertEquals(
             Regex("(?m)^\\s+[A-Z][A-Z_]+\\s*(,|//)").findAll(contextBody).count().toString(),

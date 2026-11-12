@@ -142,7 +142,12 @@ abstract class VerifyReleaseTruthTask : DefaultTask() {
                 .findAll(actionCatalog)
                 .count()
                 .toString(),
-            "engineHandledActions" to (flowControlIds.size + 1).toString(),
+            // Counted like registeredActions, since task.run is no longer the only engine step
+            // outside FlowControl.
+            "engineHandledActions" to Regex("(?m)^\\s*defineEngine\\(\\\"")
+                .findAll(actionCatalog)
+                .count()
+                .toString(),
             "contextFamilies" to sourceValue(contextSpec, Regex("(?s)enum class ContextType\\s*\\{(.*?)\\}"), "context type enum")
                 .let { body -> Regex("(?m)^\\s+[A-Z][A-Z_]+\\s*(,|//)").findAll(body).count().toString() },
             "bundleSchemaVersion" to sourceValue(

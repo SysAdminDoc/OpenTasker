@@ -113,6 +113,7 @@ object TaskerXmlExporter {
         "flow.goto" to "135",
         "flow.anchor" to "300",
         "task.run" to "130",
+        "task.stop" to "137",
         "brightness.set" to "810",
         "screen.timeout" to "812",
         "http.request" to "339",
@@ -219,7 +220,11 @@ object TaskerXmlExporter {
                 skipped += SkippedExportAction(
                     taskName = task.name,
                     actionType = action.type,
-                    reason = "No Tasker equivalent for action type '${action.type}'",
+                    reason = if (action.type == "task.stop") {
+                        "A Stop Task step with no task named would come back from Tasker as a plain Stop"
+                    } else {
+                        "No Tasker equivalent for action type '${action.type}'"
+                    },
                 )
             }
         }
@@ -363,6 +368,10 @@ object TaskerXmlExporter {
                 }
                 appendStr(sb, 0, taskerVariableName(args["var"], "item"))
                 appendStr(sb, 1, items ?: list)
+            }
+            "task.stop" -> {
+                appendInt(sb, 0, "0")
+                appendStr(sb, 1, stopTaskRef(args).orEmpty())
             }
             "task.run" -> {
                 appendStr(sb, 0, args["task"] ?: args["name"] ?: args["id"] ?: "")
@@ -1148,8 +1157,13 @@ object TaskerXmlExporter {
             return TASKER_VOLUME_CODES[(action.args["stream"] ?: "music").lowercase()]
         }
         if (action.type == "var.split" && action.args["values"] != null) return "354"
+        // Tasker's Stop with no task named ends the task it's in, which isn't what this step does.
+        if (action.type == "task.stop" && stopTaskRef(action.args) == null) return null
         return REVERSE_ACTION_MAP[action.type]
     }
+
+    private fun stopTaskRef(args: Map<String, String>): String? =
+        SUB_TASK_REF_KEYS.firstNotNullOfOrNull { args[it]?.trim()?.takeIf(String::isNotEmpty) }
 
     /** One end of a Time window as Tasker writes it: hour and minute fields, or the global it reads (`fromvar`). */
     private fun timeBoundXml(raw: String?, hourTag: String, minuteTag: String, variableTag: String): List<String>? {

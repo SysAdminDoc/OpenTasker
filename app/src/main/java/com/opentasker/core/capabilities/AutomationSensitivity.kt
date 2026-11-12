@@ -61,6 +61,7 @@ object AutomationSensitivityRegistry {
         "array.process",
         "flow.wait",
         "task.run",
+        "task.stop",
         "flow.if",
         "flow.else",
         "flow.endif",

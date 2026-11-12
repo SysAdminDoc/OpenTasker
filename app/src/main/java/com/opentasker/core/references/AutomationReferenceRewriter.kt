@@ -1,6 +1,7 @@
 package com.opentasker.core.references
 
 import com.opentasker.core.actions.NotificationTaskBindings
+import com.opentasker.core.engine.STOP_TASK_ACTION_ID
 import com.opentasker.core.engine.SUB_TASK_ACTION_ID
 import com.opentasker.core.engine.SUB_TASK_REF_KEYS
 import com.opentasker.core.model.ActionSpec
@@ -212,6 +213,14 @@ object AutomationReferenceRewriter {
     }
 
     /**
+     * Pins the references [renamed] makes to its own old name to its id. [stabilizeNameReferences]
+     * leaves the renamed task out, but a Stop Task step naming the task it's in is a real self
+     * reference, and it would otherwise go on naming a task that no longer exists.
+     */
+    fun stabilizeOwnNameReferences(previous: Task, renamed: Task): Task =
+        renamed.copy(actions = renamed.actions.map { action -> action.retargetTaskArgs(previous, previous.id) })
+
+    /**
      * Rewrites every task reference through [idMap], used when a bundle's tasks are inserted under
      * fresh ids. References that [idMap] does not cover are left untouched so an import can report
      * them rather than silently retargeting a stranger's task.
@@ -308,7 +317,7 @@ object AutomationReferenceRewriter {
         val updated = args.toMutableMap()
         var changed = false
 
-        if (type == SUB_TASK_ACTION_ID) {
+        if (type == SUB_TASK_ACTION_ID || type == STOP_TASK_ACTION_ID) {
             SUB_TASK_REF_KEYS.forEach { key ->
                 val id = updated[key]?.trim()?.toLongOrNull()?.takeIf { it > 0 } ?: return@forEach
                 val mapped = mapId(id)
@@ -335,14 +344,14 @@ object AutomationReferenceRewriter {
     /**
      * Retargets or clears the references this action holds to [target]. Clearing a notification
      * button drops its label too, so a button cannot survive with nothing to run; clearing a
-     * `task.run` target leaves the action present but unbound, where the runner already fails
-     * closed with "task.run requires a 'task'".
+     * `task.run` or `task.stop` target leaves the action present but unbound, where the runner
+     * already fails closed with "task.run requires a 'task'" (or task.stop's same message).
      */
     private fun ActionSpec.retargetTaskArgs(target: Task, replacement: Long?): ActionSpec {
         val updated = args.toMutableMap()
         var changed = false
 
-        if (type == SUB_TASK_ACTION_ID) {
+        if (type == SUB_TASK_ACTION_ID || type == STOP_TASK_ACTION_ID) {
             SUB_TASK_REF_KEYS.forEach { key ->
                 val raw = updated[key]?.trim().orEmpty()
                 if (raw.isBlank() || !raw.refersTo(target)) return@forEach
@@ -385,6 +394,7 @@ fun TaskReference.describe(): String = when (val site = site) {
     is TaskReferenceSite.ProfileFallbackTask -> "Profile \"${site.ownerName}\" fallback task"
     TaskReferenceSite.GlobalFallbackTask -> "Global settings fallback task"
     is TaskReferenceSite.SubTaskRun -> "Task \"${site.ownerName}\" step ${site.actionIndex + 1} (run sub-task)"
+    is TaskReferenceSite.StopTaskStep -> "Task \"${site.ownerName}\" step ${site.actionIndex + 1} (stop task)"
     is TaskReferenceSite.NotificationButton ->
         "Task \"${site.ownerName}\" step ${site.actionIndex + 1} (notification button ${site.buttonIndex})"
     is TaskReferenceSite.SceneTap -> "Scene \"${site.ownerName}\" element ${site.elementIndex + 1} (tap)"

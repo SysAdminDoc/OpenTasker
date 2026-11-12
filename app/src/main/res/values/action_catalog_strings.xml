@@ -226,6 +226,10 @@
     <string name="catalog_action_task_run_description" formatted="false">Run another task as a sub-task, up to 8 levels deep. Inputs you add become variables in that task.</string>
     <string name="catalog_action_task_run_field_task_label" formatted="false">Task id or name</string>
     <string name="catalog_action_task_run_field_task_hint" formatted="false">Toggle Wi-Fi</string>
+    <string name="catalog_action_task_stop_name" formatted="false">Stop Task</string>
+    <string name="catalog_action_task_stop_description" formatted="false">Stop another task while it runs. Naming this task ends it here, like Stop.</string>
+    <string name="catalog_action_task_stop_field_task_label" formatted="false">Task id or name</string>
+    <string name="catalog_action_task_stop_field_task_hint" formatted="false">Repeat Alarm</string>
     <string name="catalog_action_flow_if_name" formatted="false">If</string>
     <string name="catalog_action_flow_if_description" formatted="false">Run the following actions only when the condition is true (close with End If)</string>
     <string name="catalog_action_flow_if_field_condition_label" formatted="false">Condition</string>
