@@ -11,9 +11,12 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.test.doubleClick
+import android.os.SystemClock
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
@@ -52,8 +55,7 @@ class DoubleTapDeleteInstrumentedTest {
             }
         }
 
-        composeTestRule.onNodeWithContentDescription("Ungated delete").performTouchInput { doubleClick() }
-        composeTestRule.waitForIdle()
+        tapTwiceAt(composeTestRule.onNodeWithContentDescription("Ungated delete").fetchSemanticsNode().boundsInRoot.center)
         assertEquals(2, clicks)
     }
 
@@ -81,8 +83,7 @@ class DoubleTapDeleteInstrumentedTest {
             }
         }
 
-        composeTestRule.onNodeWithContentDescription("Delete First").performTouchInput { doubleClick() }
-        composeTestRule.waitForIdle()
+        tapTwiceAt(composeTestRule.onNodeWithContentDescription("Delete First").fetchSemanticsNode().boundsInRoot.center)
         assertEquals(listOf("First", "Second"), deleted)
     }
 
@@ -135,8 +136,7 @@ class DoubleTapDeleteInstrumentedTest {
 
         val firstDelete = composeTestRule.onNodeWithContentDescription("Delete context 1, Time").performScrollTo()
         val tapPoint = firstDelete.fetchSemanticsNode().boundsInRoot.center
-        firstDelete.performTouchInput { doubleClick() }
-        composeTestRule.waitForIdle()
+        tapTwiceAt(tapPoint)
         assertEquals(listOf(0), deleted)
         assertEquals(listOf(ContextSpec(ContextType.DAY)), profile.contexts)
         // The Day row's Delete slid up under the spot both taps landed on.
@@ -168,8 +168,7 @@ class DoubleTapDeleteInstrumentedTest {
         }
 
         val tapPoint = composeTestRule.onAllNodesWithText("Revoke")[0].fetchSemanticsNode().boundsInRoot.center
-        composeTestRule.onAllNodesWithText("Revoke")[0].performTouchInput { doubleClick() }
-        composeTestRule.waitForIdle()
+        tapTwiceAt(tapPoint)
         assertEquals(listOf(first), revoked)
         assertEquals(listOf(second), grants)
         // The second grant's Revoke slid up under the spot both taps landed on.
@@ -179,6 +178,22 @@ class DoubleTapDeleteInstrumentedTest {
         composeTestRule.onAllNodesWithText("Revoke")[0].performClick()
         composeTestRule.waitForIdle()
         assertEquals(listOf(first, second), revoked)
+    }
+
+    /**
+     * A finger's double tap: two taps on one spot of the screen with a frame between them, so a row
+     * the first tap removed is gone before the second lands. `doubleClick()` sends both taps before
+     * the list lays out again, and its second tap never reaches the row that slid up.
+     */
+    private fun tapTwiceAt(point: Offset) {
+        val start = SystemClock.uptimeMillis()
+        composeTestRule.onRoot().performTouchInput { click(point) }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().performTouchInput { click(point) }
+        val apart = SystemClock.uptimeMillis() - start
+        composeTestRule.waitForIdle()
+        // Slower than the window and the second tap is a deliberate one, which the gate lets through.
+        assertTrue("the taps were $apart ms apart", apart < SINGLE_TAP_WINDOW_MS)
     }
 
     private companion object {
