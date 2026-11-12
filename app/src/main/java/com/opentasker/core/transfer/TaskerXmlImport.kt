@@ -2407,6 +2407,13 @@ object TaskerXmlImporter {
                     "script files you've approved in Settings. Saved as a script, the command can run through Run " +
                     "Shizuku Script, which runs it as the shell user unless Shizuku was started with root",
                 "328" to "Tasker's Keyboard types into other apps through Tasker's own keyboard, which OpenTasker doesn't have",
+                "703" to "Tasker's Button presses a key like Back or Menu, and OpenTasker has no step that presses those keys",
+                "245" to "Tasker's Back Button presses Back, and OpenTasker has no step that presses Back",
+                "35" to "Tasker's Wait Until waits for its If condition to come true, and the wait step here only waits a set time",
+                "319" to "Tasker's Ask Permissions asks for Tasker's own permissions. OpenTasker's are the ones you grant from Setup",
+                "139" to "Tasker's Disable turns Tasker itself off, so there's nothing here for it to change",
+                "133" to "Tasker's Set Tasker Pref changes one of Tasker's own settings, so there's nothing here for it to change",
+                "138" to "Tasker's Set Tasker Icon changes Tasker's own icon, so there's nothing here for it to change",
             )
 
     private val TASKER_INTENT_TARGETS = mapOf(0 to "broadcast", 1 to "activity", 2 to "service")
