@@ -285,12 +285,14 @@ class SetVariableAction : DeclaredAction(ActionCatalog.require("var.set")) {
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val name = args["name"] ?: return ActionResult.Failure("missing name")
         val value = args["value"] ?: ""
+        // A value typed under a name like %api_token is hidden in the editor, so it is here too.
+        val typedSecret = ActionArgumentSensitivity.isSensitive(id, "value", args)
         if (name.contains('.') || name.contains('[')) {
             if (!ctx.variables.setAtPath(name, value)) {
                 return ActionResult.Failure("invalid path, or the variable's JSON nests too deep: $name")
             }
             val baseName = name.takeWhile { it != '.' && it != '[' }
-            val loggedValue = if (ctx.isArgumentSensitive("value") || ctx.variables.isSensitive(baseName)) {
+            val loggedValue = if (typedSecret || ctx.isArgumentSensitive("value") || ctx.variables.isSensitive(baseName)) {
                 REDACTED_VARIABLE_VALUE
             } else {
                 value
@@ -298,7 +300,7 @@ class SetVariableAction : DeclaredAction(ActionCatalog.require("var.set")) {
             ctx.logger("Set path \$$name = $loggedValue")
         } else {
             ctx.variables.set(name, value)
-            val loggedValue = if (ctx.isArgumentSensitive("value") || ctx.variables.isSensitive(name)) {
+            val loggedValue = if (typedSecret || ctx.isArgumentSensitive("value") || ctx.variables.isSensitive(name)) {
                 REDACTED_VARIABLE_VALUE
             } else {
                 value

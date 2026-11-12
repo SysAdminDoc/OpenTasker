@@ -816,7 +816,13 @@ class TaskRunner(
         } else {
             rawResult
         }
-        val changes = variableChangesBetween(before, ctx.variables.toTemplateScope())
+        val changes = variableChangesBetween(before, ctx.variables.toTemplateScope()).map { change ->
+            if (change.sensitive || !ActionArgumentSensitivity.hidesWrittenValue(spec.type, spec.args, change.name)) {
+                change
+            } else {
+                change.copy(sensitive = true)
+            }
+        }
         return result to traceFor(index, spec, started, result, expansionReport, changes)
     }
 

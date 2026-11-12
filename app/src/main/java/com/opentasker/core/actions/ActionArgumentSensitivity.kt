@@ -75,6 +75,17 @@ object ActionArgumentSensitivity {
         return referencedName.isNotBlank() && isSensitiveArgumentName(referencedName)
     }
 
+    /**
+     * True when the value [actionType] wrote to [variableName] stays hidden in a run's change list,
+     * the way the editor hides the value typed for it: `%api_token` set by `var.set`, `api_key`
+     * written into `%config` by a `config.api_key` path, or a `%api_token` among several names.
+     */
+    fun hidesWrittenValue(actionType: String?, args: Map<String, String>, variableName: String): Boolean {
+        val (nameArg, _) = actionType?.let { NAME_KEYED_VALUE_ARGS[it] } ?: return false
+        return isSensitiveArgumentName(variableName) ||
+            (actionType == "var.set" && isSensitiveArgumentName(args[nameArg].orEmpty()))
+    }
+
     /** The explicit metadata declaration for [argName], or null when the field is not declared. */
     fun declaredSensitivity(actionType: String?, argName: String): Boolean? = actionType
         ?.let(ActionMetadataRegistry::get)

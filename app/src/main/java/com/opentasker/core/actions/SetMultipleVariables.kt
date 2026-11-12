@@ -23,8 +23,8 @@ class SetMultipleVariablesAction : DeclaredAction(ActionCatalog.require("var.set
         val outcome = ctx.variables.setMultipleVariables(args, ctx.eventVariables)
         if (outcome.isEmpty()) return ActionResult.Failure(multipleVariablesFailure(args, outcome)!!)
         // Names only: a value could be a secret that only its name gives away. A names list that may
-        // hold a secret, like a typed value read as a bare name, is only counted.
-        val hidden = ActionArgumentSensitivity.isSensitive("var.set_multiple", "names", args)
+        // hold a secret, like a typed value read as a bare name or a name built from one, is only counted.
+        val hidden = outcome.builtFromSecret || ActionArgumentSensitivity.isSensitive("var.set_multiple", "names", args)
         fun shown(names: List<String>) = if (hidden) "${names.size} variable(s)" else names.joinToString { "%$it" }
         ctx.logger(
             buildList {
@@ -49,12 +49,16 @@ internal fun multipleVariablesFailure(args: Map<String, String>, outcome: Multip
     else -> "invalid variable name(s): ${outcome.invalid.joinToString()}"
 }
 
-/** What [setMultipleVariables] did with each name, by canonical name; [invalid] keeps the text as written. */
+/**
+ * What [setMultipleVariables] did with each name, by canonical name; [invalid] keeps the text as
+ * written. [builtFromSecret] says a name was filled in from a secret, like `%cache_%Pin`.
+ */
 internal data class MultipleVariablesOutcome(
     val set: List<String>,
     val cleared: List<String>,
     val kept: List<String>,
     val invalid: List<String>,
+    val builtFromSecret: Boolean = false,
 ) {
     fun isEmpty(): Boolean = set.isEmpty() && cleared.isEmpty() && kept.isEmpty() && invalid.isEmpty()
 }
@@ -75,23 +79,29 @@ internal fun VariableStore.setMultipleVariables(
     val cleared = mutableListOf<String>()
     val kept = mutableListOf<String>()
     val invalid = mutableListOf<String>()
+    var builtFromSecret = false
     // A blank entry still takes its place, so the names after it keep lining up with their values.
     multipleVariablesEntries(args).forEachIndexed { index, entry ->
         val (written, inlineValue) = entry ?: return@forEachIndexed
-        val name = VariableNamePolicy.normalize(written) ?: VariableNamePolicy.normalize(expand(written))
+        // The names field is never filled in by the engine, so a name built from a secret is tracked here.
+        val direct = VariableNamePolicy.normalize(written)
+        val built = if (direct == null) expandTracked(written) else null
+        val name = direct ?: built?.text?.let(VariableNamePolicy::normalize)
         if (name == null) {
-            invalid += written
+            invalid += written.ifEmpty { "(blank name)" }
             return@forEachIndexed
         }
+        val secretName = built?.isSecretDerived == true
+        builtFromSecret = builtFromSecret || secretName
         when {
             keepExisting && !get(name).isNullOrEmpty() -> kept += name
-            // The names field is never filled in by the engine, so an inline value is filled in here.
-            inlineValue != null -> expandInlineValue(inlineValue, eventVariables).let { (text, secret) -> set(name, text, sensitive = secret) }.also { assigned += name }
-            index < values.size -> set(name, values[index]).also { assigned += name }
+            // Filled in here for the same reason.
+            inlineValue != null -> expandInlineValue(inlineValue, eventVariables).let { (text, secret) -> set(name, text, sensitive = secret || secretName) }.also { assigned += name }
+            index < values.size -> set(name, values[index], sensitive = secretName).also { assigned += name }
             else -> clearForTask(name).also { cleared += name }
         }
     }
-    return MultipleVariablesOutcome(assigned, cleared, kept, invalid)
+    return MultipleVariablesOutcome(assigned, cleared, kept, invalid, builtFromSecret)
 }
 
 /**
