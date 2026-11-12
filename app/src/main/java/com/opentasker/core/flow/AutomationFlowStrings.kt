@@ -3,10 +3,18 @@ package com.opentasker.core.flow
 import android.content.res.Resources
 import com.opentasker.app.R
 import com.opentasker.core.actions.ActionArgumentSensitivity
+import com.opentasker.core.actions.ActionMetadataRegistry
 import com.opentasker.core.actions.ActionSummaryFormatter
 
-/** Joins the parts of a node's detail line. The Flow screen splits on it to find the action type. */
+/** Joins the parts of a node's detail line. */
 internal const val FLOW_DETAIL_SEPARATOR = " · "
+
+/**
+ * Names an unlabeled step the way Tasks does ("Set Brightness", not `brightness.set`), and keeps the id
+ * for a type this build doesn't register.
+ */
+internal fun flowActionName(type: String, getString: (Int) -> String): String =
+    ActionMetadataRegistry.get(type)?.let { getString(it.nameRes) } ?: type
 
 /** Presentation copy for the flow graph; production UI supplies the current locale's resources. */
 interface AutomationFlowStrings {
@@ -99,7 +107,7 @@ private class ResourceAutomationFlowStrings(
     override fun actionTitle(index: Int, subTaskRef: String?, type: String, customLabel: String?): String = when {
         !customLabel.isNullOrBlank() -> customLabel
         subTaskRef != null -> resources.getString(R.string.flow_action_subtask_title, index, subTaskRef)
-        else -> resources.getString(R.string.flow_action_title, index, type)
+        else -> resources.getString(R.string.flow_action_title, index, flowActionName(type, resources::getString))
     }
 
     override fun actionSummary(type: String, args: Map<String, String>): String =

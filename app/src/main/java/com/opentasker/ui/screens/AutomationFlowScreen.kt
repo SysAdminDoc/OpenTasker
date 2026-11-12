@@ -61,7 +61,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.opentasker.app.R
-import com.opentasker.core.actions.ActionMetadataRegistry
 import com.opentasker.core.capabilities.AutomationLintSeverity
 import com.opentasker.core.capabilities.AutomationLint
 import com.opentasker.core.capabilities.AutomationLintStrings
@@ -70,7 +69,6 @@ import com.opentasker.core.flow.AutomationFlowGraphBuilder
 import com.opentasker.core.flow.AutomationFlowNode
 import com.opentasker.core.flow.AutomationFlowNodeKind
 import com.opentasker.core.flow.AutomationFlowTarget
-import com.opentasker.core.flow.FLOW_DETAIL_SEPARATOR
 import com.opentasker.core.model.Profile
 import com.opentasker.core.model.Task
 import com.opentasker.core.model.AutomationInvariant
@@ -484,7 +482,7 @@ private fun FlowCanvasNode(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
-                displayTitle(node),
+                node.title,
                 style = MaterialTheme.typography.labelMedium,
                 color = if (node.muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
@@ -563,7 +561,7 @@ private fun FlowNodeView(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                displayTitle(node),
+                node.title,
                 style = MaterialTheme.typography.titleSmall,
                 color = if (node.muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
@@ -701,14 +699,6 @@ private fun nodeColor(kind: AutomationFlowNodeKind, muted: Boolean): Color {
         AutomationFlowNodeKind.ACTION -> MaterialTheme.colorScheme.primary
         AutomationFlowNodeKind.MISSING -> MaterialTheme.colorScheme.error
     }
-}
-
-@Composable
-private fun displayTitle(node: AutomationFlowNode): String {
-    if (node.kind != AutomationFlowNodeKind.ACTION) return node.title
-    val actionType = node.detail?.substringBefore(FLOW_DETAIL_SEPARATOR) ?: return node.title
-    val metadata = ActionMetadataRegistry.get(actionType) ?: return node.title
-    return node.title.replace(actionType, stringResource(metadata.nameRes))
 }
 
 private fun plural(count: Int): String = if (count == 1) "" else "s"
