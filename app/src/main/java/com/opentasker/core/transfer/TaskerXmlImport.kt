@@ -2320,7 +2320,8 @@ object TaskerXmlImporter {
     private val TASKER_SOUND_MODES = mapOf(0 to "silent", 1 to "vibrate", 2 to "normal")
 
     // Codes kept as placeholders on purpose, with the reason the placeholder's import note gives.
-    // Scene codes are Tasker's Scene and Scene v2 categories in its action table.
+    // Scene codes are Tasker's Scene and Scene v2 categories in its action table, plus Edit Scene
+    // (143), which Tasker files under its own Tasker category.
     private val TASKER_KEPT_PLACEHOLDER_REASONS: Map<String, String> =
         listOf(
             "46", "47", "48", "49", "50", "51", "53", "54", "55", "56", "57", "58", "60", "63", "64", "65",
@@ -2335,7 +2336,7 @@ object TaskerXmlImporter {
                 "101" to "OpenTasker has no camera step, so Tasker's Take Photo can't run here",
                 "123" to "Tasker's Run Shell runs the command typed into the step, often as root. OpenTasker only runs " +
                     "script files you've approved in Settings. Saved as a script, the command can run through Run " +
-                    "Shizuku Script, though as the shell user rather than root",
+                    "Shizuku Script, which runs it as the shell user unless Shizuku was started with root",
                 "328" to "Tasker's Keyboard types into other apps through Tasker's own keyboard, which OpenTasker doesn't have",
             )
 

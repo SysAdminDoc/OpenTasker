@@ -35,9 +35,11 @@ class ClipboardGetAction : DeclaredAction(ActionCatalog.require("clipboard.get")
         // case, and treating null as "" reported Success with an empty value - indistinguishable
         // from a genuinely empty clipboard, and silently feeding blank data to whatever came next.
         // Being on screen isn't enough: split screen or the notification shade takes the focus.
+        // Only activity windows are tracked, so with one of the app's own dialogs in focus a truly
+        // empty clipboard lands here too, and the message doesn't claim which of the two it was.
         if (clip == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !AppVisibilityTracker.hasWindowFocus) {
             return ActionResult.Failure(
-                "Android only lets the app in focus read the clipboard, so run this action while OpenTasker is open and in front",
+                "The clipboard came back empty, and Android only lets the app in focus read it, so run this action while OpenTasker is open and in front",
             )
         }
 

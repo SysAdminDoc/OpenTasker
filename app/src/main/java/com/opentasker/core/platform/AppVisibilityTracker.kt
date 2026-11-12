@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import android.os.SystemClock
+import android.view.ViewTreeObserver
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicInteger
@@ -27,7 +28,7 @@ object AppVisibilityTracker : Application.ActivityLifecycleCallbacks {
         get() = startedActivityCount.get() > 0
 
     private val focusedActivities = ConcurrentHashMap.newKeySet<Activity>()
-    private val focusWatchedActivities = ConcurrentHashMap.newKeySet<Activity>()
+    private val focusListeners = ConcurrentHashMap<Activity, ViewTreeObserver.OnWindowFocusChangeListener>()
 
     /**
      * True while one of the app's activity windows has input focus. From Android 10 the clipboard
@@ -92,8 +93,10 @@ object AppVisibilityTracker : Application.ActivityLifecycleCallbacks {
     // window may not be attached yet, but a listener added before it attaches carries over.
     override fun onActivityPostResumed(activity: Activity) {
         val decor = activity.window?.peekDecorView() ?: return
-        if (!focusWatchedActivities.add(activity)) return
-        decor.viewTreeObserver.addOnWindowFocusChangeListener { focused -> noteWindowFocus(activity, focused) }
+        if (focusListeners.containsKey(activity)) return
+        val listener = ViewTreeObserver.OnWindowFocusChangeListener { focused -> noteWindowFocus(activity, focused) }
+        focusListeners[activity] = listener
+        decor.viewTreeObserver.addOnWindowFocusChangeListener(listener)
         noteWindowFocus(activity, decor.hasWindowFocus())
     }
 
@@ -101,8 +104,14 @@ object AppVisibilityTracker : Application.ActivityLifecycleCallbacks {
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = noteUserPresence()
     override fun onActivityPaused(activity: Activity) = Unit
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+    // A resize in split screen can relaunch the activity into the same window, so the old one's
+    // listener comes off or it would keep reporting focus for an activity that's gone.
     override fun onActivityDestroyed(activity: Activity) {
-        focusWatchedActivities -= activity
+        focusListeners.remove(activity)?.let { listener ->
+            activity.window?.peekDecorView()?.viewTreeObserver
+                ?.takeIf { it.isAlive }
+                ?.removeOnWindowFocusChangeListener(listener)
+        }
         focusedActivities -= activity
     }
 }
