@@ -172,7 +172,8 @@ class VariableStore {
      * Tasker's Variable Clear of a pattern, or of everything: unsets each variable the running task
      * sees whose name, written with its `%`, matches [pattern] (Tasker's Matches, so `%item*` or
      * `%a/%b`), or each one when [pattern] is null. Locals go the way [clearForTask] clears them,
-     * globals only with [includeGlobals]. Built-ins aren't stored, so they stay. Returns how many.
+     * globals only with [includeGlobals], and so do the arrays [setArray] keeps under a matching
+     * name (see [removeArray]). Built-ins aren't stored, so they stay. Returns how many.
      */
     fun clearMatching(pattern: String?, includeGlobals: Boolean): Int {
         fun matches(name: String) = pattern == null || expander.matches("%$name", pattern)
@@ -180,8 +181,18 @@ class VariableStore {
             visibleLocalNames().filter(::matches).onEach(::clearForTask)
         }
         val removedGlobals = if (includeGlobals) globals.keys.filter(::matches).filter { globals.remove(it) != null } else emptyList()
-        return locals.size + removedGlobals.size
+        val removedArrays = arrayStore.snapshot().keys
+            .filter { (includeGlobals || !VariableNamePolicy.isGlobal(it)) && matches(it) }
+            .filter(arrayStore::remove)
+        return (locals + removedGlobals + removedArrays).toSet().size
     }
+
+    /**
+     * Drops the array [setArray] keeps under [name] (Split Text's, Wi-Fi Scan's, ...), so its
+     * `%name(#)` reads 0, and returns whether there was one. These arrays aren't scoped, so a
+     * sub-task drops its caller's, the way its own Split Text would replace it.
+     */
+    fun removeArray(name: String): Boolean = arrayStore.remove(storedArrayName(name))
 
     /** The local names [get] finds a stored value for. Call it holding the [localStack] lock. */
     private fun visibleLocalNames(): Set<String> {

@@ -10,7 +10,8 @@ import com.opentasker.core.model.VariableNamePolicy
  * written, never filled in. A plain name is cleared for the running task the way Reset Return
  * Variable clears it. With `pattern`, every variable whose name matches goes (Tasker's Matches, so
  * `%item*` or `%a/%b`), globals too unless `local_only`. No name clears every local, and every
- * global as well with `clear_all`. Both switches only count where Tasker reads them.
+ * global as well with `clear_all`. Both switches only count where Tasker reads them. The array a
+ * step like Split Text keeps under a cleared name goes with it.
  */
 class VarClearAction : DeclaredAction(ActionCatalog.require("var.clear")) {
 
@@ -33,7 +34,8 @@ internal fun VariableStore.clearVariables(args: Map<String, String>): Int? {
             val variable = VariableNamePolicy.normalize(name) ?: return null
             val wasSet = get(variable) != null
             clearForTask(variable)
-            if (wasSet) 1 else 0
+            val hadArray = removeArray(variable)
+            if (wasSet || hadArray) 1 else 0
         }
     }
 }

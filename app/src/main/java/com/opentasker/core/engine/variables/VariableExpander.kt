@@ -876,6 +876,9 @@ class ArrayStore {
         synchronized(lock) { arrays.clear() }
     }
 
+    /** Drops the array [name], returning whether there was one. */
+    fun remove(name: String): Boolean = synchronized(lock) { arrays.remove(name) != null }
+
     companion object {
         private const val MAX_ARRAYS = 500
     }
