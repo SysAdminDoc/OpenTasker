@@ -643,14 +643,15 @@ class TaskRunner(
     ): FailureRecovery {
         var nonRetryReason: String? = null
         var lastAttempt = 1
-        while (true) {
-            val frame = tryStack.asReversed().firstOrNull { candidate ->
-                candidate.phase == TryPhase.BODY && pc > candidate.tryIndex && pc < candidate.endIndex
-            } ?: return FailureRecovery(nextPc = null, reason = nonRetryReason, attemptCount = lastAttempt)
-
-            while (tryStack.lastOrNull() !== frame) tryStack.removeLast()
+        // Innermost first. Frames come off the stack only once one of them retries or catches, so a
+        // failure nothing handles leaves every Try open for a step that carries on past it.
+        val enclosing = tryStack.asReversed().filter { candidate ->
+            candidate.phase == TryPhase.BODY && pc > candidate.tryIndex && pc < candidate.endIndex
+        }
+        for (frame in enclosing) {
             lastAttempt = frame.attempt
             if (frame.attempt < frame.config.maxAttempts && tryBodyIsRetrySafe(task, frame)) {
+                while (tryStack.lastOrNull() !== frame) tryStack.removeLast()
                 setFailureVariables(task, pc, spec, failure, frame.attempt, retrying = true, retryReason = null)
                 frame.attempt++
                 clearLoopsToDepth(loopStack, frame.loopDepth)
@@ -666,6 +667,7 @@ class TaskRunner(
             }
 
             frame.catchIndex?.let { catchIndex ->
+                while (tryStack.lastOrNull() !== frame) tryStack.removeLast()
                 setFailureVariables(
                     task,
                     pc,
@@ -686,10 +688,9 @@ class TaskRunner(
                     attemptCount = frame.attempt,
                 )
             }
-
             // An uncaught nested failure propagates to the enclosing try block.
-            tryStack.removeLast()
         }
+        return FailureRecovery(nextPc = null, reason = nonRetryReason, attemptCount = lastAttempt)
     }
 
     private fun retryReason(spec: ActionSpec, safety: ActionRetrySafety?): String = when (safety) {
