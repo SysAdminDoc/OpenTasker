@@ -81,6 +81,7 @@ private val SubTaskInputIssue.messageRes: Int
         SubTaskInputIssue.InvalidName -> R.string.sub_task_input_error_name
         SubTaskInputIssue.PicksTheTask -> R.string.sub_task_input_error_reserved
         SubTaskInputIssue.Duplicate -> R.string.sub_task_input_error_duplicate
+        SubTaskInputIssue.HoldsTheReturnVariable -> R.string.sub_task_input_error_return_variable
     }
 
 private fun List<SubTaskInput>.replacedAt(index: Int, input: SubTaskInput): List<SubTaskInput> =

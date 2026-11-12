@@ -1,5 +1,6 @@
 package com.opentasker.core.actions
 
+import com.opentasker.core.engine.SUB_TASK_RETURN_KEY
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.VariableNamePolicy
 
@@ -253,6 +254,7 @@ private fun output(
 /** Output declarations for the built-in actions whose runtime writes variables. */
 internal fun declaredActionOutputs(actionId: String): List<ActionOutputDefinition> = when (actionId) {
     "var.set" -> listOf(output("value", ActionValueType.ANY, nameArgumentKeys = listOf("name"), basePath = true))
+    "task.run" -> listOf(output("value", ActionValueType.ANY, nameArgumentKeys = listOf(SUB_TASK_RETURN_KEY)))
     "var.persist" -> listOf(output("value", ActionValueType.ANY, nameArgumentKeys = listOf("global_name", "name"), scope = ActionOutputScope.GLOBAL))
     "data.read" -> listOf(
         output("value", ActionValueType.TEXT, nameArgumentKeys = listOf("var", "variable"), defaultName = "data"),

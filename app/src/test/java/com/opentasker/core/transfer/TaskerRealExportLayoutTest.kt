@@ -614,14 +614,6 @@ class TaskerRealExportLayoutTest {
     }
 
     @Test
-    fun performTaskNamesTheReturnVariable() {
-        val xml = """<code>130</code><Str sr="arg0" ve="3">Restore</Str><Int sr="arg1" val="100"/><Str sr="arg2" ve="3"/><Str sr="arg3" ve="3"/><Str sr="arg4" ve="3">%restored</Str>"""
-
-        assertNull(action(xml).args["par1"])
-        assertWarns(xml, "%restored")
-    }
-
-    @Test
     fun stoppingAnotherTaskImportsAsStopTaskAndAPlainStopStaysStop() {
         val named = action("""<code>137</code><Int sr="arg0" val="0"/><Str sr="arg1" ve="3">Background</Str>""")
 
@@ -1080,17 +1072,6 @@ class TaskerRealExportLayoutTest {
             """<code>312</code><Int sr="arg1" val="0"/>""",
         ).forEach { assertEquals(it, placeholder, action(it).type) }
         assertWarns("""<code>312</code><Int sr="arg0" val="4"/>""", "Custom")
-    }
-
-    // Return (126)
-
-    @Test
-    fun returnEndsTheCalledTaskAndNamesTheValueItCannotPassBack() {
-        val stop = """<code>126</code><Str sr="arg0" ve="3">%par1</Str><Int sr="arg1" val="1"/><Int sr="arg2" val="0"/><Int sr="arg3" val="0"/><Str sr="arg4" ve="3"/>"""
-
-        assertEquals("flow.stop", action(stop).type)
-        assertWarns(stop, "%par1")
-        assertEquals(placeholder, action(stop.replace("""<Int sr="arg1" val="1"/>""", """<Int sr="arg1" val="0"/>""")).type)
     }
 
     // Send Intent (877)

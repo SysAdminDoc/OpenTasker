@@ -23,6 +23,7 @@ import com.opentasker.core.model.Variable
 import com.opentasker.core.model.enterTaskIdOrNull
 import com.opentasker.core.diagnostics.ExportRedactionPolicy
 import com.opentasker.core.engine.SUB_TASK_REF_KEYS
+import com.opentasker.core.engine.SUB_TASK_RETURN_KEY
 import com.opentasker.core.engine.variables.VariableExpander
 import kotlin.math.roundToLong
 
@@ -377,14 +378,22 @@ object TaskerXmlExporter {
                 appendInt(sb, 0, "0")
                 appendStr(sb, 1, taskRefs.taskerName(taskRef(args).orEmpty(), warnings))
             }
+            // A Stop with a value is Tasker's Return, with Stop on and no local variables passed back.
+            "flow.stop" -> if (code == "126") {
+                appendStr(sb, 0, args["value"].orEmpty().trim())
+                appendInt(sb, 1, "1")
+                appendInt(sb, 2, "0")
+                appendInt(sb, 3, "0")
+                appendStr(sb, 4, "")
+            }
             "task.run" -> {
                 appendStr(sb, 0, taskRefs.taskerName(taskRef(args).orEmpty(), warnings))
                 appendInt(sb, 1, "%priority")
                 appendStr(sb, 2, args["par1"] ?: "")
                 appendStr(sb, 3, args["par2"] ?: "")
-                appendStr(sb, 4, "")
+                appendStr(sb, 4, args[SUB_TASK_RETURN_KEY]?.takeIf(String::isNotBlank)?.let { taskerVariableName(it, "") }.orEmpty())
                 appendInt(sb, 5, "0")
-                val otherInputs = args.keys - SUB_TASK_REF_KEYS - setOf("par1", "par2")
+                val otherInputs = args.keys - SUB_TASK_REF_KEYS - setOf("par1", "par2", SUB_TASK_RETURN_KEY)
                 if (otherInputs.isNotEmpty()) {
                     warnings += "Tasker's Perform Task only passes par1 and par2, so these inputs were left out: " +
                         otherInputs.sorted().joinToString(", ")
@@ -1197,6 +1206,7 @@ object TaskerXmlExporter {
             return TASKER_VOLUME_CODES[(action.args["stream"] ?: "music").lowercase()]
         }
         if (action.type == "var.split" && action.args["values"] != null) return "354"
+        if (action.type == "flow.stop" && !action.args["value"].isNullOrBlank()) return "126"
         // Tasker's Stop with no task named ends the task it's in, which isn't what this step does.
         if (action.type == "task.stop" && taskRef(action.args) == null) return null
         return REVERSE_ACTION_MAP[action.type]

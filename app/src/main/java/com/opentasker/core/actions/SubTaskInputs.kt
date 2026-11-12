@@ -1,6 +1,7 @@
 package com.opentasker.core.actions
 
 import com.opentasker.core.engine.SUB_TASK_REF_KEYS
+import com.opentasker.core.engine.SUB_TASK_RETURN_KEY
 import com.opentasker.core.model.VariableNamePolicy
 import java.io.Serializable
 
@@ -16,6 +17,9 @@ enum class SubTaskInputIssue {
 
     /** A second row with the same name would silently replace the first. */
     Duplicate,
+
+    /** `returnVariable` names where the task's returned value goes, so it's never passed on. */
+    HoldsTheReturnVariable,
 }
 
 /**
@@ -26,7 +30,8 @@ enum class SubTaskInputIssue {
 object SubTaskInputs {
     /** The arguments on a saved action that are inputs, not the task reference or a form field. */
     fun from(args: Map<String, String>, fieldKeys: Set<String>): List<SubTaskInput> =
-        args.filterKeys { it !in SUB_TASK_REF_KEYS && it !in fieldKeys }.map { (name, value) -> SubTaskInput(name, value) }
+        args.filterKeys { it !in SUB_TASK_REF_KEYS && it != SUB_TASK_RETURN_KEY && it !in fieldKeys }
+            .map { (name, value) -> SubTaskInput(name, value) }
 
     /** Problems by row. A row with neither a name nor a value is an unused blank and is fine. */
     fun validate(inputs: List<SubTaskInput>): Map<Int, SubTaskInputIssue> {
@@ -38,6 +43,7 @@ object SubTaskInputs {
             when {
                 name == null -> issues[index] = SubTaskInputIssue.InvalidName
                 name in SUB_TASK_REF_KEYS -> issues[index] = SubTaskInputIssue.PicksTheTask
+                name == SUB_TASK_RETURN_KEY -> issues[index] = SubTaskInputIssue.HoldsTheReturnVariable
                 !seen.add(name) -> issues[index] = SubTaskInputIssue.Duplicate
             }
         }
@@ -54,7 +60,7 @@ object SubTaskInputs {
         opened.forEach { result.remove(it.name) }
         edited.forEach { input ->
             val name = VariableNamePolicy.normalize(input.name) ?: return@forEach
-            if (name !in SUB_TASK_REF_KEYS) result[name] = input.value
+            if (name !in SUB_TASK_REF_KEYS && name != SUB_TASK_RETURN_KEY) result[name] = input.value
         }
         return result
     }

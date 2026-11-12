@@ -81,11 +81,18 @@ class TaskRunner(
     /** Set when a Stop Task step names [runningTask], which ends the run like `flow.stop`. */
     private var stopThisRun = false
 
+    /** What a Stop with a value handed back, for the Run Task step that ran this task (Tasker's Return). */
+    internal class ReturnedValue(val text: String, val sensitive: Boolean)
+
+    internal var returnedValue: ReturnedValue? = null
+        private set
+
     suspend fun run(task: Task): TaskRunReport {
         ctx.variables.pushScope()
         val started = now()
         runningTask = task
         stopThisRun = false
+        returnedValue = null
         val results = mutableListOf<ActionResult>()
         val traces = mutableListOf<ActionExecutionTrace>()
 
@@ -496,6 +503,14 @@ class TaskRunner(
             }
             FlowControl.STOP -> if (!guardMet()) {
                 skipped("stop skipped: condition ($guard) -> false", pc + 1)
+            } else if (!spec.args["value"].isNullOrBlank()) {
+                // Tasker's Return: the value goes back to the Run Task step that called this task, if any.
+                val expansion = expandArgs(spec.type, mapOf("value" to spec.args.getValue("value")))
+                val value = expansion.args["value"].orEmpty()
+                val sensitive = expansion.isArgumentSensitive("value")
+                returnedValue = ReturnedValue(value, sensitive)
+                val shown = summarizeArgValue(spec.type, "value", value, forceRedact = sensitive)
+                outcome(expansion.redactSensitiveValues("stop, returning $shown"), pc + 1, halt = true)
             } else {
                 outcome("stop", pc + 1, halt = true)
             }
@@ -820,6 +835,15 @@ class TaskRunner(
         if (depth >= MAX_SUBTASK_DEPTH) {
             return fail("sub-task depth limit ($MAX_SUBTASK_DEPTH) exceeded; possible recursion")
         }
+        // Checked before the task runs, so a typo doesn't run the task and then lose what it returns.
+        val returnVariable = spec.args[SUB_TASK_RETURN_KEY]?.takeIf(String::isNotBlank)?.let { written ->
+            val expanded = args[SUB_TASK_RETURN_KEY].orEmpty()
+            VariableNamePolicy.normalize(expanded) ?: return fail(
+                expansionReport.redactSensitiveValues(
+                    unusableReturnVariable(written, expanded, expansionReport.isArgumentSensitive(SUB_TASK_RETURN_KEY)),
+                ),
+            )
+        }
 
         val ref = SUB_TASK_REF_KEYS.firstNotNullOfOrNull { args[it]?.trim()?.takeIf(String::isNotBlank) }
             ?: return fail("task.run requires a 'task' (id or name)")
@@ -848,7 +872,7 @@ class TaskRunner(
         ctx.variables.pushScope(holdsInputs = true)
         val report = try {
             args.forEach { (key, value) ->
-                if (key !in SUB_TASK_REF_KEYS) {
+                if (key !in SUB_TASK_REF_KEYS && key != SUB_TASK_RETURN_KEY) {
                     ctx.variables.set(key, value, sensitive = expansionReport.isArgumentSensitive(key))
                 }
             }
@@ -864,6 +888,11 @@ class TaskRunner(
             }
         } finally {
             ctx.variables.popScope()
+        }
+        // Set after the inputs' scope is gone, so the value lands in this task's own variables.
+        val returned = child.returnedValue
+        if (report.success && returnVariable != null && returned != null) {
+            ctx.variables.set(returnVariable, returned.text, sensitive = returned.sensitive)
         }
         val result = if (report.success) {
             ActionResult.Success
@@ -1212,6 +1241,8 @@ const val STOP_TASK_ACTION_ID = "task.stop"
 const val MAX_SUBTASK_DEPTH = 8
 /** Argument keys `task.run` accepts as its target, in precedence order. */
 val SUB_TASK_REF_KEYS = listOf("task", "name", "id")
+/** The `task.run` argument naming the caller's variable for the value a Stop hands back, Tasker's Return Value Variable. */
+const val SUB_TASK_RETURN_KEY = "returnVariable"
 
 /** What the run log and Preflight say for a step turned off. */
 const val STEP_TURNED_OFF = "step is turned off"
@@ -1432,7 +1463,17 @@ private fun ActionArgumentExpansionTrace.toTemplateDiagnosticLines(actionType: S
         ).joinToString("\t")
     }
 
-private fun summarizeArgValue(
+/**
+ * Why a Run Task step's return variable can't hold the returned value, from the name as written and
+ * as it came out. The run and Preflight both say this.
+ */
+internal fun unusableReturnVariable(written: String, expanded: String, sensitive: Boolean): String = when {
+    expanded.isBlank() -> "'${written.trim()}' came out empty, so the returned value has nowhere to go"
+    sensitive -> "$REDACTED_VALUE isn't a variable name, so the returned value has nowhere to go"
+    else -> "'${expanded.trim()}' isn't a variable name, so the returned value has nowhere to go"
+}
+
+internal fun summarizeArgValue(
     actionType: String?,
     argName: String,
     value: String,

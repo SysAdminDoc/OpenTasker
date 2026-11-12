@@ -217,6 +217,12 @@ object PreflightRunner {
 
     private class CallerStopSignal(var stop: CallerStop? = null)
 
+    /**
+     * What a task hands back to the Run Task step that ran it: a Stop step's value, and whether the
+     * run would fail the task, which keeps the value from coming back.
+     */
+    private class ReturnSlot(var value: String? = null, var sensitive: Boolean = false, var fails: Boolean = false)
+
     private fun simulateTask(
         task: Task,
         tasks: List<Task>,
@@ -228,6 +234,7 @@ object PreflightRunner {
         reports: MutableList<PreflightTaskReport>,
         warnings: MutableList<String>,
         callerStop: CallerStopSignal = CallerStopSignal(),
+        returnSlot: ReturnSlot = ReturnSlot(),
     ): PreflightTaskReport {
         variables.pushScope()
         return try {
@@ -242,6 +249,7 @@ object PreflightRunner {
                 reports = reports,
                 warnings = warnings,
                 callerStop = callerStop,
+                returnSlot = returnSlot,
             )
         } finally {
             variables.popScope()
@@ -259,6 +267,7 @@ object PreflightRunner {
         reports: MutableList<PreflightTaskReport>,
         warnings: MutableList<String>,
         callerStop: CallerStopSignal,
+        returnSlot: ReturnSlot,
     ): PreflightTaskReport {
         if (depth > MAX_SUBTASK_DEPTH) {
             val blocked = PreflightStep(
@@ -271,6 +280,7 @@ object PreflightRunner {
                 warnings = listOf("Sub-task depth limit $MAX_SUBTASK_DEPTH exceeded."),
             )
             warnings += blocked.warnings
+            returnSlot.fails = true
             return PreflightTaskReport(task.id, task.name, taskPath, listOf(blocked))
         }
 
@@ -286,6 +296,7 @@ object PreflightRunner {
                 warnings = listOf(structure.error),
             )
             warnings += blocked.warnings
+            returnSlot.fails = true
             return PreflightTaskReport(task.id, task.name, taskPath, listOf(blocked))
         }
 
@@ -306,10 +317,12 @@ object PreflightRunner {
             }
             if (FlowControl.isControl(spec.type)) {
                 val control = simulateControl(
-                    pc, spec, task.actions, structure, loopStack, tryStack, armedElseIndices, ifResults, variables, input,
+                    pc, spec, task.actions, structure, loopStack, tryStack, armedElseIndices, ifResults, variables, input, returnSlot,
                 )
                 recordStep(steps, control.step.copy(taskPath = taskPath))
                 warnings += control.step.warnings
+                // A control step the run can't carry out fails the task, and no Try catches that.
+                if (control.halt && control.step.status == PreflightStepStatus.BLOCKED) returnSlot.fails = true
                 pc = control.nextPc
                 halted = control.halt
                 continue
@@ -393,22 +406,50 @@ object PreflightRunner {
             recordStep(steps, step)
             warnings += step.warnings
 
+            var runFailsStep = false
             if (effectiveStatus != PreflightStepStatus.BLOCKED) {
                 simulateVariableWrite(spec, expansion.rawValues, variables)
                 if (spec.type == SUB_TASK_ACTION_ID) {
                     val reference = SUB_TASK_REF_KEYS.firstNotNullOfOrNull { expansion.rawValues[it]?.trim()?.takeIf(String::isNotBlank) }
                     val target = reference?.let { resolveTask(it, tasks) }
+                    val returnWritten = spec.args[SUB_TASK_RETURN_KEY]?.takeIf(String::isNotBlank)
+                    val returnExpanded = expansion.rawValues[SUB_TASK_RETURN_KEY].orEmpty()
+                    val returnVariable = returnWritten?.let { VariableNamePolicy.normalize(returnExpanded) }
+                    // Something Preflight doesn't play may set it before the run gets here, so a
+                    // name that is empty, or has an empty part, only warns.
+                    val returnEmptyHere = returnWritten != null && returnExpanded.isBlank()
+                    val returnPartEmptyHere = returnWritten != null && returnVariable == null && !returnEmptyHere &&
+                        SUB_TASK_RETURN_KEY in expansion.missingKeys
                     when {
+                        // Checked first, like the run does.
+                        returnVariable == null && returnWritten != null && !returnEmptyHere && !returnPartEmptyHere -> {
+                            val problem = unusableReturnVariable(returnWritten, returnExpanded, SUB_TASK_RETURN_KEY in expansion.secretKeys)
+                            addWarning(steps, pc, "The run stops this step: $problem.")
+                        }
                         reference == null -> addWarning(steps, pc, "task.run requires a task id or name.")
                         target == null -> addWarning(steps, pc, "Sub-task not found: $reference")
                         target.id in activeTaskIds -> addWarning(steps, pc, "Sub-task recursion detected for ${target.name}.")
                         else -> {
+                            val emptyNote = when {
+                                returnEmptyHere -> "'${returnWritten.orEmpty().trim()}' is empty here. If nothing sets it before this step, "
+                                returnPartEmptyHere -> "'${returnWritten.orEmpty().trim()}' has an empty part here, so it isn't a " +
+                                    "variable name yet. If nothing sets that part before this step, "
+                                else -> null
+                            }
+                            emptyNote?.let { start ->
+                                val note = start + "the run stops the step, since the returned value would have nowhere to go."
+                                steps[pc]?.let { steps[pc] = it.copy(warnings = (it.warnings + note).distinct()) }
+                                warnings += note
+                            }
+                            val returned = ReturnSlot()
                             // The same input scope the run gives the sub-task, so its %par1 checks
                             // read what this caller passes.
                             variables.pushScope(holdsInputs = true)
                             val child = try {
                                 expansion.rawValues.forEach { (key, value) ->
-                                    if (key !in SUB_TASK_REF_KEYS) variables.set(key, value, sensitive = key in expansion.secretKeys)
+                                    if (key !in SUB_TASK_REF_KEYS && key != SUB_TASK_RETURN_KEY) {
+                                        variables.set(key, value, sensitive = key in expansion.secretKeys)
+                                    }
                                 }
                                 simulateTask(
                                     task = target,
@@ -421,11 +462,20 @@ object PreflightRunner {
                                     reports = reports,
                                     warnings = warnings,
                                     callerStop = callerStop,
+                                    returnSlot = returned,
                                 )
                             } finally {
                                 variables.popScope()
                             }
                             reports += child
+                            // A run hands the value back only when the task it ran succeeded, and
+                            // fails this step when it didn't.
+                            val value = returned.value
+                            if (returned.fails) {
+                                runFailsStep = true
+                            } else if (callerStop.stop == null && returnVariable != null && value != null) {
+                                variables.set(returnVariable, value, sensitive = returned.sensitive)
+                            }
                             callerStop.stop?.let { stop ->
                                 if (stop.taskId == target.id) {
                                     // The task this step ran was stopped, so this step fails and the
@@ -453,6 +503,11 @@ object PreflightRunner {
                         }
                     }
                 }
+            }
+            // The run fails this task here unless a Try catches it. Continue on error carries on,
+            // but the task still ends as failed.
+            if ((runFailsStep || steps[pc]?.status == PreflightStepStatus.BLOCKED) && tryStack.isEmpty()) {
+                returnSlot.fails = true
             }
             pc++
         }
@@ -535,6 +590,7 @@ object PreflightRunner {
         ifResults: MutableMap<Int, Boolean>,
         variables: VariableStore,
         input: PreflightInputs,
+        returnSlot: ReturnSlot,
     ): ControlSimulation {
         fun step(decision: String, nextPc: Int, halt: Boolean = false, skipped: Boolean = false) = ControlSimulation(
             step = PreflightStep(
@@ -646,6 +702,18 @@ object PreflightRunner {
             }
             FlowControl.STOP -> if (!guardMet()) {
                 step("stop skipped: condition ($guard) -> false", index + 1, skipped = true)
+            } else if (!spec.args["value"].isNullOrBlank()) {
+                val expansion = expand(spec.args.getValue("value"), variables, input)
+                val secret = expansion.traces.any { it.isSecretDerived }
+                returnSlot.value = expansion.value
+                returnSlot.sensitive = secret
+                val shown = summarizeArgValue(
+                    spec.type,
+                    "value",
+                    ExportRedactionPolicy.redactText(expansion.value, emptySet(), ActionArgumentSensitivity.REDACTED),
+                    forceRedact = secret,
+                )
+                step("stop, returning $shown", index + 1, halt = true)
             } else {
                 step("stop", index + 1, halt = true)
             }
@@ -814,6 +882,8 @@ object PreflightRunner {
         val secretValues: Set<String> = emptySet(),
         /** Arguments whose expanded value came from a secret. */
         val secretKeys: Set<String> = emptySet(),
+        /** Arguments with a reference that is unset here. */
+        val missingKeys: Set<String> = emptySet(),
     )
 
     private fun expandArguments(spec: ActionSpec, variables: VariableStore, input: PreflightInputs): Expansion {
@@ -851,7 +921,17 @@ object PreflightRunner {
         }
         val secretKeys = rawValues.filterValues { expansion -> expansion.traces.any { it.isSecretDerived } }.keys
         val secretValues = secretKeys.mapNotNullTo(mutableSetOf()) { rawValues.getValue(it).value.takeIf(String::isNotBlank) }
-        return Expansion(display, rawValues.mapValues { it.value.value }, warnings.distinct(), failure, unsetPosition, secretValues, secretKeys)
+        val missingKeys = rawValues.filterValues { expansion -> expansion.traces.any { it.source == TemplateValueSource.MISSING } }.keys
+        return Expansion(
+            display,
+            rawValues.mapValues { it.value.value },
+            warnings.distinct(),
+            failure,
+            unsetPosition,
+            secretValues,
+            secretKeys,
+            missingKeys,
+        )
     }
 
     /**

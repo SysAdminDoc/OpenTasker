@@ -16,6 +16,7 @@ import com.opentasker.core.data.VariableConvert
 import com.opentasker.core.engine.FlowControl
 import com.opentasker.core.engine.STOP_TASK_ACTION_ID
 import com.opentasker.core.engine.SUB_TASK_ACTION_ID
+import com.opentasker.core.engine.SUB_TASK_RETURN_KEY
 import com.opentasker.core.engine.variables.TaskerBuiltIns
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.ContextSpec
@@ -1291,7 +1292,8 @@ object TaskerXmlImporter {
     ): ActionWithLoss {
         val olderLayout = element.directChildren("Int").any { it.argIndex() == 2 }
         val parameterStart = if (olderLayout) 3 else 2
-        val returnVariable = byIndex[parameterStart + 2].orEmptyIfBlank()
+        val returnVariable = byIndex[parameterStart + 2].orEmptyIfBlank()?.trim()
+        val keptReturnVariable = returnVariable?.takeIf(TASKER_PLAIN_VARIABLE::matches)
         val stops = !olderLayout && (ints[5] ?: 0) != 0
         return ActionWithLoss(
             ActionSpec(
@@ -1301,10 +1303,12 @@ object TaskerXmlImporter {
                     put("task", strings.firstOrNull().orEmpty().ifBlank { ints[0]?.toString().orEmpty() })
                     byIndex[parameterStart].orEmptyIfBlank()?.let { put("par1", it) }
                     byIndex[parameterStart + 1].orEmptyIfBlank()?.let { put("par2", it) }
+                    keptReturnVariable?.let { put(SUB_TASK_RETURN_KEY, it) }
                 },
             ),
             lossyWarning = joinWarnings(
-                returnVariable?.let { "Tasker Perform Task's Return Value Variable was not imported: $it" },
+                returnVariable?.takeIf { keptReturnVariable == null }
+                    ?.let { "Tasker Perform Task's Return Value Variable $it isn't one plain variable, so it was not imported" },
                 "Tasker Perform Task's Stop option was not imported".takeIf { stops },
             ),
         )
@@ -1862,12 +1866,20 @@ object TaskerXmlImporter {
             else -> taskerPlaceholder(code, "Tasker Goto of kind $kind has no match here")
         }
 
-    /** A called task already runs on its own here, so stopping it hands control back to the caller. */
+    /**
+     * A called task already runs on its own here, so stopping it hands control back to the caller,
+     * with the value going to the Perform Task step's Return Value Variable.
+     */
     private fun taskerReturn(code: String, byIndex: Map<Int, String>, ints: Map<Int, Int>): ActionWithLoss {
         if ((ints[1] ?: 1) == 0) return taskerPlaceholder(code, "Tasker Return with Stop off has no match here")
+        val passesLocals = (ints[2] ?: 0) != 0 || (ints[3] ?: 0) != 0 || byIndex[4].orEmptyIfBlank() != null
         return ActionWithLoss(
-            ActionSpec(type = "flow.stop", label = "Tasker return"),
-            lossyWarning = byIndex[0].orEmptyIfBlank()?.let { "Tasker Return's value $it isn't passed back to the calling task" },
+            ActionSpec(
+                type = "flow.stop",
+                label = "Tasker return",
+                args = byIndex[0].orEmptyIfBlank()?.let { mapOf("value" to it) }.orEmpty(),
+            ),
+            lossyWarning = "Tasker Return's Local Variable Passthrough was not imported".takeIf { passesLocals },
         )
     }
 

@@ -2020,4 +2020,5 @@
     <string name="sub_task_input_error_name">Start with a letter, then use letters, digits, _ or -</string>
     <string name="sub_task_input_error_reserved">task, name and id choose the task to run. Pick another name.</string>
     <string name="sub_task_input_error_duplicate">Another input already uses this name</string>
+    <string name="sub_task_input_error_return_variable">returnVariable names where the returned value goes. Pick another name.</string>
 </resources>

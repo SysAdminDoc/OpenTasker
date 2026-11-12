@@ -226,6 +226,8 @@
     <string name="catalog_action_task_run_description" formatted="false">Run another task as a sub-task, up to 8 levels deep. Inputs you add become variables in that task.</string>
     <string name="catalog_action_task_run_field_task_label" formatted="false">Task id or name</string>
     <string name="catalog_action_task_run_field_task_hint" formatted="false">Toggle Wi-Fi</string>
+    <string name="catalog_action_task_run_field_return_variable_label" formatted="false">Store the returned value in</string>
+    <string name="catalog_action_task_run_field_return_variable_hint" formatted="false">%result</string>
     <string name="catalog_action_task_stop_name" formatted="false">Stop Task</string>
     <string name="catalog_action_task_stop_description" formatted="false">Stop another task while it runs. Naming this task ends it here, like Stop.</string>
     <string name="catalog_action_task_stop_field_task_label" formatted="false">Task id or name</string>
@@ -250,6 +252,8 @@
     <string name="catalog_action_flow_endfor_description" formatted="false">Closes the matching For Each loop</string>
       <string name="catalog_action_flow_stop_name" formatted="false">Stop</string>
       <string name="catalog_action_flow_stop_description" formatted="false">Halt the rest of the task immediately</string>
+      <string name="catalog_action_flow_stop_field_value_label" formatted="false">Return this value to the task that ran it</string>
+      <string name="catalog_action_flow_stop_field_value_hint" formatted="false">%total</string>
       <string name="catalog_action_flow_try_name" formatted="false">Try</string>
       <string name="catalog_action_flow_try_description" formatted="false">Run a bounded, retryable block and optionally handle its failure with Catch</string>
       <string name="catalog_action_flow_try_field_max_attempts_label" formatted="false">Maximum attempts</string>

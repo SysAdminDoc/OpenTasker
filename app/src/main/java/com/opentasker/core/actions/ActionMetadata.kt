@@ -709,6 +709,7 @@ fun registerActionMetadata() {
             categoryRes = R.string.catalog_category_flow,
             fields = listOf(
                 ActionField("task", R.string.catalog_action_task_run_field_task_label, FieldType.TASK, required = true, hintRes = R.string.catalog_action_task_run_field_task_hint),
+                ActionField("returnVariable", R.string.catalog_action_task_run_field_return_variable_label, hintRes = R.string.catalog_action_task_run_field_return_variable_hint),
             )
         )
     )
@@ -784,6 +785,9 @@ fun registerActionMetadata() {
             nameRes = R.string.catalog_action_flow_stop_name,
             descriptionRes = R.string.catalog_action_flow_stop_description,
             categoryRes = R.string.catalog_category_flow,
+            fields = listOf(
+                ActionField("value", R.string.catalog_action_flow_stop_field_value_label, hintRes = R.string.catalog_action_flow_stop_field_value_hint),
+            ),
         )
     )
 
