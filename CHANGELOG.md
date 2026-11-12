@@ -15,6 +15,7 @@
 - A value typed for a variable named like a secret, such as `%api_token` in Set Variable, no longer shows in the run log's list of changed variables or in the app log. The editor already hid it. A path into a variable, like `config.api_key`, counts too. A `{{ }}` value for one stays out of the step's args and template lines as well, and Persist hides the value it copies from `%api_token` or saves under a name like `Token`.
 - A Get Sunrise/Sunset Times step with a typed latitude and longitude no longer shows Needs setup, since it never asks for your location. A typed coordinate that's out of range, like a latitude of 91, fails the step right away and says which one. It used to wait for a location fix first when the other coordinate was left blank.
 - A space typed as the splitter or joiner in Split Text, Join Text, Variable Split or Variable Join now stays when you save the step. Saving used to drop it. Join Text then went back to commas and Variable Join to no joiner at all, while Variable Split split on any run of spaces and new lines. Split Text splits on a single space now, where it used to say there was no delimiter.
+- Opening the app on the Light theme no longer flashes a black screen first. The main screen drew one frame in the AMOLED theme while it read your saved theme, and now it waits for it, like the setup screens already did.
 
 ## v0.2.96 - 2026-11-12
 

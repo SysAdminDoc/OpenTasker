@@ -40,7 +40,6 @@ import com.opentasker.core.contexts.NfcTagWriteSession
 import com.opentasker.core.engine.AutomationService
 import com.opentasker.ui.screens.ActiveAutomationUi
 import com.opentasker.ui.theme.OpenTaskerTheme
-import com.opentasker.ui.theme.ThemeMode
 import com.opentasker.ui.theme.ThemePreference
 
 /**
@@ -89,8 +88,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         
         setContent {
-            val themeMode by ThemePreference.observe(this).collectAsState(initial = ThemeMode.Amoled)
-            OpenTaskerTheme(themeMode) {
+            // Nothing is drawn until the saved theme is read, the way the setup activities wait, so a
+            // Light start shows the light window background instead of one AMOLED frame.
+            val themeMode by ThemePreference.observe(this).collectAsState(initial = null)
+            val resolvedTheme = themeMode ?: return@setContent
+            OpenTaskerTheme(resolvedTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
