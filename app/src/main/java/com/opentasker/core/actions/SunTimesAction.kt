@@ -45,6 +45,9 @@ class SunTimesAction(
 
         val typedLatitude = args["latitude"]?.trim()?.toDoubleOrNull()
         val typedLongitude = args["longitude"]?.trim()?.toDoubleOrNull()
+        // A typed coordinate out of range fails before any wait for a fix, and says why.
+        typedLatitude?.let { rangeError(latitude = it) }?.let { return it }
+        typedLongitude?.let { rangeError(longitude = it) }?.let { return it }
         val (latitude, longitude) = if (typedLatitude != null && typedLongitude != null) {
             typedLatitude to typedLongitude
         } else {
@@ -55,8 +58,7 @@ class SunTimesAction(
             ctx.logger("sun.times: coordinates filled from the phone's location")
             (typedLatitude ?: fix.first) to (typedLongitude ?: fix.second)
         }
-        if (!latitude.isFinite() || latitude !in -90.0..90.0) return ActionResult.Failure("latitude must be between -90 and 90")
-        if (!longitude.isFinite() || longitude !in -180.0..180.0) return ActionResult.Failure("longitude must be between -180 and 180")
+        rangeError(latitude, longitude)?.let { return it }
 
         val epochMs = args["time"]?.trim()?.toLongOrNull()?.let { seconds ->
             try {
@@ -90,6 +92,12 @@ class SunTimesAction(
         // Never the coordinates: they say where the phone is.
         ctx.logger("sun.times -> %${prefix}_sunrise and the rest, ${elevations.size} custom elevation(s)")
         return ActionResult.Success
+    }
+
+    private fun rangeError(latitude: Double = 0.0, longitude: Double = 0.0): ActionResult.Failure? = when {
+        !latitude.isFinite() || latitude !in -90.0..90.0 -> ActionResult.Failure("latitude must be between -90 and 90")
+        !longitude.isFinite() || longitude !in -180.0..180.0 -> ActionResult.Failure("longitude must be between -180 and 180")
+        else -> null
     }
 
     companion object {

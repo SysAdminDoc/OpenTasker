@@ -118,10 +118,12 @@ object SetupRequirementResolver {
      * Whether an action that can need setup still does, given what Setup lists as missing. Null
      * means the grants haven't been read yet, so it still does.
      */
-    fun stillNeedsSetup(action: ActionSpec, sdkInt: Int, pending: Set<SetupRequirement>?): Boolean =
-        forAction(action, sdkInt).let { required ->
-            pending == null || required.isEmpty() || required.any { it in pending }
-        }
+    fun stillNeedsSetup(action: ActionSpec, sdkInt: Int, pending: Set<SetupRequirement>?): Boolean {
+        val required = forAction(action, sdkInt)
+        // Typed coordinates leave a sun.times step nothing to ask for, so its pill goes.
+        if (required.isEmpty() && action.type in NEEDS_SETUP_ONLY_FOR_SOME_ARGS) return false
+        return pending == null || required.isEmpty() || required.any { it in pending }
+    }
 
     private fun contextRequirements(context: ContextSpec): Set<SetupRequirement> {
         val tokens = context.config.entries
@@ -230,4 +232,5 @@ object SetupRequirementResolver {
 
     private val RESTRICTED_AUDIO_ACTIONS = setOf("volume.set", "ringer.set", "media.mute")
     private val NOTIFICATION_ACTIONS = setOf("notify.show", "notify.cancel", "notify.progress")
+    private val NEEDS_SETUP_ONLY_FOR_SOME_ARGS = setOf("sun.times")
 }

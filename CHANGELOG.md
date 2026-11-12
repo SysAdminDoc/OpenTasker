@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- A Get Sunrise/Sunset Times step with a typed latitude and longitude no longer shows Needs setup, since it never asks for your location. A typed coordinate that's out of range, like a latitude of 91, fails the step right away and says which one. It used to wait for a location fix first when the other coordinate was left blank.
+
 ## v0.2.96 - 2026-11-12
 
 ### Added
