@@ -56,6 +56,7 @@ class TaskerSearchReplaceTransferTest {
         // Replace With is only read with Replace Matches on, so its \% can't change anything.
         val off = searchReplace(store = "%found", replace = 0, replaceWith = "\\%x")
 
+        assertEquals("text.replace", action(off).type)
         assertFalse(parse(off).lossyWarnings.toString(), parse(off).lossyWarnings.any { "\\%" in it })
     }
 

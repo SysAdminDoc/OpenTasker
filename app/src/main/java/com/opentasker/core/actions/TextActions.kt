@@ -49,7 +49,10 @@ class TextReplaceAction : DeclaredAction(ActionCatalog.require("text.replace")) 
         if (array != null || searchOnly) {
             // With no array to fill, one match is enough to check the pattern.
             val found = TextOps.findAll(source, pattern, limit = if (firstOnly || array == null) 1 else MAX_ELEMENTS + 1)
-                ?: return ActionResult.Failure("invalid or oversized pattern")
+            // Tasker empties the array before it even compiles the pattern, so a step that fails
+            // here leaves it empty too.
+            if (array != null && (found == null || found.size > MAX_ELEMENTS)) ctx.variables.replaceNumberedItems(array, emptyMap())
+            if (found == null) return ActionResult.Failure("invalid or oversized pattern")
             if (array != null) {
                 if (found.size > MAX_ELEMENTS) return ActionResult.Failure("more than $MAX_ELEMENTS matches")
                 if (found.isNotEmpty() && elementName(array, found.size) == null) {

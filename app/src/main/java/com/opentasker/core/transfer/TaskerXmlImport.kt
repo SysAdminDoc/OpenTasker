@@ -1593,7 +1593,8 @@ object TaskerXmlImporter {
      * (decompiled 6.7.8, `ExecuteService.V2`). Store Matches In Array empties that array and fills
      * it with each match, One Match Only keeps and replaces only the first, and with Replace Matches
      * off the variable stays as it is. Search and Replace With are read untrimmed, because a space
-     * there is part of the pattern.
+     * there is part of the pattern. Replace With is filled in after the matches are stored, so one
+     * that reads the array the step fills stays a placeholder.
      */
     private fun taskerSearchReplace(
         code: String,
@@ -1619,6 +1620,10 @@ object TaskerXmlImporter {
             listOf(2, 3, 4, 6).any { it in variables } -> "Tasker Search Replace takes a switch from a variable, which has no match here"
             matches.isNotEmpty() && !TASKER_PLAIN_VARIABLE.matches(matches) ->
                 "Tasker Search Replace stores its matches in $matches, which isn't one plain variable"
+            // Tasker fills Replace With in after it stores the matches, and here every field is
+            // filled in before the step runs, so it would read the array from before the step.
+            matches.isNotEmpty() && Regex(Regex.escape(matches) + "[0-9(]").containsMatchIn(replaceWith) ->
+                "Tasker Search Replace's Replace With reads $matches, which Tasker fills in with this step's matches and this app can't"
             search.isEmpty() -> "Tasker Search Replace has nothing to search for"
             checkable && TextOps.match("", pattern) == null ->
                 "Tasker Search Replace's pattern $search uses regular expression features this app doesn't have"
