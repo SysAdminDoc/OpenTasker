@@ -281,21 +281,34 @@ private fun inspectContextForProfile(
 
 fun contextConfigSummary(spec: ContextSpec): String {
     val summary = when (spec.type) {
-        ContextType.DAY -> DaySchedule.displayLabel(spec.config["days"] ?: spec.config["day"].orEmpty())
         ContextType.PLUGIN -> {
             val pkg = spec.config["package"].orEmpty().ifBlank { "none" }
             val blurb = spec.config["blurb"]?.takeIf { it.isNotBlank() }
             if (blurb != null) "$pkg ($blurb)" else pkg
         }
-        ContextType.STATE -> stateConditionSummary(spec) ?: configEntriesSummary(spec.config)
-        ContextType.EVENT -> sunEventSummary(spec) ?: configEntriesSummary(spec.config)
-        else -> configEntriesSummary(spec.config)
+        else -> readableContextSummary(spec) ?: configEntriesSummary(spec.config)
     }
     return if (spec.invert) "$summary; inverted" else summary
 }
 
+/**
+ * The plain-words line for a day, state or sun context, or null for any other. [entries] writes the
+ * fields the line doesn't cover and [value] the value a state is compared with, so Flow can mask and
+ * shorten them the way it shows every other value.
+ */
+internal fun readableContextSummary(
+    spec: ContextSpec,
+    entries: (Map<String, String>) -> String = ::configEntriesSummary,
+    value: (String) -> String = { it.trim() },
+): String? = when (spec.type) {
+    ContextType.DAY -> DaySchedule.displayLabel(spec.config["days"] ?: spec.config["day"].orEmpty())
+    ContextType.STATE -> stateConditionSummary(spec, entries, value)
+    ContextType.EVENT -> sunEventSummary(spec, entries)
+    else -> null
+}
+
 /** Names the moment a sun context waits for, "Civil dusk" rather than "elevation=civil, event=sunset". */
-private fun sunEventSummary(spec: ContextSpec): String? {
+private fun sunEventSummary(spec: ContextSpec, entries: (Map<String, String>) -> String): String? {
     val event = spec.config["event"]?.trim()?.lowercase()
     if (event != "sunrise" && event != "sunset") return null
     val raw = spec.config["elevation"]?.trim().orEmpty()
@@ -318,7 +331,7 @@ private fun sunEventSummary(spec: ContextSpec): String? {
         }
     }
     val extras = spec.config.filterKeys { it !in SUN_EVENT_KEYS }
-    return if (extras.isEmpty()) moment else "$moment, ${configEntriesSummary(extras)}"
+    return if (extras.isEmpty()) moment else "$moment, ${entries(extras)}"
 }
 
 private val SUN_EVENT_KEYS = setOf("event", "elevation")
@@ -333,16 +346,20 @@ private fun configEntriesSummary(config: Map<String, String>): String =
         .ifBlank { "No configuration" }
 
 /** Reads as the check it makes, "Bluetooth device nearby = Car" rather than "key=bt_near, operator==, value=Car". */
-private fun stateConditionSummary(spec: ContextSpec): String? {
+private fun stateConditionSummary(
+    spec: ContextSpec,
+    entries: (Map<String, String>) -> String,
+    value: (String) -> String,
+): String? {
     // The engine reads a non-blank predicate alone, so one it can't parse shows as written, not as key fields it ignores.
     val predicate = spec.config["predicate"]
     if (!predicate.isNullOrBlank() && parseStatePredicate(predicate) == null) return null
-    val (key, operator, value) = stateCondition(spec)
+    val (key, operator, expected) = stateCondition(spec)
     val normalized = normalizeStateKey(key).ifEmpty { return null }
     val label = if (normalized == BT_NEAR_STATE_KEY) "Bluetooth device nearby" else normalized.replace('_', ' ')
-    val condition = "$label ${operator.trim().ifEmpty { "=" }} ${value.trim()}".trim()
-    val extras = configEntriesSummary(spec.config.filterKeys { it !in STATE_CONDITION_KEYS })
-    return if (spec.config.keys.all { it in STATE_CONDITION_KEYS }) condition else "$condition, $extras"
+    val condition = "$label ${operator.trim().ifEmpty { "=" }} ${value(expected)}".trim()
+    if (spec.config.keys.all { it in STATE_CONDITION_KEYS }) return condition
+    return "$condition, ${entries(spec.config.filterKeys { it !in STATE_CONDITION_KEYS })}"
 }
 
 private val STATE_CONDITION_KEYS = setOf("predicate", "key", "operator", "value")

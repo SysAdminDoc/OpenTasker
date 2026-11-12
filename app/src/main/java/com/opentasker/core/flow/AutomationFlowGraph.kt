@@ -7,6 +7,7 @@ import com.opentasker.core.capabilities.AutomationLintFinding
 import com.opentasker.core.actions.ResolvedActionOutput
 import com.opentasker.core.actions.resolveOutputs
 import com.opentasker.core.capabilities.AutomationLintStrings
+import com.opentasker.core.contexts.readableContextSummary
 import com.opentasker.core.model.ActionSpec
 import com.opentasker.core.model.AutomationInvariant
 import com.opentasker.core.model.ContextSpec
@@ -291,20 +292,28 @@ private fun ContextSpec.toNode(
     index: Int,
     strings: AutomationFlowStrings,
     changedNodeKeys: Set<String>,
-): AutomationFlowNode =
-    AutomationFlowNode(
+): AutomationFlowNode {
+    val structuralKeys = STRUCTURAL_CONTEXT_KEYS[type].orEmpty()
+    // The Inspector's "battery level <= 20", with the fields it doesn't cover masked as below.
+    val readable = readableContextSummary(
+        this,
+        entries = { it.summaryOrNull(actionType = null, structuralKeys = structuralKeys).orEmpty() },
+        value = { it.trim().safePreview() },
+    )
+    return AutomationFlowNode(
         id = id,
         kind = AutomationFlowNodeKind.CONTEXT,
         title = strings.contextTitle(index + 1, type.name.lowercase().replaceFirstChar { it.uppercase() }),
         detail = strings.contextDetail(
             invert,
-            config.summaryOrNull(actionType = null, structuralKeys = STRUCTURAL_CONTEXT_KEYS[type].orEmpty()),
+            readable ?: config.summaryOrNull(actionType = null, structuralKeys = structuralKeys),
         ),
         muted = invert,
         changed = "profile:$profileId:context:$index" in changedNodeKeys,
         target = AutomationFlowTarget.Context(profileId, index),
         strings = strings,
     )
+}
 
 private fun ActionSpec.toNode(
     id: String,

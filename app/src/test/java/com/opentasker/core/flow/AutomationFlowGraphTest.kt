@@ -294,7 +294,7 @@ class AutomationFlowGraphTest {
 
         val details = AutomationFlowGraphBuilder.build(profile, listOf(task)).contextNodes.map { it.detail.orEmpty() }
 
-        assertEquals("key=battery_level, operator=<=, value=20", details[0])
+        assertEquals("battery level <= 20", details[0])
         assertTrue(details[1], details[1].contains("extraKey=msg"))
         assertTrue(details[2], details[2].contains("api_key=<redacted>"))
         assertFalse(details[2], details[2].contains("sk-live-123"))
