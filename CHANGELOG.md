@@ -65,6 +65,7 @@
 
 ### Fixed
 
+- Join Text with its array written as `%parts` joins that array now. The name used to be filled in first, so after Split Text it looked for an array named after the first part, and after a Variable Split one named after the split text, and joined nothing.
 - A step set to carry on after an error, inside a Try with no Catch, no longer makes the End Try fail. The Try now stays open until its End Try, so the steps after it run. The same goes for a step like that inside a Catch, when the Try around it has no Catch of its own.
 - The task preview now fills in %FLOW_ERROR_CAUGHT like a run. It reads "true" once a Catch takes a failure and "false" after a failure nothing catches, so a step that checks it shows the right branch.
 - The task preview now follows Try and Catch the way a run does. It used to play the Catch steps even when nothing in the Try failed, and after a step that would fail it kept going through the rest of the Try instead of moving to Catch. A failure inside the Catch steps, or inside a Try that has no Catch, now shows up as one the task doesn't get past.

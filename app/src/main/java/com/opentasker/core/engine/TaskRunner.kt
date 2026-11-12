@@ -1162,13 +1162,15 @@ class TaskRunner(
  * "%count" in an argument that names an action's output is the variable to write, the way the
  * editor reads it. Expanded like other text, it named whatever count held, so a second run wrote
  * to a different variable. A name built from parts, like "item_%slot", still expands. Variable
- * Clear's name is never filled in, since it can be a pattern like "%item*", as in Tasker.
+ * Clear's name is never filled in, since it can be a pattern like "%item*", as in Tasker. Join
+ * Text's "%parts" names the array to join, the way an output name does: filled in, it was the
+ * first part's text, so the step joined nothing.
  */
 internal class OutputNameArguments(private val actionType: String) {
     private val keys = declaredActionOutputs(actionType).flatMapTo(hashSetOf()) { it.nameArgumentKeys }
 
     fun keepsAsWritten(argumentName: String, rawValue: String): Boolean =
-        (argumentName in keys && SINGLE_VARIABLE.matches(rawValue.trim())) ||
+        ((argumentName in keys || (actionType == "text.join" && argumentName == "array")) && SINGLE_VARIABLE.matches(rawValue.trim())) ||
             (actionType == "var.clear" && argumentName == "name")
 
     private companion object {
