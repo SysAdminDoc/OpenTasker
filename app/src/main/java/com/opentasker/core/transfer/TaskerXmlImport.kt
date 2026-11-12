@@ -728,6 +728,7 @@ object TaskerXmlImporter {
             )
             "16" -> ActionWithLoss(ActionSpec(type = "lock", label = "Tasker lock device"))
             "59" -> taskerReboot(code, intsByIndex, intVariables)
+            "820" -> taskerStayOn(code, intsByIndex, intVariables)
             "20", "launch", "app.launch" -> {
                 // Tasker keeps the app in an <App> element and arg1 is its Data field, so the only
                 // <Str> that can be a package is arg0, which older exports from this app wrote.
@@ -1735,6 +1736,30 @@ object TaskerXmlImporter {
         }
         if (refusal != null) return taskerPlaceholder(code, refusal)
         return ActionWithLoss(ActionSpec(type = "reboot", label = "Tasker reboot"))
+    }
+
+    /**
+     * Tasker's Stay On picks one of eight choices in arg0, from Never to wireless, AC or USB power, in
+     * the order of Android's plug mask (AC 1, USB 2, wireless 4). So the index is the value Android
+     * keeps in stay_on_while_plugged_in, and it's written there as is.
+     */
+    private fun taskerStayOn(code: String, ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss {
+        // A missing mode would read as 0, Never, so it's refused rather than guessed.
+        val mode = ints[0]
+        val refusal = when {
+            variables[0] != null -> "Tasker Stay On takes its mode from ${variables[0]}, which has no match here"
+            mode == null -> "Tasker Stay On has no mode"
+            mode !in 0..7 -> "Tasker Stay On's mode $mode isn't one Tasker lists"
+            else -> null
+        }
+        if (refusal != null || mode == null) return taskerPlaceholder(code, refusal.orEmpty())
+        return ActionWithLoss(
+            ActionSpec(
+                type = "settings.write",
+                label = "Tasker stay on",
+                args = mapOf("table" to "global", "key" to "stay_on_while_plugged_in", "value" to mode.toString()),
+            ),
+        )
     }
 
     /** Tasker's Goto: arg0 is the kind of jump, arg1 a step number, arg2 a label. */

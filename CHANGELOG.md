@@ -4,6 +4,7 @@
 
 ### Added
 
+- Tasker's Stay On imports as a settings write to Android's stay on while plugged in setting, keeping the same mix of AC, USB and wireless power Tasker picked. A global setting needs secure settings access, which you grant once from a computer, and import review calls it out like every other settings write.
 - Tasker's Reboot imports as the reboot step when it's set to Normal, and the reboot step exports back out as Reboot. Recovery, Bootloader and Shutdown stay placeholders that name the mode, since this step only restarts the phone. It runs through Shizuku, and import review calls it out before the profile can be turned on.
 - Tasker's Array Set imports as Variable Split, which has a new Values field. Given Values, it splits that text instead of the variable's own value and clears the old items first, the way Array Set does, and with no splitter it splits on spaces and new lines. A Variable Split with Values exports back out as Array Set.
 - Tasker's Auto Brightness and Display AutoRotate import as the settings write step, switching the same system settings Tasker does. Off and on come over. Toggle stays a placeholder, since that step writes the value it's given and can't flip what's there. A Set value taken from a variable stays a placeholder too. Both need Modify system settings, which you grant from Setup, and import review calls them out like every other settings write. Tasker's Display Brightness leaves Auto Brightness alone, but the brightness step here turns it off to set a level, so an imported Display Brightness now says that.
