@@ -87,6 +87,7 @@ object TaskerXmlExporter {
         "track.previous" to "443",
         "home.go" to "25",
         "lock" to "16",
+        "reboot" to "59",
         "app.launch" to "20",
         "app.kill" to "18",
         "url.open" to "104",
@@ -300,6 +301,8 @@ object TaskerXmlExporter {
             }
             "app.launch", "app.kill" -> appendApp(sb, 0, args["package"] ?: "")
             "url.open" -> appendStr(sb, 0, args["url"] ?: "")
+            // Tasker's type 0 is Normal, the only reboot the step does.
+            "reboot" -> appendInt(sb, 0, "0")
             "screenshot.take" -> {
                 appendStr(sb, 0, args["path"] ?: args["filename"] ?: "")
                 appendInt(sb, 1, "0")

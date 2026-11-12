@@ -727,6 +727,7 @@ object TaskerXmlImporter {
                     .takeIf { normalized == "15" },
             )
             "16" -> ActionWithLoss(ActionSpec(type = "lock", label = "Tasker lock device"))
+            "59" -> taskerReboot(code, intsByIndex, intVariables)
             "20", "launch", "app.launch" -> {
                 // Tasker keeps the app in an <App> element and arg1 is its Data field, so the only
                 // <Str> that can be a package is arg0, which older exports from this app wrote.
@@ -1716,6 +1717,26 @@ object TaskerXmlImporter {
         )
     }
 
+    /**
+     * Tasker's Reboot picks Normal, Recovery, Bootloader or Shutdown in arg0. The reboot step only
+     * restarts the phone normally, so the other three stay placeholders.
+     */
+    private fun taskerReboot(code: String, ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss {
+        // A missing type would read as 0, a normal reboot, so it's refused rather than guessed.
+        val type = ints[0]
+        val mode = type?.let { TASKER_REBOOT_MODES.getOrNull(it) }
+        val refusal = when {
+            variables[0] != null -> "Tasker Reboot takes its type from ${variables[0]}, which has no match here"
+            type == null -> "Tasker Reboot has no type"
+            mode == null -> "Tasker Reboot's type $type isn't one Tasker lists"
+            mode == "Shutdown" -> "Tasker Reboot's Shutdown turns the phone off, and the reboot step only restarts it"
+            mode != "Normal" -> "Tasker Reboot into $mode has no match here, since the reboot step only restarts the phone normally"
+            else -> null
+        }
+        if (refusal != null) return taskerPlaceholder(code, refusal)
+        return ActionWithLoss(ActionSpec(type = "reboot", label = "Tasker reboot"))
+    }
+
     /** Tasker's Goto: arg0 is the kind of jump, arg1 a step number, arg2 a label. */
     private fun taskerGoto(code: String, byIndex: Map<Int, String>, ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss =
         when (ints[0] ?: 0) {
@@ -2357,6 +2378,9 @@ object TaskerXmlImporter {
     private val TASKER_INTERRUPT_MODE_NAMES = mapOf(4 to "Custom", 5 to "Query")
 
     private val TASKER_SOUND_MODES = mapOf(0 to "silent", 1 to "vibrate", 2 to "normal")
+
+    // Tasker's reboot_choices, in arg0 order.
+    private val TASKER_REBOOT_MODES = listOf("Normal", "Recovery", "Bootloader", "Shutdown")
 
     // Action name and the system setting it switches, as Tasker's action table pairs them.
     private val TASKER_SYSTEM_SWITCHES = mapOf(
