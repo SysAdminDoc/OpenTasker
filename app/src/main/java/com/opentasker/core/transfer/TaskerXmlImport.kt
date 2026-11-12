@@ -729,6 +729,7 @@ object TaskerXmlImporter {
             "16" -> ActionWithLoss(ActionSpec(type = "lock", label = "Tasker lock device"))
             "59" -> taskerReboot(code, intsByIndex, intVariables)
             "820" -> taskerStayOn(code, intsByIndex, intVariables)
+            "806" -> taskerTurnOn(intsByIndex, intVariables)
             "20", "launch", "app.launch" -> {
                 // Tasker keeps the app in an <App> element and arg1 is its Data field, so the only
                 // <Str> that can be a package is arg0, which older exports from this app wrote.
@@ -1759,6 +1760,16 @@ object TaskerXmlImporter {
                 label = "Tasker stay on",
                 args = mapOf("table" to "global", "key" to "stay_on_while_plugged_in", "value" to mode.toString()),
             ),
+        )
+    }
+
+    /** Tasker's Turn On turns the screen on, as the wake step does. Its Block Time has nowhere to go. */
+    private fun taskerTurnOn(ints: Map<Int, Int>, variables: Map<Int, String>): ActionWithLoss {
+        val blockTime = variables[0] ?: ints[0]?.let { "$it ms" }
+        return ActionWithLoss(
+            ActionSpec(type = "wake", label = "Tasker turn on"),
+            lossyWarning = "Tasker Turn On's Block Time${blockTime?.let { " of $it" }.orEmpty()} wasn't imported. " +
+                "The wake step moves on as soon as it sends the wake key",
         )
     }
 
