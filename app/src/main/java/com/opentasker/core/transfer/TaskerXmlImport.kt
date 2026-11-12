@@ -561,7 +561,7 @@ object TaskerXmlImporter {
             "597" -> taskerVariableSection(code, byIndex, intsByIndex, intVariables)
             "345" -> taskerTestVariable(code, element, byIndex, intsByIndex, intVariables)
             "598" -> taskerSearchReplace(code, element, byIndex, intsByIndex)
-            "590", "592", "355", "356", "357", "369" -> taskerArrayAction(code, element, byIndex, intsByIndex, intVariables)
+            "590", "592", "354", "355", "356", "357", "369" -> taskerArrayAction(code, element, byIndex, intsByIndex, intVariables)
             "30", "wait", "flow.wait" -> {
                 val duration = taskerDuration(
                     actionName = "Wait",
@@ -1444,9 +1444,10 @@ object TaskerXmlImporter {
     }
 
     /**
-     * Variable Split and Join and Array Push, Pop, Clear and Process work on Tasker's numbered elements
-     * (%arr1, %arr2, ...), which is what the actions they map to work on. Splitter, Joiner and
-     * Value are read untrimmed, because a space there is the whole point.
+     * Variable Split and Join and Array Set, Push, Pop, Clear and Process work on Tasker's numbered
+     * elements (%arr1, %arr2, ...), which is what the actions they map to work on. Array Set is a
+     * Variable Split of its Values, splitting on plain text or, with no Splitter, on white space.
+     * Splitter, Joiner, Values and Value are read untrimmed, because a space there is the whole point.
      */
     private fun taskerArrayAction(
         code: String,
@@ -1468,6 +1469,9 @@ object TaskerXmlImporter {
             (code == "355" || code == "356") && !(TASKER_PLAIN_VARIABLE.matches(position) || position.toIntOrNull()?.let { it >= 1 } == true) ->
                 "Tasker ${tasker.first}'s Position $position isn't a number or one plain variable"
             toVar != null && !TASKER_PLAIN_VARIABLE.matches(toVar) -> "Tasker Array Pop stores into $toVar, which isn't one plain variable"
+            // The editor drops a blank field on save, and Variable Split with no Values splits the
+            // variable's own value, so empty Values would change meaning after the first edit.
+            code == "354" && element.rawActionString(1).isEmpty() -> "Tasker Array Set has no Values"
             // A splitter holding a variable is only known when the step runs, so it's checked then.
             regexSplitter != null && !TASKER_VARIABLE_REFERENCE.containsMatchIn(regexSplitter) && TextOps.match("", regexSplitter) == null ->
                 "Tasker Variable Split's splitter $regexSplitter uses regular expression features this app doesn't have"
@@ -1478,6 +1482,7 @@ object TaskerXmlImporter {
         val args = when (code) {
             "590" -> mapOf("name" to name, "splitter" to element.rawActionString(1), "delete_base" to flag(2), "regex" to flag(3))
             "592" -> mapOf("name" to name, "joiner" to element.rawActionString(1), "delete_parts" to flag(2))
+            "354" -> mapOf("name" to name, "values" to element.rawActionString(1), "splitter" to element.rawActionString(2))
             "355" -> mapOf("array" to name, "position" to position, "value" to element.rawActionString(2), "fill_spaces" to flag(3))
             "356" -> buildMap {
                 put("array", name)
@@ -2337,6 +2342,7 @@ object TaskerXmlImporter {
     private val TASKER_ARRAY_ACTIONS = mapOf(
         "590" to ("Variable Split" to "var.split"),
         "592" to ("Variable Join" to "var.join"),
+        "354" to ("Array Set" to "var.split"),
         "355" to ("Array Push" to "array.push"),
         "356" to ("Array Pop" to "array.pop"),
         "357" to ("Array Clear" to "array.clear"),

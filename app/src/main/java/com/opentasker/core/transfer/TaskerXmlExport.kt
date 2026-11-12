@@ -386,7 +386,15 @@ object TaskerXmlExporter {
                 ),
                 warnings,
             )
-            "var.split" -> {
+            // With Values it's Tasker's Array Set, which splits on plain text and leaves %name alone.
+            "var.split" -> if (args["values"] != null) {
+                if (taskerFlag(args["regex"]) == "1" || taskerFlag(args["delete_base"]) == "1") {
+                    warnings += "Tasker's Array Set splits on plain text and keeps the variable, so the regex and delete settings are dropped."
+                }
+                appendStr(sb, 0, taskerVariableName(args["name"], "arr"))
+                appendStr(sb, 1, args["values"].orEmpty())
+                appendStr(sb, 2, args["splitter"].orEmpty())
+            } else {
                 appendStr(sb, 0, taskerVariableName(args["name"], "VAR"))
                 appendStr(sb, 1, args["splitter"].orEmpty())
                 appendInt(sb, 2, taskerFlag(args["delete_base"]))
@@ -1118,6 +1126,7 @@ object TaskerXmlExporter {
         if (action.type == "volume.set") {
             return TASKER_VOLUME_CODES[(action.args["stream"] ?: "music").lowercase()]
         }
+        if (action.type == "var.split" && action.args["values"] != null) return "354"
         return REVERSE_ACTION_MAP[action.type]
     }
 

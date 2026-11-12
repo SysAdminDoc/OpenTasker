@@ -502,6 +502,7 @@ fun registerActionMetadata() {
             categoryRes = R.string.catalog_category_variable,
             fields = listOf(
                 ActionField("name", R.string.catalog_action_var_split_field_name_label, required = true, hintRes = R.string.catalog_action_var_split_field_name_hint),
+                ActionField("values", R.string.catalog_action_var_split_field_values_label, hintRes = R.string.catalog_action_var_split_field_values_hint),
                 ActionField("splitter", R.string.catalog_action_var_split_field_splitter_label, hintRes = R.string.catalog_action_var_split_field_splitter_hint),
                 ActionField("regex", R.string.catalog_action_var_split_field_regex_label, FieldType.CHECKBOX),
                 ActionField("delete_base", R.string.catalog_action_var_split_field_delete_base_label, FieldType.CHECKBOX),

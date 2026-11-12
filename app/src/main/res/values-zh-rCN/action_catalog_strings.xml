@@ -155,6 +155,8 @@
     <string name="catalog_action_var_split_description" formatted="false">像 Tasker 一样把变量拆分为编号元素（%text1、%text2……）</string>
     <string name="catalog_action_var_split_field_name_label" formatted="false">名称</string>
     <string name="catalog_action_var_split_field_name_hint" formatted="false">%text 变为 %text1、%text2……</string>
+    <string name="catalog_action_var_split_field_values_label" formatted="false">值</string>
+    <string name="catalog_action_var_split_field_values_hint" formatted="false">拆分这段文本而不是变量自身的值，同 Tasker 的数组设置</string>
     <string name="catalog_action_var_split_field_splitter_label" formatted="false">分隔符</string>
     <string name="catalog_action_var_split_field_splitter_hint" formatted="false">留空则按空格和换行拆分</string>
     <string name="catalog_action_var_split_field_regex_label" formatted="false">分隔符为正则</string>

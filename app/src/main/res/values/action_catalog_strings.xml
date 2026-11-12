@@ -161,6 +161,8 @@
     <string name="catalog_action_var_split_description" formatted="false">Split a variable into numbered elements, the way Tasker does (%text1, %text2, …)</string>
     <string name="catalog_action_var_split_field_name_label" formatted="false">Name</string>
     <string name="catalog_action_var_split_field_name_hint" formatted="false">%text becomes %text1, %text2, …</string>
+    <string name="catalog_action_var_split_field_values_label" formatted="false">Values</string>
+    <string name="catalog_action_var_split_field_values_hint" formatted="false">split this text instead of the variable\'s own value, like Tasker\'s Array Set</string>
     <string name="catalog_action_var_split_field_splitter_label" formatted="false">Splitter</string>
     <string name="catalog_action_var_split_field_splitter_hint" formatted="false">blank splits on spaces and new lines</string>
     <string name="catalog_action_var_split_field_regex_label" formatted="false">Splitter is a regex</string>

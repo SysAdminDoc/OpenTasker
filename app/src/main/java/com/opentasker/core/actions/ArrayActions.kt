@@ -4,6 +4,7 @@ import com.opentasker.core.data.TextOps
 import com.opentasker.core.engine.ActionContext
 import com.opentasker.core.engine.ActionResult
 import com.opentasker.core.engine.VariableStore
+import com.opentasker.core.engine.isArgumentSensitive
 import com.opentasker.core.model.VariableNamePolicy
 
 // Tasker's arrays are numbered variables: %arr1, %arr2, ... in the scope %arr belongs to. These
@@ -28,15 +29,17 @@ private fun VariableStore.elementsWithFlags(base: String): java.util.TreeMap<Int
     numberedItems(base).mapValuesTo(java.util.TreeMap()) { (index, value) -> value to isSensitive("$base$index") }
 
 /**
- * Tasker's Variable Split. Args: `name`, `splitter`, `regex`, `delete_base`. Splits %name into
- * %name1, %name2, ... after clearing the old ones. A blank splitter splits on white space, and
- * trailing empty parts are dropped the way Tasker drops them.
+ * Tasker's Variable Split. Args: `name`, `splitter`, `regex`, `delete_base`, `values`. Splits %name
+ * into %name1, %name2, ... after clearing the old ones. A blank splitter splits on white space, and
+ * trailing empty parts are dropped the way Tasker drops them. With `values` it splits that text
+ * instead of %name's own value, which is Tasker's Array Set.
  */
 class VarSplitAction : DeclaredAction(ActionCatalog.require("var.split")) {
 
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val base = arrayBase(args, "name") ?: return ActionResult.Failure("invalid variable name")
-        val source = ctx.variables.get(base) ?: return ActionResult.Failure("%$base is not set")
+        val values = args["values"]
+        val source = values ?: ctx.variables.get(base) ?: return ActionResult.Failure("%$base is not set")
         val splitter = args["splitter"].orEmpty()
         val regex = splitter.isEmpty() || args["regex"]?.toBooleanStrictOrNull() == true
         val parts = TextOps.split(source, splitter.ifEmpty { "\\s+" }, isRegex = regex)
@@ -46,7 +49,7 @@ class VarSplitAction : DeclaredAction(ActionCatalog.require("var.split")) {
         if (parts.isNotEmpty() && elementName(base, parts.size) == null) {
             return ActionResult.Failure("%$base${parts.size} is longer than ${VariableNamePolicy.MAX_LENGTH} characters")
         }
-        val sensitive = ctx.variables.isSensitive(base)
+        val sensitive = if (values != null) ctx.isArgumentSensitive("values") else ctx.variables.isSensitive(base)
         ctx.variables.replaceNumberedItems(base, parts.withIndex().associate { (index, part) -> index + 1 to (part to sensitive) })
         if (args["delete_base"]?.toBooleanStrictOrNull() == true) ctx.variables.remove(base)
         ctx.logger("var.split -> %$base (${parts.size} element(s))")
