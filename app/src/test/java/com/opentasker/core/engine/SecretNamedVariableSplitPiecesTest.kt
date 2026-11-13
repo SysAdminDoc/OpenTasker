@@ -47,6 +47,14 @@ class SecretNamedVariableSplitPiecesTest {
     }
 
     @Test
+    fun theSplitPiecesOfASecretNameEndingInADigitAreHidden() {
+        val (serialized, split) = splitChanges("api_key2")
+        assertEquals("<redacted>", split["api_key21"])
+        assertEquals("<redacted>", split["api_key22"])
+        assertFalse(serialized, "sk-live" in serialized)
+    }
+
+    @Test
     fun theSplitPiecesOfAnOrdinaryVariableShow() {
         val (_, split) = splitChanges("header")
         assertEquals("Bearer", split["header1"])

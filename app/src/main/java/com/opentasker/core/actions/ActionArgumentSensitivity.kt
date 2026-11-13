@@ -85,10 +85,11 @@ object ActionArgumentSensitivity {
      */
     fun hidesWrittenValue(actionType: String?, args: Map<String, String>, variableName: String): Boolean {
         if (actionType == "var.persist") return isSensitiveArgumentName(variableName) || isSensitiveArgumentName(args["name"].orEmpty())
-        val base = variableName.trimEnd(Char::isDigit)
+        // The step can name the variable with only digits after it, so `%api_key2` covers `api_key21`.
+        val shortest = variableName.trimEnd(Char::isDigit).length.coerceAtLeast(1)
         val (nameArg, _) = actionType?.let { NAME_KEYED_VALUE_ARGS[it] }
             ?: return isSensitiveArgumentName(variableName) &&
-                args.values.any { it.namesVariable(variableName) || it.namesVariable(base) }
+                (variableName.length downTo shortest).any { end -> args.values.any { it.namesVariable(variableName.take(end)) } }
         return isSensitiveArgumentName(variableName) ||
             (actionType == "var.set" && isSensitiveArgumentName(args[nameArg].orEmpty()))
     }
