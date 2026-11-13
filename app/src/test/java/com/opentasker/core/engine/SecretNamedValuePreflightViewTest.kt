@@ -53,4 +53,23 @@ class SecretNamedValuePreflightViewTest {
         val step = steps(ActionSpec(type = "var.set", args = mapOf("name" to "%color", "value" to "{{ hunter2 }}"))).single()
         assertTrue(step.warnings.toString(), step.warnings.any { "hunter2" in it })
     }
+
+    @Test
+    fun aTemplateWarningForALongValueShownShortenedStillShows() {
+        // Text after the template, since the shown value is trimmed and a missing one fills in empty.
+        val value = "x".repeat(ActionArgumentSensitivity.DEFAULT_MAX_VALUE_LENGTH) + " {{ hunter2 }} tail"
+        val step = steps(ActionSpec(type = "var.set", args = mapOf("name" to "%color", "value" to value))).single()
+        assertTrue(step.expandedArguments["value"].orEmpty().endsWith("..."))
+        assertTrue(step.warnings.toString(), step.warnings.any { "hunter2" in it })
+    }
+
+    @Test
+    fun aTemplateWarningForAValueThatReadsASecretStillShows() {
+        val step = PreflightRunner.preflightTask(
+            Task(id = 1, name = "T", actions = listOf(ActionSpec(type = "var.set", args = mapOf("name" to "%color", "value" to "%Token {{ hunter2 }}")))),
+            inputs = PreflightInputs(globalVariables = mapOf("Token" to "sk-abc"), secretGlobalNames = setOf("Token")),
+        ).tasks.single().steps.single()
+        assertEquals(ActionArgumentSensitivity.REDACTED, step.expandedArguments["value"])
+        assertTrue(step.warnings.toString(), step.warnings.any { "hunter2" in it })
+    }
 }

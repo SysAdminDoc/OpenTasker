@@ -992,10 +992,17 @@ object PreflightRunner {
             if (secret) ActionArgumentSensitivity.REDACTED
             else ActionArgumentSensitivity.maskValue(spec.type, key, expansion.value, expanded)
         }
-        // A warning can quote the text typed for a hidden value, like a missing `{{ hunter2 }}`.
+        // A value hidden for the name it goes to is a secret as a whole, so a warning can quote it, like
+        // a missing `{{ hunter2 }}` for %api_key, and the run log hides those warnings too. A value
+        // that only reads a secret, or a field hidden in itself like plugin settings, keeps its
+        // warnings, which point at a missing variable or the field's shape.
         val warnings = rawValues.flatMap { (key, expansion) ->
-            if (display.getValue(key) == expansion.value) expansion.warnings
-            else expansion.warnings.map { "$key: ${ActionArgumentSensitivity.REDACTED}" }
+            val hiddenForItsName = (key == "values" && valuesForSecretNames) ||
+                (ActionArgumentSensitivity.declaredSensitivity(spec.type, key) != true &&
+                    !ActionArgumentSensitivity.isSensitiveArgumentName(key) &&
+                    ActionArgumentSensitivity.isSensitive(spec.type, key, expanded))
+            if (hiddenForItsName) expansion.warnings.map { "$key: ${ActionArgumentSensitivity.REDACTED}" }
+            else expansion.warnings
         }
         val secretKeys = rawValues.filterValues { expansion -> expansion.traces.any { it.isSecretDerived } }.keys
         val secretValues = secretKeys.mapNotNullTo(mutableSetOf()) { rawValues.getValue(it).value.takeIf(String::isNotBlank) }
